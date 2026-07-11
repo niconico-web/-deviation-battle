@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Battle - Battle</title>
+
+    <link rel="stylesheet" href="css/battle.css">
+</head>
+
+<body>
+
+<div class="battle-container">
+
+    <h1>⚔ School Battle</h1>
+
+    <div class="players">
+
+        <div class="card" id="playerCard">
+
+            <h2>あなた</h2>
+
+            <h3 id="myName">----</h3>
+
+            <div id="myDamage" class="damage"></div>
+
+            <div class="hpbar">
+
+                <div id="myHPBar" class="fill"></div>
+
+            </div>
+
+            <p id="myHPText">HP 100 / 100</p>
+
+            <div class="stats">
+
+                <p id="myAtk">攻撃：-</p>
+                <p id="mySp">特殊：-</p>
+                <p id="myDef">防御：-</p>
+                <p id="mySpeed">素早さ：-</p>
+
+            </div>
+
+        </div>
+
+        <div class="vs">
+
+            VS
+
+        </div>
+
+        <div class="card" id="enemyCard">
+
+            <h2>相手</h2>
+
+            <h3 id="enemyName">待機中...</h3>
+
+            <div class="hpbar">
+
+                <div id="enemyHPBar" class="fill enemy"></div>
+
+            </div>
+
+            <p id="enemyHPText">HP ???</p>
+
+            <div class="stats">
+
+                <p id="enemyAtk">攻撃：？</p>
+                <p id="enemySp">特殊：？</p>
+                <p id="enemyDef">防御：？</p>
+                <p id="enemySpeed">素早さ：？</p>
+
+            </div>
+            <div id="enemyDamage" class="damage"></div>
+        </div>
+
+    </div>
+    <div class="ultimateGauge">
+
+    <div
+        id="ultimateGaugeBar"
+        class="ultimateFill">
+    </div>
+
+</div>
+
+    <div class="commands">
+
+        <button id="attackBtn">⚔ 攻撃</button>
+
+        <button id="specialBtn">✨ 特殊</button>
+
+        <button id="guardBtn">🛡 防御</button>
+        <button id="ultimateBtn" disabled>🔥 必殺技</button>
+
+    </div>
+
+    <div id="log">
+
+        戦闘開始！
+
+    </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script src="js/battle.js"></script>
+
+</body>
+</html>

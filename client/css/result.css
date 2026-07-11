@@ -1,0 +1,125 @@
+*{
+
+    margin:0;
+
+    padding:0;
+
+    box-sizing:border-box;
+
+    font-family:"Yu Gothic UI",sans-serif;
+
+}
+
+body{
+
+    background:linear-gradient(180deg,#0b1f3a,#08111f);
+
+    height:100vh;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    color:white;
+
+}
+
+#resultCard{
+
+    width:700px;
+
+    background:rgba(255,255,255,.08);
+
+    backdrop-filter:blur(12px);
+
+    border-radius:25px;
+
+    padding:40px;
+
+    text-align:center;
+
+    box-shadow:0 0 35px rgba(0,0,0,.5);
+
+}
+
+#resultTitle{
+
+    font-size:55px;
+
+    margin-bottom:30px;
+
+}
+
+p{
+
+    font-size:24px;
+
+    margin:18px;
+
+}
+
+.buttonArea{
+
+    margin-top:45px;
+
+}
+
+button{
+
+    width:220px;
+
+    height:60px;
+
+    margin:10px;
+
+    font-size:22px;
+
+    border:none;
+
+    border-radius:15px;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+button:hover{
+
+    transform:scale(1.05);
+
+}
+
+#retryBtn{
+
+    background:#1abc9c;
+
+    color:white;
+
+}
+
+#homeBtn{
+
+    background:#3498db;
+
+    color:white;
+
+}
+
+.win{
+
+    color:#ffe600;
+
+    text-shadow:0 0 15px gold;
+
+}
+
+.lose{
+
+    color:#ff4d4d;
+
+    text-shadow:0 0 15px red;
+
+}

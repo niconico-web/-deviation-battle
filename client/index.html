@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>School Battle</title>
+
+<link rel="stylesheet" href="css/style.css">
+
+</head>
+<body>
+
+<div class="container">
+
+<h1>🎓 School Battle</h1>
+
+<input id="playerName" placeholder="プレイヤー名">
+
+<h2>偏差値</h2>
+
+<div class="subjects">
+
+<label>国語
+<input id="jp" type="number" value="50" min="30" max="80">
+</label>
+
+<label>数学
+<input id="math" type="number" value="50" min="30" max="80">
+</label>
+
+<label>英語
+<input id="eng" type="number" value="50" min="30" max="80">
+</label>
+
+<label>理科
+<input id="sci" type="number" value="50" min="30" max="80">
+</label>
+
+<label>社会
+<input id="soc" type="number" value="50" min="30" max="80">
+</label>
+
+</div>
+
+<button onclick="createCharacter()">
+キャラクター作成
+</button>
+
+<div id="status">
+
+<h2>ステータス</h2>
+
+<p>まだキャラクターが作成されていません。</p>
+
+</div>
+
+<div class="buttons">
+
+    <button id="createRoom">
+        ルーム作成
+    </button>
+
+    <input
+        id="roomInput"
+        type="text"
+        placeholder="ルームコードを入力"
+        maxlength="6"
+    >
+
+    <button id="joinRoom">
+        ルーム参加
+    </button>
+    <button id="deletePlayer">
+🗑 プレイヤー削除
+</button>
+
+</div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/script.js"></script>
+
+</body>
+</html>\
