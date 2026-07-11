@@ -14,22 +14,24 @@ function createRoom(roomId, hostSocketId) {
 
 function joinRoom(roomId, guestSocketId) {
 
+    console.log("現在のルーム一覧:", rooms);
+    console.log("参加するルーム:", roomId);
+
     if (!rooms[roomId]) {
-
+        console.log("ルームが存在しません");
         return false;
-
     }
 
     if (rooms[roomId].guest !== null) {
-
+        console.log("すでに満員です");
         return false;
-
     }
 
     rooms[roomId].guest = guestSocketId;
 
-    return true;
+    console.log("参加成功");
 
+    return true;
 }
 
 function getRoom(roomId) {
