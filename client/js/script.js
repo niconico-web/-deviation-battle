@@ -81,9 +81,9 @@ function createCharacter() {
 
         name,
 
-        hp,
-
         maxHp: hp,
+
+        hp: hp,
 
         atk,
 
@@ -251,44 +251,31 @@ socket.on("joinFailed", () => {
 // マッチ成立
 // ============================================
 
-socket.on("roomReady", (data) => {
+socket.on("roomReady",(data)=>{
 
-    // 部屋番号保存
     localStorage.setItem(
-
         "roomId",
-
         data.roomId
-
     );
 
-    // 自分
-localStorage.setItem(
-    "player",
-    JSON.stringify(data.me)
-);
-
-localStorage.setItem(
-    "enemy",
-    JSON.stringify(data.enemy)
-);
-
-localStorage.setItem(
-    "myTurn",
-    data.myTurn
-);
+    localStorage.setItem(
+        "player",
+        JSON.stringify(data.me)
+    );
 
     localStorage.setItem(
-
         "enemy",
+        JSON.stringify(data.enemy)
+    );
 
-        JSON.stringify(enemy)
-
+    localStorage.setItem(
+        "myTurn",
+        String(data.myTurn)
     );
 
     alert("マッチングしました！");
 
-    window.location.href = "battle.html";
+    location.href="battle.html";
 
 });
 // ============================================

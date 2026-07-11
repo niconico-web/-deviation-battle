@@ -177,14 +177,6 @@ module.exports={
 
     getBattle,
 
-    getPlayer,
-
-    getEnemy,
-
-    nextTurn,
-
-    finishBattle,
-
     deleteBattle
 
 };

@@ -201,129 +201,57 @@ module.exports = function(io){
         );
 
         });
-socket.on("playerAction",(data)=>{
+// -----------------------------
+// プレイヤー行動
+// -----------------------------
 
-    const battle = BattleManager.getBattle(
-        data.roomId
-    );
+        socket.on("playerAction",(data)=>{
 
-    if(!battle) return;
+            const battle =
+            BattleManager.getBattle(data.roomId);
 
-    if(battle.finished) return;
+            if(!battle) return;
 
-    if(battle.turn !== socket.id){
+            if(battle.finished) return;
 
-        return;
+            if(battle.turn !== socket.id) return;
 
-    }
+            const result =
+                BattleEngine.executeAction(
 
-    const me =
-        BattleManager.getPlayer(
-            data.roomId,
-            socket.id
-        );
+                    battle,
 
-    const enemy =
-        BattleManager.getEnemy(
-            data.roomId,
-            socket.id
-        );
+                    socket.id,
 
-    let result;
+                    data.action
 
-    switch(data.action){
-
-        case "attack":
-
-            result =
-                BattleEngine.calculateAttack(
-                    me,
-                    enemy
                 );
 
-            break;
+            io.to(data.roomId).emit(
 
-        case "special":
+                "battleUpdate",
 
-            result =
-                BattleEngine.calculateSpecial(
-                    me,
-                    enemy
+                result
+
+            );
+
+            if(battle.finished){
+
+                io.to(data.roomId).emit(
+
+                    "battleFinished",
+
+                    {
+
+                        winner:result.winner
+
+                    }
+
                 );
 
-            break;
+            }
 
-        case "ultimate":
-
-            result =
-                BattleEngine.calculateUltimate(
-                    me,
-                    enemy
-                );
-
-            break;
-
-        case "guard":
-
-            BattleEngine.guard(me);
-
-            result = {
-
-                guard:true
-
-            };
-
-            break;
-
-        default:
-
-            return;
-
-    }
-
-    BattleManager.nextTurn(
-        data.roomId
-    );
-if(enemy.hp<=0){
-
-    BattleManager.finishBattle(
-        data.roomId
-    );
-
-    io.to(data.roomId).emit(
-        "battleFinished",
-        {
-
-            winner:me.id,
-
-            loser:enemy.id
-
-        }
-
-    );
-
-    return;
-
-}
-    io.to(data.roomId).emit(
-        "battleUpdate",
-        {
-
-            action:data.action,
-
-            attacker:me,
-
-            defender:enemy,
-
-            result,
-
-            turn:battle.turn
-
-        }
-
-    );
-
-});
+        });
         socket.on("battleFinished",(data)=>{
 
             io.to(data.roomId).emit(
@@ -369,6 +297,11 @@ if(enemy.hp<=0){
                 "現在のプレイヤー:",
 
                 PlayerManager.getPlayers()
+
+            );
+            socket.broadcast.emit(
+
+                "opponentLeft"
 
             );
 

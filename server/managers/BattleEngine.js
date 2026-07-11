@@ -206,7 +206,123 @@ function guard(player){
 }
 
 // -----------------------------
+// -----------------------------
+// 行動実行
+// -----------------------------
 
+function executeAction(
+    battle,
+    attackerId,
+    action
+){
+
+    const attacker =
+        battle.players[attackerId];
+
+    const defenderId =
+        Object.keys(battle.players)
+        .find(id => id !== attackerId);
+
+    const defender =
+        battle.players[defenderId];
+
+    let result;
+
+    switch(action){
+
+        case "attack":
+
+            result =
+                calculateAttack(
+                    attacker,
+                    defender
+                );
+
+            break;
+
+        case "special":
+
+            result =
+                calculateSpecial(
+                    attacker,
+                    defender
+                );
+
+            break;
+
+        case "guard":
+
+            guard(attacker);
+
+            result = {
+
+                damage:0,
+                guard:true
+
+            };
+
+            break;
+
+        case "ultimate":
+
+            result =
+                calculateUltimate(
+                    attacker,
+                    defender
+                );
+
+            break;
+
+        default:
+
+            return null;
+
+    }
+
+    // 必殺ゲージ
+
+    attacker.ultimate += 20;
+
+    if(attacker.ultimate>100){
+
+        attacker.ultimate=100;
+
+    }
+
+    // ターン交代
+
+    battle.turn = defenderId;
+
+    // 勝敗
+
+    if(defender.hp<=0){
+
+        battle.finished = true;
+    }
+
+    return{
+
+        attacker,
+
+        defender,
+
+        action,
+
+        result,
+
+        turn:battle.turn,
+
+        winner:
+
+            battle.finished
+
+            ? attacker.id
+
+            : null
+
+    };
+
+}
 module.exports={
 
     calculateAttack,
@@ -215,6 +331,8 @@ module.exports={
 
     calculateUltimate,
 
-    guard
+    guard,
+
+    executeAction
 
 };
