@@ -10,9 +10,19 @@ const players = {};
 // プレイヤー追加
 // -------------------------
 
+// -------------------------
+// プレイヤー追加
+// -------------------------
+
 function addPlayer(socketId, player){
 
-    players[socketId] = player;
+    players[socketId] = {
+
+        id: socketId,
+
+        ...player
+
+    };
 
 }
 
