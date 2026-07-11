@@ -263,31 +263,20 @@ socket.on("roomReady", (data) => {
     );
 
     // 自分
-    const me = getPlayerData();
+localStorage.setItem(
+    "player",
+    JSON.stringify(data.me)
+);
 
-    localStorage.setItem(
+localStorage.setItem(
+    "enemy",
+    JSON.stringify(data.enemy)
+);
 
-        "player",
-
-        JSON.stringify(me)
-
-    );
-
-    // 相手
-
-    let enemy = null;
-
-    if(me.name === data.host.name){
-
-        enemy = data.guest;
-
-    }
-
-    else{
-
-        enemy = data.host;
-
-    }
+localStorage.setItem(
+    "myTurn",
+    data.myTurn
+);
 
     localStorage.setItem(
 
