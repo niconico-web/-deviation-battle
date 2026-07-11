@@ -1,74 +1,43 @@
 // ============================================
 // School Battle
-// battle.js
-// Version 1.0
-// Commit #010
-// Part 1 / 8
+// battle_v11.js
+// Commit #013
+// Part 1 / 4
 // ============================================
-
-// --------------------------------------------
-// Socket.IO
-// --------------------------------------------
 
 const socket = io();
 
-// --------------------------------------------
+// ---------------------
 // LocalStorage
-// --------------------------------------------
-
-const me = JSON.parse(
-    localStorage.getItem("player")
-);
-
-const enemy = JSON.parse(
-    localStorage.getItem("enemy")
-);
+// ---------------------
 
 const roomId =
     localStorage.getItem("roomId");
 
-const GAME_MODE =
-    localStorage.getItem("gameMode") || "online";
+const me =
+    JSON.parse(
+        localStorage.getItem("player")
+    );
 
-// --------------------------------------------
-// Battle Constants
-// --------------------------------------------
+const enemy =
+    JSON.parse(
+        localStorage.getItem("enemy")
+    );
+    const turnText =
+    document.getElementById("turnText");
 
-const HIT_RATE = 95;
-const DODGE_RATE = 5;
+// ---------------------
+// 状態
+// ---------------------
 
-const CRITICAL_RATE = 0.20;
-const CRITICAL_POWER = 1.5;
-
-const RANDOM_DAMAGE_MIN = -5;
-const RANDOM_DAMAGE_MAX = 5;
-
-const GUARD_RATE = 0.5;
-
-const MAX_ULTIMATE = 100;
-
-// --------------------------------------------
-// Battle State
-// --------------------------------------------
+let myTurn =
+    localStorage.getItem("myTurn")==="true";
 
 let battleEnd = false;
 
-let myTurn = true;
-
-let myGuard = false;
-let enemyGuard = false;
-
-let turn = 1;
-
-let ultimateGauge = 0;
-
-let totalDamage = 0;
-
-let criticalCount = 0;
-
-// --------------------------------------------
+// ---------------------
 // DOM
-// --------------------------------------------
+// ---------------------
 
 const myName =
     document.getElementById("myName");
@@ -102,108 +71,35 @@ const ultimateBtn =
 
 const log =
     document.getElementById("log");
+    window.onload = () => {
 
-// --------------------------------------------
-// 起動
-// --------------------------------------------
-
-window.onload = () => {
-
-    initializeBattle();
+    initialize();
 
 };
 
-// --------------------------------------------
-// 初期化
-// --------------------------------------------
+function initialize(){
 
-function initializeBattle(){
-    if(!checkData()) return;
+    if(!me || !enemy){
 
-    if(!me){
-
-        alert("プレイヤーデータがありません。");
+        alert("対戦データがありません。");
 
         location.href = "index.html";
 
         return;
 
     }
-
-    if(!enemy){
-
-        alert("対戦相手が見つかりません。");
-
-        location.href = "index.html";
-
-        return;
-
-    }
-
-    updateScreen();
-
-    addLog("⚔ Battle Start!");
-
-    addLog(`${me.name} が勝負を挑んできた！`);
-
-    updateUltimateGauge();
-    setButtonsEnabled(true);
-    ultimateGauge=0;
-
-    updateUltimateGauge();
-
-}
-// ============================================
-// Commit #010
-// Part 2 / 8
-// 画面更新・演出
-// ============================================
-
-// --------------------------------------------
-// 画面更新
-// --------------------------------------------
-
-function updateScreen(){
 
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
 
-    document.getElementById("myAtk").textContent =
-        "攻撃：" + me.atk;
-
-    document.getElementById("mySp").textContent =
-        "特殊：" + me.sp;
-
-    document.getElementById("myDef").textContent =
-        "防御：" + me.def;
-
-    document.getElementById("mySpeed").textContent =
-        "素早さ：" + me.speed;
-
-    document.getElementById("enemyAtk").textContent =
-        "攻撃：" + enemy.atk;
-
-    document.getElementById("enemySp").textContent =
-        "特殊：" + enemy.sp;
-
-    document.getElementById("enemyDef").textContent =
-        "防御：" + enemy.def;
-
-    document.getElementById("enemySpeed").textContent =
-        "素早さ：" + enemy.speed;
-
     updateHP();
 
+    addLog("⚔ Battle Start!");
+
+    updateButtons();
+
 }
-
-// --------------------------------------------
-// HP更新
-// --------------------------------------------
-
 function updateHP(){
-
-    me.hp = Math.max(0, me.hp);
-    enemy.hp = Math.max(0, enemy.hp);
 
     myHPText.textContent =
         `HP ${me.hp} / ${me.maxHp}`;
@@ -211,843 +107,257 @@ function updateHP(){
     enemyHPText.textContent =
         `HP ${enemy.hp} / ${enemy.maxHp}`;
 
-    animateHPBar(
-        myHPBar,
-        me.hp,
-        me.maxHp
-    );
+    myHPBar.style.width =
+        (me.hp/me.maxHp*100)+"%";
 
-    animateHPBar(
-        enemyHPBar,
-        enemy.hp,
-        enemy.maxHp
-    );
+    enemyHPBar.style.width =
+        (enemy.hp/enemy.maxHp*100)+"%";
 
 }
+me.ultimate =
+    data.attacker.id===me.id
 
-// --------------------------------------------
-// HPバーアニメーション
-// --------------------------------------------
+    ? data.attacker.ultimate
 
-function animateHPBar(bar,hp,maxHp){
+    : data.defender.ultimate;
 
-    const percent =
-        Math.max(0,(hp/maxHp)*100);
+const gauge =
+    document.getElementById(
+        "ultimateGaugeBar"
+    );
 
-    bar.style.transition =
-        "width .35s ease";
+if(gauge){
 
-    bar.style.width =
-        percent + "%";
+    gauge.style.width =
+        me.ultimate + "%";
 
 }
-
-// --------------------------------------------
-// ログ追加
-// --------------------------------------------
-
 function addLog(text){
 
-    const line =
+    const div =
         document.createElement("div");
 
-    line.textContent = text;
+    div.textContent = text;
 
-    log.appendChild(line);
+    log.appendChild(div);
 
     log.scrollTop =
         log.scrollHeight;
 
 }
-
-// --------------------------------------------
-// ダメージ表示
-// --------------------------------------------
-
-function showDamage(cardId,damage){
-
-    const target =
-
-        cardId==="playerCard"
-
-        ? document.getElementById("myDamage")
-
-        : document.getElementById("enemyDamage");
-
-    target.textContent =
-        "-" + damage;
-
-    target.classList.add("show");
-
-    setTimeout(()=>{
-
-        target.classList.remove("show");
-
-        target.textContent="";
-
-    },900);
-
-}
-
-// --------------------------------------------
-// ヒットアニメーション
-// --------------------------------------------
-
-function hitAnimation(cardId){
-
-    const card =
-        document.getElementById(cardId);
-
-    card.classList.remove("hit");
-
-    void card.offsetWidth;
-
-    card.classList.add("hit");
-
-    setTimeout(()=>{
-
-        card.classList.remove("hit");
-
-    },250);
-
-}
 // ============================================
-// Commit #010
-// Part 3 / 8
-// ダメージ計算
+// サーバーから戦闘更新
 // ============================================
 
-// --------------------------------------------
-// ランダム値
-// --------------------------------------------
+socket.on("battleUpdate",(data)=>{
 
-function randomRange(min,max){
+    if(battleEnd) return;
 
-    return Math.floor(
+    // -----------------------------
+    // HP同期
+    // -----------------------------
 
-        Math.random() *
+    if(data.attacker.id===me.id){
 
-        (max-min+1)
+        me.hp=data.attacker.hp;
+        enemy.hp=data.defender.hp;
 
-    ) + min;
+    }else{
 
-}
-
-// --------------------------------------------
-// ダメージ計算
-// --------------------------------------------
-
-function calculateDamage(
-
-    power,
-
-    attacker,
-
-    target,
-
-    guard
-
-){
-
-    // 命中判定
-    if(Math.random()*100 > HIT_RATE){
-
-        return{
-
-            damage:0,
-
-            critical:false,
-
-            miss:true
-
-        };
-
-    }
-
-    // 回避判定
-    if(Math.random()*100 < DODGE_RATE){
-
-        return{
-
-            damage:0,
-
-            critical:false,
-
-            miss:true
-
-        };
-
-    }
-
-    let damage =
-
-        power
-
-        - target.def * 0.5
-
-        + randomRange(
-
-            RANDOM_DAMAGE_MIN,
-
-            RANDOM_DAMAGE_MAX
-
-        );
-
-    let critical = false;
-
-    // クリティカル
-    if(Math.random() < CRITICAL_RATE){
-
-        damage *= CRITICAL_POWER;
-
-        critical = true;
-
-    }
-
-    // 防御
-    if(guard){
-
-        damage *= GUARD_RATE;
-
-    }
-
-    damage = Math.floor(damage);
-
-    if(damage < 1){
-
-        damage = 1;
-
-    }
-
-    return{
-
-        damage,
-
-        critical,
-
-        miss:false
-
-    };
-
-}
-// --------------------------------------------
-// ターゲットへダメージ
-// --------------------------------------------
-
-function applyDamage(
-
-    target,
-
-    damage
-
-){
-
-    target.hp -= damage;
-
-    if(target.hp < 0){
-
-        target.hp = 0;
+        me.hp=data.defender.hp;
+        enemy.hp=data.attacker.hp;
 
     }
 
     updateHP();
 
-}
-// ============================================
-// Commit #010
-// Part 4 / 8
-// 攻撃処理
-// ============================================
+    // -----------------------------
+    // ターン同期
+    // -----------------------------
 
-// --------------------------------------------
-// 通常攻撃
-// --------------------------------------------
+    myTurn=(data.turn===me.id);
 
-function attack(attacker,target,power,guard){
+    updateButtons();
 
-    const result = calculateDamage(
+    // -----------------------------
+    // ログ
+    // -----------------------------
 
-        power,
+    switch(data.action){
 
-        attacker,
+        case "attack":
 
-        target,
+            addLog(
+                `${data.attacker.name} の攻撃！`
+            );
 
-        guard
+            break;
 
-    );
+        case "special":
 
-    if(result.miss){
+            addLog(
+                `${data.attacker.name} の特殊攻撃！`
+            );
 
-        addLog("💨 攻撃は外れた！");
+            break;
 
-        return 0;
+        case "guard":
+
+            addLog(
+                `${data.attacker.name} は防御した！`
+            );
+
+            break;
+
+        case "ultimate":
+
+            addLog(
+                `${data.attacker.name} の必殺技！`
+            );
+
+            break;
 
     }
 
-    applyDamage(
+    if(data.result.miss){
 
-        target,
+        addLog("攻撃は外れた！");
 
-        result.damage
+    }else if(data.result.guard){
 
-    );
+        addLog("防御態勢！");
 
-    if(target===enemy){
+    }else{
 
-        hitAnimation("enemyCard");
-
-        showDamage(
-
-            "enemyCard",
-
-            result.damage
-
+        addLog(
+            `${data.result.damage} ダメージ`
         );
 
     }
 
-    else{
+});
+function updateButtons(){
 
-        hitAnimation("playerCard");
+    const canUltimate =
+        me.ultimate >= 100;
 
-        showDamage(
+    attackBtn.disabled =
+        !myTurn || battleEnd;
 
-            "playerCard",
+    specialBtn.disabled =
+        !myTurn || battleEnd;
 
-            result.damage
-
-        );
-
-    }
-
-    if(result.critical){
-
-        criticalCount++;
-
-        addLog("💥 クリティカル！！");
-
-    }
-
-    if(attacker===me){
-
-        totalDamage += result.damage;
-
-        addUltimateGauge(20);
-
-    }
-
-    updateHP();
-
-    checkBattleEnd();
-
-    return result.damage;
-
-}
-
-// --------------------------------------------
-// プレイヤー通常攻撃
-// --------------------------------------------
-
-function playerAttack(){
-
-    if(battleEnd) return;
-
-    if(!myTurn) return;
-
-    enemyGuard=false;
-
-    const damage = attack(
-
-        me,
-
-        enemy,
-
-        me.atk,
-
-        enemyGuard
-
-    );
-
-    addLog(
-
-        `⚔ ${me.name} の攻撃！`
-
-    );
-
-    addLog(
-
-        `${damage} ダメージ！`
-
-    );
-
-    sendAction("attack");
-
-    endTurn();
-
-}
-
-// --------------------------------------------
-// 特殊攻撃
-// --------------------------------------------
-
-function playerSpecial(){
-
-    if(battleEnd) return;
-
-    if(!myTurn) return;
-
-    enemyGuard=false;
-
-    const damage = attack(
-
-        me,
-
-        enemy,
-
-        Math.floor(me.sp*1.3),
-
-        enemyGuard
-
-    );
-
-    addLog(
-
-        `✨ ${me.name} の特殊攻撃！`
-
-    );
-
-    addLog(
-
-        `${damage} ダメージ！`
-
-    );
-
-    sendAction("special");
-
-    endTurn();
-
-}
-
-// --------------------------------------------
-// 防御
-// --------------------------------------------
-
-function playerGuard(){
-
-    if(battleEnd) return;
-
-    if(!myTurn) return;
-
-    myGuard=true;
-
-    addLog("🛡 防御した！");
-
-    sendAction("guard");
-
-    endTurn();
-
-}
-// ============================================
-// 必殺技
-// ============================================
-
-function playerUltimate(){
-
-    if(battleEnd) return;
-
-    if(!myTurn) return;
-
-    if(ultimateGauge<MAX_ULTIMATE){
-
-        return;
-
-    }
-
-    ultimateGauge=0;
-
-    updateUltimateGauge();
-
-    const damage = attack(
-
-        me,
-
-        enemy,
-
-        Math.floor(me.sp*2.5),
-
-        enemyGuard
-
-    );
-
-    addLog("🔥 必殺技！！");
-
-    addLog(
-
-        `${damage} ダメージ！`
-
-    );
-
-    sendAction("ultimate");
-
-    endTurn();
-
-}
-// ============================================
-// ボタン登録
-// ============================================
-
-attackBtn.onclick = playerAttack;
-
-specialBtn.onclick = playerSpecial;
-
-guardBtn.onclick = playerGuard;
-
-ultimateBtn.onclick = playerUltimate;
-// ============================================
-// Commit #010
-// Part 5 / 8
-// ターン管理
-// ============================================
-
-// --------------------------------------------
-// ターン終了
-// --------------------------------------------
-
-function endTurn(){
-
-    myTurn = false;
-
-    setButtonsEnabled(false);
-
-}
-
-// --------------------------------------------
-// ターン開始
-// --------------------------------------------
-
-function startTurn(){
-
-    myTurn = true;
-
-    setButtonsEnabled(true);
-
-}
-
-// --------------------------------------------
-// ボタン切替
-// --------------------------------------------
-
-function setButtonsEnabled(enabled){
-
-    attackBtn.disabled = !enabled;
-
-    specialBtn.disabled = !enabled;
-
-    guardBtn.disabled = !enabled;
+    guardBtn.disabled =
+        !myTurn || battleEnd;
 
     ultimateBtn.disabled =
+        !myTurn ||
+        battleEnd ||
+        !canUltimate;
 
-        !enabled ||
+    if(turnText){
 
-        ultimateGauge < MAX_ULTIMATE;
-
-}
-// ============================================
-// 勝敗判定
-// ============================================
-
-function checkBattleEnd(){
-
-    if(me.hp <= 0){
-
-        me.hp = 0;
-
-        battleEnd = true;
-
-        finishBattle("lose");
-
-        return true;
+        turnText.textContent =
+            myTurn
+            ? "🟢 あなたのターン"
+            : "🔴 相手のターン";
 
     }
 
-    if(enemy.hp <= 0){
-
-        enemy.hp = 0;
-
-        battleEnd = true;
-
-        finishBattle("win");
-
-        return true;
-
-    }
-
-    return false;
-
 }
-// ============================================
-// バトル終了
-// ============================================
+socket.on("connect",()=>{
 
-function finishBattle(result){
+    console.log("Connected");
 
-    setButtonsEnabled(false);
+});
+socket.on("battleFinished",(data)=>{
+
+    battleEnd=true;
+
+    updateButtons();
+
+    const win =
+        data.winner===me.id;
+
+    addLog(
+
+        win
+
+        ? "🏆 勝利！"
+
+        : "💀 敗北..."
+
+    );
 
     localStorage.setItem(
 
         "battleResult",
 
-        result
+        win
 
     );
-
-    localStorage.setItem(
-
-        "battleTurn",
-
-        turn
-
-    );
-
-    localStorage.setItem(
-
-        "playerHP",
-
-        me.hp
-
-    );
-
-    localStorage.setItem(
-
-        "enemyHP",
-
-        enemy.hp
-
-    );
-
-    localStorage.setItem(
-
-        "totalDamage",
-
-        totalDamage
-
-    );
-
-    localStorage.setItem(
-
-        "criticalCount",
-
-        criticalCount
-
-    );
-
-    addLog("");
-
-    if(result==="win"){
-
-        addLog("🏆 勝利！！");
-
-    }
-
-    else{
-
-        addLog("💀 敗北...");
-
-    }
-
-    setTimeout(()=>{
-
-    socket.emit("battleFinished",{
-
-        roomId,
-
-        result
-
-    });
-
-},1500);
-    socket.disconnect();
-
-}
-// ============================================
-// Commit #010
-// Part 5 / 8
-// ターン管理
-// ============================================
-
-// --------------------------------------------
-// 自分のターン終了
-// --------------------------------------------
-
-function endTurn(){
-
-    myTurn = false;
-
-    setButtonsEnabled(false);
-
-}
-
-// --------------------------------------------
-// 自分のターン開始
-// --------------------------------------------
-
-function startTurn(){
-
-    myTurn = true;
-
-    myGuard = false;
-
-    setButtonsEnabled(true);
-
-}
-
-// --------------------------------------------
-// ボタン切替
-// --------------------------------------------
-
-function setButtonsEnabled(enabled){
-
-    attackBtn.disabled = !enabled;
-
-    specialBtn.disabled = !enabled;
-
-    guardBtn.disabled = !enabled;
-
-    ultimateBtn.disabled =
-
-        !enabled ||
-
-        ultimateGauge < MAX_ULTIMATE;
-
-}
-// ============================================
-// 勝敗判定
-// ============================================
-
-function checkBattleEnd(){
-
-    if(me.hp <= 0){
-
-        me.hp = 0;
-
-        updateHP();
-
-        finishBattle("lose");
-
-        return true;
-
-    }
-
-    if(enemy.hp <= 0){
-
-        enemy.hp = 0;
-
-        updateHP();
-
-        finishBattle("win");
-
-        return true;
-
-    }
-
-    return false;
-
-}
-// ============================================
-// バトル終了
-// ============================================
-
-function finishBattle(result){
-
-    if(battleEnd){
-
-        return;
-
-    }
-
-    battleEnd = true;
-
-    setButtonsEnabled(false);
-
-    localStorage.setItem(
-
-        "battleResult",
-
-        result
-
-    );
-
-    localStorage.setItem(
-
-        "battleTurn",
-
-        turn
-
-    );
-
-    localStorage.setItem(
-
-        "playerHP",
-
-        me.hp
-
-    );
-
-    localStorage.setItem(
-
-        "enemyHP",
-
-        enemy.hp
-
-    );
-
-    localStorage.setItem(
-
-        "totalDamage",
-
-        totalDamage
-
-    );
-
-    localStorage.setItem(
-
-        "criticalCount",
-
-        criticalCount
-
-    );
-
-    if(result==="win"){
-
-        addLog("🏆 勝利！！");
-
-    }
-
-    else{
-
-        addLog("💀 敗北...");
-
-    }
 
     setTimeout(()=>{
 
         location.href="result.html";
 
-    },2000);
+    },2500);
 
-}
-// ============================================
-// Commit #010
-// Part 6 / 8
-// Socket通信
-// ============================================
+});
+socket.on("opponentLeft",()=>{
 
-// --------------------------------------------
+    battleEnd=true;
+
+    updateButtons();
+
+    addLog("相手が退出しました。");
+
+    alert("相手が退出しました。");
+
+    location.href="index.html";
+
+});
+// ============================================
 // 行動送信
-// --------------------------------------------
+// ============================================
 
+
+// ============================================
+// ボタン
+// ============================================
+
+attackBtn.onclick=()=>{
+
+    sendAction("attack");
+
+};
+
+specialBtn.onclick=()=>{
+
+    sendAction("special");
+
+};
+
+guardBtn.onclick=()=>{
+
+    sendAction("guard");
+
+};
+
+ultimateBtn.onclick=()=>{
+
+    sendAction("ultimate");
+
+};
 function sendAction(action){
+
+    if(!myTurn) return;
+
+    if(battleEnd) return;
+
+    myTurn=false;
+
+    updateButtons();
 
     socket.emit("playerAction",{
 
@@ -1058,207 +368,3 @@ function sendAction(action){
     });
 
 }
-// --------------------------------------------
-// 相手の行動受信
-// --------------------------------------------
-
-socket.on("playerAction",(data)=>{
-
-    if(battleEnd) return;
-
-    switch(data.action){
-
-        case "attack":
-
-            addLog("⚔ 相手の攻撃！");
-
-            attack(
-
-                enemy,
-
-                me,
-
-                enemy.atk,
-
-                myGuard
-
-            );
-
-            myGuard=false;
-
-            break;
-
-        case "special":
-
-            addLog("✨ 相手の特殊攻撃！");
-
-            attack(
-
-                enemy,
-
-                me,
-
-                Math.floor(enemy.sp*1.3),
-
-                myGuard
-
-            );
-
-            myGuard=false;
-
-            break;
-
-        case "guard":
-
-            enemyGuard=true;
-
-            addLog("🛡 相手は防御した！");
-
-            break;
-
-        case "ultimate":
-
-            addLog("🔥 相手の必殺技！！");
-
-            attack(
-
-                enemy,
-
-                me,
-
-                Math.floor(enemy.sp*2.5),
-
-                myGuard
-
-            );
-
-            myGuard=false;
-
-            break;
-
-    }
-
-    turn++;
-
-    startTurn();
-
-});
-// --------------------------------------------
-// サーバー接続
-// --------------------------------------------
-
-socket.on("connect",()=>{
-
-    console.log("Socket Connected");
-
-});
-// ============================================
-// バトル終了同期
-// ============================================
-
-socket.on("battleFinished",(data)=>{
-
-    localStorage.setItem(
-
-        "battleResult",
-
-        data.result
-
-    );
-
-    location.href="result.html";
-
-});
-// ============================================
-// 再戦
-// ============================================
-
-function requestRematch(){
-
-    socket.emit("requestRematch",roomId);
-
-}
-socket.on("rematchReady",()=>{
-
-    location.reload();
-
-});
-function resetRoom(roomId){
-
-    if(!rooms[roomId]) return;
-
-    // 今後HPや状態を初期化する場合はここに追加
-}
-
-module.exports = {
-
-    createRoom,
-
-    joinRoom,
-
-    getRoom,
-
-    deleteRoom,
-
-    resetRoom
-
-};
-// ============================================
-// エラーチェック
-// ============================================
-
-function checkData(){
-
-    if(!me){
-
-        alert("プレイヤーデータがありません。");
-
-        location.href="index.html";
-
-        return false;
-
-    }
-
-    if(!enemy){
-
-        alert("対戦相手が見つかりません。");
-
-        location.href="index.html";
-
-        return false;
-
-    }
-
-    return true;
-
-}
-// ============================================
-// デバッグ
-// ============================================
-
-window.debugBattle=()=>{
-
-    console.table({
-
-        me,
-
-        enemy,
-
-        roomId,
-
-        myTurn,
-
-        battleEnd,
-
-        ultimateGauge,
-
-        turn
-
-    });
-
-};
-// ============================================
-// Battle Ready
-// ============================================
-
-console.log("Battle Ready.");
