@@ -7,6 +7,8 @@
 
 const PlayerManager = require("../managers/PlayerManager");
 const RoomManager = require("../managers/RoomManager");
+const BattleManager = require("../managers/BattleManager");
+const BattleEngine = require("../managers/BattleEngine");
 
 module.exports = function(io){
 
@@ -152,41 +154,192 @@ module.exports = function(io){
 
             );
 
-            io.to(roomId).emit(
+            // -----------------------------
+        // Battle作成
+        // -----------------------------
 
-                "roomReady",
+        const battle = BattleManager.createBattle(
+            roomId,
+            host,
+            guest
+        );
 
-                {
+        // -----------------------------
+        // Hostへ送信
+        // -----------------------------
 
-                    roomId,
+        io.to(room.host).emit(
+            "roomReady",
+            {
+                roomId,
 
-                    host,
+                me: battle.players[room.host],
 
-                    guest
+                enemy: battle.players[room.guest],
 
-                }
+                myTurn:
+                battle.turn === room.host
+            }
+        );
 
+        // -----------------------------
+        // Guestへ送信
+        // -----------------------------
+
+        io.to(room.guest).emit(
+            "roomReady",
+            {
+                roomId,
+
+                me: battle.players[room.guest],
+
+                enemy: battle.players[room.host],
+
+            myTurn:
+                battle.turn === room.guest
+        }
+        );
+
+        });
+socket.on("playerAction",(data)=>{
+
+    const battle = BattleManager.getBattle(
+        data.roomId
+    );
+
+    if(!battle) return;
+
+    if(battle.finished) return;
+
+    if(battle.turn !== socket.id){
+
+        return;
+
+    }
+
+    const me =
+        BattleManager.getPlayer(
+            data.roomId,
+            socket.id
+        );
+
+    const enemy =
+        BattleManager.getEnemy(
+            data.roomId,
+            socket.id
+        );
+
+    let result;
+
+    switch(data.action){
+
+        case "attack":
+
+            result =
+                BattleEngine.calculateAttack(
+                    me,
+                    enemy
+                );
+
+            break;
+
+        case "special":
+
+            result =
+                BattleEngine.calculateSpecial(
+                    me,
+                    enemy
+                );
+
+            break;
+
+        case "ultimate":
+
+            result =
+                BattleEngine.calculateUltimate(
+                    me,
+                    enemy
+                );
+
+            break;
+
+        case "guard":
+
+            BattleEngine.guard(me);
+
+            result = {
+
+                guard:true
+
+            };
+
+            break;
+
+        default:
+
+            return;
+
+    }
+
+    BattleManager.nextTurn(
+        data.roomId
+    );
+if(enemy.hp<=0){
+
+    BattleManager.finishBattle(
+        data.roomId
+    );
+
+    io.to(data.roomId).emit(
+        "battleFinished",
+        {
+
+            winner:me.id,
+
+            loser:enemy.id
+
+        }
+
+    );
+
+    return;
+
+}
+    io.to(data.roomId).emit(
+        "battleUpdate",
+        {
+
+            action:data.action,
+
+            attacker:me,
+
+            defender:enemy,
+
+            result,
+
+            turn:battle.turn
+
+        }
+
+    );
+
+});
+        socket.on("battleFinished",(data)=>{
+
+            io.to(data.roomId).emit(
+                "battleFinished",
+                data
+            );
+
+            BattleManager.finishBattle(
+                data.roomId
             );
 
         });
-                // -----------------------------
-        // プレイヤー行動
-        // -----------------------------
+        socket.on("requestRematch",(roomId)=>{
 
-        socket.on("playerAction",(data)=>{
-
-            socket.to(data.roomId).emit(
-
-                "playerAction",
-
-                {
-
-                    action:data.action,
-
-                    playerId:socket.id
-
-                }
-
+            io.to(roomId).emit(
+            "rematchReady"
             );
 
         });

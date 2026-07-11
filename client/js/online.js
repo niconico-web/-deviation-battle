@@ -1,40 +1,28 @@
-const socket = io();
+socket.on("roomReady", (data) => {
 
-document.getElementById("createRoom").onclick = () => {
+    // ルームID保存
+    localStorage.setItem(
+        "roomId",
+        data.roomId
+    );
 
-    socket.emit("createRoom");
+    // 自分
+    localStorage.setItem(
+        "player",
+        JSON.stringify(data.me)
+    );
 
-};
+    // 相手
+    localStorage.setItem(
+        "enemy",
+        JSON.stringify(data.enemy)
+    );
 
-document.getElementById("joinRoom").onclick = () => {
-
-    const room =
-
-    document.getElementById("roomInput")
-
-    .value
-
-    .trim()
-
-    .toUpperCase();
-
-    socket.emit("joinRoom", room);
-
-};
-
-socket.on("roomCreated", (roomId) => {
-
-    alert("ルームコード\n\n" + roomId);
-
-});
-
-socket.on("joinFailed", () => {
-
-    alert("ルームが存在しません。");
-
-});
-
-socket.on("roomReady", () => {
+    // 最初のターン
+    localStorage.setItem(
+        "myTurn",
+        data.myTurn
+    );
 
     location.href = "battle.html";
 
