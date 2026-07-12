@@ -8,7 +8,7 @@
 const battles = {};
 
 // -----------------------------
-// バトル作成
+// ?????
 // -----------------------------
 
 function createBattle(roomId, host, guest){
@@ -19,39 +19,39 @@ function createBattle(roomId, host, guest){
 
         players:{
 
-            [host.id]:{
+            [host.socketId]:{
 
-                id:host.id,
-                name:host.name,
+                id: host.socketId,
+                name: host.name,
 
-                hp:host.maxHp,
-                maxHp:host.maxHp,
+                hp: host.maxHp,
+                maxHp: host.maxHp,
 
-                atk:host.atk,
-                sp:host.sp,
-                def:host.def,
-                speed:host.speed,
+                atk: host.atk,
+                sp: host.sp,
+                def: host.def,
+                speed: host.speed,
 
-                guard:false,
-                ultimate:0
+                guard: false,
+                ultimate: 0
 
             },
 
-            [guest.id]:{
+            [guest.socketId]:{
 
-                id:guest.id,
-                name:guest.name,
+                id: guest.socketId,
+                name: guest.name,
 
-                hp:guest.maxHp,
-                maxHp:guest.maxHp,
+                hp: guest.maxHp,
+                maxHp: guest.maxHp,
 
-                atk:guest.atk,
-                sp:guest.sp,
-                def:guest.def,
-                speed:guest.speed,
+                atk: guest.atk,
+                sp: guest.sp,
+                def: guest.def,
+                speed: guest.speed,
 
-                guard:false,
-                ultimate:0
+                guard: false,
+                ultimate: 0
 
             }
 
@@ -61,11 +61,11 @@ function createBattle(roomId, host, guest){
 
             host.speed >= guest.speed
 
-            ? host.id
+            ? host.socketId
 
-            : guest.id,
+            : guest.socketId,
 
-        finished:false
+        finished: false
 
     };
 
@@ -74,7 +74,7 @@ function createBattle(roomId, host, guest){
 }
 
 // -----------------------------
-// バトル取得
+// ?????
 // -----------------------------
 
 function getBattle(roomId){
@@ -84,7 +84,7 @@ function getBattle(roomId){
 }
 
 // -----------------------------
-// プレイヤー取得
+// ???????
 // -----------------------------
 
 function getPlayer(roomId,id){
@@ -98,7 +98,7 @@ function getPlayer(roomId,id){
 }
 
 // -----------------------------
-// 相手取得
+// ????
 // -----------------------------
 
 function getEnemy(roomId,id){
@@ -107,16 +107,10 @@ function getEnemy(roomId,id){
 
     if(!battle) return null;
 
-    const ids = Object.keys(
-
-        battle.players
-
-    );
+    const ids = Object.keys(battle.players);
 
     const enemyId = ids.find(
-
         playerId => playerId !== id
-
     );
 
     return battle.players[enemyId];
@@ -124,7 +118,7 @@ function getEnemy(roomId,id){
 }
 
 // -----------------------------
-// ターン変更
+// ?????
 // -----------------------------
 
 function nextTurn(roomId){
@@ -133,24 +127,16 @@ function nextTurn(roomId){
 
     if(!battle) return;
 
-    const ids = Object.keys(
+    const ids = Object.keys(battle.players);
 
-        battle.players
-
+    battle.turn = ids.find(
+        id => id !== battle.turn
     );
-
-    battle.turn =
-
-        ids.find(
-
-            id=>id!==battle.turn
-
-        );
 
 }
 
 // -----------------------------
-// バトル終了
+// ?????
 // -----------------------------
 
 function finishBattle(roomId){
@@ -162,7 +148,7 @@ function finishBattle(roomId){
 }
 
 // -----------------------------
-// バトル削除
+// ?????
 // -----------------------------
 
 function deleteBattle(roomId){

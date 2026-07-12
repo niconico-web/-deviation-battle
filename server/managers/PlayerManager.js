@@ -20,7 +20,7 @@ function addPlayer(socketId, player){
 
         ...player,
 
-        id: socketId
+        socketId: socketId
 
     };
 

@@ -114,24 +114,6 @@ function updateHP(){
         (enemy.hp/enemy.maxHp*100)+"%";
 
 }
-me.ultimate =
-    data.attacker.id===me.id
-
-    ? data.attacker.ultimate
-
-    : data.defender.ultimate;
-
-const gauge =
-    document.getElementById(
-        "ultimateGaugeBar"
-    );
-
-if(gauge){
-
-    gauge.style.width =
-        me.ultimate + "%";
-
-}
 function addLog(text){
 
     const div =
