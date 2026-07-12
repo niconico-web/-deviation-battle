@@ -275,16 +275,14 @@ console.log("Room Ready:", roomId);
 
         socket.on("disconnect", (reason) => {
 
-            console.log("===== disconnect =====");
+            console.log("===== DISCONNECT =====");
             console.log("socket.id =", socket.id);
             console.log("reason =", reason);
 
             PlayerManager.removePlayer(socket.id);
 
-            console.log("現在のプレイヤー:", PlayerManager.getPlayers());
-
             socket.broadcast.emit("opponentLeft");
-        });
+         });
 
     });
 
