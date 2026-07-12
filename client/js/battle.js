@@ -353,3 +353,9 @@ function sendAction(action){
         action
     });
 }
+console.log("attackBtn =", attackBtn);
+console.log("specialBtn =", specialBtn);
+console.log("guardBtn =", guardBtn);
+console.log("ultimateBtn =", ultimateBtn);
+console.log("battle.js 読み込み完了");
+console.log(attackBtn);
