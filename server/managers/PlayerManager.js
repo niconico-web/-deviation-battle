@@ -18,9 +18,9 @@ function addPlayer(socketId, player){
 
     players[socketId] = {
 
-        id: socketId,
+        ...player,
 
-        ...player
+        id: socketId
 
     };
 
