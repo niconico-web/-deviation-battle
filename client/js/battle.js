@@ -247,10 +247,16 @@ function updateButtons(){
     }
 
 }
-socket.on("connect",()=>{
+socket.on("connect", () => {
+    console.log("Connected:", socket.id);
+});
 
-    console.log("Connected");
+socket.on("disconnect", (reason) => {
+    console.log("Disconnected:", reason);
+});
 
+socket.on("connect_error", (err) => {
+    console.log("Connect Error:", err.message);
 });
 socket.on("battleFinished",(data)=>{
 
@@ -286,11 +292,11 @@ socket.on("battleFinished",(data)=>{
     },2500);
 
 });
-socket.on("opponentLeft",()=>{
+socket.on("opponentLeft", () => {
 
-    console.log("opponentLeft受信");
+    console.trace("opponentLeft受信");
 
-    battleEnd=true;
+    battleEnd = true;
 
     updateButtons();
 
@@ -298,7 +304,7 @@ socket.on("opponentLeft",()=>{
 
     alert("相手が退出しました。");
 
-    location.href="index.html";
+    location.href = "index.html";
 
 });
 // ============================================

@@ -6,7 +6,9 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static("../client"));
+const path = require("path");
+
+app.use(express.static(path.join(__dirname, "../client")));
 
 require("./socket/connection")(io);
 

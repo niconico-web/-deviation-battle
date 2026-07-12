@@ -13,6 +13,13 @@ const BattleEngine = require("../managers/BattleEngine");
 module.exports = function(io){
 
     io.on("connection",(socket)=>{
+        socket.on("disconnect", (reason) => {
+    console.log("DISCONNECT:", socket.id, reason);
+});
+
+socket.on("error", (err) => {
+    console.log("SOCKET ERROR:", err);
+});
 
         console.log("接続:",socket.id);
 
@@ -273,17 +280,24 @@ console.log("Room Ready:", roomId);
         // 切断
         // -----------------------------
 
-        socket.on("disconnect", (reason) => {
+        socket.on("disconnect", () => {
 
-            console.log("===== DISCONNECT =====");
-            console.log("socket.id =", socket.id);
-            console.log("reason =", reason);
+            console.log("disconnect", socket.id);
+
+            const rooms = [...socket.rooms];
+
+            rooms.forEach(roomId => {
+
+                if(roomId !== socket.id){
+
+                    socket.to(roomId).emit("opponentLeft");
+                }
+
+            });
 
             PlayerManager.removePlayer(socket.id);
 
-            socket.broadcast.emit("opponentLeft");
-         });
-
+        });
     });
 
 };
