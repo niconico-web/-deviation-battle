@@ -1,5 +1,7 @@
 socket.on("roomReady", (data) => {
 
+    console.log("roomReady受信!", data);
+
     // ルームID保存
     localStorage.setItem(
         "roomId",
@@ -21,7 +23,7 @@ socket.on("roomReady", (data) => {
     // 最初のターン
     localStorage.setItem(
         "myTurn",
-        data.myTurn
+        String(data.myTurn)
     );
 
     location.href = "battle.html";

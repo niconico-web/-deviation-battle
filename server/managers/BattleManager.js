@@ -171,11 +171,19 @@ function deleteBattle(roomId){
 
 }
 
-module.exports={
+module.exports = {
 
     createBattle,
 
     getBattle,
+
+    getPlayer,
+
+    getEnemy,
+
+    nextTurn,
+
+    finishBattle,
 
     deleteBattle
 
