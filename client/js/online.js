@@ -1,3 +1,8 @@
+console.log("Socket ID:", socket.id);
+
+socket.on("connect", () => {
+    console.log("接続後 Socket ID:", socket.id);
+});
 socket.on("roomReady", (data) => {
 
     console.log("roomReady受信!", data);

@@ -145,6 +145,10 @@ module.exports = function(io){
                     room.guest
 
                 );
+                console.log("===== roomReady送信 =====");
+console.log("room.host =", room.host);
+console.log("room.guest =", room.guest);
+console.log("現在接続中 =", [...io.sockets.sockets.keys()]);
 
             console.log(
 
