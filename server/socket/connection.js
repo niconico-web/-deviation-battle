@@ -196,12 +196,6 @@ console.log("Room Ready:", roomId);
                 battle.turn === room.guest
         }
         );
-        const room = RoomManager.getRoom(roomId);
-
-        console.log(room);
-        console.log("joinしたsocket.id =", socket.id);
-console.log("room.host =", room.host);
-console.log("room.guest =", room.guest);
 
         });
 // -----------------------------
