@@ -1,31 +1,93 @@
-console.log("Socket ID:", socket.id);
+const socket = io();
 
+// 接続
 socket.on("connect", () => {
-    console.log("接続後 Socket ID:", socket.id);
+    console.log("接続:", socket.id);
 });
-socket.on("roomReady", (data) => {
 
-    console.log("roomReady受信!", data);
+// ------------------
+// ルーム作成
+// ------------------
+document.getElementById("createRoom").onclick = () => {
 
-    // ルームID保存
+    const player = JSON.parse(localStorage.getItem("player"));
+
+    if (!player) {
+        alert("先にキャラクターを作成してください。");
+        return;
+    }
+
+    socket.emit("playerJoin", player);
+    socket.emit("createRoom");
+};
+
+// ------------------
+// ルーム参加
+// ------------------
+document.getElementById("joinRoom").onclick = () => {
+
+    const player = JSON.parse(localStorage.getItem("player"));
+
+    if (!player) {
+        alert("先にキャラクターを作成してください。");
+        return;
+    }
+
+    const roomId = document
+        .getElementById("roomInput")
+        .value
+        .trim()
+        .toUpperCase();
+
+    if(roomId === ""){
+        alert("ルームコードを入力してください。");
+        return;
+    }
+
+    socket.emit("playerJoin", player);
+    socket.emit("joinRoom", roomId);
+};
+
+// ------------------
+// 作成完了
+// ------------------
+socket.on("roomCreated",(roomId)=>{
+
+    alert("ルームコード\n\n"+roomId);
+
+});
+
+// ------------------
+// 参加失敗
+// ------------------
+socket.on("joinFailed",()=>{
+
+    alert("ルームが存在しません。");
+
+});
+
+// ------------------
+// マッチ成立
+// ------------------
+socket.on("roomReady",(data)=>{
+
+    console.log("roomReady受信!",data);
+
     localStorage.setItem(
         "roomId",
         data.roomId
     );
 
-    // 自分
     localStorage.setItem(
         "player",
         JSON.stringify(data.me)
     );
 
-    // 相手
     localStorage.setItem(
         "enemy",
         JSON.stringify(data.enemy)
     );
 
-    // 最初のターン
     localStorage.setItem(
         "myTurn",
         String(data.myTurn)
