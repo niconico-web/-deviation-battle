@@ -1,3 +1,4 @@
+alert("battle.js loaded");
 // ============================================
 // School Battle
 // battle_v11.js
