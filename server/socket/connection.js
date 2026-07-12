@@ -273,35 +273,17 @@ console.log("Room Ready:", roomId);
         // 切断
         // -----------------------------
 
-        socket.on("disconnect",()=>{
+        socket.on("disconnect", (reason) => {
 
-            console.log(
+            console.log("===== disconnect =====");
+            console.log("socket.id =", socket.id);
+            console.log("reason =", reason);
 
-                "切断:",
+            PlayerManager.removePlayer(socket.id);
 
-                socket.id
+            console.log("現在のプレイヤー:", PlayerManager.getPlayers());
 
-            );
-
-            PlayerManager.removePlayer(
-
-                socket.id
-
-            );
-
-            console.log(
-
-                "現在のプレイヤー:",
-
-                PlayerManager.getPlayers()
-
-            );
-            socket.broadcast.emit(
-
-                "opponentLeft"
-
-            );
-
+            socket.broadcast.emit("opponentLeft");
         });
 
     });

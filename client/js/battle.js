@@ -288,6 +288,8 @@ socket.on("battleFinished",(data)=>{
 });
 socket.on("opponentLeft",()=>{
 
+    console.log("opponentLeft受信");
+
     battleEnd=true;
 
     updateButtons();
