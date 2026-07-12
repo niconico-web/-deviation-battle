@@ -149,6 +149,8 @@ module.exports = function(io){
 console.log("room.host =", room.host);
 console.log("room.guest =", room.guest);
 console.log("現在接続中 =", [...io.sockets.sockets.keys()]);
+console.log("battle =", battle);
+console.log("battle.players =", battle.players);
 
             console.log(
 
