@@ -341,20 +341,15 @@ ultimateBtn.onclick=()=>{
 };
 function sendAction(action){
 
-    if(!myTurn) return;
+    console.log("sendAction", action);
+    console.log("myTurn =", myTurn);
+    console.log("roomId =", roomId);
 
+    if(!myTurn) return;
     if(battleEnd) return;
 
-    myTurn=false;
-
-    updateButtons();
-
-    socket.emit("playerAction",{
-
+    socket.emit("playerAction", {
         roomId,
-
         action
-
     });
-
 }

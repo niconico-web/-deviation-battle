@@ -209,52 +209,44 @@ console.log("Room Ready:", roomId);
 // プレイヤー行動
 // -----------------------------
 
-        socket.on("playerAction",(data)=>{
+        socket.on("playerAction", (data) => {
 
-            const battle =
-            BattleManager.getBattle(data.roomId);
+            console.log("===== playerAction =====");
+            console.log("socket.id =", socket.id);
+            console.log("roomId =", data.roomId);
 
-            if(!battle) return;
+            const battle = BattleManager.getBattle(data.roomId);
 
-            if(battle.finished) return;
+            console.log("battle =", battle);
 
-            if(battle.turn !== socket.id) return;
-
-            const result =
-                BattleEngine.executeAction(
-
-                    battle,
-
-                    socket.id,
-
-                    data.action
-
-                );
-
-            io.to(data.roomId).emit(
-
-                "battleUpdate",
-
-                result
-
-            );
-
-            if(battle.finished){
-
-                io.to(data.roomId).emit(
-
-                    "battleFinished",
-
-                    {
-
-                        winner:result.winner
-
-                    }
-
-                );
-
+            if(!battle){
+                console.log("❌ battleが存在しない");
+                return;
             }
 
+            if(battle.finished){
+                console.log("❌ battle.finished");
+                return;
+            }
+
+            console.log("battle.turn =", battle.turn);
+
+            if(battle.turn !== socket.id){
+                console.log("❌ ターンではない");
+                return;
+            }
+
+            console.log("✅ executeAction実行");
+
+            const result = BattleEngine.executeAction(
+                battle,
+                socket.id,
+                data.action
+            );
+
+            console.log(result);
+
+            io.to(data.roomId).emit("battleUpdate", result);
         });
         socket.on("battleFinished",(data)=>{
 
