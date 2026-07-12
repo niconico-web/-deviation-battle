@@ -1,5 +1,5 @@
 const socket = io();
-
+alert("online.js 読み込み成功");
 // 接続
 socket.on("connect", () => {
     console.log("接続:", socket.id);
