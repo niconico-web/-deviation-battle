@@ -145,30 +145,21 @@ module.exports = function(io){
                     room.guest
 
                 );
-                console.log("===== roomReady送信 =====");
+// Battle作成
+const battle = BattleManager.createBattle(
+    roomId,
+    host,
+    guest
+);
+
+console.log("===== roomReady送信 =====");
 console.log("room.host =", room.host);
 console.log("room.guest =", room.guest);
 console.log("現在接続中 =", [...io.sockets.sockets.keys()]);
 console.log("battle =", battle);
 console.log("battle.players =", battle.players);
 
-            console.log(
-
-                "Room Ready:",
-
-                roomId
-
-            );
-
-            // -----------------------------
-        // Battle作成
-        // -----------------------------
-
-        const battle = BattleManager.createBattle(
-            roomId,
-            host,
-            guest
-        );
+console.log("Room Ready:", roomId);
 
         // -----------------------------
         // Hostへ送信
@@ -205,6 +196,12 @@ console.log("battle.players =", battle.players);
                 battle.turn === room.guest
         }
         );
+        const room = RoomManager.getRoom(roomId);
+
+        console.log(room);
+        console.log("joinしたsocket.id =", socket.id);
+console.log("room.host =", room.host);
+console.log("room.guest =", room.guest);
 
         });
 // -----------------------------
