@@ -12,6 +12,8 @@ app.use(express.static(path.join(__dirname, "../client"), {
     setHeaders(res, filePath) {
         if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
             res.setHeader("Content-Type", `${getContentType(filePath)}; charset=utf-8`);
+            // Avoid stale CDN/browser assets after redeploys.
+            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         }
     }
 }));
