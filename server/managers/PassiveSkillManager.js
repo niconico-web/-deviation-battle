@@ -8,89 +8,86 @@
 const PASSIVE_SKILLS = [
     {
         level: 10,
-        name: "攻撃力上昇 Lv1",
-        description: "攻撃力が10%上昇する",
+        name: "攻撃力上昇",
+        description: "攻撃力が5%上昇する",
         effect: (player) => {
-            player.atk = Math.floor(player.atk * 1.1);
+            player.atk = Math.floor(player.atk * 1.05);
         }
     },
     {
         level: 20,
-        name: "防御力上昇 Lv1",
-        description: "防御力が10%上昇する",
+        name: "防御力上昇",
+        description: "防御力が5%上昇する",
         effect: (player) => {
-            player.def = Math.floor(player.def * 1.1);
+            player.def = Math.floor(player.def * 1.05);
         }
     },
     {
         level: 30,
-        name: "HP上昇 Lv1",
-        description: "最大HPが15%上昇する",
+        name: "素早さ上昇",
+        description: "素早さが5%上昇する",
         effect: (player) => {
-            const hpIncrease = Math.floor(player.maxHp * 0.15);
-            player.maxHp += hpIncrease;
-            player.hp = player.maxHp;
+            player.sp = Math.floor(player.sp * 1.05);
         }
     },
     {
         level: 40,
-        name: "攻撃力上昇 Lv2",
-        description: "攻撃力が15%上昇する",
+        name: "HP上昇",
+        description: "最大HPが5%上昇する",
         effect: (player) => {
-            player.atk = Math.floor(player.atk * 1.15);
+            const hpIncrease = Math.floor(player.maxHp * 0.05);
+            player.maxHp += hpIncrease;
+            player.hp = player.maxHp;
         }
     },
     {
         level: 50,
-        name: "防御力上昇 Lv2",
-        description: "防御力が15%上昇する",
+        name: "特殊上昇",
+        description: "特殊が5%上昇する",
         effect: (player) => {
-            player.def = Math.floor(player.def * 1.15);
+            player.special = Math.floor((player.special || 0) * 1.05);
         }
     },
     {
         level: 60,
-        name: "素早さ上昇 Lv1",
-        description: "素早さが10%上昇する",
+        name: "攻撃力上昇",
+        description: "攻撃力が5%上昇する",
         effect: (player) => {
-            player.sp = Math.floor(player.sp * 1.1);
+            player.atk = Math.floor(player.atk * 1.05);
         }
     },
     {
         level: 70,
-        name: "攻撃力上昇 Lv3",
-        description: "攻撃力が20%上昇する",
+        name: "防御力上昇",
+        description: "防御力が5%上昇する",
         effect: (player) => {
-            player.atk = Math.floor(player.atk * 1.2);
+            player.def = Math.floor(player.def * 1.05);
         }
     },
     {
         level: 80,
-        name: "防御力上昇 Lv3",
-        description: "防御力が20%上昇する",
+        name: "素早さ上昇",
+        description: "素早さが5%上昇する",
         effect: (player) => {
-            player.def = Math.floor(player.def * 1.2);
+            player.sp = Math.floor(player.sp * 1.05);
         }
     },
     {
         level: 90,
-        name: "素早さ上昇 Lv2",
-        description: "素早さが15%上昇する",
+        name: "HP上昇",
+        description: "最大HPが5%上昇する",
         effect: (player) => {
-            player.sp = Math.floor(player.sp * 1.15);
+            const hpIncrease = Math.floor(player.maxHp * 0.05);
+            player.maxHp += hpIncrease;
+            player.hp = player.maxHp;
         }
     },
     {
         level: 100,
-        name: "全能力大幅上昇",
-        description: "全ステータスが25%上昇する",
+        name: "特殊上昇",
+        description: "特殊が5%上昇する",
         effect: (player) => {
-            player.atk = Math.floor(player.atk * 1.25);
-            player.def = Math.floor(player.def * 1.25);
-            player.sp = Math.floor(player.sp * 1.25);
-            const hpIncrease = Math.floor(player.maxHp * 0.25);
-            player.maxHp += hpIncrease;
-            player.hp = player.maxHp;
+            player.special = Math.floor((player.special || 0) * 1.05);
         }
     }
 ];
