@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Battle - Battle</title>
-
     <link rel="stylesheet" href="css/battle.css">
 </head>
 
@@ -12,100 +11,78 @@
 
 <div class="battle-container">
 
-    <h1>âš” School Battle</h1>
+    <h1>? School Battle</h1>
 
     <div class="players">
 
         <div class="card" id="playerCard">
 
-            <h2>ã‚ãªãŸ</h2>
+            <h2>‚ ‚È‚½</h2>
 
             <h3 id="myName">----</h3>
 
             <div id="myDamage" class="damage"></div>
 
             <div class="hpbar">
-
                 <div id="myHPBar" class="fill"></div>
-
             </div>
 
             <p id="myHPText">HP 100 / 100</p>
 
             <div class="stats">
-
-                <p id="myAtk">æ”»æ’ƒï¼š-</p>
-                <p id="mySp">ç‰¹æ®Šï¼š-</p>
-                <p id="myDef">é˜²å¾¡ï¼š-</p>
-                <p id="mySpeed">ç´ æ—©ã•ï¼š-</p>
-
+                <p id="myAtk">UŒ‚F-</p>
+                <p id="mySp">“ÁŽêF-</p>
+                <p id="myDef">–hŒäF-</p>
+                <p id="mySpeed">‘¬‚³F-</p>
             </div>
 
         </div>
 
-        <div class="vs">
-
-            VS
-
-        </div>
+        <div class="vs">VS</div>
 
         <div class="card" id="enemyCard">
 
-            <h2>ç›¸æ‰‹</h2>
+            <h2>‘ŠŽè</h2>
 
-            <h3 id="enemyName">å¾…æ©Ÿä¸­...</h3>
+            <h3 id="enemyName">“Çž’†...</h3>
 
             <div class="hpbar">
-
                 <div id="enemyHPBar" class="fill enemy"></div>
-
             </div>
 
             <p id="enemyHPText">HP ???</p>
 
             <div class="stats">
-
-                <p id="enemyAtk">æ”»æ’ƒï¼šï¼Ÿ</p>
-                <p id="enemySp">ç‰¹æ®Šï¼šï¼Ÿ</p>
-                <p id="enemyDef">é˜²å¾¡ï¼šï¼Ÿ</p>
-                <p id="enemySpeed">ç´ æ—©ã•ï¼šï¼Ÿ</p>
-
+                <p id="enemyAtk">UŒ‚FH</p>
+                <p id="enemySp">“ÁŽêFH</p>
+                <p id="enemyDef">–hŒäFH</p>
+                <p id="enemySpeed">‘¬‚³FH</p>
             </div>
+
             <div id="enemyDamage" class="damage"></div>
+
         </div>
 
     </div>
-    <div class="ultimateGauge">
 
-    <div
-        id="ultimateGaugeBar"
-        class="ultimateFill">
+    <div class="ultimateGauge">
+        <div id="ultimateGaugeBar" class="ultimateFill"></div>
     </div>
 
-</div>
     <div id="turnText"></div>
 
     <div class="commands">
-
-        <button id="attackBtn">âš” æ”»æ’ƒ</button>
-
-        <button id="specialBtn">âœ¨ ç‰¹æ®Š</button>
-
-        <button id="guardBtn">ðŸ›¡ é˜²å¾¡</button>
-        <button id="ultimateBtn" disabled>ðŸ”¥ å¿…æ®ºæŠ€</button>
-
+        <button id="attackBtn">? UŒ‚</button>
+        <button id="specialBtn">? “ÁŽê</button>
+        <button id="guardBtn">? –hŒä</button>
+        <button id="ultimateBtn" disabled>? •KŽE‹Z</button>
     </div>
 
-    <div id="log">
-
-        æˆ¦é—˜é–‹å§‹ï¼
-
-    </div>
+    <div id="log">í“¬ŠJŽnI</div>
 
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-
 <script src="js/battle.js"></script>
 
 </body>

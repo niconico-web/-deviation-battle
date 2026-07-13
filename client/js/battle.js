@@ -1,91 +1,49 @@
-alert("battle.js loaded");
 // ============================================
-// School Battle
-// battle_v11.js
-// Commit #013
-// Part 1 / 4
+// School Battle - Battle
 // ============================================
 
 const socket = io();
 
-// ---------------------
-// LocalStorage
-// ---------------------
+const roomId = localStorage.getItem("roomId");
 
-const roomId =
-    localStorage.getItem("roomId");
+let me = JSON.parse(localStorage.getItem("player"));
+let enemy = JSON.parse(localStorage.getItem("enemy"));
 
-const me =
-    JSON.parse(
-        localStorage.getItem("player")
-    );
-
-const enemy =
-    JSON.parse(
-        localStorage.getItem("enemy")
-    );
-    const turnText =
-    document.getElementById("turnText");
-
-// ---------------------
-// çŠ¶æ…‹
-// ---------------------
-
-let myTurn =
-    localStorage.getItem("myTurn")==="true";
-
+let myTurn = localStorage.getItem("myTurn") === "true";
 let battleEnd = false;
+let rejoined = false;
+let turnCount = 0;
+let totalDamage = 0;
+let criticalCount = 0;
 
-// ---------------------
-// DOM
-// ---------------------
-
-const myName =
-    document.getElementById("myName");
-
-const enemyName =
-    document.getElementById("enemyName");
-
-const myHPBar =
-    document.getElementById("myHPBar");
-
-const enemyHPBar =
-    document.getElementById("enemyHPBar");
-
-const myHPText =
-    document.getElementById("myHPText");
-
-const enemyHPText =
-    document.getElementById("enemyHPText");
-
-const attackBtn =
-    document.getElementById("attackBtn");
-
-const specialBtn =
-    document.getElementById("specialBtn");
-
-const guardBtn =
-    document.getElementById("guardBtn");
-
-const ultimateBtn =
-    document.getElementById("ultimateBtn");
-
-const log =
-    document.getElementById("log");
-    window.onload = () => {
-
-    initialize();
-
-};
+const turnText = document.getElementById("turnText");
+const myName = document.getElementById("myName");
+const enemyName = document.getElementById("enemyName");
+const myHPBar = document.getElementById("myHPBar");
+const enemyHPBar = document.getElementById("enemyHPBar");
+const myHPText = document.getElementById("myHPText");
+const enemyHPText = document.getElementById("enemyHPText");
+const myAtk = document.getElementById("myAtk");
+const mySp = document.getElementById("mySp");
+const myDef = document.getElementById("myDef");
+const mySpeed = document.getElementById("mySpeed");
+const enemyAtk = document.getElementById("enemyAtk");
+const enemySp = document.getElementById("enemySp");
+const enemyDef = document.getElementById("enemyDef");
+const enemySpeed = document.getElementById("enemySpeed");
+const attackBtn = document.getElementById("attackBtn");
+const specialBtn = document.getElementById("specialBtn");
+const guardBtn = document.getElementById("guardBtn");
+const ultimateBtn = document.getElementById("ultimateBtn");
+const ultimateGaugeBar = document.getElementById("ultimateGaugeBar");
+const log = document.getElementById("log");
 
 function initialize(){
 
     if(!me || !enemy){
 
-        alert("å¯¾æˆ¦ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚Šã¾ã›ã‚“ã€‚");
-
+        alert("‘Îíƒf[ƒ^‚ª‚ ‚è‚Ü‚¹‚ñB");
         location.href = "index.html";
-
         return;
 
     }
@@ -93,270 +51,296 @@ function initialize(){
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
 
+    updateStats();
     updateHP();
+    updateUltimateGauge();
+    updateButtons();
 
-    addLog("âš” Battle Start!");
+    addLog("? Battle Start!");
 
+}
+
+function updateStats(){
+
+    myAtk.textContent = `UŒ‚F${me.atk}`;
+    mySp.textContent = `“ÁŽêF${me.sp}`;
+    myDef.textContent = `–hŒäF${me.def}`;
+    mySpeed.textContent = `‘¬‚³F${me.speed}`;
+
+    enemyAtk.textContent = `UŒ‚F${enemy.atk}`;
+    enemySp.textContent = `“ÁŽêF${enemy.sp}`;
+    enemyDef.textContent = `–hŒäF${enemy.def}`;
+    enemySpeed.textContent = `‘¬‚³F${enemy.speed}`;
+
+}
+
+function updateHP(){
+
+    myHPText.textContent = `HP ${me.hp} / ${me.maxHp}`;
+    enemyHPText.textContent = `HP ${enemy.hp} / ${enemy.maxHp}`;
+
+    myHPBar.style.width = (me.hp / me.maxHp * 100) + "%";
+    enemyHPBar.style.width = (enemy.hp / enemy.maxHp * 100) + "%";
+
+}
+
+function updateUltimateGauge(){
+
+    const gauge = me.ultimate || 0;
+
+    if(ultimateGaugeBar){
+        ultimateGaugeBar.style.width = gauge + "%";
+    }
+
+}
+
+function addLog(text){
+
+    const div = document.createElement("div");
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+
+}
+
+function showDamage(targetId, amount){
+
+    const el = document.getElementById(targetId);
+
+    if(!el) return;
+
+    el.textContent = amount > 0 ? `-${amount}` : "MISS";
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+
+}
+
+function syncBattleState(data){
+
+    if(data.attacker.id === me.id){
+
+        Object.assign(me, data.attacker);
+        Object.assign(enemy, data.defender);
+
+    }else{
+
+        Object.assign(enemy, data.attacker);
+        Object.assign(me, data.defender);
+
+    }
+
+    myTurn = (data.turn === me.id);
+
+    localStorage.setItem("player", JSON.stringify(me));
+    localStorage.setItem("enemy", JSON.stringify(enemy));
+    localStorage.setItem("myTurn", String(myTurn));
+
+    updateHP();
+    updateStats();
+    updateUltimateGauge();
     updateButtons();
 
 }
-function updateHP(){
 
-    myHPText.textContent =
-        `HP ${me.hp} / ${me.maxHp}`;
-
-    enemyHPText.textContent =
-        `HP ${enemy.hp} / ${enemy.maxHp}`;
-
-    myHPBar.style.width =
-        (me.hp/me.maxHp*100)+"%";
-
-    enemyHPBar.style.width =
-        (enemy.hp/enemy.maxHp*100)+"%";
-
-}
-function addLog(text){
-
-    const div =
-        document.createElement("div");
-
-    div.textContent = text;
-
-    log.appendChild(div);
-
-    log.scrollTop =
-        log.scrollHeight;
-
-}
-// ============================================
-// ã‚µãƒ¼ãƒãƒ¼ã‹ã‚‰æˆ¦é—˜æ›´æ–°
-// ============================================
-
-socket.on("battleUpdate",(data)=>{
+function finishBattle(winnerId){
 
     if(battleEnd) return;
 
-    // -----------------------------
-    // HPåŒæœŸ
-    // -----------------------------
-
-    if(data.attacker.id===me.id){
-
-        me.hp=data.attacker.hp;
-        enemy.hp=data.defender.hp;
-
-    }else{
-
-        me.hp=data.defender.hp;
-        enemy.hp=data.attacker.hp;
-
-    }
-
-    updateHP();
-
-    // -----------------------------
-    // ã‚¿ãƒ¼ãƒ³åŒæœŸ
-    // -----------------------------
-
-    myTurn=(data.turn===me.id);
-
+    battleEnd = true;
     updateButtons();
 
-    // -----------------------------
-    // ãƒ­ã‚°
-    // -----------------------------
+    const win = winnerId === me.id;
 
-    switch(data.action){
+    addLog(win ? "? Ÿ—˜I" : "? ”s–k...");
 
-        case "attack":
+    localStorage.setItem("battleResult", win ? "win" : "lose");
+    localStorage.setItem("battleTurn", String(turnCount));
+    localStorage.setItem("playerHP", String(me.hp));
+    localStorage.setItem("enemyHP", String(enemy.hp));
+    localStorage.setItem("totalDamage", String(totalDamage));
+    localStorage.setItem("criticalCount", String(criticalCount));
 
-            addLog(
-                `${data.attacker.name} ã®æ”»æ’ƒï¼`
-            );
+    setTimeout(() => {
+        location.href = "result.html";
+    }, 2500);
 
-            break;
+}
 
-        case "special":
-
-            addLog(
-                `${data.attacker.name} ã®ç‰¹æ®Šæ”»æ’ƒï¼`
-            );
-
-            break;
-
-        case "guard":
-
-            addLog(
-                `${data.attacker.name} ã¯é˜²å¾¡ã—ãŸï¼`
-            );
-
-            break;
-
-        case "ultimate":
-
-            addLog(
-                `${data.attacker.name} ã®å¿…æ®ºæŠ€ï¼`
-            );
-
-            break;
-
-    }
-
-    if(data.result.miss){
-
-        addLog("æ”»æ’ƒã¯å¤–ã‚ŒãŸï¼");
-
-    }else if(data.result.guard){
-
-        addLog("é˜²å¾¡æ…‹å‹¢ï¼");
-
-    }else{
-
-        addLog(
-            `${data.result.damage} ãƒ€ãƒ¡ãƒ¼ã‚¸`
-        );
-
-    }
-
-});
 function updateButtons(){
 
-    const canUltimate =
-        me.ultimate >= 100;
+    const canUltimate = (me.ultimate || 0) >= 100;
 
-    attackBtn.disabled =
-        !myTurn || battleEnd;
-
-    specialBtn.disabled =
-        !myTurn || battleEnd;
-
-    guardBtn.disabled =
-        !myTurn || battleEnd;
-
-    ultimateBtn.disabled =
-        !myTurn ||
-        battleEnd ||
-        !canUltimate;
+    attackBtn.disabled = !myTurn || battleEnd || !rejoined;
+    specialBtn.disabled = !myTurn || battleEnd || !rejoined;
+    guardBtn.disabled = !myTurn || battleEnd || !rejoined;
+    ultimateBtn.disabled = !myTurn || battleEnd || !canUltimate || !rejoined;
 
     if(turnText){
 
-        turnText.textContent =
-            myTurn
-            ? "ðŸŸ¢ ã‚ãªãŸã®ã‚¿ãƒ¼ãƒ³"
-            : "ðŸ”´ ç›¸æ‰‹ã®ã‚¿ãƒ¼ãƒ³";
+        if(!rejoined){
+            turnText.textContent = "Ú‘±’†...";
+        }else if(battleEnd){
+            turnText.textContent = "ƒoƒgƒ‹I—¹";
+        }else{
+            turnText.textContent = myTurn
+                ? "? ‚ ‚È‚½‚Ìƒ^[ƒ“"
+                : "? ‘ŠŽè‚Ìƒ^[ƒ“";
+        }
 
     }
 
 }
-socket.on("connect", () => {
-    console.log("Connected:", socket.id);
-});
 
-socket.on("disconnect", (reason) => {
-    console.log("Disconnected:", reason);
-});
-
-socket.on("connect_error", (err) => {
-    console.log("Connect Error:", err.message);
-});
-socket.on("battleFinished",(data)=>{
-
-    battleEnd=true;
-
-    updateButtons();
-
-    const win =
-        data.winner===me.id;
-
-    addLog(
-
-        win
-
-        ? "ðŸ† å‹åˆ©ï¼"
-
-        : "ðŸ’€ æ•—åŒ—..."
-
-    );
-
-    localStorage.setItem(
-
-        "battleResult",
-
-        win
-
-    );
-
-    setTimeout(()=>{
-
-        location.href="result.html";
-
-    },2500);
-
-});
-socket.on("opponentLeft", () => {
-
-    console.trace("opponentLeftå—ä¿¡");
-
-    battleEnd = true;
-
-    updateButtons();
-
-    addLog("ç›¸æ‰‹ãŒé€€å‡ºã—ã¾ã—ãŸã€‚");
-
-    alert("ç›¸æ‰‹ãŒé€€å‡ºã—ã¾ã—ãŸã€‚");
-
-    location.href = "index.html";
-
-});
-// ============================================
-// è¡Œå‹•é€ä¿¡
-// ============================================
-
-
-// ============================================
-// ãƒœã‚¿ãƒ³
-// ============================================
-
-attackBtn.onclick=()=>{
-
-    sendAction("attack");
-
-};
-
-specialBtn.onclick=()=>{
-
-    sendAction("special");
-
-};
-
-guardBtn.onclick=()=>{
-
-    sendAction("guard");
-
-};
-
-ultimateBtn.onclick=()=>{
-
-    sendAction("ultimate");
-
-};
 function sendAction(action){
 
-    console.log("sendAction", action);
-    console.log("myTurn =", myTurn);
-    console.log("roomId =", roomId);
-
-    if(!myTurn) return;
-    if(battleEnd) return;
+    if(!myTurn || battleEnd || !rejoined) return;
 
     socket.emit("playerAction", {
         roomId,
         action
     });
+
 }
-console.log("attackBtn =", attackBtn);
-console.log("specialBtn =", specialBtn);
-console.log("guardBtn =", guardBtn);
-console.log("ultimateBtn =", ultimateBtn);
-console.log("battle.js èª­ã¿è¾¼ã¿å®Œäº†");
-console.log(attackBtn);
+
+socket.on("connect", () => {
+
+    if(roomId && me && me.id){
+
+        socket.emit("rejoinBattle", {
+            roomId,
+            oldPlayerId: me.id,
+            player: me
+        });
+
+    }
+
+});
+
+socket.on("battleRejoined", (data) => {
+
+    me = data.me;
+    enemy = data.enemy;
+    myTurn = data.myTurn;
+    rejoined = true;
+
+    localStorage.setItem("player", JSON.stringify(me));
+    localStorage.setItem("enemy", JSON.stringify(enemy));
+    localStorage.setItem("myTurn", String(myTurn));
+
+    updateStats();
+    updateHP();
+    updateUltimateGauge();
+    updateButtons();
+
+    addLog("ƒT[ƒo[‚ÉÄÚ‘±‚µ‚Ü‚µ‚½B");
+
+});
+
+socket.on("rejoinFailed", (data) => {
+
+    console.error("rejoinFailed", data);
+
+    if(data && data.reason === "battle_finished"){
+
+        alert("‚±‚Ìƒoƒgƒ‹‚ÍŠù‚ÉI—¹‚µ‚Ä‚¢‚Ü‚·B");
+
+    }else{
+
+        alert("ƒoƒgƒ‹‚Ö‚ÌÄÚ‘±‚ÉŽ¸”s‚µ‚Ü‚µ‚½Bƒƒr[‚É–ß‚è‚Ü‚·B");
+
+    }
+
+    location.href = "index.html";
+
+});
+
+socket.on("battleUpdate", (data) => {
+
+    if(battleEnd) return;
+
+    turnCount++;
+
+    syncBattleState(data);
+
+    const actionLabels = {
+        attack: "‚ÌUŒ‚I",
+        special: "‚Ì“ÁŽêUŒ‚I",
+        guard: "‚Í–hŒä‚µ‚½I",
+        ultimate: "‚Ì•KŽE‹ZI"
+    };
+
+    addLog(`${data.attacker.name}${actionLabels[data.action] || ""}`);
+
+    if(data.result.miss){
+
+        addLog("UŒ‚‚ÍŠO‚ê‚½I");
+
+        if(data.attacker.id === me.id){
+            showDamage("enemyDamage", 0);
+        }else{
+            showDamage("myDamage", 0);
+        }
+
+    }else if(data.result.guard){
+
+        addLog("–hŒä‘Ô¨I");
+
+    }else{
+
+        addLog(`${data.result.damage} ƒ_ƒ[ƒW`);
+
+        if(data.attacker.id === me.id){
+
+            totalDamage += data.result.damage;
+            showDamage("enemyDamage", data.result.damage);
+
+        }else{
+
+            showDamage("myDamage", data.result.damage);
+
+        }
+
+        if(data.result.critical){
+            criticalCount++;
+            addLog("ƒNƒŠƒeƒBƒJƒ‹ƒqƒbƒgI");
+        }
+
+    }
+
+    if(data.winner){
+        finishBattle(data.winner);
+    }
+
+});
+
+socket.on("battleFinished", (data) => {
+
+    finishBattle(data.winner);
+
+});
+
+socket.on("actionError", (data) => {
+
+    addLog(`? ${data.message}`);
+
+});
+
+socket.on("opponentLeft", () => {
+
+    battleEnd = true;
+    updateButtons();
+    addLog("‘ŠŽè‚ª‘Þo‚µ‚Ü‚µ‚½B");
+    alert("‘ŠŽè‚ª‘Þo‚µ‚Ü‚µ‚½B");
+    location.href = "index.html";
+
+});
+
+attackBtn.onclick = () => sendAction("attack");
+specialBtn.onclick = () => sendAction("special");
+guardBtn.onclick = () => sendAction("guard");
+ultimateBtn.onclick = () => sendAction("ultimate");
+
+window.onload = () => {
+    initialize();
+};

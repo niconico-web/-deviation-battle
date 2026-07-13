@@ -148,6 +148,32 @@ function finishBattle(roomId){
 }
 
 // -----------------------------
+// ソケットIDの付け替え（ページ遷移後の再接続用）
+// -----------------------------
+
+function remapPlayerSocket(roomId, oldSocketId, newSocketId){
+
+    const battle = battles[roomId];
+
+    if(!battle || !battle.players[oldSocketId]) return false;
+
+    const player = {
+        ...battle.players[oldSocketId],
+        id: newSocketId
+    };
+
+    delete battle.players[oldSocketId];
+    battle.players[newSocketId] = player;
+
+    if(battle.turn === oldSocketId){
+        battle.turn = newSocketId;
+    }
+
+    return true;
+
+}
+
+// -----------------------------
 // ?????
 // -----------------------------
 
@@ -171,6 +197,8 @@ module.exports = {
 
     finishBattle,
 
-    deleteBattle
+    deleteBattle,
+
+    remapPlayerSocket
 
 };
