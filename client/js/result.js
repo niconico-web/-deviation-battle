@@ -1,57 +1,45 @@
 const result = localStorage.getItem("battleResult");
 
-const turn = localStorage.getItem("battleTurn");
+const turn = localStorage.getItem("battleTurn") || "0";
 
-const playerHP = localStorage.getItem("playerHP");
+const playerHP = localStorage.getItem("playerHP") || "0";
 
-const enemyHP = localStorage.getItem("enemyHP");
+const enemyHP = localStorage.getItem("enemyHP") || "0";
 
-const damage = localStorage.getItem("totalDamage") || 0;
+const damage = localStorage.getItem("totalDamage") || "0";
 
-const critical = localStorage.getItem("criticalCount") || 0;
+const critical = localStorage.getItem("criticalCount") || "0";
 
 const title = document.getElementById("resultTitle");
 
-if(result==="win"){
+if(result === "win"){
 
-    title.textContent="ðŸ† YOU WIN";
+    title.textContent = "? YOU WIN";
+    title.className = "win";
 
-    title.className="win";
+}else{
 
-}
-
-else{
-
-    title.textContent="ðŸ’€ YOU LOSE";
-
-    title.className="lose";
+    title.textContent = "? YOU LOSE";
+    title.className = "lose";
 
 }
 
-document.getElementById("turnText").textContent=
+document.getElementById("turnText").textContent =
+    "ƒ^[ƒ“” : " + turn;
 
-"ã‚¿ãƒ¼ãƒ³æ•° : "+turn;
+document.getElementById("hpText").textContent =
+    "Žc‚èHP : " + playerHP;
 
-document.getElementById("hpText").textContent=
+document.getElementById("damageText").textContent =
+    "‡Œvƒ_ƒ[ƒW : " + damage;
 
-"æ®‹ã‚ŠHP : "+playerHP;
+document.getElementById("criticalText").textContent =
+    "ƒNƒŠƒeƒBƒJƒ‹ : " + critical + " ‰ñ";
 
-document.getElementById("damageText").textContent=
+document.getElementById("retryBtn").onclick = () => {
+    location.href = "index.html";
+};
 
-"ç·ãƒ€ãƒ¡ãƒ¼ã‚¸ : "+damage;
-
-document.getElementById("criticalText").textContent=
-
-"ã‚¯ãƒªãƒ†ã‚£ã‚«ãƒ« : "+critical+" å›ž";
-
-document.getElementById("retryBtn").onclick=()=>{
-
-    location.href="battle.html";
-
-}
-
-document.getElementById("homeBtn").onclick=()=>{
-
-    location.href="index.html";
-
-}
+document.getElementById("homeBtn").onclick = () => {
+    location.href = "index.html";
+};

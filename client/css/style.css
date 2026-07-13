@@ -104,3 +104,107 @@ button{
     border:none;
 
 }
+
+.study-section{
+
+    margin-top:20px;
+
+    background:#3b3b3b;
+
+    padding:15px;
+
+    border-radius:10px;
+
+}
+
+.study-section h2{
+
+    margin-bottom:10px;
+
+}
+
+.study-desc{
+
+    font-size:14px;
+
+    color:#ccc;
+
+    margin-bottom:12px;
+
+    line-height:1.5;
+
+}
+
+.study-section select{
+
+    width:100%;
+
+    padding:10px;
+
+    margin-bottom:12px;
+
+    font-size:16px;
+
+    border-radius:8px;
+
+    border:none;
+
+}
+
+.study-timer{
+
+    font-size:36px;
+
+    text-align:center;
+
+    font-family:monospace;
+
+    margin:10px 0;
+
+    letter-spacing:2px;
+
+}
+
+.xp-display{
+
+    text-align:center;
+
+    font-size:15px;
+
+    color:#a8d8ff;
+
+    margin-bottom:10px;
+
+}
+
+.study-buttons{
+
+    display:flex;
+
+    gap:10px;
+
+}
+
+.study-buttons button{
+
+    flex:1;
+
+    margin-top:0;
+
+}
+
+#studyStop{
+
+    background:#c62828;
+
+    color:white;
+
+}
+
+.danger-btn{
+
+    background:#555;
+
+    color:#ffaaaa;
+
+}

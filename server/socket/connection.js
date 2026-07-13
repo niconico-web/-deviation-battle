@@ -1,8 +1,6 @@
 // ============================================
 // School Battle
 // connection.js
-// Commit #009
-// Part 2 / 4
 // ============================================
 
 const PlayerManager = require("../managers/PlayerManager");
@@ -13,115 +11,57 @@ const BattleEngine = require("../managers/BattleEngine");
 module.exports = function(io){
 
     io.on("connection",(socket)=>{
-        socket.on("disconnect", (reason) => {
-    console.log("DISCONNECT:", socket.id, reason);
-});
 
-socket.on("error", (err) => {
-    console.log("SOCKET ERROR:", err);
-});
-
-        console.log("æŽ¥ç¶š:",socket.id);
+        console.log("Ú‘±:", socket.id);
 
         socket.emit("connected");
 
         // -----------------------------
-        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ç™»éŒ²
+        // ƒvƒŒƒCƒ„[“o˜^
         // -----------------------------
 
         socket.on("playerJoin",(player)=>{
 
-            PlayerManager.addPlayer(
+            PlayerManager.addPlayer(socket.id, player);
 
-                socket.id,
-
-                player
-
-            );
-
-            console.log(
-
-                "Player Join:",
-
-                player.name
-
-            );
+            console.log("Player Join:", player.name);
 
         });
 
         // -----------------------------
-        // ãƒ«ãƒ¼ãƒ ä½œæˆ
+        // ƒ‹[ƒ€ì¬
         // -----------------------------
 
         socket.on("createRoom",()=>{
 
-            const roomId=Math.random()
-
+            const roomId = Math.random()
                 .toString(36)
-
-                .substring(2,8)
-
+                .substring(2, 8)
                 .toUpperCase();
 
-            RoomManager.createRoom(
-
-                roomId,
-
-                socket.id
-
-            );
+            RoomManager.createRoom(roomId, socket.id);
 
             socket.join(roomId);
 
-            console.log(
+            console.log("Room Create:", roomId);
 
-                "Room Create:",
-
-                roomId
-
-            );
-
-            socket.emit(
-
-                "roomCreated",
-
-                roomId
-
-            );
+            socket.emit("roomCreated", roomId);
 
         });
 
         // -----------------------------
-        // ãƒ«ãƒ¼ãƒ å‚åŠ 
+        // ƒ‹[ƒ€ŽQ‰Á
         // -----------------------------
 
         socket.on("joinRoom",(roomId)=>{
 
-            console.log(
+            console.log("Join Request:", roomId);
 
-                "Join Request:",
-
-                roomId
-
-            );
-
-            const success=
-
-                RoomManager.joinRoom(
-
-                    roomId,
-
-                    socket.id
-
-                );
+            const success = RoomManager.joinRoom(roomId, socket.id);
 
             if(!success){
 
-                socket.emit(
-
-                    "joinFailed"
-
-                );
+                socket.emit("joinFailed");
 
                 return;
 
@@ -129,114 +69,133 @@ socket.on("error", (err) => {
 
             socket.join(roomId);
 
-            const room=
+            const room = RoomManager.getRoom(roomId);
 
-                RoomManager.getRoom(
+            const host = PlayerManager.getPlayer(room.host);
 
-                    roomId
+            const guest = PlayerManager.getPlayer(room.guest);
 
-                );
-
-            const host=
-
-                PlayerManager.getPlayer(
-
-                    room.host
-
-                );
-
-            const guest=
-
-                PlayerManager.getPlayer(
-
-                    room.guest
-
-                );
-// Battleä½œæˆ
-const battle = BattleManager.createBattle(
-    roomId,
-    host,
-    guest
-);
-
-console.log("===== roomReadyé€ä¿¡ =====");
-console.log("room.host =", room.host);
-console.log("room.guest =", room.guest);
-console.log("ç¾åœ¨æŽ¥ç¶šä¸­ =", [...io.sockets.sockets.keys()]);
-console.log("battle =", battle);
-console.log("battle.players =", battle.players);
-
-console.log("Room Ready:", roomId);
-
-        // -----------------------------
-        // Hostã¸é€ä¿¡
-        // -----------------------------
-
-        io.to(room.host).emit(
-            "roomReady",
-            {
+            const battle = BattleManager.createBattle(
                 roomId,
+                host,
+                guest
+            );
 
+            console.log("Room Ready:", roomId);
+
+            io.to(room.host).emit("roomReady", {
+                roomId,
                 me: battle.players[room.host],
-
                 enemy: battle.players[room.guest],
+                myTurn: battle.turn === room.host
+            });
 
-                myTurn:
-                battle.turn === room.host
-            }
-        );
-
-        // -----------------------------
-        // Guestã¸é€ä¿¡
-        // -----------------------------
-
-        io.to(room.guest).emit(
-            "roomReady",
-            {
+            io.to(room.guest).emit("roomReady", {
                 roomId,
-
                 me: battle.players[room.guest],
-
                 enemy: battle.players[room.host],
-
-            myTurn:
-                battle.turn === room.guest
-        }
-        );
+                myTurn: battle.turn === room.guest
+            });
 
         });
-// -----------------------------
-// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼è¡Œå‹•
-// -----------------------------
 
-        socket.on("playerAction", (data) => {
+        // -----------------------------
+        // ƒoƒgƒ‹‰æ–Ê‚Ö‚ÌÄÚ‘±
+        // -----------------------------
 
-            console.log("===== playerAction =====");
-            console.log("socket.id =", socket.id);
-            console.log("roomId =", data.roomId);
+        socket.on("rejoinBattle",(data)=>{
 
-            const battle = BattleManager.getBattle(data.roomId);
+            const { roomId, oldPlayerId, player } = data;
 
-            console.log("battle =", battle);
+            const battle = BattleManager.getBattle(roomId);
 
             if(!battle){
-                console.log("âŒ battleãŒå­˜åœ¨ã—ãªã„");
+
+                socket.emit("rejoinFailed", { reason: "battle_not_found" });
+
                 return;
+
             }
 
             if(battle.finished){
-                console.log("âŒ battle.finished");
+
+                socket.emit("rejoinFailed", { reason: "battle_finished" });
+
                 return;
+
             }
 
-            console.log("battle.turn =", battle.turn);
+            const remapped = BattleManager.remapPlayerSocket(
+                roomId,
+                oldPlayerId,
+                socket.id
+            );
+
+            if(!remapped){
+
+                socket.emit("rejoinFailed", { reason: "player_not_found" });
+
+                return;
+
+            }
+
+            const room = RoomManager.getRoom(roomId);
+
+            if(room){
+
+                if(room.host === oldPlayerId) room.host = socket.id;
+                if(room.guest === oldPlayerId) room.guest = socket.id;
+
+            }
+
+            PlayerManager.addPlayer(socket.id, player);
+
+            socket.join(roomId);
+
+            const me = battle.players[socket.id];
+            const enemy = BattleManager.getEnemy(roomId, socket.id);
+
+            socket.emit("battleRejoined", {
+                me,
+                enemy,
+                myTurn: battle.turn === socket.id
+            });
+
+            console.log("Battle Rejoined:", socket.id, "in", roomId);
+
+        });
+
+        // -----------------------------
+        // ƒvƒŒƒCƒ„[s“®
+        // -----------------------------
+
+        socket.on("playerAction", (data) => {
+
+            const battle = BattleManager.getBattle(data.roomId);
+
+            if(!battle){
+
+                socket.emit("actionError", { message: "ƒoƒgƒ‹‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ" });
+
+                return;
+
+            }
+
+            if(battle.finished){
+
+                socket.emit("actionError", { message: "ƒoƒgƒ‹‚ÍI—¹‚µ‚Ä‚¢‚Ü‚·" });
+
+                return;
+
+            }
 
             if(battle.turn !== socket.id){
-                console.log("âŒ ã‚¿ãƒ¼ãƒ³ã§ã¯ãªã„");
-                return;
-            }
 
-            console.log("âœ… executeActionå®Ÿè¡Œ");
+                socket.emit("actionError", { message: "‚ ‚È‚½‚Ìƒ^[ƒ“‚Å‚Í‚ ‚è‚Ü‚¹‚ñ" });
+
+                return;
+
+            }
 
             const result = BattleEngine.executeAction(
                 battle,
@@ -244,10 +203,29 @@ console.log("Room Ready:", roomId);
                 data.action
             );
 
-            console.log(result);
+            if(!result){
+
+                socket.emit("actionError", { message: "–³Œø‚Ès“®‚Å‚·" });
+
+                return;
+
+            }
 
             io.to(data.roomId).emit("battleUpdate", result);
+
+            if(result.winner){
+
+                io.to(data.roomId).emit("battleFinished", {
+                    roomId: data.roomId,
+                    winner: result.winner
+                });
+
+                BattleManager.finishBattle(data.roomId);
+
+            }
+
         });
+
         socket.on("battleFinished",(data)=>{
 
             io.to(data.roomId).emit(
@@ -255,26 +233,23 @@ console.log("Room Ready:", roomId);
                 data
             );
 
-            BattleManager.finishBattle(
-                data.roomId
-            );
+            BattleManager.finishBattle(data.roomId);
 
         });
+
         socket.on("requestRematch",(roomId)=>{
 
-            io.to(roomId).emit(
-            "rematchReady"
-            );
+            io.to(roomId).emit("rematchReady");
 
         });
 
         // -----------------------------
-        // åˆ‡æ–­
+        // Ø’f
         // -----------------------------
 
-        socket.on("disconnect", () => {
+        socket.on("disconnect", (reason) => {
 
-            console.log("disconnect", socket.id);
+            console.log("DISCONNECT:", socket.id, reason);
 
             const rooms = [...socket.rooms];
 
@@ -283,6 +258,7 @@ console.log("Room Ready:", roomId);
                 if(roomId !== socket.id){
 
                     socket.to(roomId).emit("opponentLeft");
+
                 }
 
             });
@@ -290,6 +266,7 @@ console.log("Room Ready:", roomId);
             PlayerManager.removePlayer(socket.id);
 
         });
+
     });
 
 };
