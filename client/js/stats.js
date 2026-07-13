@@ -13,10 +13,10 @@ function calcStatsFromSubjects(s){
     def:Math.max(20,Math.floor(50+(soc-50)*5+(jp-50)*2)),
     speed:Math.max(20,Math.floor(50+(eng-50)*3+(math-50)*2))
   };}
-function xpToNextLevel(l){return l*150;}
+function xpToNextLevel(l){return l*100;}
 function calcLevel(xp){let lv=1,r=xp;while(r>=xpToNextLevel(lv)){r-=xpToNextLevel(lv);lv++;}return lv;}
-function calcStudyXp(s){return Math.floor(s/10);}
-function calcSubjectGain(s){return(s/60)*0.03;}
+function calcStudyXp(s){return Math.floor(s/7);}
+function calcSubjectGain(s){return(s/60)*0.05;}
 function buildPlayer(name,subjects,xp){
   const st=calcStatsFromSubjects(subjects),lv=calcLevel(xp||0);
   return{name,subjects:{...subjects},xp:xp||0,level:lv,maxHp:st.maxHp,hp:st.maxHp,atk:st.atk,sp:st.sp,def:st.def,speed:st.speed,totalStudySeconds:0};

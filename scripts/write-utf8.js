@@ -171,10 +171,10 @@ writeAscii(
         "    def:Math.max(20,Math.floor(50+(soc-50)*5+(jp-50)*2)),",
         "    speed:Math.max(20,Math.floor(50+(eng-50)*3+(math-50)*2))",
         "  };}",
-        "function xpToNextLevel(l){return l*150;}",
+        "function xpToNextLevel(l){return l*100;}",
         "function calcLevel(xp){let lv=1,r=xp;while(r>=xpToNextLevel(lv)){r-=xpToNextLevel(lv);lv++;}return lv;}",
-        "function calcStudyXp(s){return Math.floor(s/10);}",
-        "function calcSubjectGain(s){return(s/60)*0.03;}",
+        "function calcStudyXp(s){return Math.floor(s/7);}",
+        "function calcSubjectGain(s){return(s/60)*0.05;}",
         "function buildPlayer(name,subjects,xp){",
         "  const st=calcStatsFromSubjects(subjects),lv=calcLevel(xp||0);",
         "  return{name,subjects:{...subjects},xp:xp||0,level:lv,maxHp:st.maxHp,hp:st.maxHp,atk:st.atk,sp:st.sp,def:st.def,speed:st.speed,totalStudySeconds:0};",
@@ -247,9 +247,9 @@ document.getElementById("createRoom").onclick=()=>{const p=getPlayerData();if(!p
 document.getElementById("joinRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}const roomId=document.getElementById("roomInput").value.trim().toUpperCase();if(!roomId){alert(I18N.roomCode+I18N.colon);return;}socket.emit("playerJoin",p);socket.emit("joinRoom",roomId);};
 socket.on("roomCreated",roomId=>{alert(I18N.roomCreated+"\\n\\n"+I18N.roomCodeMsg+I18N.colon+roomId+"\\n\\n"+I18N.tellFriend);});
 socket.on("joinFailed",()=>alert(I18N.roomNotFound));
-socket.on("roomReady",data=>{localStorage.setItem("roomId",data.roomId);localStorage.setItem("player",JSON.stringify(data.me));localStorage.setItem("enemy",JSON.stringify(data.enemy));localStorage.setItem("myTurn",String(data.myTurn));alert(I18N.matched);location.href="battle.html";});
+socket.on("roomReady",data=>{localStorage.setItem("roomId",data.roomId);localStorage.setItem("battlePlayer",JSON.stringify(data.me));localStorage.setItem("enemy",JSON.stringify(data.enemy));localStorage.setItem("myTurn",String(data.myTurn));alert(I18N.matched);location.href="battle.html";});
 socket.on("errorMessage",m=>alert(m));
-document.getElementById("deletePlayer").onclick=()=>{if(!confirm(I18N.deleteConfirm))return;if(studyStartTime!==null)stopStudy();localStorage.removeItem("player");localStorage.removeItem("enemy");localStorage.removeItem("roomId");document.getElementById("playerName").value="";document.getElementById("status").innerHTML="<h2>"+I18N.status+"</h2><p>"+I18N.noChar+"</p>";updateXpDisplay({xp:0,level:1});alert(I18N.deleted);};
+document.getElementById("deletePlayer").onclick=()=>{if(!confirm(I18N.deleteConfirm))return;if(studyStartTime!==null)stopStudy();localStorage.removeItem("player");localStorage.removeItem("battlePlayer");localStorage.removeItem("enemy");localStorage.removeItem("roomId");document.getElementById("playerName").value="";document.getElementById("status").innerHTML="<h2>"+I18N.status+"</h2><p>"+I18N.noChar+"</p>";updateXpDisplay({xp:0,level:1});alert(I18N.deleted);};
 document.getElementById("studyStart").onclick=startStudy;
 document.getElementById("studyStop").onclick=stopStudy;
 window.onload=()=>{const player=getPlayerData();if(player){updateStatus(player);updateXpDisplay(player);document.getElementById("playerName").value=player.name;if(player.subjects)["jp","math","eng","sci","soc"].forEach(k=>document.getElementById(k).value=player.subjects[k]);}else updateXpDisplay({xp:0,level:1});};
@@ -260,7 +260,7 @@ writeAscii(
     "js/battle.js",
     `const socket=io();
 const roomId=localStorage.getItem("roomId");
-let me=JSON.parse(localStorage.getItem("player")),enemy=JSON.parse(localStorage.getItem("enemy"));
+let me=JSON.parse(localStorage.getItem("battlePlayer")),enemy=JSON.parse(localStorage.getItem("enemy"));
 let myTurn=localStorage.getItem("myTurn")==="true",battleEnd=false,rejoined=false,turnCount=0,totalDamage=0,criticalCount=0;
 const turnText=document.getElementById("turnText"),myName=document.getElementById("myName"),enemyName=document.getElementById("enemyName");
 const myHPBar=document.getElementById("myHPBar"),enemyHPBar=document.getElementById("enemyHPBar"),myHPText=document.getElementById("myHPText"),enemyHPText=document.getElementById("enemyHPText");
@@ -275,12 +275,12 @@ function updateHP(){myHPText.textContent="HP "+me.hp+" / "+me.maxHp;enemyHPText.
 function updateUltimateGauge(){if(ultimateGaugeBar)ultimateGaugeBar.style.width=(me.ultimate||0)+"%";}
 function addLog(t){const d=document.createElement("div");d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function showDamage(id,a){const el=document.getElementById(id);if(!el)return;el.textContent=a>0?"-"+a:"MISS";el.classList.remove("show");void el.offsetWidth;el.classList.add("show");}
-function syncBattleState(data){if(data.attacker.id===me.id){Object.assign(me,data.attacker);Object.assign(enemy,data.defender);}else{Object.assign(enemy,data.attacker);Object.assign(me,data.defender);}myTurn=(data.turn===me.id);localStorage.setItem("player",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateHP();updateStats();updateUltimateGauge();updateButtons();}
+function syncBattleState(data){if(data.attacker.id===me.id){Object.assign(me,data.attacker);Object.assign(enemy,data.defender);}else{Object.assign(enemy,data.attacker);Object.assign(me,data.defender);}myTurn=(data.turn===me.id);localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateHP();updateStats();updateUltimateGauge();updateButtons();}
 function finishBattle(w){if(battleEnd)return;battleEnd=true;updateButtons();const win=w===me.id;addLog(win?I18N.victory:I18N.defeat);localStorage.setItem("battleResult",win?"win":"lose");localStorage.setItem("battleTurn",String(turnCount));localStorage.setItem("playerHP",String(me.hp));localStorage.setItem("enemyHP",String(enemy.hp));localStorage.setItem("totalDamage",String(totalDamage));localStorage.setItem("criticalCount",String(criticalCount));setTimeout(()=>location.href="result.html",2500);}
 function updateButtons(){const c=(me.ultimate||0)>=100;attackBtn.disabled=!myTurn||battleEnd||!rejoined;specialBtn.disabled=!myTurn||battleEnd||!rejoined;guardBtn.disabled=!myTurn||battleEnd||!rejoined;ultimateBtn.disabled=!myTurn||battleEnd||!c||!rejoined;if(!turnText)return;if(!rejoined)turnText.textContent=I18N.connecting;else if(battleEnd)turnText.textContent=I18N.battleEnd;else turnText.textContent=myTurn?I18N.yourTurn:I18N.enemyTurn;}
 function sendAction(a){if(!myTurn||battleEnd||!rejoined)return;socket.emit("playerAction",{roomId,action:a});}
 socket.on("connect",()=>{if(roomId&&me&&me.id)socket.emit("rejoinBattle",{roomId,oldPlayerId:me.id,player:me});});
-socket.on("battleRejoined",data=>{me=data.me;enemy=data.enemy;myTurn=data.myTurn;rejoined=true;localStorage.setItem("player",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateStats();updateHP();updateUltimateGauge();updateButtons();addLog(I18N.reconnected);});
+socket.on("battleRejoined",data=>{me=data.me;enemy=data.enemy;myTurn=data.myTurn;rejoined=true;localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateStats();updateHP();updateUltimateGauge();updateButtons();addLog(I18N.reconnected);});
 socket.on("rejoinFailed",data=>{alert(data&&data.reason==="battle_finished"?I18N.battleAlreadyEnd:I18N.rejoinFailed);location.href="index.html";});
 socket.on("battleUpdate",data=>{if(battleEnd)return;turnCount++;syncBattleState(data);const L={attack:I18N.attackAction,special:I18N.specialAction,guard:I18N.guardAction,ultimate:I18N.ultimateAction};addLog(data.attacker.name+(L[data.action]||""));if(data.result.miss){addLog(I18N.miss);showDamage(data.attacker.id===me.id?"enemyDamage":"myDamage",0);}else if(data.result.guard){addLog(I18N.guarding);}else{addLog(data.result.damage+" "+I18N.damage);if(data.attacker.id===me.id){totalDamage+=data.result.damage;showDamage("enemyDamage",data.result.damage);}else showDamage("myDamage",data.result.damage);if(data.result.critical){criticalCount++;addLog(I18N.critical);}}if(data.winner)finishBattle(data.winner);});
 socket.on("battleFinished",data=>finishBattle(data.winner));
