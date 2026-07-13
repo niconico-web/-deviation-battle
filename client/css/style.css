@@ -1,210 +1,223 @@
-body{
-
-    background:#1b1b1b;
-    color:white;
-
-    font-family:sans-serif;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    height:100vh;
-
-    margin:0;
-
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
-.container{
-
-    width:430px;
-
-    background:#2c2c2c;
-
-    padding:25px;
-
-    border-radius:15px;
-
-    box-shadow:0 0 20px rgba(0,0,0,.5);
-
+html {
+    -webkit-text-size-adjust: 100%;
 }
 
-h1{
-
-    text-align:center;
-
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: #1b1b1b;
+    color: #fff;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
+    line-height: 1.5;
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
-input{
-
-    width:100%;
-
-    padding:10px;
-
-    margin-top:5px;
-    margin-bottom:10px;
-
-    font-size:16px;
-
-    box-sizing:border-box;
-
+.container {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    background: #2c2c2c;
+    padding: 20px 16px;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
 }
 
-.subjects label{
-
-    display:block;
-
+.page-header {
+    text-align: center;
+    margin-bottom: 20px;
 }
 
-button{
-
-    width:100%;
-
-    padding:12px;
-
-    margin-top:12px;
-
-    font-size:17px;
-
-    cursor:pointer;
-
+.page-header h1 {
+    margin: 0 0 6px;
+    font-size: clamp(1.5rem, 5vw, 1.875rem);
 }
 
-#status{
-
-    margin-top:20px;
-
-    background:#3b3b3b;
-
-    padding:15px;
-
-    border-radius:10px;
-
+.subtitle {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #bbb;
 }
 
-.buttons{
-
-    margin-top:15px;
-
-}
-#roomInput{
-
-    width:220px;
-
-    height:45px;
-
-    margin:15px;
-
-    text-align:center;
-
-    font-size:18px;
-
-    border-radius:10px;
-
-    border:none;
-
+.section {
+    margin-bottom: 20px;
 }
 
-.study-section{
-
-    margin-top:20px;
-
-    background:#3b3b3b;
-
-    padding:15px;
-
-    border-radius:10px;
-
+.section h2 {
+    margin: 0 0 12px;
+    font-size: 1.125rem;
 }
 
-.study-section h2{
-
-    margin-bottom:10px;
-
+.field-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.875rem;
+    color: #ccc;
 }
 
-.study-desc{
-
-    font-size:14px;
-
-    color:#ccc;
-
-    margin-bottom:12px;
-
-    line-height:1.5;
-
+input,
+select,
+button {
+    font: inherit;
+    touch-action: manipulation;
 }
 
-.study-section select{
-
-    width:100%;
-
-    padding:10px;
-
-    margin-bottom:12px;
-
-    font-size:16px;
-
-    border-radius:8px;
-
-    border:none;
-
+input,
+select {
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    font-size: 16px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #222;
 }
 
-.study-timer{
-
-    font-size:36px;
-
-    text-align:center;
-
-    font-family:monospace;
-
-    margin:10px 0;
-
-    letter-spacing:2px;
-
+.subjects {
+    display: grid;
+    gap: 10px;
 }
 
-.xp-display{
-
-    text-align:center;
-
-    font-size:15px;
-
-    color:#a8d8ff;
-
-    margin-bottom:10px;
-
+.subjects label {
+    display: block;
+    font-size: 0.9375rem;
 }
 
-.study-buttons{
-
-    display:flex;
-
-    gap:10px;
-
+.subjects label input {
+    margin-top: 4px;
+    margin-bottom: 0;
 }
 
-.study-buttons button{
-
-    flex:1;
-
-    margin-top:0;
-
+.btn {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    margin-top: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
 }
 
-#studyStop{
-
-    background:#c62828;
-
-    color:white;
-
+.btn:active:not(:disabled) {
+    transform: scale(0.98);
 }
 
-.danger-btn{
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
-    background:#555;
+.btn-primary {
+    background: #4a90d9;
+    color: #fff;
+}
 
-    color:#ffaaaa;
+.btn-secondary {
+    background: #5a5a5a;
+    color: #fff;
+}
 
+.btn-danger {
+    background: #c62828;
+    color: #fff;
+}
+
+.btn-danger-outline {
+    background: transparent;
+    color: #ff8a80;
+    border: 1px solid #ff8a80;
+}
+
+.status-box,
+.study-section {
+    background: #3b3b3b;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.status-box h2,
+.study-section h2 {
+    margin-top: 0;
+}
+
+.status-box p {
+    margin: 8px 0;
+    font-size: 0.9375rem;
+}
+
+.status-box hr {
+    border: none;
+    border-top: 1px solid #555;
+    margin: 12px 0;
+}
+
+.study-desc {
+    font-size: 0.875rem;
+    color: #ccc;
+    margin: 0 0 12px;
+}
+
+.study-timer {
+    font-size: clamp(2rem, 10vw, 2.5rem);
+    text-align: center;
+    font-family: "Consolas", "Courier New", monospace;
+    margin: 12px 0;
+    letter-spacing: 0.1em;
+}
+
+.xp-display {
+    text-align: center;
+    font-size: 0.9375rem;
+    color: #a8d8ff;
+    margin-bottom: 12px;
+}
+
+.study-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.study-buttons .btn {
+    margin-top: 0;
+}
+
+#roomInput {
+    text-align: center;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+}
+
+.buttons h2 {
+    margin-bottom: 12px;
+}
+
+@media (min-width: 600px) {
+    body {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 32px;
+    }
+
+    .container {
+        padding: 28px 24px;
+    }
+
+    .subjects {
+        grid-template-columns: 1fr 1fr;
+    }
 }

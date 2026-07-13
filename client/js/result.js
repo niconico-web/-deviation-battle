@@ -14,12 +14,12 @@ const title = document.getElementById("resultTitle");
 
 if(result === "win"){
 
-    title.textContent = "? YOU WIN";
+    title.textContent = "YOU WIN";
     title.className = "win";
 
 }else{
 
-    title.textContent = "? YOU LOSE";
+    title.textContent = "YOU LOSE";
     title.className = "lose";
 
 }

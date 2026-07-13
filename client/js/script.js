@@ -52,11 +52,11 @@ function updateStatus(player){
 <p><strong>プレイヤー名：</strong>${player.name}</p>
 <p><strong>レベル：</strong>${player.level || 1}　<strong>経験値：</strong>${player.xp || 0}</p>
 <hr>
-<p>?? HP：${player.maxHp}</p>
-<p>? 攻撃：${player.atk}</p>
-<p>? 特殊：${player.sp}</p>
-<p>? 防御：${player.def}</p>
-<p>? 速さ：${player.speed}</p>
+<p>HP：${player.maxHp}</p>
+<p>攻撃：${player.atk}</p>
+<p>特殊：${player.sp}</p>
+<p>防御：${player.def}</p>
+<p>速さ：${player.speed}</p>
 <hr>
 <p>国語 ${subjects.jp} / 数学 ${subjects.math} / 英語 ${subjects.eng}</p>
 <p>理科 ${subjects.sci} / 社会 ${subjects.soc}</p>
