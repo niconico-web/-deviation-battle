@@ -2,45 +2,63 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>五教科バトル</title>
-<link rel="stylesheet" href="css/style.css">
+<title>School Battle</title>
+<link rel="stylesheet" href="css/style.css?v=1783932190143">
 </head>
 <body>
 <div class="container">
-<header class="page-header"><h1>五教科バトル</h1><p class="subtitle">五教科の偏差値で戦うオンライン対戦</p></header>
-<section class="section"><label class="field-label" for="playerName">プレイヤー名</label>
-<input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname"></section>
-<section class="section"><h2>偏差値</h2><div class="subjects">
-<label>国語<input id="jp" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>数学<input id="math" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>英語<input id="eng" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>理科<input id="sci" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>社会<input id="soc" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-</div><button type="button" class="btn btn-primary" onclick="createCharacter()">キャラクター作成</button></section>
-<div id="status" class="status-box"><h2>ステータス</h2><p>まだキャラクターが作成されていません。</p></div>
-<section class="study-section section"><h2>勉強タイマー</h2><p class="study-desc">勉強時間が長いほど経験値が増えます。強化科目に応じて偏差値がわずかに上昇します。</p>
-<label class="field-label" for="studyFocus">強化する科目</label>
+<header class="page-header">
+<h1>School Battle</h1>
+<p class="subtitle">&#20116;&#25945;&#31185;&#12398;&#20559;&#24046;&#20516;&#12391;&#25126;&#12358;&#12458;&#12531;&#12521;&#12452;&#12531;&#23550;&#25126;</p>
+</header>
+<section class="section">
+<label class="field-label" for="playerName">&#12503;&#12524;&#12452;&#12516;&#12540;&#21517;</label>
+<input id="playerName" type="text" placeholder="&#21517;&#21069;&#12434;&#20837;&#21147;" autocomplete="nickname">
+</section>
+<section class="section">
+<h2>&#20559;&#24046;&#20516;</h2>
+<div class="subjects">
+<label>&#22269;&#35486;<input id="jp" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+<label>&#25968;&#23398;<input id="math" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+<label>&#33521;&#35486;<input id="eng" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+<label>&#29702;&#31185;<input id="sci" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+<label>&#31038;&#20250;<input id="soc" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+</div>
+<button type="button" class="btn btn-primary" onclick="createCharacter()">&#12461;&#12515;&#12521;&#12463;&#12479;&#12540;&#20316;&#25104;</button>
+</section>
+<div id="status" class="status-box"><h2>&#12473;&#12486;&#12540;&#12479;&#12473;</h2><p>&#12414;&#12384;&#12461;&#12515;&#12521;&#12463;&#12479;&#12540;&#12364;&#20316;&#25104;&#12373;&#12428;&#12390;&#12356;&#12414;&#12379;&#12435;&#12290;</p></div>
+<section class="study-section section">
+<h2>&#21193;&#24375;&#12479;&#12452;&#12510;&#12540;</h2>
+<p class="study-desc">&#21193;&#24375;&#26178;&#38291;&#12364;&#38263;&#12356;&#12411;&#12393;&#32076;&#39443;&#20516;&#12364;&#22679;&#12360;&#12414;&#12377;&#12290;&#24375;&#21270;&#31185;&#30446;&#12395;&#24540;&#12376;&#12390;&#20559;&#24046;&#20516;&#12364;&#12431;&#12378;&#12363;&#12395;&#19978;&#26119;&#12375;&#12414;&#12377;&#12290;</p>
+<label class="field-label" for="studyFocus">&#24375;&#21270;&#12377;&#12427;&#31185;&#30446;</label>
 <select id="studyFocus">
-<option value="jp">国語（HP・防御）</option><option value="math">数学（攻撃・速さ）</option>
-<option value="eng">英語（特殊・速さ）</option><option value="sci">理科（攻撃・特殊）</option><option value="soc">社会（HP・防御）</option>
+<option value="jp">&#22269;&#35486;&#65288;HP&#12539;&#38450;&#24481;&#65289;</option>
+<option value="math">&#25968;&#23398;&#65288;&#25915;&#25731;&#12539;&#36895;&#12373;&#65289;</option>
+<option value="eng">&#33521;&#35486;&#65288;&#29305;&#27530;&#12539;&#36895;&#12373;&#65289;</option>
+<option value="sci">&#29702;&#31185;&#65288;&#25915;&#25731;&#12539;&#29305;&#27530;&#65289;</option>
+<option value="soc">&#31038;&#20250;&#65288;HP&#12539;&#38450;&#24481;&#65289;</option>
 </select>
 <p id="studyTimer" class="study-timer">00:00:00</p>
-<p id="xpDisplay" class="xp-display">経験値：0</p>
+<p id="xpDisplay" class="xp-display">&#32076;&#39443;&#20516;&#65306;0</p>
 <div class="study-buttons">
-<button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
-<button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
-</div></section>
-<section class="section buttons"><h2>オンライン対戦</h2>
-<button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
-<label class="field-label" for="roomInput">ルームコード</label>
-<input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
-<button type="button" id="joinRoom" class="btn btn-secondary">ルーム参加</button>
-<button type="button" id="deletePlayer" class="btn btn-danger-outline">プレイヤー削除</button>
-</section></div>
+<button type="button" id="studyStart" class="btn btn-primary">&#21193;&#24375;&#38283;&#22987;</button>
+<button type="button" id="studyStop" class="btn btn-danger" disabled>&#21193;&#24375;&#32066;&#20102;</button>
+</div>
+</section>
+<section class="section buttons">
+<h2>&#12458;&#12531;&#12521;&#12452;&#12531;&#23550;&#25126;</h2>
+<button type="button" id="createRoom" class="btn btn-secondary">&#12523;&#12540;&#12512;&#20316;&#25104;</button>
+<label class="field-label" for="roomInput">&#12523;&#12540;&#12512;&#12467;&#12540;&#12489;</label>
+<input id="roomInput" type="text" placeholder="6&#25991;&#23383;&#12398;&#12467;&#12540;&#12489;" maxlength="6" autocapitalize="characters" autocomplete="off">
+<button type="button" id="joinRoom" class="btn btn-secondary">&#12523;&#12540;&#12512;&#21442;&#21152;</button>
+<button type="button" id="deletePlayer" class="btn btn-danger-outline">&#12503;&#12524;&#12452;&#12516;&#12540;&#21066;&#38500;</button>
+</section>
+</div>
 <script src="/socket.io/socket.io.js"></script>
-<script src="js/i18n.js?v=1783931310275"></script>
-<script src="js/stats.js?v=1783931310275"></script>
-<script src="js/script.js?v=1783931310275"></script>
+<script src="js/i18n.js?v=1783932190143"></script>
+<script src="js/stats.js?v=1783932190143"></script>
+<script src="js/script.js?v=1783932190143"></script>
 </body>
 </html>
