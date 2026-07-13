@@ -271,13 +271,13 @@ function executeAction(
 
             }
 
+            attacker.ultimate = 0;
+
             result =
                 calculateUltimate(
                     attacker,
                     defender
                 );
-
-            attacker.ultimate = 0;
 
             break;
 

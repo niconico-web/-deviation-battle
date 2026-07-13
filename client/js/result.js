@@ -1,8 +1,13 @@
-const result=localStorage.getItem("battleResult"),turn=localStorage.getItem("battleTurn")||"0",playerHP=localStorage.getItem("playerHP")||"0",damage=localStorage.getItem("totalDamage")||"0",critical=localStorage.getItem("criticalCount")||"0",title=document.getElementById("resultTitle");
-title.textContent=result==="win"?I18N.win:I18N.lose;title.className=result==="win"?"win":"lose";
+const result=localStorage.getItem("battleResult"),turn=Number(localStorage.getItem("battleTurn")||"0"),playerHP=localStorage.getItem("playerHP")||"0",damage=Number(localStorage.getItem("totalDamage")||"0"),critical=localStorage.getItem("criticalCount")||"0",title=document.getElementById("resultTitle");
+const won=result==="win";
+if(!localStorage.getItem("battleXpGain"))applyBattleRewards(won,turn,damage);
+const xpGain=localStorage.getItem("battleXpGain")||"0";
+title.textContent=won?I18N.win:I18N.lose;title.className=won?"win":"lose";
 document.getElementById("turnText").textContent=I18N.turnCount+" : "+turn;
 document.getElementById("hpText").textContent=I18N.remainHp+" : "+playerHP;
 document.getElementById("damageText").textContent=I18N.totalDamage+" : "+damage;
 document.getElementById("criticalText").textContent=I18N.criticalCount+" : "+critical+" "+I18N.times;
+const xpEl=document.getElementById("xpGainText");
+if(xpEl)xpEl.textContent=I18N.xp+" +"+xpGain;
 document.getElementById("retryBtn").onclick=()=>location.href="index.html";
 document.getElementById("homeBtn").onclick=()=>location.href="index.html";

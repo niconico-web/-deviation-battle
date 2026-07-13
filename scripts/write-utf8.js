@@ -171,10 +171,22 @@ writeAscii(
         "    def:Math.max(20,Math.floor(50+(soc-50)*5+(jp-50)*2)),",
         "    speed:Math.max(20,Math.floor(50+(eng-50)*3+(math-50)*2))",
         "  };}",
-        "function xpToNextLevel(l){return l*100;}",
+        "function xpToNextLevel(l){return Math.max(40,l*50);}",
         "function calcLevel(xp){let lv=1,r=xp;while(r>=xpToNextLevel(lv)){r-=xpToNextLevel(lv);lv++;}return lv;}",
-        "function calcStudyXp(s){return Math.floor(s/7);}",
-        "function calcSubjectGain(s){return(s/60)*0.05;}",
+        "function calcStudyXp(s){return Math.floor(s/4);}",
+        "function calcSubjectGain(s){return(s/60)*0.1;}",
+        "function calcBattleXp(won,turns,damage){const base=won?40:15;return base+Math.floor(turns*3)+Math.floor(damage/10);}",
+        "function applyBattleRewards(won,turns,damage){",
+        "  const raw=localStorage.getItem(\"player\");if(!raw)return null;",
+        "  const player=JSON.parse(raw);",
+        "  const subjects=player.subjects||DEFAULT_SUBJECTS;",
+        "  const gainedXp=calcBattleXp(won,turns,damage);",
+        "  const updated=buildPlayer(player.name,subjects,(player.xp||0)+gainedXp);",
+        "  updated.totalStudySeconds=player.totalStudySeconds||0;",
+        "  localStorage.setItem(\"player\",JSON.stringify(updated));",
+        "  localStorage.setItem(\"battleXpGain\",String(gainedXp));",
+        "  return updated;",
+        "}",
         "function buildPlayer(name,subjects,xp){",
         "  const st=calcStatsFromSubjects(subjects),lv=calcLevel(xp||0);",
         "  return{name,subjects:{...subjects},xp:xp||0,level:lv,maxHp:st.maxHp,hp:st.maxHp,atk:st.atk,sp:st.sp,def:st.def,speed:st.speed,totalStudySeconds:0};",
@@ -243,8 +255,8 @@ function applyStudyRewards(seconds){
   updateStatus(updated); updateXpDisplay(updated);
   alert(I18N.studyDone+"\\n"+I18N.time+I18N.colon+formatTime(seconds)+"\\n"+I18N.xp+" +"+gainedXp+"\\n"+SUBJECT_LABELS[focus]+I18N.deviationUp+" +"+subjectGain.toFixed(2)+I18N.slightUp);
 }
-document.getElementById("createRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}socket.emit("playerJoin",p);socket.emit("createRoom");};
-document.getElementById("joinRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}const roomId=document.getElementById("roomInput").value.trim().toUpperCase();if(!roomId){alert(I18N.roomCode+I18N.colon);return;}socket.emit("playerJoin",p);socket.emit("joinRoom",roomId);};
+document.getElementById("createRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}socket.emit("playerJoin",p);socket.emit("createRoom",p);};
+document.getElementById("joinRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}const roomId=document.getElementById("roomInput").value.trim().toUpperCase();if(!roomId){alert(I18N.roomCode+I18N.colon);return;}socket.emit("playerJoin",p);socket.emit("joinRoom",{roomId,player:p});};
 socket.on("roomCreated",roomId=>{alert(I18N.roomCreated+"\\n\\n"+I18N.roomCodeMsg+I18N.colon+roomId+"\\n\\n"+I18N.tellFriend);});
 socket.on("joinFailed",()=>alert(I18N.roomNotFound));
 socket.on("roomReady",data=>{localStorage.setItem("roomId",data.roomId);localStorage.setItem("battlePlayer",JSON.stringify(data.me));localStorage.setItem("enemy",JSON.stringify(data.enemy));localStorage.setItem("myTurn",String(data.myTurn));alert(I18N.matched);location.href="battle.html";});
@@ -276,15 +288,16 @@ function updateUltimateGauge(){if(ultimateGaugeBar)ultimateGaugeBar.style.width=
 function addLog(t){const d=document.createElement("div");d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;}
 function showDamage(id,a){const el=document.getElementById(id);if(!el)return;el.textContent=a>0?"-"+a:"MISS";el.classList.remove("show");void el.offsetWidth;el.classList.add("show");}
 function syncBattleState(data){if(data.attacker.id===me.id){Object.assign(me,data.attacker);Object.assign(enemy,data.defender);}else{Object.assign(enemy,data.attacker);Object.assign(me,data.defender);}myTurn=(data.turn===me.id);localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateHP();updateStats();updateUltimateGauge();updateButtons();}
-function finishBattle(w){if(battleEnd)return;battleEnd=true;updateButtons();const win=w===me.id;addLog(win?I18N.victory:I18N.defeat);localStorage.setItem("battleResult",win?"win":"lose");localStorage.setItem("battleTurn",String(turnCount));localStorage.setItem("playerHP",String(me.hp));localStorage.setItem("enemyHP",String(enemy.hp));localStorage.setItem("totalDamage",String(totalDamage));localStorage.setItem("criticalCount",String(criticalCount));setTimeout(()=>location.href="result.html",2500);}
+function finishBattle(w){if(battleEnd)return;battleEnd=true;updateButtons();const win=w===me.id;addLog(win?I18N.victory:I18N.defeat);localStorage.setItem("battleResult",win?"win":"lose");localStorage.setItem("battleTurn",String(turnCount));localStorage.setItem("playerHP",String(me.hp));localStorage.setItem("enemyHP",String(enemy.hp));localStorage.setItem("totalDamage",String(totalDamage));localStorage.setItem("criticalCount",String(criticalCount));applyBattleRewards(win,turnCount,totalDamage);setTimeout(()=>location.href="result.html",2500);}
 function updateButtons(){const c=(me.ultimate||0)>=100;attackBtn.disabled=!myTurn||battleEnd||!rejoined;specialBtn.disabled=!myTurn||battleEnd||!rejoined;guardBtn.disabled=!myTurn||battleEnd||!rejoined;ultimateBtn.disabled=!myTurn||battleEnd||!c||!rejoined;if(!turnText)return;if(!rejoined)turnText.textContent=I18N.connecting;else if(battleEnd)turnText.textContent=I18N.battleEnd;else turnText.textContent=myTurn?I18N.yourTurn:I18N.enemyTurn;}
-function sendAction(a){if(!myTurn||battleEnd||!rejoined)return;socket.emit("playerAction",{roomId,action:a});}
-socket.on("connect",()=>{if(roomId&&me&&me.id)socket.emit("rejoinBattle",{roomId,oldPlayerId:me.id,player:me});});
+function sendAction(a){if(!myTurn||battleEnd||!rejoined)return;if(a==="ultimate"){if((me.ultimate||0)<100)return;me.ultimate=0;updateUltimateGauge();updateButtons();}attackBtn.disabled=true;specialBtn.disabled=true;guardBtn.disabled=true;ultimateBtn.disabled=true;socket.emit("playerAction",{roomId,action:a});}
+function getSavedPlayer(){const r=localStorage.getItem("player");return r?JSON.parse(r):null;}
+socket.on("connect",()=>{if(roomId&&me&&me.id){const p=getSavedPlayer();socket.emit("rejoinBattle",{roomId,oldPlayerId:me.id,player:p||me});}});
 socket.on("battleRejoined",data=>{me=data.me;enemy=data.enemy;myTurn=data.myTurn;rejoined=true;localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateStats();updateHP();updateUltimateGauge();updateButtons();addLog(I18N.reconnected);});
 socket.on("rejoinFailed",data=>{alert(data&&data.reason==="battle_finished"?I18N.battleAlreadyEnd:I18N.rejoinFailed);location.href="index.html";});
 socket.on("battleUpdate",data=>{if(battleEnd)return;turnCount++;syncBattleState(data);const L={attack:I18N.attackAction,special:I18N.specialAction,guard:I18N.guardAction,ultimate:I18N.ultimateAction};addLog(data.attacker.name+(L[data.action]||""));if(data.result.miss){addLog(I18N.miss);showDamage(data.attacker.id===me.id?"enemyDamage":"myDamage",0);}else if(data.result.guard){addLog(I18N.guarding);}else{addLog(data.result.damage+" "+I18N.damage);if(data.attacker.id===me.id){totalDamage+=data.result.damage;showDamage("enemyDamage",data.result.damage);}else showDamage("myDamage",data.result.damage);if(data.result.critical){criticalCount++;addLog(I18N.critical);}}if(data.winner)finishBattle(data.winner);});
 socket.on("battleFinished",data=>finishBattle(data.winner));
-socket.on("actionError",data=>addLog("["+I18N.note+"] "+data.message));
+socket.on("actionError",data=>{addLog("["+I18N.note+"] "+data.message);updateButtons();});
 socket.on("opponentLeft",()=>{battleEnd=true;updateButtons();addLog(I18N.opponentLeft);alert(I18N.opponentLeft);location.href="index.html";});
 attackBtn.onclick=()=>sendAction("attack");specialBtn.onclick=()=>sendAction("special");guardBtn.onclick=()=>sendAction("guard");ultimateBtn.onclick=()=>sendAction("ultimate");
 window.onload=()=>initialize();
@@ -293,12 +306,17 @@ window.onload=()=>initialize();
 
 writeAscii(
     "js/result.js",
-    `const result=localStorage.getItem("battleResult"),turn=localStorage.getItem("battleTurn")||"0",playerHP=localStorage.getItem("playerHP")||"0",damage=localStorage.getItem("totalDamage")||"0",critical=localStorage.getItem("criticalCount")||"0",title=document.getElementById("resultTitle");
-title.textContent=result==="win"?I18N.win:I18N.lose;title.className=result==="win"?"win":"lose";
+    `const result=localStorage.getItem("battleResult"),turn=Number(localStorage.getItem("battleTurn")||"0"),playerHP=localStorage.getItem("playerHP")||"0",damage=Number(localStorage.getItem("totalDamage")||"0"),critical=localStorage.getItem("criticalCount")||"0",title=document.getElementById("resultTitle");
+const won=result==="win";
+if(!localStorage.getItem("battleXpGain"))applyBattleRewards(won,turn,damage);
+const xpGain=localStorage.getItem("battleXpGain")||"0";
+title.textContent=won?I18N.win:I18N.lose;title.className=won?"win":"lose";
 document.getElementById("turnText").textContent=I18N.turnCount+" : "+turn;
 document.getElementById("hpText").textContent=I18N.remainHp+" : "+playerHP;
 document.getElementById("damageText").textContent=I18N.totalDamage+" : "+damage;
 document.getElementById("criticalText").textContent=I18N.criticalCount+" : "+critical+" "+I18N.times;
+const xpEl=document.getElementById("xpGainText");
+if(xpEl)xpEl.textContent=I18N.xp+" +"+xpGain;
 document.getElementById("retryBtn").onclick=()=>location.href="index.html";
 document.getElementById("homeBtn").onclick=()=>location.href="index.html";
 `
@@ -406,6 +424,7 @@ writeAscii(
 <div id="log" class="battle-log">${e(T.battleStart)}</div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/i18n.js?v=${VER}"></script>
+<script src="js/stats.js?v=${VER}"></script>
 <script src="js/battle.js?v=${VER}"></script>
 </body>
 </html>
@@ -425,12 +444,13 @@ writeAscii(
 </head>
 <body>
 <div id="resultCard"><h1 id="resultTitle"></h1>
-<div class="result-stats"><p id="turnText"></p><p id="hpText"></p><p id="damageText"></p><p id="criticalText"></p></div>
+<div class="result-stats"><p id="turnText"></p><p id="hpText"></p><p id="damageText"></p><p id="criticalText"></p><p id="xpGainText"></p></div>
 <div class="buttonArea">
 <button type="button" id="retryBtn" class="btn">${e(T.retry)}</button>
 <button type="button" id="homeBtn" class="btn">${e(T.home)}</button>
 </div></div>
 <script src="js/i18n.js?v=${VER}"></script>
+<script src="js/stats.js?v=${VER}"></script>
 <script src="js/result.js?v=${VER}"></script>
 </body>
 </html>

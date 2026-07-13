@@ -13,10 +13,22 @@ function calcStatsFromSubjects(s){
     def:Math.max(20,Math.floor(50+(soc-50)*5+(jp-50)*2)),
     speed:Math.max(20,Math.floor(50+(eng-50)*3+(math-50)*2))
   };}
-function xpToNextLevel(l){return l*100;}
+function xpToNextLevel(l){return Math.max(40,l*50);}
 function calcLevel(xp){let lv=1,r=xp;while(r>=xpToNextLevel(lv)){r-=xpToNextLevel(lv);lv++;}return lv;}
-function calcStudyXp(s){return Math.floor(s/7);}
-function calcSubjectGain(s){return(s/60)*0.05;}
+function calcStudyXp(s){return Math.floor(s/4);}
+function calcSubjectGain(s){return(s/60)*0.1;}
+function calcBattleXp(won,turns,damage){const base=won?40:15;return base+Math.floor(turns*3)+Math.floor(damage/10);}
+function applyBattleRewards(won,turns,damage){
+  const raw=localStorage.getItem("player");if(!raw)return null;
+  const player=JSON.parse(raw);
+  const subjects=player.subjects||DEFAULT_SUBJECTS;
+  const gainedXp=calcBattleXp(won,turns,damage);
+  const updated=buildPlayer(player.name,subjects,(player.xp||0)+gainedXp);
+  updated.totalStudySeconds=player.totalStudySeconds||0;
+  localStorage.setItem("player",JSON.stringify(updated));
+  localStorage.setItem("battleXpGain",String(gainedXp));
+  return updated;
+}
 function buildPlayer(name,subjects,xp){
   const st=calcStatsFromSubjects(subjects),lv=calcLevel(xp||0);
   return{name,subjects:{...subjects},xp:xp||0,level:lv,maxHp:st.maxHp,hp:st.maxHp,atk:st.atk,sp:st.sp,def:st.def,speed:st.speed,totalStudySeconds:0};

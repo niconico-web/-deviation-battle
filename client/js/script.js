@@ -56,8 +56,8 @@ function applyStudyRewards(seconds){
   updateStatus(updated); updateXpDisplay(updated);
   alert(I18N.studyDone+"\n"+I18N.time+I18N.colon+formatTime(seconds)+"\n"+I18N.xp+" +"+gainedXp+"\n"+SUBJECT_LABELS[focus]+I18N.deviationUp+" +"+subjectGain.toFixed(2)+I18N.slightUp);
 }
-document.getElementById("createRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}socket.emit("playerJoin",p);socket.emit("createRoom");};
-document.getElementById("joinRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}const roomId=document.getElementById("roomInput").value.trim().toUpperCase();if(!roomId){alert(I18N.roomCode+I18N.colon);return;}socket.emit("playerJoin",p);socket.emit("joinRoom",roomId);};
+document.getElementById("createRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}socket.emit("playerJoin",p);socket.emit("createRoom",p);};
+document.getElementById("joinRoom").onclick=()=>{const p=getPlayerData();if(!p){alert(I18N.needChar);return;}const roomId=document.getElementById("roomInput").value.trim().toUpperCase();if(!roomId){alert(I18N.roomCode+I18N.colon);return;}socket.emit("playerJoin",p);socket.emit("joinRoom",{roomId,player:p});};
 socket.on("roomCreated",roomId=>{alert(I18N.roomCreated+"\n\n"+I18N.roomCodeMsg+I18N.colon+roomId+"\n\n"+I18N.tellFriend);});
 socket.on("joinFailed",()=>alert(I18N.roomNotFound));
 socket.on("roomReady",data=>{localStorage.setItem("roomId",data.roomId);localStorage.setItem("battlePlayer",JSON.stringify(data.me));localStorage.setItem("enemy",JSON.stringify(data.enemy));localStorage.setItem("myTurn",String(data.myTurn));alert(I18N.matched);location.href="battle.html";});
