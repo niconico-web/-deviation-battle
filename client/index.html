@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>School Battle</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -10,54 +10,57 @@
 
 <div class="container">
 
-<h1>? School Battle</h1>
+<header class="page-header">
+<h1>School Battle</h1>
+<p class="subtitle">五教科の偏差値で戦うオンライン対戦</p>
+</header>
 
-<input id="playerName" placeholder="プレイヤー名">
+<section class="section">
+<label class="field-label" for="playerName">プレイヤー名</label>
+<input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
+</section>
 
+<section class="section">
 <h2>偏差値</h2>
-
 <div class="subjects">
 
 <label>国語
-<input id="jp" type="number" value="50" min="30" max="80" step="0.01">
+<input id="jp" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal">
 </label>
 
 <label>数学
-<input id="math" type="number" value="50" min="30" max="80" step="0.01">
+<input id="math" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal">
 </label>
 
 <label>英語
-<input id="eng" type="number" value="50" min="30" max="80" step="0.01">
+<input id="eng" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal">
 </label>
 
 <label>理科
-<input id="sci" type="number" value="50" min="30" max="80" step="0.01">
+<input id="sci" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal">
 </label>
 
 <label>社会
-<input id="soc" type="number" value="50" min="30" max="80" step="0.01">
+<input id="soc" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal">
 </label>
 
 </div>
 
-<button onclick="createCharacter()">
+<button type="button" class="btn btn-primary" onclick="createCharacter()">
 キャラクター作成
 </button>
+</section>
 
-<div id="status">
-
+<div id="status" class="status-box">
 <h2>ステータス</h2>
 <p>まだキャラクターが作成されていません。</p>
-
 </div>
 
-<div class="study-section">
-
-<h2>? 勉強タイマー</h2>
-
+<section class="study-section section">
+<h2>勉強タイマー</h2>
 <p class="study-desc">勉強時間が長いほど経験値が増えます。強化科目に応じて偏差値がわずかに上昇します。</p>
 
-<label>強化する科目
+<label class="field-label" for="studyFocus">強化する科目</label>
 <select id="studyFocus">
 <option value="jp">国語（HP・防御）</option>
 <option value="math">数学（攻撃・速さ）</option>
@@ -65,34 +68,28 @@
 <option value="sci">理科（攻撃・特殊）</option>
 <option value="soc">社会（HP・防御）</option>
 </select>
-</label>
 
 <p id="studyTimer" class="study-timer">00:00:00</p>
 <p id="xpDisplay" class="xp-display">経験値：0</p>
 
 <div class="study-buttons">
-<button id="studyStart">勉強開始</button>
-<button id="studyStop" disabled>勉強終了</button>
+<button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
+<button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
 </div>
+</section>
 
-</div>
+<section class="section buttons">
+<h2>オンライン対戦</h2>
 
-<div class="buttons">
+<button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
 
-<button id="createRoom">ルーム作成</button>
+<label class="field-label" for="roomInput">ルームコード</label>
+<input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
 
-<input
-    id="roomInput"
-    type="text"
-    placeholder="ルームコードを入力"
-    maxlength="6"
->
+<button type="button" id="joinRoom" class="btn btn-secondary">ルーム参加</button>
 
-<button id="joinRoom">ルーム参加</button>
-
-<button id="deletePlayer" class="danger-btn">? プレイヤー削除</button>
-
-</div>
+<button type="button" id="deletePlayer" class="btn btn-danger-outline">プレイヤー削除</button>
+</section>
 
 </div>
 

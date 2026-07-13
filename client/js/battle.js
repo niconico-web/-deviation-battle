@@ -56,7 +56,7 @@ function initialize(){
     updateUltimateGauge();
     updateButtons();
 
-    addLog("? Battle Start!");
+    addLog("バトル開始！");
 
 }
 
@@ -152,7 +152,7 @@ function finishBattle(winnerId){
 
     const win = winnerId === me.id;
 
-    addLog(win ? "? 勝利！" : "? 敗北...");
+    addLog(win ? "勝利！" : "敗北...");
 
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("battleTurn", String(turnCount));
@@ -184,8 +184,8 @@ function updateButtons(){
             turnText.textContent = "バトル終了";
         }else{
             turnText.textContent = myTurn
-                ? "? あなたのターン"
-                : "? 相手のターン";
+                ? "あなたのターン"
+                : "相手のターン";
         }
 
     }
@@ -322,7 +322,7 @@ socket.on("battleFinished", (data) => {
 
 socket.on("actionError", (data) => {
 
-    addLog(`? ${data.message}`);
+    addLog("[注意] " + data.message);
 
 });
 

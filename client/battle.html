@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>School Battle - Battle</title>
     <link rel="stylesheet" href="css/battle.css">
 </head>
@@ -11,23 +11,24 @@
 
 <div class="battle-container">
 
-    <h1>? School Battle</h1>
+    <header class="battle-header">
+        <h1>バトル</h1>
+        <p id="turnText" class="turn-text"></p>
+    </header>
 
     <div class="players">
 
-        <div class="card" id="playerCard">
+        <div class="card player-card" id="playerCard">
 
-            <h2>あなた</h2>
-
-            <h3 id="myName">----</h3>
+            <p class="card-label">あなた</p>
+            <h2 id="myName">----</h2>
 
             <div id="myDamage" class="damage"></div>
 
             <div class="hpbar">
                 <div id="myHPBar" class="fill"></div>
             </div>
-
-            <p id="myHPText">HP 100 / 100</p>
+            <p id="myHPText" class="hp-text">HP 100 / 100</p>
 
             <div class="stats">
                 <p id="myAtk">攻撃：-</p>
@@ -40,17 +41,17 @@
 
         <div class="vs">VS</div>
 
-        <div class="card" id="enemyCard">
+        <div class="card enemy-card" id="enemyCard">
 
-            <h2>相手</h2>
+            <p class="card-label">相手</p>
+            <h2 id="enemyName">読込中...</h2>
 
-            <h3 id="enemyName">読込中...</h3>
+            <div id="enemyDamage" class="damage"></div>
 
             <div class="hpbar">
                 <div id="enemyHPBar" class="fill enemy"></div>
             </div>
-
-            <p id="enemyHPText">HP ???</p>
+            <p id="enemyHPText" class="hp-text">HP ???</p>
 
             <div class="stats">
                 <p id="enemyAtk">攻撃：？</p>
@@ -59,26 +60,25 @@
                 <p id="enemySpeed">速さ：？</p>
             </div>
 
-            <div id="enemyDamage" class="damage"></div>
-
         </div>
 
     </div>
 
-    <div class="ultimateGauge">
-        <div id="ultimateGaugeBar" class="ultimateFill"></div>
+    <div class="ultimate-section">
+        <p class="gauge-label">必殺技ゲージ</p>
+        <div class="ultimateGauge">
+            <div id="ultimateGaugeBar" class="ultimateFill"></div>
+        </div>
     </div>
-
-    <div id="turnText"></div>
 
     <div class="commands">
-        <button id="attackBtn">? 攻撃</button>
-        <button id="specialBtn">? 特殊</button>
-        <button id="guardBtn">? 防御</button>
-        <button id="ultimateBtn" disabled>? 必殺技</button>
+        <button type="button" id="attackBtn" class="cmd-btn attack">攻撃</button>
+        <button type="button" id="specialBtn" class="cmd-btn special">特殊</button>
+        <button type="button" id="guardBtn" class="cmd-btn guard">防御</button>
+        <button type="button" id="ultimateBtn" class="cmd-btn ultimate" disabled>必殺技</button>
     </div>
 
-    <div id="log">戦闘開始！</div>
+    <div id="log" class="battle-log">戦闘開始！</div>
 
 </div>
 

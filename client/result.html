@@ -1,44 +1,27 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
-
 <meta charset="UTF-8">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>School Battle - Result</title>
-
 <link rel="stylesheet" href="css/result.css">
-
 </head>
-
 <body>
 
 <div id="resultCard">
 
     <h1 id="resultTitle"></h1>
 
-    <p id="turnText"></p>
-
-    <p id="hpText"></p>
-
-    <p id="damageText"></p>
-
-    <p id="criticalText"></p>
+    <div class="result-stats">
+        <p id="turnText"></p>
+        <p id="hpText"></p>
+        <p id="damageText"></p>
+        <p id="criticalText"></p>
+    </div>
 
     <div class="buttonArea">
-
-        <button id="retryBtn">
-
-            ğŸ” ã‚‚ã†ä¸€åº¦
-
-        </button>
-
-        <button id="homeBtn">
-
-            ğŸ  ãƒ›ãƒ¼ãƒ ã¸
-
-        </button>
-
+        <button type="button" id="retryBtn" class="btn">‚à‚¤ˆê“x</button>
+        <button type="button" id="homeBtn" class="btn">ƒz[ƒ€‚Ö</button>
     </div>
 
 </div>
@@ -46,5 +29,4 @@
 <script src="js/result.js"></script>
 
 </body>
-
 </html>
