@@ -1,35 +1,35 @@
 const socket = io();
-alert("online.js 隱ｭ縺ｿ霎ｼ縺ｿ謌仙粥");
-// 謗･邯?
+
+// 接続
 socket.on("connect", () => {
-    console.log("謗･邯?:", socket.id);
+    console.log("接続:", socket.id);
 });
 
 // ------------------
-// 繝ｫ繝ｼ繝?菴懈??
+// ルーム作成
 // ------------------
 document.getElementById("createRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("蜈医↓繧ｭ繝｣繝ｩ繧ｯ繧ｿ繝ｼ繧剃ｽ懈?舌＠縺ｦ縺上□縺輔＞縲?");
+        alert("先にキャラクターを作成してください。");
         return;
     }
 
     socket.emit("playerJoin", player);
-    socket.emit("createRoom");
+    socket.emit("createRoom", player);
 };
 
 // ------------------
-// 繝ｫ繝ｼ繝?蜿ょ刈
+// ルーム参加
 // ------------------
 document.getElementById("joinRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("蜈医↓繧ｭ繝｣繝ｩ繧ｯ繧ｿ繝ｼ繧剃ｽ懈?舌＠縺ｦ縺上□縺輔＞縲?");
+        alert("先にキャラクターを作成してください。");
         return;
     }
 
@@ -40,12 +40,12 @@ document.getElementById("joinRoom").onclick = () => {
         .toUpperCase();
 
     if(roomId === ""){
-        alert("繝ｫ繝ｼ繝?繧ｳ繝ｼ繝峨ｒ蜈･蜉帙＠縺ｦ縺上□縺輔＞縲?");
+        alert("ルームコードを入力してください。");
         return;
     }
 
     socket.emit("playerJoin", player);
-    socket.emit("joinRoom", roomId);
+    socket.emit("joinRoom", { roomId, player });
 };
 
 // ------------------

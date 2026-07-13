@@ -1,33 +1,38 @@
 const rooms = {};
 
-function createRoom(roomId, hostSocketId) {
+function createRoom(roomId, hostSocketId, hostData = null) {
 
     rooms[roomId] = {
 
         host: hostSocketId,
 
-        guest: null
+        guest: null,
+
+        hostData,
+
+        guestData: null
 
     };
 
 }
 
-function joinRoom(roomId, guestSocketId) {
+function joinRoom(roomId, guestSocketId, guestData = null) {
 
-    console.log("現在のルーム一覧:", rooms);
-    console.log("参加するルーム:", roomId);
+    console.log("現在のルー�?一覧:", rooms);
+    console.log("参加するルー�?:", roomId);
 
     if (!rooms[roomId]) {
-        console.log("ルームが存在しません");
+        console.log("ルー�?が存在しません");
         return false;
     }
 
     if (rooms[roomId].guest !== null) {
-        console.log("すでに満員です");
+        console.log("すでに満員で�?");
         return false;
     }
 
     rooms[roomId].guest = guestSocketId;
+    rooms[roomId].guestData = guestData;
 
     console.log("参加成功");
 
@@ -61,7 +66,7 @@ function resetRoom(roomId){
 
     if(!rooms[roomId]) return;
 
-    // 今後HPや状態を初期化する場合はここに追加
+    // 今後HP�?状態を初期化する�?�合�?�ここに追�?
 }
 
 module.exports = {
