@@ -1,114 +1,24 @@
-// ============================================
-// School Battle - ステータス計算（共通）
-// ============================================
-
 const SUBJECT_KEYS = ["jp", "math", "eng", "sci", "soc"];
-
 const SUBJECT_LABELS = {
-    jp: "国語",
-    math: "数学",
-    eng: "英語",
-    sci: "理科",
-    soc: "社会"
+    jp: I18N.jp, math: I18N.math, eng: I18N.eng, sci: I18N.sci, soc: I18N.soc
 };
-
-const DEFAULT_SUBJECTS = {
-    jp: 50,
-    math: 50,
-    eng: 50,
-    sci: 50,
-    soc: 50
-};
-
-function clampSubject(value){
-
-    return Math.min(80, Math.max(30, Math.round(value * 100) / 100));
-
+const DEFAULT_SUBJECTS = { jp: 50, math: 50, eng: 50, sci: 50, soc: 50 };
+function clampSubject(v){return Math.min(80,Math.max(30,Math.round(v*100)/100));}
+function calcStatsFromSubjects(s){
+  const{jp,math,eng,sci,soc}=s;
+  return{
+    maxHp:Math.max(50,Math.floor(100+(jp-50)*4+(soc-50)*2)),
+    atk:Math.max(20,Math.floor(50+(math-50)*5+(sci-50)*2)),
+    sp:Math.max(20,Math.floor(50+(eng-50)*5+(sci-50)*2)),
+    def:Math.max(20,Math.floor(50+(soc-50)*5+(jp-50)*2)),
+    speed:Math.max(20,Math.floor(50+(eng-50)*3+(math-50)*2))
+  };}
+function xpToNextLevel(l){return l*150;}
+function calcLevel(xp){let lv=1,r=xp;while(r>=xpToNextLevel(lv)){r-=xpToNextLevel(lv);lv++;}return lv;}
+function calcStudyXp(s){return Math.floor(s/10);}
+function calcSubjectGain(s){return(s/60)*0.03;}
+function buildPlayer(name,subjects,xp){
+  const st=calcStatsFromSubjects(subjects),lv=calcLevel(xp||0);
+  return{name,subjects:{...subjects},xp:xp||0,level:lv,maxHp:st.maxHp,hp:st.maxHp,atk:st.atk,sp:st.sp,def:st.def,speed:st.speed,totalStudySeconds:0};
 }
-
-function calcStatsFromSubjects(subjects){
-
-    const jp = subjects.jp;
-    const math = subjects.math;
-    const eng = subjects.eng;
-    const sci = subjects.sci;
-    const soc = subjects.soc;
-
-    return {
-        maxHp: Math.max(50, Math.floor(100 + (jp - 50) * 4 + (soc - 50) * 2)),
-        atk: Math.max(20, Math.floor(50 + (math - 50) * 5 + (sci - 50) * 2)),
-        sp: Math.max(20, Math.floor(50 + (eng - 50) * 5 + (sci - 50) * 2)),
-        def: Math.max(20, Math.floor(50 + (soc - 50) * 5 + (jp - 50) * 2)),
-        speed: Math.max(20, Math.floor(50 + (eng - 50) * 3 + (math - 50) * 2))
-    };
-
-}
-
-function xpToNextLevel(level){
-
-    return level * 150;
-
-}
-
-function calcLevel(xp){
-
-    let level = 1;
-    let remaining = xp;
-
-    while(remaining >= xpToNextLevel(level)){
-
-        remaining -= xpToNextLevel(level);
-        level++;
-
-    }
-
-    return level;
-
-}
-
-// 勉強時間に応じた経験値（10秒ごとに1XP）
-function calcStudyXp(seconds){
-
-    return Math.floor(seconds / 10);
-
-}
-
-// 選択した強化科目の偏差値上昇（1分あたり+0.03、かなり伸びにくい）
-function calcSubjectGain(seconds){
-
-    return (seconds / 60) * 0.03;
-
-}
-
-function buildPlayer(name, subjects, xp){
-
-    const stats = calcStatsFromSubjects(subjects);
-    const level = calcLevel(xp || 0);
-
-    return {
-        name,
-        subjects: { ...subjects },
-        xp: xp || 0,
-        level,
-        maxHp: stats.maxHp,
-        hp: stats.maxHp,
-        atk: stats.atk,
-        sp: stats.sp,
-        def: stats.def,
-        speed: stats.speed,
-        totalStudySeconds: 0
-    };
-
-}
-
-function formatTime(seconds){
-
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-
-    return [h, m, s]
-        .map(v => String(v).padStart(2, "0"))
-        .join(":");
-
-}
+function formatTime(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return[h,m,sec].map(v=>String(v).padStart(2,'0')).join(':');}
