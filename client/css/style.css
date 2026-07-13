@@ -146,6 +146,8 @@ select {
     padding: 16px;
     border-radius: 12px;
     margin-bottom: 20px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .status-box h2,
