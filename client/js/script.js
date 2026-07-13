@@ -1,22 +1,8 @@
-// ============================================
-// School Battle - Lobby
-// ============================================
-
 const socket = io();
-
-let studyStartTime = null;
-let studyTimerInterval = null;
-let studyElapsedBefore = 0;
-
-// ============================================
-// キャラクター作成
-// ============================================
+let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 
 function createCharacter(){
-
-    const name =
-        document.getElementById("playerName").value.trim() || "無名";
-
+    const name = document.getElementById("playerName").value.trim() || I18N.unnamed;
     const subjects = {
         jp: Number(document.getElementById("jp").value),
         math: Number(document.getElementById("math").value),
@@ -24,75 +10,42 @@ function createCharacter(){
         sci: Number(document.getElementById("sci").value),
         soc: Number(document.getElementById("soc").value)
     };
-
     const existing = getPlayerData();
     const xp = existing ? existing.xp : 0;
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
-
     const player = buildPlayer(name, subjects, xp);
     player.totalStudySeconds = totalStudySeconds;
-
     localStorage.setItem("player", JSON.stringify(player));
-
     updateStatus(player);
     updateXpDisplay(player);
-
 }
 
-// ============================================
-// ステータス表示
-// ============================================
-
 function updateStatus(player){
-
-    const subjects = player.subjects || DEFAULT_SUBJECTS;
-
-    document.getElementById("status").innerHTML = `
-<h2>ステータス</h2>
-<p><strong>プレイヤー名：</strong>${player.name}</p>
-<p><strong>レベル：</strong>${player.level || 1}　<strong>経験値：</strong>${player.xp || 0}</p>
-<hr>
-<p>HP：${player.maxHp}</p>
-<p>攻撃：${player.atk}</p>
-<p>特殊：${player.sp}</p>
-<p>防御：${player.def}</p>
-<p>速さ：${player.speed}</p>
-<hr>
-<p>国語 ${subjects.jp} / 数学 ${subjects.math} / 英語 ${subjects.eng}</p>
-<p>理科 ${subjects.sci} / 社会 ${subjects.soc}</p>
-<p>累計勉強時間：${formatTime(player.totalStudySeconds || 0)}</p>
-`;
-
+    const s = player.subjects || DEFAULT_SUBJECTS;
+    document.getElementById("status").innerHTML =
+        "<h2>" + I18N.status + "</h2>" +
+        "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
+        "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) +
+        " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p><hr>" +
+        "<p>HP" + I18N.colon + player.maxHp + "</p>" +
+        "<p>" + I18N.atk + I18N.colon + player.atk + "</p>" +
+        "<p>" + I18N.sp + I18N.colon + player.sp + "</p>" +
+        "<p>" + I18N.def + I18N.colon + player.def + "</p>" +
+        "<p>" + I18N.speed + I18N.colon + player.speed + "</p><hr>" +
+        "<p>" + I18N.jp + " " + s.jp + " / " + I18N.math + " " + s.math + " / " + I18N.eng + " " + s.eng + "</p>" +
+        "<p>" + I18N.sci + " " + s.sci + " / " + I18N.soc + " " + s.soc + "</p>" +
+        "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>";
 }
 
 function updateXpDisplay(player){
-
-    const xpEl = document.getElementById("xpDisplay");
-
-    if(!xpEl) return;
-
-    const level = player.level || 1;
-    const xp = player.xp || 0;
-    const needed = xpToNextLevel(level);
-
-    xpEl.textContent = `経験値：${xp}（Lv.${level} → 次まで ${needed} XP）`;
-
+    const el = document.getElementById("xpDisplay");
+    if(!el) return;
+    const lv = player.level || 1, xp = player.xp || 0;
+    el.textContent = I18N.xp + I18N.colon + xp + " (Lv." + lv + " \u2192 " + I18N.xpNext + " " + xpToNextLevel(lv) + " XP)";
 }
 
-// ============================================
-// プレイヤーデータ取得
-// ============================================
-
-function getPlayerData(){
-
-    const raw = localStorage.getItem("player");
-
-    return raw ? JSON.parse(raw) : null;
-
-}
-
+function getPlayerData(){ const r = localStorage.getItem("player"); return r ? JSON.parse(r) : null; }
 function getSubjectsFromInputs(){
-
     return {
         jp: Number(document.getElementById("jp").value),
         math: Number(document.getElementById("math").value),
@@ -100,289 +53,113 @@ function getSubjectsFromInputs(){
         sci: Number(document.getElementById("sci").value),
         soc: Number(document.getElementById("soc").value)
     };
-
 }
 
-// ============================================
-// 勉強タイマー
-// ============================================
-
 function startStudy(){
-
     if(studyStartTime !== null) return;
-
-    const player = getPlayerData();
-
-    if(!player){
-
-        alert("先にキャラクターを作成してください。");
-        return;
-
-    }
-
+    if(!getPlayerData()){ alert(I18N.needChar); return; }
     studyStartTime = Date.now();
     studyElapsedBefore = 0;
-
     document.getElementById("studyStart").disabled = true;
     document.getElementById("studyStop").disabled = false;
     document.getElementById("studyFocus").disabled = true;
-
     studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
     updateStudyTimerDisplay();
-
 }
 
 function stopStudy(){
-
     if(studyStartTime === null) return;
-
     clearInterval(studyTimerInterval);
     studyTimerInterval = null;
-
-    const elapsed = studyElapsedBefore +
-        Math.floor((Date.now() - studyStartTime) / 1000);
-
+    const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
     studyStartTime = null;
     studyElapsedBefore = 0;
-
     document.getElementById("studyStart").disabled = false;
     document.getElementById("studyStop").disabled = true;
     document.getElementById("studyFocus").disabled = false;
-
     applyStudyRewards(elapsed);
-
     document.getElementById("studyTimer").textContent = "00:00:00";
-
 }
 
 function updateStudyTimerDisplay(){
-
     if(studyStartTime === null) return;
-
-    const elapsed = studyElapsedBefore +
-        Math.floor((Date.now() - studyStartTime) / 1000);
-
+    const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
     document.getElementById("studyTimer").textContent = formatTime(elapsed);
-
 }
 
 function applyStudyRewards(seconds){
-
-    if(seconds < 5){
-
-        alert("5秒未満の勉強では報酬はもらえません。");
-        return;
-
-    }
-
+    if(seconds < 5){ alert(I18N.studyTooShort); return; }
     const player = getPlayerData();
-
     if(!player) return;
-
     const focus = document.getElementById("studyFocus").value;
     const subjects = player.subjects || getSubjectsFromInputs();
     const gainedXp = calcStudyXp(seconds);
     const subjectGain = calcSubjectGain(seconds);
-
     subjects[focus] = clampSubject(subjects[focus] + subjectGain);
-
-    const newXp = (player.xp || 0) + gainedXp;
-    const updated = buildPlayer(player.name, subjects, newXp);
+    const updated = buildPlayer(player.name, subjects, (player.xp || 0) + gainedXp);
     updated.totalStudySeconds = (player.totalStudySeconds || 0) + seconds;
-
     localStorage.setItem("player", JSON.stringify(updated));
-
-    document.getElementById("jp").value = subjects.jp;
-    document.getElementById("math").value = subjects.math;
-    document.getElementById("eng").value = subjects.eng;
-    document.getElementById("sci").value = subjects.sci;
-    document.getElementById("soc").value = subjects.soc;
-
+    ["jp","math","eng","sci","soc"].forEach(k => document.getElementById(k).value = subjects[k]);
     updateStatus(updated);
     updateXpDisplay(updated);
-
-    const label = SUBJECT_LABELS[focus];
-
-    alert(
-        `勉強完了！\n` +
-        `時間：${formatTime(seconds)}\n` +
-        `経験値 +${gainedXp}\n` +
-        `${label}偏差値 +${subjectGain.toFixed(2)}（かなり少し）`
-    );
-
+    alert(I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + SUBJECT_LABELS[focus] + I18N.deviationUp + " +" + subjectGain.toFixed(2) + I18N.slightUp);
 }
 
-// ============================================
-// ルーム作成
-// ============================================
-
 document.getElementById("createRoom").onclick = () => {
-
-    const player = getPlayerData();
-
-    if(!player){
-
-        alert("先にキャラクターを作成してください。");
-        return;
-
-    }
-
-    socket.emit("playerJoin", player);
+    const p = getPlayerData();
+    if(!p){ alert(I18N.needChar); return; }
+    socket.emit("playerJoin", p);
     socket.emit("createRoom");
-
 };
 
-// ============================================
-// ルーム参加
-// ============================================
-
 document.getElementById("joinRoom").onclick = () => {
-
-    const player = getPlayerData();
-
-    if(!player){
-
-        alert("先にキャラクターを作成してください。");
-        return;
-
-    }
-
-    const roomId = document
-        .getElementById("roomInput")
-        .value
-        .trim()
-        .toUpperCase();
-
-    if(roomId === ""){
-
-        alert("ルームコードを入力してください。");
-        return;
-
-    }
-
-    socket.emit("playerJoin", player);
+    const p = getPlayerData();
+    if(!p){ alert(I18N.needChar); return; }
+    const roomId = document.getElementById("roomInput").value.trim().toUpperCase();
+    if(!roomId){ alert(I18N.roomCode + I18N.colon + I18N.playerNamePh); return; }
+    socket.emit("playerJoin", p);
     socket.emit("joinRoom", roomId);
-
 };
 
 socket.on("roomCreated", (roomId) => {
-
-    alert(
-        "ルームを作成しました！\n\nルームコード：" +
-        roomId +
-        "\n\n友達に伝えてください。"
-    );
-
+    alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend);
 });
-
-socket.on("joinFailed", () => {
-
-    alert("ルームが見つかりません。");
-
-});
-
+socket.on("joinFailed", () => alert(I18N.roomNotFound));
 socket.on("roomReady", (data) => {
-
     localStorage.setItem("roomId", data.roomId);
     localStorage.setItem("player", JSON.stringify(data.me));
     localStorage.setItem("enemy", JSON.stringify(data.enemy));
     localStorage.setItem("myTurn", String(data.myTurn));
-
-    alert("マッチングしました！");
-
+    alert(I18N.matched);
     location.href = "battle.html";
-
 });
-
-socket.on("connected", () => {
-
-    console.log("サーバーに接続しました。");
-
-});
-
-socket.on("disconnect", () => {
-
-    console.log("サーバーとの接続が切れました。");
-
-});
-
-socket.on("errorMessage", (message) => {
-
-    alert(message);
-
-});
+socket.on("errorMessage", (m) => alert(m));
 
 document.getElementById("deletePlayer").onclick = () => {
-
-    if(!confirm("プレイヤーデータを削除しますか？")){
-        return;
-    }
-
-    if(studyStartTime !== null){
-        stopStudy();
-    }
-
+    if(!confirm(I18N.deleteConfirm)) return;
+    if(studyStartTime !== null) stopStudy();
     localStorage.removeItem("player");
     localStorage.removeItem("enemy");
     localStorage.removeItem("roomId");
-
     document.getElementById("playerName").value = "";
-
-    document.getElementById("status").innerHTML = `
-        <h2>ステータス</h2>
-        <p>まだキャラクターが作成されていません。</p>
-    `;
-
+    document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";
     updateXpDisplay({ xp: 0, level: 1 });
-
-    alert("プレイヤーデータを削除しました。");
-
+    alert(I18N.deleted);
 };
 
 document.getElementById("studyStart").onclick = startStudy;
 document.getElementById("studyStop").onclick = stopStudy;
 
 window.onload = () => {
-
     const player = getPlayerData();
-
     if(player){
-
         updateStatus(player);
         updateXpDisplay(player);
-
         document.getElementById("playerName").value = player.name;
-
         if(player.subjects){
-
-            document.getElementById("jp").value = player.subjects.jp;
-            document.getElementById("math").value = player.subjects.math;
-            document.getElementById("eng").value = player.subjects.eng;
-            document.getElementById("sci").value = player.subjects.sci;
-            document.getElementById("soc").value = player.subjects.soc;
-
+            ["jp","math","eng","sci","soc"].forEach(k => document.getElementById(k).value = player.subjects[k]);
         }
-
-    }else{
-
+    } else {
         updateXpDisplay({ xp: 0, level: 1 });
-
     }
-
-    console.log("School Battle Lobby Ready");
-
-};
-
-window.debugPlayer = () => {
-    console.log(getPlayerData());
-};
-
-window.clearSave = () => {
-
-    localStorage.removeItem("player");
-    localStorage.removeItem("enemy");
-    localStorage.removeItem("roomId");
-
-    alert("セーブデータを削除しました。");
-
 };
