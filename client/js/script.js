@@ -166,7 +166,62 @@ STAT_KEYS.forEach(key => {
     if (el) el.addEventListener("input", updateRemainingPoints);
 });
 
+function initializeI18nTexts() {
+    // Set all i18n text elements
+    const elements = {
+        "subtitle": I18N.subtitle,
+        "playerNameLabel": I18N.playerName,
+        "statAllocationTitle": I18N.statAllocation,
+        "statAllocationDesc": I18N.statAllocationDesc,
+        "playerName": { placeholder: I18N.playerNamePh },
+        "studyTimerTitle": I18N.studyTimer,
+        "studyDesc": I18N.studyDesc,
+        "studyFocusLabel": I18N.studyFocus,
+        "createCharBtn": I18N.createChar,
+        "studyStart": I18N.studyStart,
+        "studyStop": I18N.studyStop,
+        "onlineTitle": I18N.online,
+        "createRoomBtn": I18N.createRoom,
+        "deletePlayerBtn": I18N.deletePlayer
+    };
+
+    for (const [id, text] of Object.entries(elements)) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        
+        if (typeof text === 'object' && text.placeholder) {
+            el.placeholder = text.placeholder;
+        } else {
+            el.textContent = text;
+        }
+    }
+
+    // Set select options
+    const selectOptions = {
+        "atkOpt": I18N.math,
+        "spOpt": I18N.eng,
+        "defOpt": I18N.sci,
+        "speedOpt": I18N.soc
+    };
+    for (const [id, text] of Object.entries(selectOptions)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    // Set stat labels
+    const atkLabel = document.getElementById("atkLabel");
+    if (atkLabel) atkLabel.textContent = I18N.math;
+    const spLabel = document.getElementById("spLabel");
+    if (spLabel) spLabel.textContent = I18N.eng;
+    const defLabel = document.getElementById("defLabel");
+    if (defLabel) defLabel.textContent = I18N.sci;
+    const speedLabel = document.getElementById("speedLabel");
+    if (speedLabel) speedLabel.textContent = I18N.soc;
+}
+
 window.onload = () => {
+    initializeI18nTexts();
+    
     const player = getPlayerData();
     if (player) {
         updateStatus(player);
