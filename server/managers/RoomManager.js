@@ -18,16 +18,16 @@ function createRoom(roomId, hostSocketId, hostData = null) {
 
 function joinRoom(roomId, guestSocketId, guestData = null) {
 
-    console.log("現在のルー�?一覧:", rooms);
-    console.log("参加するルー�?:", roomId);
+    console.log("現在のルーム一覧:", rooms);
+    console.log("参加するルーム:", roomId);
 
     if (!rooms[roomId]) {
-        console.log("ルー�?が存在しません");
+        console.log("ルームが存在しません");
         return false;
     }
 
     if (rooms[roomId].guest !== null) {
-        console.log("すでに満員で�?");
+        console.log("すでに満員です");
         return false;
     }
 
@@ -66,7 +66,7 @@ function resetRoom(roomId){
 
     if(!rooms[roomId]) return;
 
-    // 今後HP�?状態を初期化する�?�合�?�ここに追�?
+    // 今後HP�?状態を初期化する�?�合�?�ここに追�?
 }
 
 module.exports = {
