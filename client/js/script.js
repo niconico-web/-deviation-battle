@@ -123,16 +123,29 @@ function updateStudyTimerDisplay() {
     document.getElementById("studyTimer").textContent = formatTime(studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
 }
 
+// Map subjects to the 2 stats they strengthen
+const SUBJECT_STATS = {
+    jp: ["maxHp", "def"],     // ‘Œê ¨ HPE–hŒä
+    math: ["atk", "speed"],     // ”Šw ¨ UŒ‚E‘¬‚³
+    eng: ["sp", "speed"],       // ‰pŒê ¨ “ÁêE‘¬‚³
+    sci: ["atk", "sp"],         // —‰È ¨ UŒ‚E“Áê
+    soc: ["maxHp", "def"]       // Ğ‰ï ¨ HPE–hŒä
+};
+
 function applyStudyRewards(seconds) {
     if (seconds < 5) { alert(I18N.studyTooShort); return; }
     const player = getPlayerData(); if (!player) return;
-    const focus = document.getElementById("studyFocus").value;
+    const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
     const statGain = calcStatGain(seconds);
-    stats[focus] += statGain;
+    
+    // Get the 2 stats to enhance for this subject
+    const [stat1, stat2] = SUBJECT_STATS[subject];
+    stats[stat1] += statGain;
+    stats[stat2] += statGain;
 
-    const hp = focus === "maxHp"
+    const hp = (stat1 === "maxHp" || stat2 === "maxHp")
         ? (player.hp || player.maxHp) + statGain
         : (player.hp || player.maxHp);
 
@@ -204,24 +217,25 @@ function initializeI18nTexts() {
         }
     }
 
-    // Set select options
+    // Set select options for subjects
     const selectOptions = {
-        "atkOpt": I18N.math,
-        "spOpt": I18N.eng,
-        "defOpt": I18N.sci,
-        "speedOpt": I18N.soc
+        "jpOpt": I18N.jp,
+        "mathOpt": I18N.math,
+        "engOpt": I18N.eng,
+        "sciOpt": I18N.sci,
+        "socOpt": I18N.soc
     };
     for (const [id, text] of Object.entries(selectOptions)) {
         const el = document.getElementById(id);
         if (el) el.textContent = text;
     }
 
-    // Set stat labels
+    // Set stat labels for subjects
     const labelTexts = {
-        "atkLabelText": I18N.math,
-        "spLabelText": I18N.eng,
-        "defLabelText": I18N.sci,
-        "speedLabelText": I18N.soc
+        "atkLabelText": I18N.hpDef,
+        "spLabelText": I18N.mathAtk,
+        "defLabelText": I18N.engSp,
+        "speedLabelText": I18N.sciAtk
     };
     for (const [id, text] of Object.entries(labelTexts)) {
         const el = document.getElementById(id);
