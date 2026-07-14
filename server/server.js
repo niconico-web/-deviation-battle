@@ -11,7 +11,8 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    allowEIO3: true
 });
 
 const path = require("path");
@@ -36,6 +37,15 @@ function getContentType(filePath) {
 require("./socket/connection")(io);
 
 const PORT = process.env.PORT || 3000;
+
+// Diagnostic logging
+io.on('connection', (socket) => {
+    console.log(`[${new Date().toISOString()}] Socket connected - ID: ${socket.id}`);
+});
+
+io.on('error', (err) => {
+    console.error(`[${new Date().toISOString()}] Socket.io error:`, err);
+});
 
 // Error handling
 process.on('uncaughtException', (err) => {
