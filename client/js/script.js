@@ -187,7 +187,9 @@ function initializeI18nTexts() {
         "studyStart": I18N.studyStart,
         "studyStop": I18N.studyStop,
         "onlineTitle": I18N.online,
-        "createRoomBtn": I18N.createRoom,
+        "createRoom": I18N.createRoom,
+        "joinRoom": I18N.joinRoom,
+        "roomCodeLabel": I18N.roomCode,
         "deletePlayerBtn": I18N.deletePlayer
     };
 
