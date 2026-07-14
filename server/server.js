@@ -36,6 +36,26 @@ function getContentType(filePath) {
 require("./socket/connection")(io);
 
 const PORT = process.env.PORT || 3000;
+
+// Error handling
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+server.on('error', (err) => {
+    console.error('Server error:', err);
+    if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${PORT} is already in use`);
+    }
+    process.exit(1);
+});
+
 server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server Start on port ${PORT}`);
+    console.log(`[${new Date().toISOString()}] Server Start on port ${PORT}`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'production'}`);
 });
