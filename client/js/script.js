@@ -1,4 +1,10 @@
-const socket = io();
+const socket = io({
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5,
+    transports: ["websocket", "polling"]
+});
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
