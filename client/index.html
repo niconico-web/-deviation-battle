@@ -80,12 +80,12 @@
 <section class="online-section section">
     <h2 id="onlineTitle"></h2>
     
-    <button type="button" class="btn" id="createRoom" onclick="document.getElementById('roomInput').style.display='none'; document.getElementById('joinSection').style.display='none'; socket.emit('playerJoin', getPlayerData()); socket.emit('createRoom', getPlayerData());"></button>
+    <button type="button" class="btn" id="createRoom"></button>
     
-    <div id="joinSection" style="display:none;">
+    <div id="joinSection">
         <label for="roomInput" id="roomCodeLabel"></label>
         <input id="roomInput" type="text" placeholder="6•¶Žš‚ÌƒR[ƒh">
-        <button type="button" class="btn" id="joinRoom" onclick="const p = getPlayerData(); if(!p) { alert(I18N.needChar); return; } const roomId = document.getElementById('roomInput').value.trim().toUpperCase(); if(!roomId) { alert(I18N.roomCode); return; } socket.emit('playerJoin', p); socket.emit('joinRoom', {roomId, player: p});"></button>
+        <button type="button" class="btn" id="joinRoom"></button>
     </div>
 </section>
 
