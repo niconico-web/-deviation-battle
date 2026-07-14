@@ -11,34 +11,36 @@
 <div class="container">
 <header class="page-header">
 <h1>School Battle</h1>
-<p class="subtitle">&#20116;&#25945;&#31185;&#12398;&#20559;&#24046;&#20516;&#12391;&#25126;&#12358;&#12458;&#12531;&#12521;&#12452;&#12531;&#23550;&#25126;</p>
+<p class="subtitle">éùÇøì_300ÇêUÇËï™ÇØÇƒêÌÇ§ÉIÉìÉâÉCÉìëŒêÌ</p>
 </header>
 <section class="section">
 <label class="field-label" for="playerName">&#12503;&#12524;&#12452;&#12516;&#12540;&#21517;</label>
 <input id="playerName" type="text" placeholder="&#21517;&#21069;&#12434;&#20837;&#21147;" autocomplete="nickname">
 </section>
 <section class="section">
-<h2>&#20559;&#24046;&#20516;</h2>
-<div class="subjects">
-<label>&#22269;&#35486;<input id="jp" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>&#25968;&#23398;<input id="math" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>&#33521;&#35486;<input id="eng" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>&#29702;&#31185;<input id="sci" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
-<label>&#31038;&#20250;<input id="soc" type="number" value="50" min="30" max="80" step="0.01" inputmode="decimal"></label>
+<h2>???????</h2>
+<p class="stat-allocation-desc">???300??????????????????</p>
+<p id="remainingPoints" class="remaining-points">??????0 / 300</p>
+<div class="stat-allocation">
+<label>HP<input id="statMaxHp" type="number" value="60" min="10" max="280" step="1" inputmode="numeric"></label>
+<label>??<input id="statAtk" type="number" value="60" min="10" max="280" step="1" inputmode="numeric"></label>
+<label>??<input id="statSp" type="number" value="60" min="10" max="280" step="1" inputmode="numeric"></label>
+<label>??<input id="statDef" type="number" value="60" min="10" max="280" step="1" inputmode="numeric"></label>
+<label>??<input id="statSpeed" type="number" value="60" min="10" max="280" step="1" inputmode="numeric"></label>
 </div>
-<button type="button" class="btn btn-primary" onclick="createCharacter()">&#12461;&#12515;&#12521;&#12463;&#12479;&#12540;&#20316;&#25104;</button>
+<button type="button" class="btn btn-primary" onclick="createCharacter()">????????</button>
 </section>
 <div id="status" class="status-box"><h2>&#12473;&#12486;&#12540;&#12479;&#12473;</h2><p>&#12414;&#12384;&#12461;&#12515;&#12521;&#12463;&#12479;&#12540;&#12364;&#20316;&#25104;&#12373;&#12428;&#12390;&#12356;&#12414;&#12379;&#12435;&#12290;</p></div>
 <section class="study-section section">
 <h2>&#21193;&#24375;&#12479;&#12452;&#12510;&#12540;</h2>
-<p class="study-desc">&#21193;&#24375;&#26178;&#38291;&#12364;&#38263;&#12356;&#12411;&#12393;&#32076;&#39443;&#20516;&#12364;&#22679;&#12360;&#12414;&#12377;&#12290;&#24375;&#21270;&#31185;&#30446;&#12395;&#24540;&#12376;&#12390;&#20559;&#24046;&#20516;&#12364;&#12431;&#12378;&#12363;&#12395;&#19978;&#26119;&#12375;&#12414;&#12377;&#12290;</p>
-<label class="field-label" for="studyFocus">&#24375;&#21270;&#12377;&#12427;&#31185;&#30446;</label>
+<p class="study-desc">??????????????????1?????????????1??????????</p>
+<label class="field-label" for="studyFocus">?????????</label>
 <select id="studyFocus">
-<option value="jp">&#22269;&#35486;&#65288;HP&#12539;&#38450;&#24481;&#65289;</option>
-<option value="math">&#25968;&#23398;&#65288;&#25915;&#25731;&#12539;&#36895;&#12373;&#65289;</option>
-<option value="eng">&#33521;&#35486;&#65288;&#29305;&#27530;&#12539;&#36895;&#12373;&#65289;</option>
-<option value="sci">&#29702;&#31185;&#65288;&#25915;&#25731;&#12539;&#29305;&#27530;&#65289;</option>
-<option value="soc">&#31038;&#20250;&#65288;HP&#12539;&#38450;&#24481;&#65289;</option>
+<option value="maxHp">HP</option>
+<option value="atk">??</option>
+<option value="sp">??</option>
+<option value="def">??</option>
+<option value="speed">??</option>
 </select>
 <p id="studyTimer" class="study-timer">00:00:00</p>
 <p id="xpDisplay" class="xp-display">&#32076;&#39443;&#20516;&#65306;0</p>
