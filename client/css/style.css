@@ -81,16 +81,45 @@ select {
     color: #222;
 }
 
+.stat-allocation,
 .subjects {
     display: grid;
     gap: 10px;
 }
 
+.stat-allocation-desc {
+    font-size: 0.875rem;
+    color: #ccc;
+    margin: 0 0 8px;
+}
+
+.remaining-points {
+    text-align: center;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: #ffd54f;
+}
+
+.remaining-points.points-ok {
+    color: #81c784;
+}
+
+.remaining-points.points-trained {
+    color: #a8d8ff;
+}
+
+.remaining-points.points-over {
+    color: #ff8a80;
+}
+
+.stat-allocation label,
 .subjects label {
     display: block;
     font-size: 0.9375rem;
 }
 
+.stat-allocation label input,
 .subjects label input {
     margin-top: 4px;
     margin-bottom: 0;
@@ -219,6 +248,7 @@ select {
         padding: 28px 24px;
     }
 
+    .stat-allocation,
     .subjects {
         grid-template-columns: 1fr 1fr;
     }
