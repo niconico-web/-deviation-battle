@@ -150,7 +150,7 @@ socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.room
 socket.on("joinFailed", () => alert(I18N.roomNotFound));
 socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); localStorage.setItem("myTurn", String(data.myTurn)); alert(I18N.matched); location.href = "battle.html"; });
 socket.on("errorMessage", m => alert(m));
-document.getElementById("deletePlayer").onclick = () => {
+document.getElementById("deletePlayerBtn").onclick = () => {
     if (!confirm(I18N.deleteConfirm)) return;
     if (studyStartTime !== null) stopStudy();
     localStorage.removeItem("player");
