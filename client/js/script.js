@@ -215,14 +215,16 @@ function initializeI18nTexts() {
     }
 
     // Set stat labels
-    const atkLabel = document.getElementById("atkLabel");
-    if (atkLabel) atkLabel.textContent = I18N.math;
-    const spLabel = document.getElementById("spLabel");
-    if (spLabel) spLabel.textContent = I18N.eng;
-    const defLabel = document.getElementById("defLabel");
-    if (defLabel) defLabel.textContent = I18N.sci;
-    const speedLabel = document.getElementById("speedLabel");
-    if (speedLabel) speedLabel.textContent = I18N.soc;
+    const labelTexts = {
+        "atkLabelText": I18N.math,
+        "spLabelText": I18N.eng,
+        "defLabelText": I18N.sci,
+        "speedLabelText": I18N.soc
+    };
+    for (const [id, text] of Object.entries(labelTexts)) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
 }
 
 window.onload = () => {
