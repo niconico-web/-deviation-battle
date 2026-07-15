@@ -226,6 +226,20 @@ select {
     margin-top: 0;
 }
 
+.stat-growth-info {
+    font-size: 0.875rem;
+    color: #a8d8ff;
+    margin: 12px 0;
+    padding: 8px 12px;
+    background: #3b3b3b;
+    border-radius: 8px;
+    border-left: 3px solid #4a90d9;
+}
+
+.stat-growth-info p {
+    margin: 0;
+}
+
 #roomInput {
     text-align: center;
     letter-spacing: 0.15em;
