@@ -14,10 +14,18 @@ module.exports = function(io, socket){
 
     });
 
-    // 再戦
+    // 再戦リクエスト
     socket.on("requestRematch", (roomId) => {
 
         socket.to(roomId).emit("rematchReady");
+
+    });
+
+    // 再戦開始リクエスト
+    socket.on("startRematch", (roomId) => {
+
+        socket.to(roomId).emit("rematchConfirmed");
+        socket.emit("rematchConfirmed");
 
     });
 
