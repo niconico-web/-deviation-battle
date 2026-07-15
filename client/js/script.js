@@ -44,18 +44,24 @@ function updateRemainingPoints() {
 
 function createCharacter() {
     const name = document.getElementById("playerName").value.trim() || I18N.unnamed;
+    const stats = getStatsFromInputs();
     const existing = getPlayerData();
 
-    // Only allow character creation if no existing character
-    if (existing) {
-        alert(I18N.statsLocked);
-        return;
+    if (!existing) {
+        const validation = validateStatAllocation(stats);
+        if (!validation.ok) { alert(validation.message); return; }
+    } else {
+        for (const key of STAT_KEYS) {
+            if (!Number.isFinite(stats[key]) || stats[key] < MIN_STAT) {
+                alert(I18N.statMinError.replace("{min}", MIN_STAT));
+                return;
+            }
+        }
     }
 
-    // Use fixed initial stats instead of user input
-    const stats = { ...DEFAULT_STATS };
-    
-    const player = buildPlayer(name, stats, 0, { totalStudySeconds: 0 });
+    const xp = existing ? existing.xp : 0;
+    const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
+    const player = buildPlayer(name, stats, xp, { totalStudySeconds });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
     updateXpDisplay(player);
@@ -149,7 +155,7 @@ function updateStatGrowthInfo() {
 }
 
 function applyStudyRewards(seconds) {
-    if (seconds < 5) { alert(I18N.studyTooShort); return; }
+    if (seconds < 60) { alert("勉強時間は1分以上にしてください"); return; }
     const player = getPlayerData(); if (!player) return;
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
@@ -248,12 +254,12 @@ function initializeI18nTexts() {
         if (el) el.textContent = text;
     }
 
-    // Set stat labels for subjects
+    // Set stat labels
     const labelTexts = {
-        "atkLabelText": I18N.hpDef,
-        "spLabelText": I18N.mathAtk,
-        "defLabelText": I18N.engSp,
-        "speedLabelText": I18N.sciAtk
+        "atkLabelText": I18N.atk,
+        "spLabelText": I18N.sp,
+        "defLabelText": I18N.def,
+        "speedLabelText": I18N.speed
     };
     for (const [id, text] of Object.entries(labelTexts)) {
         const el = document.getElementById(id);
