@@ -125,11 +125,11 @@ function updateStudyTimerDisplay() {
 
 // Map subjects to the 2 stats they strengthen
 const SUBJECT_STATS = {
-    jp: ["maxHp", "def"],     // ‘Œê ¨ HPE–hŒä
-    math: ["atk", "speed"],     // ”Šw ¨ UŒ‚E‘¬‚³
-    eng: ["sp", "speed"],       // ‰pŒê ¨ “ÁŽêE‘¬‚³
-    sci: ["atk", "sp"],         // —‰È ¨ UŒ‚E“ÁŽê
-    soc: ["maxHp", "def"]       // ŽÐ‰ï ¨ HPE–hŒä
+    jp: ["maxHp", "def"],     // å›½èªž â†’ HPãƒ»é˜²å¾¡
+    math: ["atk", "speed"],     // æ•°å­¦ â†’ æ”»æ’ƒãƒ»é€Ÿã•
+    eng: ["sp", "speed"],       // è‹±èªž â†’ ç‰¹æ®Šãƒ»é€Ÿã•
+    sci: ["atk", "sp"],         // ç†ç§‘ â†’ æ”»æ’ƒãƒ»ç‰¹æ®Š
+    soc: ["maxHp", "def"]       // ç¤¾ä¼š â†’ HPãƒ»é˜²å¾¡
 };
 
 function applyStudyRewards(seconds) {
@@ -154,7 +154,8 @@ function applyStudyRewards(seconds) {
     setStatsToInputs(stats);
     updateStatus(updated);
     updateXpDisplay(updated);
-    alert(I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + STAT_LABELS[focus] + I18N.statUp + " +" + statGain);
+    const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engSp, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
+    alert(I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain);
 }
 
 document.getElementById("createRoom").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } socket.emit("playerJoin", p); socket.emit("createRoom", p); };
