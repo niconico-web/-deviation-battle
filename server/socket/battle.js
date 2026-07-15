@@ -15,17 +15,22 @@ module.exports = function(io, socket){
     });
 
     // 再戦リクエスト
-    socket.on("requestRematch", (roomId) => {
+    socket.on("requestRematch", (data) => {
 
-        socket.to(roomId).emit("rematchReady");
+        const { roomId, playerId } = data;
+        socket.to(roomId).emit("rematchRequested", { playerId });
 
     });
 
-    // 再戦開始リクエスト
-    socket.on("startRematch", (roomId) => {
+    // 再戦受諾
+    socket.on("acceptRematch", (data) => {
 
-        socket.to(roomId).emit("rematchConfirmed");
-        socket.emit("rematchConfirmed");
+        const { roomId } = data;
+        // Create new room for rematch
+        const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        
+        // Notify both players to join new room
+        io.to(roomId).emit("rematchConfirmed", { newRoomId });
 
     });
 
