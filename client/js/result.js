@@ -11,6 +11,5 @@ document.getElementById("criticalText").textContent=I18N.criticalCount+" : "+cri
 const xpEl=document.getElementById("xpGainText");
 if(xpEl)xpEl.textContent=I18N.xp+" +"+xpGain;
 
-// Both buttons redirect to index for now
-document.getElementById("retryBtn").onclick=()=>location.href="index.html";
+// Home button redirects to index
 document.getElementById("homeBtn").onclick=()=>location.href="index.html";
