@@ -24,6 +24,43 @@ const RANDOM_DAMAGE_MAX = 5;
 const GUARD_RATE = 0.5;
 
 // -----------------------------
+// デバフ呪文
+// -----------------------------
+
+const DEBUFF_SPELLS = {
+    atkDown: {
+        name: "攻撃力低下",
+        stat: "atk",
+        reduction: 0.3, // 30%減少
+        damageMultiplier: 0.6 // 威力は物理攻撃の60%
+    },
+    spDown: {
+        name: "特殊攻撃力低下",
+        stat: "sp",
+        reduction: 0.3,
+        damageMultiplier: 0.6
+    },
+    defDown: {
+        name: "防御力低下",
+        stat: "def",
+        reduction: 0.3,
+        damageMultiplier: 0.6
+    },
+    speedDown: {
+        name: "速さ低下",
+        stat: "speed",
+        reduction: 0.3,
+        damageMultiplier: 0.6
+    },
+    hpDown: {
+        name: "HP低下",
+        stat: "maxHp",
+        reduction: 0.15, // 15%減少
+        damageMultiplier: 0.6
+    }
+};
+
+// -----------------------------
 // ランダム
 // -----------------------------
 
@@ -178,24 +215,38 @@ function calculateAttack(
 }
 
 // -----------------------------
-// 特殊攻撃
+// 特殊攻撃（デバフ呪文）
 // -----------------------------
 
 function calculateSpecial(
     attacker,
     target
 ){
+    // ランダムにデバフ呪文を選択
+    const spellKeys = Object.keys(DEBUFF_SPELLS);
+    const randomSpell = spellKeys[Math.floor(Math.random() * spellKeys.length)];
+    const spell = DEBUFF_SPELLS[randomSpell];
 
-    return calculateDamage(
+    // デバフを適用
+    const originalStat = target[spell.stat];
+    const reduction = Math.floor(originalStat * spell.reduction);
+    target[spell.stat] = Math.max(1, originalStat - reduction);
 
+    // ダメージ計算（物理攻撃より低い威力）
+    const damage = calculateDamage(
         attacker,
-
         target,
-
-        Math.floor(attacker.sp*1.3)
-
+        Math.floor(attacker.atk * spell.damageMultiplier)
     );
 
+    return {
+        ...damage,
+        debuff: {
+            stat: spell.stat,
+            reduction: reduction,
+            spellName: spell.name
+        }
+    };
 }
 
 // -----------------------------
@@ -266,6 +317,14 @@ function executeAction(
 
         case "special":
 
+            if(attacker.ultimate < 20){
+
+                return null;
+
+            }
+
+            attacker.ultimate -= 20;
+
             result =
                 calculateSpecial(
                     attacker,
@@ -313,7 +372,7 @@ function executeAction(
 
     // 必殺ゲージ（必殺使用時は消費済みのため加算しない）
 
-    if(action !== "ultimate"){
+    if(action !== "ultimate" && action !== "special"){
 
         attacker.ultimate += 20;
 
