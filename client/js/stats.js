@@ -62,7 +62,8 @@ function applyBattleRewards(won, turns, damage) {
     const raw = localStorage.getItem("player"); if (!raw) return null;
     const player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
-    const gainedXp = calcBattleXp(won, turns, damage);
+    // Disabled XP gain from battles - only study provides XP
+    const gainedXp = 0;
     const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, { hp: player.hp, totalStudySeconds: player.totalStudySeconds || 0 });
     localStorage.setItem("player", JSON.stringify(updated));
     localStorage.setItem("battleXpGain", String(gainedXp));
