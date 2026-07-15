@@ -44,27 +44,26 @@ function updateRemainingPoints() {
 
 function createCharacter() {
     const name = document.getElementById("playerName").value.trim() || I18N.unnamed;
-    const stats = getStatsFromInputs();
     const existing = getPlayerData();
 
-    if (!existing) {
-        const validation = validateStatAllocation(stats);
-        if (!validation.ok) { alert(validation.message); return; }
-    } else {
-        for (const key of STAT_KEYS) {
-            if (!Number.isFinite(stats[key]) || stats[key] < MIN_STAT) {
-                alert(I18N.statMinError.replace("{min}", MIN_STAT));
-                return;
-            }
-        }
+    // Only allow character creation if no existing character
+    if (existing) {
+        alert(I18N.statsLocked);
+        return;
     }
 
-    const xp = existing ? existing.xp : 0;
-    const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
-    const player = buildPlayer(name, stats, xp, { totalStudySeconds });
+    // Use fixed initial stats instead of user input
+    const stats = { ...DEFAULT_STATS };
+    
+    const player = buildPlayer(name, stats, 0, { totalStudySeconds: 0 });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
     updateXpDisplay(player);
+    
+    // Lock stat inputs after creation
+    lockStatInputs(true);
+    document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
+    
     alert(I18N.charCreated);
 }
 
@@ -132,6 +131,23 @@ const SUBJECT_STATS = {
     soc: ["maxHp", "def"]       // 社会 → HP・防御
 };
 
+// Display stat growth info based on selected subject
+function updateStatGrowthInfo() {
+    const subject = document.getElementById("studyFocus").value;
+    const [stat1, stat2] = SUBJECT_STATS[subject];
+    const statNames = {
+        maxHp: "HP",
+        atk: I18N.atk,
+        sp: I18N.sp,
+        def: I18N.def,
+        speed: I18N.speed
+    };
+    const infoEl = document.getElementById("statGrowthInfo");
+    if (infoEl) {
+        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${statNames[stat1]}・${statNames[stat2]}</p>`;
+    }
+}
+
 function applyStudyRewards(seconds) {
     if (seconds < 5) { alert(I18N.studyTooShort); return; }
     const player = getPlayerData(); if (!player) return;
@@ -179,6 +195,7 @@ document.getElementById("deletePlayerBtn").onclick = () => {
 };
 document.getElementById("studyStart").onclick = startStudy;
 document.getElementById("studyStop").onclick = stopStudy;
+document.getElementById("studyFocus").onchange = updateStatGrowthInfo;
 
 STAT_KEYS.forEach(key => {
     const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
@@ -246,6 +263,7 @@ function initializeI18nTexts() {
 
 window.onload = () => {
     initializeI18nTexts();
+    updateStatGrowthInfo();
     
     const player = getPlayerData();
     if (player) {
@@ -253,8 +271,29 @@ window.onload = () => {
         updateXpDisplay(player);
         document.getElementById("playerName").value = player.name;
         setStatsToInputs(getStatsFromPlayer(player));
+        // Lock stat inputs after character creation
+        lockStatInputs(true);
+        // Update stat allocation description for existing players
+        document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
     } else {
         setStatsToInputs(DEFAULT_STATS);
         updateXpDisplay({ xp: 0, level: 1 });
+        lockStatInputs(false);
     }
 };
+
+function lockStatInputs(locked) {
+    STAT_KEYS.forEach(key => {
+        const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
+        const el = document.getElementById(inputId);
+        if (el) {
+            el.disabled = locked;
+            el.readOnly = locked;
+        }
+    });
+    const createBtn = document.getElementById("createCharBtn");
+    if (createBtn) {
+        createBtn.disabled = locked;
+        createBtn.textContent = locked ? I18N.statsLocked : I18N.createChar;
+    }
+}
