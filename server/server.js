@@ -35,6 +35,7 @@ function getContentType(filePath) {
 }
 
 require("./socket/connection")(io);
+require("./socket/matchmaking")(io);
 
 const PORT = process.env.PORT || 3000;
 
