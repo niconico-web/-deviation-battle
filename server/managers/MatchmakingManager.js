@@ -31,6 +31,7 @@ function removeFromQueue(playerId) {
 
 function tryMatch(player) {
     // Find a match (first available player in queue)
+    // Need to check queue length after adding current player
     if (matchmakingQueue.length >= 2) {
         const matchIndex = matchmakingQueue.findIndex(p => p.id !== player.id);
         if (matchIndex !== -1) {
