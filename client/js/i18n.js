@@ -106,5 +106,9 @@ const I18N = {
     spDown: "\u7279\u6b8a\u653b\u6483\u529b\u4f4e\u4e0b",
     defDown: "\u9632\u5fa1\u529b\u4f4e\u4e0b",
     speedDown: "\u901f\u3055\u4f4e\u4e0b",
-    hpDown: "HP\u4f4e\u4e0b"
+    hpDown: "HP\u4f4e\u4e0b",
+    randomMatch: "\u30e9\u30f3\u30c0\u30e0\u30de\u30c3\u30c1",
+    searching: "\u5bfe\u6226\u76f8\u3092\u63a2\u4e2d...",
+    matchFound: "\u5bfe\u6226\u76f8\u304c\u898b\u3064\u304b\u308a\u307e\u3057\u305f\uff01",
+    matchCancelled: "\u30de\u30c3\u30c1\u30f3\u30b0\u30ad\u30e3\u30f3\u30bb\u30eb"
 };

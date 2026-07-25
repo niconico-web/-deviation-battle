@@ -182,9 +182,12 @@ function applyStudyRewards(seconds) {
 
 document.getElementById("createRoom").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } socket.emit("playerJoin", p); socket.emit("createRoom", p); };
 document.getElementById("joinRoom").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } const roomId = document.getElementById("roomInput").value.trim().toUpperCase(); if (!roomId) { alert(I18N.roomCode + I18N.colon); return; } socket.emit("playerJoin", p); socket.emit("joinRoom", { roomId, player: p }); };
+document.getElementById("randomMatch").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } const btn = document.getElementById("randomMatch"); btn.textContent = I18N.searching; btn.disabled = true; socket.emit("playerJoin", p); socket.emit("requestRandomMatch", p); };
 socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
 socket.on("joinFailed", () => alert(I18N.roomNotFound));
 socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); localStorage.setItem("myTurn", String(data.myTurn)); alert(I18N.matched); location.href = "battle.html"; });
+socket.on("matchFound", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); localStorage.setItem("myTurn", String(data.myTurn)); alert(I18N.matchFound); location.href = "battle.html"; });
+socket.on("matchCancelled", () => { const btn = document.getElementById("randomMatch"); btn.textContent = I18N.randomMatch; btn.disabled = false; alert(I18N.matchCancelled); });
 socket.on("errorMessage", m => alert(m));
 document.getElementById("deletePlayerBtn").onclick = () => {
     if (!confirm(I18N.deleteConfirm)) return;
@@ -224,6 +227,7 @@ function initializeI18nTexts() {
         "studyStart": I18N.studyStart,
         "studyStop": I18N.studyStop,
         "onlineTitle": I18N.online,
+        "randomMatch": I18N.randomMatch,
         "createRoom": I18N.createRoom,
         "joinRoom": I18N.joinRoom,
         "roomCodeLabel": I18N.roomCode,
