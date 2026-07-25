@@ -8,8 +8,11 @@ module.exports = function(io){
 
         // ランダムマッチリクエスト
         socket.on("requestRandomMatch", (player) => {
+            console.log(`[Matchmaking Socket] Received requestRandomMatch from socket: ${socket.id}`);
+            console.log(`[Matchmaking Socket] Player data:`, player);
             
             if(!player){
+                console.log(`[Matchmaking Socket] No player data provided`);
                 socket.emit("errorMessage", "プレイヤーデータが必要です");
                 return;
             }
@@ -21,17 +24,21 @@ module.exports = function(io){
                 player: player
             });
 
+            console.log(`[Matchmaking Socket] Matchmaking result:`, result);
+
             if(!result.success){
                 socket.emit("errorMessage", result.message);
                 return;
             }
 
             if(result.matched){
+                console.log(`[Matchmaking Socket] Match found! Creating room...`);
                 // Match found! Create room and start battle
                 const opponent = result.opponent;
                 
                 // Create new room
                 const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                console.log(`[Matchmaking Socket] Created room: ${roomId}`);
                 
                 // Add both players to room
                 RoomManager.createRoom(roomId, socket.id, player);
@@ -47,6 +54,7 @@ module.exports = function(io){
                 // Notify both players
                 const myTurn = battleData.turn === socket.id;
                 
+                console.log(`[Matchmaking Socket] Sending matchFound to both players`);
                 socket.emit("matchFound", {
                     roomId: roomId,
                     me: player,
@@ -60,6 +68,8 @@ module.exports = function(io){
                     enemy: player,
                     myTurn: !myTurn
                 });
+            } else {
+                console.log(`[Matchmaking Socket] No match found yet, player waiting`);
             }
         });
 
