@@ -25,18 +25,30 @@
     <p id="remainingPoints" class="remaining-points"></p>
 
     <div class="stat-allocation">
+        <label>学年
+            <select id="statGrade">
+                <option value="1">小学校1年生</option>
+                <option value="2">小学校2年生</option>
+                <option value="3">小学校3年生</option>
+                <option value="4">小学校4年生</option>
+                <option value="5">小学校5年生</option>
+                <option value="6">小学校6年生</option>
+                <option value="7">中学校1年生</option>
+                <option value="8">中学校2年生</option>
+                <option value="9">中学校3年生</option>
+                <option value="10">高校1年生</option>
+                <option value="11">高校2年生</option>
+                <option value="12">高校3年生</option>
+            </select>
+        </label>
+
         <label>HP
             <input id="statMaxHp" type="number" value="60" min="10" max="280">
         </label>
 
         <label id="atkLabel">
             <span id="atkLabelText"></span>
-            <input id="statAtk" type="number" value="60" min="10" max="280">
-        </label>
-
-        <label id="spLabel">
-            <span id="spLabelText"></span>
-            <input id="statSp" type="number" value="60" min="10" max="280">
+            <input id="statAtk" type="number" value="80" min="10" max="280">
         </label>
 
         <label id="defLabel">
@@ -46,7 +58,7 @@
 
         <label id="speedLabel">
             <span id="speedLabelText"></span>
-            <input id="statSpeed" type="number" value="60" min="10" max="280">
+            <input id="statSpeed" type="number" value="40" min="10" max="280">
         </label>
     </div>
 

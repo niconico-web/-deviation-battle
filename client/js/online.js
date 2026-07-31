@@ -1,19 +1,19 @@
 const socket = io();
 
-// Ú‘±
+// ï¿½Ú‘ï¿½
 socket.on("connect", () => {
-    console.log("Ú‘±:", socket.id);
+    console.log("ï¿½Ú‘ï¿½:", socket.id);
 });
 
 // ------------------
-// ƒ‹[ƒ€ì¬
+// ï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½ì¬
 // ------------------
 document.getElementById("createRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("æ‚ÉƒLƒƒƒ‰ƒNƒ^[‚ðì¬‚µ‚Ä‚­‚¾‚³‚¢B");
+        alert("ï¿½ï¿½ÉƒLï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½^ï¿½[ï¿½ï¿½ï¿½ì¬ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B");
         return;
     }
 
@@ -22,14 +22,14 @@ document.getElementById("createRoom").onclick = () => {
 };
 
 // ------------------
-// ƒ‹[ƒ€ŽQ‰Á
+// ï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½Qï¿½ï¿½
 // ------------------
 document.getElementById("joinRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("æ‚ÉƒLƒƒƒ‰ƒNƒ^[‚ðì¬‚µ‚Ä‚­‚¾‚³‚¢B");
+        alert("ï¿½ï¿½ÉƒLï¿½ï¿½ï¿½ï¿½ï¿½Nï¿½^ï¿½[ï¿½ï¿½ï¿½ì¬ï¿½ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B");
         return;
     }
 
@@ -40,7 +40,7 @@ document.getElementById("joinRoom").onclick = () => {
         .toUpperCase();
 
     if(roomId === ""){
-        alert("ƒ‹[ƒ€ƒR[ƒh‚ð“ü—Í‚µ‚Ä‚­‚¾‚³‚¢B");
+        alert("ï¿½ï¿½ï¿½[ï¿½ï¿½ï¿½Rï¿½[ï¿½hï¿½ï¿½ï¿½ï¿½Í‚ï¿½ï¿½Ä‚ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½B");
         return;
     }
 
@@ -49,25 +49,25 @@ document.getElementById("joinRoom").onclick = () => {
 };
 
 // ------------------
-// ä½œæ?å®Œäº?
+// ä½œï¿½?ï¿½å®Œï¿½?
 // ------------------
 socket.on("roomCreated",(roomId)=>{
 
-    alert("ãƒ«ãƒ¼ãƒ?ã‚³ãƒ¼ãƒ‰\n\n"+roomId);
+    alert("ãƒ«ãƒ¼ï¿½?ã‚³ãƒ¼ãƒ‰\n\n"+roomId);
 
 });
 
 // ------------------
-// å‚åŠ å¤±æ•?
+// å‚åŠ å¤±ï¿½?
 // ------------------
 socket.on("joinFailed",()=>{
 
-    alert("ãƒ«ãƒ¼ãƒ?ãŒå­˜åœ¨ã—ã¾ã›ã‚“ã€?");
+    alert("ãƒ«ãƒ¼ï¿½?ãŒå­˜åœ¨ã—ã¾ã›ã‚“ï¿½?");
 
 });
 
 // ------------------
-// ãƒžãƒƒãƒæ?ç«?
+// ãƒžãƒƒãƒï¿½?ï¿½ï¿½?
 // ------------------
 socket.on("roomReady",(data)=>{
 
@@ -86,11 +86,6 @@ socket.on("roomReady",(data)=>{
     localStorage.setItem(
         "enemy",
         JSON.stringify(data.enemy)
-    );
-
-    localStorage.setItem(
-        "myTurn",
-        String(data.myTurn)
     );
 
     location.href = "battle.html";

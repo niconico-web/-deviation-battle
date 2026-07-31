@@ -1,31 +1,272 @@
-const socket=io();
-const roomId=localStorage.getItem("roomId");
-let me=JSON.parse(localStorage.getItem("battlePlayer")),enemy=JSON.parse(localStorage.getItem("enemy"));
-let myTurn=localStorage.getItem("myTurn")==="true",battleEnd=false,rejoined=false,turnCount=0,totalDamage=0,criticalCount=0;
-const turnText=document.getElementById("turnText"),myName=document.getElementById("myName"),enemyName=document.getElementById("enemyName");
-const myHPBar=document.getElementById("myHPBar"),enemyHPBar=document.getElementById("enemyHPBar"),myHPText=document.getElementById("myHPText"),enemyHPText=document.getElementById("enemyHPText");
-const myAtk=document.getElementById("myAtk"),mySp=document.getElementById("mySp"),myDef=document.getElementById("myDef"),mySpeed=document.getElementById("mySpeed");
-const enemyAtk=document.getElementById("enemyAtk"),enemySp=document.getElementById("enemySp"),enemyDef=document.getElementById("enemyDef"),enemySpeed=document.getElementById("enemySpeed");
-const attackBtn=document.getElementById("attackBtn"),specialBtn=document.getElementById("specialBtn"),guardBtn=document.getElementById("guardBtn"),ultimateBtn=document.getElementById("ultimateBtn");
-const ultimateGaugeBar=document.getElementById("ultimateGaugeBar"),log=document.getElementById("log");
-function statLabel(k,v){return I18N[k]+I18N.colon+v;}
-function initialize(){if(!me||!enemy){alert(I18N.noBattleData);location.href="index.html";return;}myName.textContent=me.name;enemyName.textContent=enemy.name;updateStats();updateHP();updateUltimateGauge();updateButtons();addLog(I18N.battleBegin);}
-function updateStats(){myAtk.textContent=statLabel("atk",me.atk);mySp.textContent=statLabel("sp",me.sp);myDef.textContent=statLabel("def",me.def);mySpeed.textContent=statLabel("speed",me.speed);enemyAtk.textContent=statLabel("atk",enemy.atk);enemySp.textContent=statLabel("sp",enemy.sp);enemyDef.textContent=statLabel("def",enemy.def);enemySpeed.textContent=statLabel("speed",enemy.speed);}
-function updateHP(){myHPText.textContent="HP "+me.hp+" / "+me.maxHp;enemyHPText.textContent="HP "+enemy.hp+" / "+enemy.maxHp;myHPBar.style.width=(me.hp/me.maxHp*100)+"%";enemyHPBar.style.width=(enemy.hp/enemy.maxHp*100)+"%";}
-function updateUltimateGauge(){if(ultimateGaugeBar)ultimateGaugeBar.style.width=(me.ultimate||0)+"%";}
-function addLog(t){const d=document.createElement("div");d.textContent=t;log.appendChild(d);log.scrollTop=log.scrollHeight;}
-function showDamage(id,a){const el=document.getElementById(id);if(!el)return;el.textContent=a>0?"-"+a:"MISS";el.classList.remove("show");void el.offsetWidth;el.classList.add("show");}
-function syncBattleState(data){if(data.attacker.id===me.id){Object.assign(me,data.attacker);Object.assign(enemy,data.defender);}else{Object.assign(enemy,data.attacker);Object.assign(me,data.defender);}myTurn=(data.turn===me.id);localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateHP();updateStats();updateUltimateGauge();updateButtons();}
-function finishBattle(w){if(battleEnd)return;battleEnd=true;updateButtons();const win=w===me.id;addLog(win?I18N.victory:I18N.defeat);localStorage.setItem("battleResult",win?"win":"lose");localStorage.setItem("battleTurn",String(turnCount));localStorage.setItem("playerHP",String(me.hp));localStorage.setItem("enemyHP",String(enemy.hp));localStorage.setItem("totalDamage",String(totalDamage));localStorage.setItem("criticalCount",String(criticalCount));applyBattleRewards(win,turnCount,totalDamage);setTimeout(()=>location.href="result.html",2500);}
-function updateButtons(){const c=(me.ultimate||0)>=100;const s=(me.ultimate||0)>=20;attackBtn.disabled=!myTurn||battleEnd||!rejoined;specialBtn.disabled=!myTurn||battleEnd||!s||!rejoined;guardBtn.disabled=!myTurn||battleEnd||!rejoined;ultimateBtn.disabled=!myTurn||battleEnd||!c||!rejoined;if(!turnText)return;if(!rejoined)turnText.textContent=I18N.connecting;else if(battleEnd)turnText.textContent=I18N.battleEnd;else turnText.textContent=myTurn?I18N.yourTurn:I18N.enemyTurn;}
-function sendAction(a){if(!myTurn||battleEnd||!rejoined)return;if(a==="ultimate"){if((me.ultimate||0)<100)return;me.ultimate=0;updateUltimateGauge();updateButtons();}if(a==="special"){if((me.ultimate||0)<20)return;me.ultimate-=20;updateUltimateGauge();updateButtons();}attackBtn.disabled=true;specialBtn.disabled=true;guardBtn.disabled=true;ultimateBtn.disabled=true;socket.emit("playerAction",{roomId,action:a});}
-function getSavedPlayer(){const r=localStorage.getItem("player");return r?JSON.parse(r):null;}
-socket.on("connect",()=>{if(roomId&&me&&me.id){const p=getSavedPlayer();socket.emit("rejoinBattle",{roomId,oldPlayerId:me.id,player:p||me});}});
-socket.on("battleRejoined",data=>{me=data.me;enemy=data.enemy;myTurn=data.myTurn;rejoined=true;localStorage.setItem("battlePlayer",JSON.stringify(me));localStorage.setItem("enemy",JSON.stringify(enemy));localStorage.setItem("myTurn",String(myTurn));updateStats();updateHP();updateUltimateGauge();updateButtons();addLog(I18N.reconnected);});
-socket.on("rejoinFailed",data=>{alert(data&&data.reason==="battle_finished"?I18N.battleAlreadyEnd:I18N.rejoinFailed);location.href="index.html";});
-socket.on("battleUpdate",data=>{if(battleEnd)return;turnCount++;syncBattleState(data);const L={attack:I18N.attackAction,special:I18N.specialAction,guard:I18N.guardAction,ultimate:I18N.ultimateAction};addLog(data.attacker.name+(L[data.action]||""));if(data.result.miss){addLog(I18N.miss);showDamage(data.attacker.id===me.id?"enemyDamage":"myDamage",0);}else if(data.result.guard){addLog(I18N.guarding);}else{addLog(data.result.damage+" "+I18N.damage);if(data.attacker.id===me.id){totalDamage+=data.result.damage;showDamage("enemyDamage",data.result.damage);}else showDamage("myDamage",data.result.damage);if(data.result.critical){criticalCount++;addLog(I18N.critical);}if(data.result.debuff){const statNames={atk:I18N.atk,sp:I18N.sp,def:I18N.def,speed:I18N.speed,maxHp:"HP"};addLog(data.result.debuff.spellName+"！"+statNames[data.result.debuff.stat]+"-"+data.result.debuff.reduction);}}if(data.winner)finishBattle(data.winner);});
-socket.on("battleFinished",data=>finishBattle(data.winner));
-socket.on("actionError",data=>{addLog("["+I18N.note+"] "+data.message);updateButtons();});
-socket.on("opponentLeft",()=>{battleEnd=true;updateButtons();addLog(I18N.opponentLeft);alert(I18N.opponentLeft);location.href="index.html";});
-attackBtn.onclick=()=>sendAction("attack");specialBtn.onclick=()=>sendAction("special");guardBtn.onclick=()=>sendAction("guard");ultimateBtn.onclick=()=>sendAction("ultimate");
-window.onload=()=>initialize();
+const socket = io();
+const roomId = localStorage.getItem("roomId");
+let me = JSON.parse(localStorage.getItem("battlePlayer")), enemy = JSON.parse(localStorage.getItem("enemy"));
+let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null;
+
+const turnText = document.getElementById("turnText");
+const myName = document.getElementById("myName");
+const enemyName = document.getElementById("enemyName");
+const myHPBar = document.getElementById("myHPBar");
+const enemyHPBar = document.getElementById("enemyHPBar");
+const myHPText = document.getElementById("myHPText");
+const enemyHPText = document.getElementById("enemyHPText");
+const myAtk = document.getElementById("myAtk");
+const myDef = document.getElementById("myDef");
+const mySpeed = document.getElementById("mySpeed");
+const myGrade = document.getElementById("myGrade");
+const enemyAtk = document.getElementById("enemyAtk");
+const enemyDef = document.getElementById("enemyDef");
+const enemySpeed = document.getElementById("enemySpeed");
+const enemyGrade = document.getElementById("enemyGrade");
+const questionDisplay = document.getElementById("questionDisplay");
+const answerInput = document.getElementById("answerInput");
+const submitAnswerBtn = document.getElementById("submitAnswerBtn");
+const timerDisplay = document.getElementById("timer");
+const log = document.getElementById("log");
+
+function statLabel(k, v) {
+    return I18N[k] + I18N.colon + v;
+}
+
+function initialize() {
+    if (!me || !enemy) {
+        alert(I18N.noBattleData);
+        location.href = "index.html";
+        return;
+    }
+    
+    myName.textContent = me.name;
+    enemyName.textContent = enemy.name;
+    updateStats();
+    updateHP();
+    addLog(I18N.battleBegin);
+    
+    // バトル開始をリクエスト
+    socket.emit("requestBattleStart", { roomId });
+}
+
+function updateStats() {
+    myAtk.textContent = statLabel("atk", me.atk);
+    myDef.textContent = statLabel("def", me.def);
+    mySpeed.textContent = statLabel("speed", me.speed);
+    myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
+    
+    enemyAtk.textContent = statLabel("atk", enemy.atk);
+    enemyDef.textContent = statLabel("def", enemy.def);
+    enemySpeed.textContent = statLabel("speed", enemy.speed);
+    enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
+}
+
+function updateHP() {
+    myHPText.textContent = "HP " + me.hp + " / " + me.maxHp;
+    enemyHPText.textContent = "HP " + enemy.hp + " / " + enemy.maxHp;
+    myHPBar.style.width = (me.hp / me.maxHp * 100) + "%";
+    enemyHPBar.style.width = (enemy.hp / enemy.maxHp * 100) + "%";
+}
+
+function addLog(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+}
+
+function showDamage(id, amount) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = amount > 0 ? "-" + amount : "MISS";
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+}
+
+function updateTimer() {
+    if (!questionStartTime) return;
+    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    timerDisplay.textContent = 
+        String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+}
+
+function startTimer() {
+    questionStartTime = Date.now();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+function syncBattleState(players) {
+    const playerIds = Object.keys(players);
+    if (playerIds[0] === me.id) {
+        Object.assign(me, players[playerIds[0]]);
+        Object.assign(enemy, players[playerIds[1]]);
+    } else {
+        Object.assign(enemy, players[playerIds[0]]);
+        Object.assign(me, players[playerIds[1]]);
+    }
+    
+    localStorage.setItem("battlePlayer", JSON.stringify(me));
+    localStorage.setItem("enemy", JSON.stringify(enemy));
+    updateHP();
+    updateStats();
+}
+
+function finishBattle(winner) {
+    if (battleEnd) return;
+    battleEnd = true;
+    stopTimer();
+    
+    const win = winner === me.id;
+    addLog(win ? I18N.victory : I18N.defeat);
+    
+    localStorage.setItem("battleResult", win ? "win" : "lose");
+    localStorage.setItem("playerHP", String(me.hp));
+    localStorage.setItem("enemyHP", String(enemy.hp));
+    
+    setTimeout(() => location.href = "result.html", 2500);
+}
+
+function submitAnswer() {
+    if (battleEnd || !currentQuestion) return;
+    
+    const answer = answerInput.value.trim();
+    if (!answer) return;
+    
+    answerInput.disabled = true;
+    submitAnswerBtn.disabled = true;
+    
+    socket.emit("submitAnswer", {
+        roomId,
+        answer
+    });
+    
+    answerInput.value = "";
+}
+
+// Socket event handlers
+socket.on("connect", () => {
+    if (roomId && me && me.id) {
+        const p = getSavedPlayer();
+        socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
+    }
+});
+
+socket.on("battleRejoined", data => {
+    me = data.me;
+    enemy = data.enemy;
+    rejoined = true;
+    localStorage.setItem("battlePlayer", JSON.stringify(me));
+    localStorage.setItem("enemy", JSON.stringify(enemy));
+    updateStats();
+    updateHP();
+    addLog(I18N.reconnected);
+});
+
+socket.on("rejoinFailed", data => {
+    alert(data && data.reason === "battle_finished" ? I18N.battleAlreadyEnd : I18N.rejoinFailed);
+    location.href = "index.html";
+});
+
+socket.on("battleStarted", data => {
+    currentQuestion = data.initialQuestion;
+    questionDisplay.textContent = currentQuestion.question;
+    startTimer();
+    addLog("問題が出されました！");
+    answerInput.disabled = false;
+    submitAnswerBtn.disabled = false;
+    answerInput.focus();
+});
+
+socket.on("answerResult", data => {
+    const isMyAnswer = data.playerId === me.id;
+    
+    if (isMyAnswer) {
+        if (data.isCorrect) {
+            addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+            if (data.firstCorrect) {
+                addLog("先答！ダメージ: " + data.damage);
+                showDamage("enemyDamage", data.damage);
+            } else {
+                addLog("後答...ダメージなし");
+            }
+        } else {
+            addLog("不正解...");
+        }
+    } else {
+        if (data.isCorrect) {
+            addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+            if (data.firstCorrect) {
+                addLog("相手が先答！ダメージ: " + data.damage);
+                showDamage("myDamage", data.damage);
+            }
+        } else {
+            addLog(enemy.name + "は不正解...");
+        }
+    }
+    
+    // 状態を同期
+    if (data.battleState) {
+        syncBattleState(data.battleState.players);
+    }
+    
+    // 次の問題があれば表示
+    if (data.nextQuestion) {
+        currentQuestion = data.nextQuestion;
+        questionDisplay.textContent = currentQuestion.question;
+        startTimer();
+        answerInput.disabled = false;
+        submitAnswerBtn.disabled = false;
+        answerInput.focus();
+        addLog("次の問題！");
+    }
+    
+    // 勝利判定
+    if (data.winner) {
+        finishBattle(data.winner);
+    }
+});
+
+socket.on("battleFinished", data => {
+    if (data.draw) {
+        addLog("引き分け！");
+        localStorage.setItem("battleResult", "draw");
+    } else {
+        finishBattle(data.winner);
+    }
+});
+
+socket.on("answerError", data => {
+    addLog("エラー: " + data.message);
+    answerInput.disabled = false;
+    submitAnswerBtn.disabled = false;
+});
+
+socket.on("opponentLeft", () => {
+    battleEnd = true;
+    stopTimer();
+    addLog(I18N.opponentLeft);
+    alert(I18N.opponentLeft);
+    location.href = "index.html";
+});
+
+function getSavedPlayer() {
+    const raw = localStorage.getItem("player");
+    return raw ? JSON.parse(raw) : null;
+}
+
+// Event listeners
+submitAnswerBtn.onclick = submitAnswer;
+answerInput.onkeypress = (e) => {
+    if (e.key === "Enter") {
+        submitAnswer();
+    }
+};
+
+window.onload = () => initialize();

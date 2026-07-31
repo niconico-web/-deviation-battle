@@ -13,7 +13,7 @@ const battles = {};
 
 function createBattle(roomId, host, guest){
 
-    if(!host?.socketId || !guest?.socketId){
+    if(!host?.id || !guest?.id){
 
         return null;
 
@@ -25,51 +25,47 @@ function createBattle(roomId, host, guest){
 
         players:{
 
-            [host.socketId]:{
+            [host.id]:{
 
-                id: host.socketId,
+                id: host.id,
+                socketId: host.socketId,
                 name: host.name,
 
                 hp: host.maxHp,
                 maxHp: host.maxHp,
 
                 atk: host.atk,
-                sp: host.sp,
                 def: host.def,
                 speed: host.speed,
+                grade: host.grade || 1,
 
-                guard: false,
-                ultimate: 0
+                answerTime: null,
+                correctAnswers: 0
 
             },
 
-            [guest.socketId]:{
+            [guest.id]:{
 
-                id: guest.socketId,
+                id: guest.id,
+                socketId: guest.socketId,
                 name: guest.name,
 
                 hp: guest.maxHp,
                 maxHp: guest.maxHp,
 
                 atk: guest.atk,
-                sp: guest.sp,
                 def: guest.def,
                 speed: guest.speed,
+                grade: guest.grade || 1,
 
-                guard: false,
-                ultimate: 0
+                answerTime: null,
+                correctAnswers: 0
 
             }
 
         },
 
-        turn:
-
-            host.speed >= guest.speed
-
-            ? host.socketId
-
-            : guest.socketId,
+        turn: null, // 早解きバトルではターン制ではない
 
         finished: false
 
@@ -154,7 +150,7 @@ function finishBattle(roomId){
 }
 
 // -----------------------------
-// ソケ�?�?IDの付け替え（�?��?�ジ遷移後�?�再接続用?�?
+// ソケ�?�?IDの付け替え（�?��?�ジ遷移後�?�再接続用?�?
 // -----------------------------
 
 function remapPlayerSocket(roomId, oldSocketId, newSocketId){

@@ -12,18 +12,20 @@ function getStatsFromInputs() {
     return {
         maxHp: Math.floor(Number(document.getElementById("statMaxHp").value)),
         atk: Math.floor(Number(document.getElementById("statAtk").value)),
-        sp: Math.floor(Number(document.getElementById("statSp").value)),
         def: Math.floor(Number(document.getElementById("statDef").value)),
-        speed: Math.floor(Number(document.getElementById("statSpeed").value))
+        speed: Math.floor(Number(document.getElementById("statSpeed").value)),
+        grade: Math.floor(Number(document.getElementById("statGrade").value))
     };
 }
 
 function setStatsToInputs(stats) {
     document.getElementById("statMaxHp").value = stats.maxHp;
     document.getElementById("statAtk").value = stats.atk;
-    document.getElementById("statSp").value = stats.sp;
     document.getElementById("statDef").value = stats.def;
     document.getElementById("statSpeed").value = stats.speed;
+    if (stats.grade) {
+        document.getElementById("statGrade").value = stats.grade;
+    }
     updateRemainingPoints();
 }
 
@@ -80,9 +82,9 @@ function updateStatus(player) {
         "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p><hr>" +
         "<p>HP" + I18N.colon + player.maxHp + "</p>" +
         "<p>" + I18N.atk + I18N.colon + player.atk + "</p>" +
-        "<p>" + I18N.sp + I18N.colon + player.sp + "</p>" +
         "<p>" + I18N.def + I18N.colon + player.def + "</p>" +
-        "<p>" + I18N.speed + I18N.colon + player.speed + "</p><hr>" +
+        "<p>" + I18N.speed + I18N.colon + player.speed + "</p>" +
+        "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>";
 }
 
@@ -131,10 +133,10 @@ function updateStudyTimerDisplay() {
 // Map subjects to the 2 stats they strengthen
 const SUBJECT_STATS = {
     jp: ["maxHp", "def"],     // 国語 → HP・防御
-    math: ["atk", "speed"],     // 数学 → 攻撃・速さ
-    eng: ["sp", "speed"],       // 英語 → 特殊・速さ
-    sci: ["atk", "sp"],         // 理科 → 攻撃・特殊
-    soc: ["maxHp", "def"]       // 社会 → HP・防御
+    math: ["atk", "speed"],   // 数学 → 攻撃・速さ
+    eng: ["atk", "speed"],    // 英語 → 攻撃・速さ
+    sci: ["atk", "def"],      // 理科 → 攻撃・防御
+    soc: ["maxHp", "def"]     // 社会 → HP・防御
 };
 
 // Display stat growth info based on selected subject
@@ -203,13 +205,12 @@ document.getElementById("randomMatch").onclick = () => {
 };
 socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
 socket.on("joinFailed", () => alert(I18N.roomNotFound));
-socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); localStorage.setItem("myTurn", String(data.myTurn)); alert(I18N.matched); location.href = "battle.html"; });
+socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); alert(I18N.matched); location.href = "battle.html"; });
 socket.on("matchFound", data => { 
     if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
     localStorage.setItem("roomId", data.roomId); 
     localStorage.setItem("battlePlayer", JSON.stringify(data.me)); 
     localStorage.setItem("enemy", JSON.stringify(data.enemy)); 
-    localStorage.setItem("myTurn", String(data.myTurn)); 
     alert(I18N.matchFound); 
     location.href = "battle.html"; 
 });
@@ -287,7 +288,6 @@ function initializeI18nTexts() {
     // Set stat labels
     const labelTexts = {
         "atkLabelText": I18N.atk,
-        "spLabelText": I18N.sp,
         "defLabelText": I18N.def,
         "speedLabelText": I18N.speed
     };
@@ -327,6 +327,11 @@ function lockStatInputs(locked) {
             el.readOnly = locked;
         }
     });
+    // Also lock the grade select
+    const gradeSelect = document.getElementById("statGrade");
+    if (gradeSelect) {
+        gradeSelect.disabled = locked;
+    }
     const createBtn = document.getElementById("createCharBtn");
     if (createBtn) {
         createBtn.disabled = locked;

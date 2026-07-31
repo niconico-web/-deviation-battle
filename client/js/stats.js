@@ -1,10 +1,10 @@
-const STAT_KEYS = ["maxHp", "atk", "sp", "def", "speed"];
+const STAT_KEYS = ["maxHp", "atk", "def", "speed"];
 const STAT_LABELS = {
-    maxHp: "HP", atk: I18N.atk, sp: I18N.sp, def: I18N.def, speed: I18N.speed
+    maxHp: "HP", atk: I18N.atk, def: I18N.def, speed: I18N.speed
 };
-const TOTAL_STAT_POINTS = 300;
+const TOTAL_STAT_POINTS = 240;
 const MIN_STAT = 10;
-const DEFAULT_STATS = { maxHp: 60, atk: 60, sp: 60, def: 60, speed: 60 };
+const DEFAULT_STATS = { maxHp: 60, atk: 80, def: 60, speed: 40 };
 
 function sumStats(stats) {
     return STAT_KEYS.reduce((sum, key) => sum + stats[key], 0);
@@ -74,9 +74,9 @@ function getStatsFromPlayer(player) {
     return {
         maxHp: player.maxHp ?? DEFAULT_STATS.maxHp,
         atk: player.atk ?? DEFAULT_STATS.atk,
-        sp: player.sp ?? DEFAULT_STATS.sp,
         def: player.def ?? DEFAULT_STATS.def,
-        speed: player.speed ?? DEFAULT_STATS.speed
+        speed: player.speed ?? DEFAULT_STATS.speed,
+        grade: player.grade ?? 1
     };
 }
 
@@ -91,9 +91,9 @@ function buildPlayer(name, stats, xp, options = {}) {
         maxHp,
         hp,
         atk: stats.atk,
-        sp: stats.sp,
         def: stats.def,
         speed: stats.speed,
+        grade: options.grade || 1,
         totalStudySeconds: options.totalStudySeconds || 0
     };
 }

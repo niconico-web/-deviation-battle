@@ -14,18 +14,21 @@
 <div class="card player-card" id="playerCard"><p class="card-label">&#12354;&#12394;&#12383;</p><h2 id="myName">----</h2>
 <div id="myDamage" class="damage"></div><div class="hpbar"><div id="myHPBar" class="fill"></div></div>
 <p id="myHPText" class="hp-text">HP 100 / 100</p>
-<div class="stats"><p id="myAtk">&#25915;&#25731;&#65306;-</p><p id="mySp">&#29305;&#27530;&#65306;-</p><p id="myDef">&#38450;&#24481;&#65306;-</p><p id="mySpeed">&#36895;&#12373;&#65306;-</p></div></div>
+<div class="stats"><p id="myAtk">&#25915;&#25731;&#65306;-</p><p id="myDef">&#38450;&#24481;&#65306;-</p><p id="mySpeed">&#36895;&#12373;&#65306;-</p><p id="myGrade">&#23398;&#24180;&#65306;-</p></div></div>
 <div class="vs">VS</div>
 <div class="card enemy-card" id="enemyCard"><p class="card-label">&#30456;&#25163;</p><h2 id="enemyName">&#35501;&#36796;&#20013;...</h2>
 <div id="enemyDamage" class="damage"></div><div class="hpbar"><div id="enemyHPBar" class="fill enemy"></div></div>
 <p id="enemyHPText" class="hp-text">HP ???</p>
-<div class="stats"><p id="enemyAtk">&#25915;&#25731;&#65306;&#65311;</p><p id="enemySp">&#29305;&#27530;&#65306;&#65311;</p><p id="enemyDef">&#38450;&#24481;&#65306;&#65311;</p><p id="enemySpeed">&#36895;&#12373;&#65306;&#65311;</p></div></div></div>
-<div class="ultimate-section"><p class="gauge-label">&#24517;&#27578;&#25216;&#12466;&#12540;&#12472;</p><div class="ultimateGauge"><div id="ultimateGaugeBar" class="ultimateFill"></div></div></div>
-<div class="commands">
-<button type="button" id="attackBtn" class="cmd-btn attack">&#25915;&#25731;</button>
-<button type="button" id="specialBtn" class="cmd-btn special">&#29305;&#27530;</button>
-<button type="button" id="guardBtn" class="cmd-btn guard">&#38450;&#24481;</button>
-<button type="button" id="ultimateBtn" class="cmd-btn ultimate" disabled>&#24517;&#27578;&#25216;</button></div>
+<div class="stats"><p id="enemyAtk">&#25915;&#25731;&#65306;&#65311;</p><p id="enemyDef">&#38450;&#24481;&#65306;&#65311;</p><p id="enemySpeed">&#36895;&#12373;&#65306;&#65311;</p><p id="enemyGrade">&#23398;&#24180;&#65306;&#65311;</p></div></div></div>
+<div class="question-section">
+<h2 id="questionTitle">&#21839;&#38988;</h2>
+<div id="questionDisplay" class="question-display">&#35501;&#36796;&#20013;...</div>
+<div class="answer-section">
+<input type="text" id="answerInput" placeholder="&#31572;&#12360;&#12434;&#20837;&#21147;&#12375;&#12390;&#12367;&#12384;&#12373;&#12356;" autocomplete="off">
+<button type="button" id="submitAnswerBtn" class="btn btn-primary">&#25512;&#36865;</button>
+</div>
+<div id="timer" class="timer">00:00</div>
+</div>
 <div id="log" class="battle-log">&#25126;&#38360;&#38283;&#22987;&#65281;</div></div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/i18n.js?v=1783932440567"></script>

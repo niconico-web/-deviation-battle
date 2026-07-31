@@ -49,24 +49,20 @@ module.exports = function(io){
                 io.to(opponent.socketId).sockets.get(opponent.socketId)?.join(roomId);
                 
                 // Initialize battle
-                const battleData = BattleManager.createBattle(roomId, socket.id, opponent.socketId);
+                const battleData = BattleManager.createBattle(roomId, player, opponent.player);
                 
                 // Notify both players
-                const myTurn = battleData.turn === socket.id;
-                
                 console.log(`[Matchmaking Socket] Sending matchFound to both players`);
                 socket.emit("matchFound", {
                     roomId: roomId,
-                    me: player,
-                    enemy: opponent.player,
-                    myTurn: myTurn
+                    me: battleData.players[socket.id],
+                    enemy: battleData.players[opponent.socketId]
                 });
                 
                 io.to(opponent.socketId).emit("matchFound", {
                     roomId: roomId,
-                    me: opponent.player,
-                    enemy: player,
-                    myTurn: !myTurn
+                    me: battleData.players[opponent.socketId],
+                    enemy: battleData.players[socket.id]
                 });
             } else {
                 console.log(`[Matchmaking Socket] No match found yet, player waiting`);

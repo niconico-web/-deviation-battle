@@ -46,7 +46,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // ルー�?作�??
+        // ルー�?作�??
         // -----------------------------
 
         socket.on("createRoom",(player)=>{
@@ -73,7 +73,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // ルー�?坂加
+        // ルー�?坂加
         // -----------------------------
 
         socket.on("joinRoom",(data)=>{
@@ -153,21 +153,19 @@ module.exports = function(io){
             io.to(room.host).emit("roomReady", {
                 roomId,
                 me: battle.players[room.host],
-                enemy: battle.players[room.guest],
-                myTurn: battle.turn === room.host
+                enemy: battle.players[room.guest]
             });
 
             io.to(room.guest).emit("roomReady", {
                 roomId,
                 me: battle.players[room.guest],
-                enemy: battle.players[room.host],
-                myTurn: battle.turn === room.guest
+                enemy: battle.players[room.host]
             });
 
         });
 
         // -----------------------------
-        // ポトル画面㝸㝮冝接�?
+        // ポトル画面㝸㝮冝接�?
         // -----------------------------
 
         socket.on("rejoinBattle",(data)=>{
@@ -250,7 +248,7 @@ module.exports = function(io){
 
             if(battle.finished){
 
-                socket.emit("actionError", { message: "ポトル㝯終�?㝗㝦�?㝾�?" });
+                socket.emit("actionError", { message: "ポトル㝯終�?㝗㝦�?㝾�?" });
 
                 return;
 
@@ -258,7 +256,7 @@ module.exports = function(io){
 
             if(battle.turn !== socket.id){
 
-                socket.emit("actionError", { message: "㝂㝪㝟�?�ターン㝧㝯㝂り㝾㝛ん" });
+                socket.emit("actionError", { message: "㝂㝪㝟�?�ターン㝧㝯㝂り㝾㝛ん" });
 
                 return;
 
@@ -272,7 +270,7 @@ module.exports = function(io){
 
             if(!result){
 
-                socket.emit("actionError", { message: "無効㝪行動㝧�?" });
+                socket.emit("actionError", { message: "無効㝪行動㝧�?" });
 
                 return;
 
@@ -311,7 +309,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // �?断
+        // �?断
         // -----------------------------
 
         socket.on("disconnect", (reason) => {
