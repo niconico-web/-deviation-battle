@@ -1,10 +1,53 @@
+const BattleManager = require("../managers/BattleManager");
+const BattleEngine = require("../managers/BattleEngine");
+
 module.exports = function(io, socket){
 
-    // プレイヤーの行動
-    socket.on("playerAction", (data) => {
+    // プレイヤーの回答
+    socket.on("submitAnswer", (data) => {
+        const { roomId, answer } = data;
+        const battle = BattleManager.getBattle(roomId);
+        
+        if (!battle) {
+            socket.emit("answerError", { message: "Battle not found" });
+            return;
+        }
+        
+        const result = BattleEngine.processAnswer(battle, socket.id, answer);
+        
+        if (result.error) {
+            socket.emit("answerError", { message: result.error });
+            return;
+        }
+        
+        // 結果を両方のプレイヤーに送信
+        io.to(roomId).emit("answerResult", result);
+        
+        // バトルが終了した場合
+        if (result.winner) {
+            const finalResult = BattleEngine.finalizeBattle(battle);
+            io.to(roomId).emit("battleFinished", finalResult);
+            BattleManager.deleteBattle(roomId);
+        }
+    });
 
-        socket.to(data.roomId).emit("playerAction", data);
-
+    // バトル開始（問題送信）
+    socket.on("requestBattleStart", (data) => {
+        const { roomId } = data;
+        const battle = BattleManager.getBattle(roomId);
+        
+        if (!battle) {
+            socket.emit("battleError", { message: "Battle not found" });
+            return;
+        }
+        
+        const initialization = BattleEngine.initializeBattle(battle);
+        
+        // 両方のプレイヤーに最初の問題を送信
+        io.to(roomId).emit("battleStarted", {
+            initialQuestion: initialization.initialQuestion,
+            players: battle.players
+        });
     });
 
     // バトル終了
