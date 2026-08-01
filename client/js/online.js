@@ -57,4 +57,8 @@ function setupOnlineEventHandlers() {
 }
 
 // Setup online handlers when DOM is ready
-document.addEventListener("DOMContentLoaded", setupOnlineEventHandlers);
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupOnlineEventHandlers);
+} else {
+    setupOnlineEventHandlers();
+}
