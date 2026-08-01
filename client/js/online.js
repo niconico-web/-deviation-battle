@@ -24,8 +24,22 @@ function setupOnlineEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+
+            // ルーム作成ボタンを無効化
+            createRoomBtn.disabled = true;
+            createRoomBtn.textContent = "作成中...";
+
             window.socket.emit("playerJoin", player);
             window.socket.emit("createRoom", player);
+
+            // タイムアウト処理
+            setTimeout(() => {
+                if (createRoomBtn.disabled) {
+                    createRoomBtn.disabled = false;
+                    createRoomBtn.textContent = "ルーム作成";
+                    alert("ルーム作成に失敗しました。時間をおいて再度お試しください。");
+                }
+            }, 10000);
         };
     }
 
@@ -104,6 +118,13 @@ function setupOnlineEventHandlers() {
             localStorage.setItem("lastCreatedRoom", roomId);
             localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
 
+            // ルーム作成ボタンを元に戻す
+            const createRoomBtn = document.getElementById("createRoom");
+            if (createRoomBtn) {
+                createRoomBtn.disabled = false;
+                createRoomBtn.textContent = "ルーム作成";
+            }
+
             // ルームコードをクリップボードにコピー
             navigator.clipboard.writeText(roomId).then(() => {
                 alert("ルームコード: " + roomId + "\n\n✓ コードをクリップボードにコピーしました！\n\n友達にこのコードを教えてください！");
@@ -132,12 +153,12 @@ function setupOnlineEventHandlers() {
                 message += `参加しようとしたルーム: ${attemptedRoom}\n`;
             }
 
-            message += "\n⚠️ 現在、サーバーの複数インスタンス間で\nメモリ共有の問題が発生しています。\n\n";
+            message += "\n⚠️ ルームコードを正確に入力しているか確認してください。\n\n";
             message += "🔧 回避策:\n";
-            message += "1. 「ランダムマッチ」ボタンを使用して対戦を開始\n";
-            message += "2. 別のブラウザやデバイスで友達と一緒にテスト\n";
-            message += "3. 同じブラウザでルーム作成後、ページを再読み込みして参加\n\n";
-            message += "現在は「ランダムマッチ」機能が最も安定しています。";
+            message += "1. ルームコードを再度確認して入力\n";
+            message += "2. 新しいルームを作成して友達に教える\n";
+            message += "3. 「ランダムマッチ」または「ボット対戦」を試す\n\n";
+            message += "ボット対戦は練習に最適です！";
 
             alert(message);
         });
