@@ -293,7 +293,6 @@ if (!isBotBattle && socket) {
         }
     });
 
-if (!isBotBattle) {
     socket.on("battleRejoined", data => {
     me = data.me;
     enemy = data.enemy;
@@ -388,13 +387,14 @@ socket.on("answerError", data => {
     submitAnswerBtn.disabled = false;
 });
 
-socket.on("opponentLeft", () => {
-    battleEnd = true;
-    stopTimer();
-    addLog(I18N.opponentLeft);
-    alert(I18N.opponentLeft);
-    location.href = "index.html";
-});
+    socket.on("opponentLeft", () => {
+        battleEnd = true;
+        stopTimer();
+        addLog(I18N.opponentLeft);
+        alert(I18N.opponentLeft);
+        location.href = "index.html";
+    });
+}
 
 function getSavedPlayer() {
     const raw = localStorage.getItem("player");
