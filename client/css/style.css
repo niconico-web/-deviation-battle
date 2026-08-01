@@ -170,7 +170,11 @@ select {
 }
 
 .status-box,
-.study-section {
+.study-section,
+.status-section,
+.xp-section,
+.online-section,
+.player-data-section {
     background: #3b3b3b;
     padding: 16px;
     border-radius: 12px;
