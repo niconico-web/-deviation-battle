@@ -259,6 +259,7 @@ function initializeI18nTexts() {
         "createRoom": I18N.createRoom,
         "joinRoom": I18N.joinRoom,
         "roomCodeLabel": I18N.roomCode,
+        "roomInput": { placeholder: I18N.roomPh },
         "deletePlayerBtn": I18N.deletePlayer
     };
 
@@ -301,6 +302,7 @@ function initializeI18nTexts() {
 window.onload = () => {
     initializeI18nTexts();
     updateStatGrowthInfo();
+    updateRemainingPoints();
     
     const player = getPlayerData();
     if (player) {
