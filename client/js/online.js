@@ -67,7 +67,13 @@ function setupOnlineEventHandlers() {
             // ルームコードをローカルストレージに保存
             localStorage.setItem("lastCreatedRoom", roomId);
             localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
-            alert("ルームコード\n\n"+roomId + "\n\nこのコードを友達に教えてください！\n\n（コードはコピーしてください）");
+
+            // ルームコードをクリップボードにコピー
+            navigator.clipboard.writeText(roomId).then(() => {
+                alert("ルームコード: " + roomId + "\n\n✓ コードをクリップボードにコピーしました！\n\n友達にこのコードを教えてください！");
+            }).catch(() => {
+                alert("ルームコード: " + roomId + "\n\nこのコードを友達に教えてください！\n\n（コードをコピーしてください）");
+            });
         });
 
         // ------------------
@@ -90,7 +96,12 @@ function setupOnlineEventHandlers() {
                 message += `参加しようとしたルーム: ${attemptedRoom}\n`;
             }
 
-            message += "\n同じブラウザでルームを作成した場合、\nページを再読み込みしてから参加してください。\n\nまたは、別のブラウザ/デバイスで友達と一緒に試してください。";
+            message += "\n⚠️ 現在、サーバーの複数インスタンス間で\nメモリ共有の問題が発生しています。\n\n";
+            message += "🔧 回避策:\n";
+            message += "1. 「ランダムマッチ」ボタンを使用して対戦を開始\n";
+            message += "2. 別のブラウザやデバイスで友達と一緒にテスト\n";
+            message += "3. 同じブラウザでルーム作成後、ページを再読み込みして参加\n\n";
+            message += "現在は「ランダムマッチ」機能が最も安定しています。";
 
             alert(message);
         });

@@ -8,7 +8,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>School Battle</title>
-<link rel="stylesheet" href="css/style.css?v=1783932440580">
+<link rel="stylesheet" href="css/style.css?v=1783932440581">
 </head>
 <body>
 <div id="app" class="container">
@@ -97,12 +97,17 @@
 
     <button type="button" class="btn" id="randomMatch">ランダムマッチ</button>
 
-    <button type="button" class="btn" id="createRoom">ルーム作成</button>
+    <p style="color: #ff6b6b; font-size: 0.9rem; margin-top: 10px;">
+        ⚠️ ルーム機能は現在メンテナンス中です。<br>
+        ランダムマッチ機能をご利用ください。
+    </p>
 
-    <div id="joinSection">
+    <button type="button" class="btn" id="createRoom" disabled style="opacity: 0.5; cursor: not-allowed;">ルーム作成（メンテナンス中）</button>
+
+    <div id="joinSection" style="opacity: 0.5; pointer-events: none;">
         <label for="roomInput" id="roomCodeLabel">ルームコード</label>
-        <input id="roomInput" type="text" placeholder="6桁のコード" maxlength="6">
-        <button type="button" class="btn" id="joinRoom">ルーム参加</button>
+        <input id="roomInput" type="text" placeholder="6桁のコード" maxlength="6" disabled>
+        <button type="button" class="btn" id="joinRoom" disabled>ルーム参加（メンテナンス中）</button>
     </div>
 </section>
 
@@ -112,9 +117,9 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="js/i18n.js?v=1783932440580"></script>
-<script src="js/stats.js?v=1783932440580"></script>
-<script src="js/script.js?v=1783932440580"></script>
-<script src="js/online.js?v=1783932440580"></script>
+<script src="js/i18n.js?v=1783932440581"></script>
+<script src="js/stats.js?v=1783932440581"></script>
+<script src="js/script.js?v=1783932440581"></script>
+<script src="js/online.js?v=1783932440581"></script>
 </body>
 </html>
