@@ -85,6 +85,7 @@ select {
 .subjects {
     display: grid;
     gap: 10px;
+    grid-template-columns: 1fr;
 }
 
 .stat-allocation-desc {
@@ -270,4 +271,16 @@ select {
     .subjects {
         grid-template-columns: 1fr 1fr;
     }
+}
+
+.stat-allocation label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.stat-allocation label select,
+.stat-allocation label input {
+    margin-top: 4px;
+    margin-bottom: 0;
 }
