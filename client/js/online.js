@@ -4,6 +4,7 @@ let onlineHandlersSetup = false;
 // ルーム作成
 // ------------------
 function setupOnlineEventHandlers() {
+    console.log("setupOnlineEventHandlers called, onlineHandlersSetup:", onlineHandlersSetup);
     if (onlineHandlersSetup) {
         console.log("Online handlers already setup, skipping");
         return;
@@ -12,6 +13,11 @@ function setupOnlineEventHandlers() {
 
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
+
+    console.log("Elements found:", {
+        createRoomBtn: !!createRoomBtn,
+        joinRoomBtn: !!joinRoomBtn
+    });
 
     if (createRoomBtn) {
         createRoomBtn.onclick = () => {
@@ -42,6 +48,9 @@ function setupOnlineEventHandlers() {
                 }
             }, 10000);
         };
+        console.log("Create room button handler attached");
+    } else {
+        console.error("Create room button not found!");
     }
 
     // ------------------
@@ -86,6 +95,9 @@ function setupOnlineEventHandlers() {
                 }
             }, 10000);
         };
+        console.log("Join room button handler attached");
+    } else {
+        console.error("Join room button not found!");
     }
 
     // ------------------
@@ -123,6 +135,9 @@ function setupOnlineEventHandlers() {
             alert("ボット対戦を開始します！");
             location.href = "battle.html";
         };
+        console.log("Bot match button handler attached");
+    } else {
+        console.error("Bot match button not found!");
     }
 
     // ------------------
@@ -232,6 +247,7 @@ function setupOnlineEventHandlers() {
 
 // Setup online handlers when DOM is ready and socket is initialized
 function setupOnlineHandlersWhenReady() {
+    console.log("setupOnlineHandlersWhenReady called, onlineHandlersSetup:", onlineHandlersSetup);
     if (onlineHandlersSetup) {
         console.log("Online handlers already setup, skipping initialization");
         return;
@@ -241,8 +257,19 @@ function setupOnlineHandlersWhenReady() {
     setupOnlineEventHandlers();
 }
 
+// Try to set up handlers immediately
 if (document.readyState === "loading") {
+    console.log("Document still loading, waiting for DOMContentLoaded");
     document.addEventListener("DOMContentLoaded", setupOnlineHandlersWhenReady);
 } else {
+    console.log("Document already loaded, setting up handlers immediately");
     setupOnlineHandlersWhenReady();
 }
+
+// Fallback: try again after a short delay
+setTimeout(() => {
+    if (!onlineHandlersSetup) {
+        console.log("Fallback: setting up handlers after delay");
+        setupOnlineEventHandlers();
+    }
+}, 1000);
