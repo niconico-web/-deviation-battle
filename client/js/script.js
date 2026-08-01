@@ -1,5 +1,6 @@
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
+let matchmakingTimeout = null;
 
 // Initialize socket after DOM is ready
 window.socket = null;
@@ -88,7 +89,15 @@ function createCharacter() {
 
     const xp = existing ? existing.xp : 0;
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
-    const player = buildPlayer(name, stats, xp, { totalStudySeconds, grade: stats.grade });
+    const player = buildPlayer(name, stats, xp, {
+        totalStudySeconds,
+        grade: stats.grade,
+        id: existing?.id,
+        coins: existing?.coins || 0,
+        weapons: existing?.weapons || [],
+        equippedWeapon: existing?.equippedWeapon || null,
+        weaponWins: existing?.weaponWins || {}
+    });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
     updateXpDisplay(player);
@@ -101,10 +110,15 @@ function createCharacter() {
 }
 
 function updateStatus(player) {
+    const weaponText = player.equippedWeapon
+        ? getWeaponDisplayName(player.equippedWeapon)
+        : "なし";
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
         "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
-        "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p><hr>" +
+        "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p>" +
+        "<p><strong>コイン" + I18N.colon + "</strong>" + (player.coins || 0) + "</p>" +
+        "<p><strong>装備武器" + I18N.colon + "</strong>" + weaponText + "</p><hr>" +
         "<p>HP" + I18N.colon + player.maxHp + "</p>" +
         "<p>" + I18N.atk + I18N.colon + player.atk + "</p>" +
         "<p>" + I18N.def + I18N.colon + player.def + "</p>" +
@@ -189,7 +203,6 @@ function applyStudyRewards(seconds) {
     const gainedXp = calcStudyXp(seconds);
     const statGain = calcStatGain(seconds);
     
-    // Get the 2 stats to enhance for this subject
     const [stat1, stat2] = SUBJECT_STATS[subject];
     stats[stat1] += statGain;
     stats[stat2] += statGain;
@@ -198,37 +211,44 @@ function applyStudyRewards(seconds) {
         ? (player.hp || player.maxHp) + statGain
         : (player.hp || player.maxHp);
 
-    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, { hp, totalStudySeconds: (player.totalStudySeconds || 0) + seconds, grade: player.grade });
+    let gainedCoins = 0;
+    if (seconds >= STUDY_COIN_THRESHOLD) {
+        gainedCoins = COIN_STUDY_30MIN;
+    }
+
+    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
+        hp,
+        totalStudySeconds: (player.totalStudySeconds || 0) + seconds,
+        grade: player.grade,
+        id: player.id,
+        coins: (player.coins || 0) + gainedCoins,
+        weapons: player.weapons,
+        equippedWeapon: player.equippedWeapon,
+        weaponWins: player.weaponWins
+    });
     localStorage.setItem("player", JSON.stringify(updated));
     setStatsToInputs(stats);
     updateStatus(updated);
     updateXpDisplay(updated);
     const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engSp, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
-    alert(I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain);
+    let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
+    if (gainedCoins > 0) msg += "\nコイン +" + gainedCoins + "（30分以上の勉強ボーナス）";
+    alert(msg);
+    if (typeof renderShop === "function") {
+        renderShop();
+        renderInventory();
+    }
 }
 
 // Online event handlers are now in online.js
-// document.getElementById("createRoom").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } socket.emit("playerJoin", p); socket.emit("createRoom", p); };
-// document.getElementById("joinRoom").onclick = () => { const p = getPlayerData(); if (!p) { alert(I18N.needChar); return; } const roomId = document.getElementById("roomInput").value.trim().toUpperCase(); if (!roomId) { alert(I18N.roomCode + I18N.colon); return; } socket.emit("playerJoin", p); socket.emit("joinRoom", { roomId, player: p }); };
-let matchmakingTimeout = null;
-document.getElementById("randomMatch").onclick = () => { 
-    const p = getPlayerData(); 
-    if (!p) { alert(I18N.needChar); return; } 
-    const btn = document.getElementById("randomMatch"); 
-    btn.textContent = I18N.searching; 
-    btn.disabled = true; 
-    socket.emit("playerJoin", p); 
-    socket.emit("requestRandomMatch", p);
-    
-    // Add cancel functionality
-    matchmakingTimeout = setTimeout(() => {
-        if(btn.disabled && btn.textContent === I18N.searching){
-            btn.textContent = I18N.randomMatch;
-            btn.disabled = false;
-            alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
-        }
-    }, 30000); // 30 second timeout
-};
+
+function getMatchPlayer() {
+    const p = getPlayerData();
+    if (!p) return null;
+    const battleStats = getBattleStats(p);
+    return { ...p, ...battleStats, battleStats };
+}
+
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
     socketHandlersSetup = true;
@@ -284,7 +304,7 @@ function setupDOMEventHandlers() {
     const randomMatchBtn = document.getElementById("randomMatch");
     if (randomMatchBtn) {
         randomMatchBtn.onclick = () => {
-            const p = getPlayerData();
+            const p = getMatchPlayer();
             if (!p) { alert(I18N.needChar); return; }
             const btn = document.getElementById("randomMatch");
             btn.textContent = I18N.searching;
@@ -298,14 +318,14 @@ function setupDOMEventHandlers() {
             window.socket.emit("playerJoin", p);
             window.socket.emit("requestRandomMatch", p);
 
-            // Add cancel functionality
             matchmakingTimeout = setTimeout(() => {
-                if(btn.disabled && btn.textContent === I18N.searching){
+                if (btn.disabled && btn.textContent === I18N.searching) {
                     btn.textContent = I18N.randomMatch;
                     btn.disabled = false;
+                    if (p.id) window.socket.emit("cancelMatchmaking", p.id);
                     alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
                 }
-            }, 30000); // 30 second timeout
+            }, 30000);
         };
     }
 }
@@ -429,27 +449,19 @@ window.onload = () => {
 
 function autoJoinRoom(roomId) {
     if (!window.socket || !window.socket.connected) {
-        console.log("ソケット未接続、自動参加を延期");
         setTimeout(() => autoJoinRoom(roomId), 1000);
         return;
     }
 
-    const player = getPlayerData();
+    const player = getMatchPlayer();
     if (!player) {
-        console.log("プレイヤーデータなし、自動参加をキャンセル");
-        // Clear URL parameter
         window.history.replaceState({}, document.title, window.location.pathname);
         return;
     }
 
-    console.log("自動ルーム参加:", roomId);
     document.getElementById("roomInput").value = roomId;
-
-    // Trigger join
     window.socket.emit("playerJoin", player);
     window.socket.emit("joinRoom", { roomId, player });
-
-    // Clear URL parameter immediately
     window.history.replaceState({}, document.title, window.location.pathname);
 }
 

@@ -5,7 +5,6 @@ module.exports = function(io){
 
     io.on("connection",(socket)=>{
 
-        // プレイヤーの回答
         socket.on("submitAnswer", (data) => {
             const { roomId, answer } = data;
             const battle = BattleManager.getBattle(roomId);
@@ -14,8 +13,14 @@ module.exports = function(io){
                 socket.emit("answerError", { message: "Battle not found" });
                 return;
             }
+
+            const playerId = BattleManager.findPlayerIdBySocket(battle, socket.id);
+            if (!playerId) {
+                socket.emit("answerError", { message: "Player not found in battle" });
+                return;
+            }
             
-            const result = BattleEngine.processAnswer(battle, socket.id, answer);
+            const result = BattleEngine.processAnswer(battle, playerId, answer);
             
             if (result.error) {
                 socket.emit("answerError", { message: result.error });

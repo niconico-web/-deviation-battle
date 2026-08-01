@@ -24,9 +24,19 @@ function validateStatAllocation(stats) {
     return { ok: true };
 }
 
+function generatePlayerId() {
+    if (typeof crypto !== "undefined" && crypto.randomUUID) {
+        return "p_" + crypto.randomUUID();
+    }
+    return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+}
+
 function migratePlayer(player) {
     if (!player) return null;
-    console.log("migratePlayer called with:", player);
+    if (!player.id) player.id = generatePlayerId();
+    if (player.coins == null) player.coins = 0;
+    if (!player.weapons) player.weapons = [];
+    if (!player.weaponWins) player.weaponWins = {};
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
         return {
@@ -59,15 +69,36 @@ function calcStudyXp(s) { return Math.floor(s / 4); }
 function calcStatGain(s) { return Math.max(1, Math.floor(s / 60)); }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
 
-function applyBattleRewards(won, turns, damage) {
+function applyBattleRewards(won, turns, damage, options = {}) {
     const raw = localStorage.getItem("player"); if (!raw) return null;
-    const player = migratePlayer(JSON.parse(raw));
+    let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
-    // Disabled XP gain from battles - only study provides XP
     const gainedXp = 0;
-    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, { hp: player.hp, totalStudySeconds: player.totalStudySeconds || 0 });
+    let gainedCoins = 0;
+
+    if (won) {
+        gainedCoins += COIN_BATTLE_WIN;
+        player = incrementWeaponWin(player);
+        if (options.stolenWeapon) {
+            player = addWeaponToPlayer(player, options.stolenWeapon);
+        }
+    }
+    if (options.lostWeapon) {
+        player = removeWeaponFromPlayer(player, options.lostWeapon.id);
+    }
+
+    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
+        hp: player.hp,
+        totalStudySeconds: player.totalStudySeconds || 0,
+        id: player.id,
+        coins: (player.coins || 0) + gainedCoins,
+        weapons: player.weapons,
+        equippedWeapon: player.equippedWeapon,
+        weaponWins: player.weaponWins
+    });
     localStorage.setItem("player", JSON.stringify(updated));
     localStorage.setItem("battleXpGain", String(gainedXp));
+    localStorage.setItem("battleCoinGain", String(gainedCoins));
     return updated;
 }
 
@@ -86,6 +117,7 @@ function buildPlayer(name, stats, xp, options = {}) {
     const maxHp = stats.maxHp;
     const hp = options.hp != null ? Math.min(options.hp, maxHp) : maxHp;
     return {
+        id: options.id || generatePlayerId(),
         name,
         xp: xp || 0,
         level: lv,
@@ -94,8 +126,12 @@ function buildPlayer(name, stats, xp, options = {}) {
         atk: stats.atk,
         def: stats.def,
         speed: stats.speed,
-        grade: options.grade || 1,
-        totalStudySeconds: options.totalStudySeconds || 0
+        grade: options.grade || stats.grade || 1,
+        totalStudySeconds: options.totalStudySeconds || 0,
+        coins: options.coins != null ? options.coins : 0,
+        weapons: options.weapons || [],
+        equippedWeapon: options.equippedWeapon || null,
+        weaponWins: options.weaponWins || {}
     };
 }
 

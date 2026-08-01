@@ -92,6 +92,25 @@
 <section id="status" class="status-section"></section>
 <section id="xpDisplay" class="xp-section"></section>
 
+<section class="shop-section section">
+    <h2>武器ショップ</h2>
+    <p id="coinDisplay" class="coin-display">所持コイン: 0</p>
+    <p class="shop-desc">バトル勝利で15コイン、30分以上の勉強で20コイン獲得できます。</p>
+    <div id="shopList" class="shop-list"></div>
+    <button type="button" class="btn" id="refreshShop">更新</button>
+</section>
+
+<section class="inventory-section section">
+    <h2>所持武器</h2>
+    <div id="inventoryList" class="inventory-list"></div>
+</section>
+
+<section class="quest-section section">
+    <h2>ユニーククエスト</h2>
+    <p class="quest-desc">各武器種で500勝すると、世界最速クリア者のみユニーク武器を獲得できます。</p>
+    <div id="uniqueQuestList" class="quest-list"></div>
+</section>
+
 <section class="online-section section">
     <h2 id="onlineTitle">オンライン対戦</h2>
 
@@ -99,9 +118,8 @@
 
     <button type="button" class="btn" id="botMatch">ボット対戦（練習用）</button>
 
-    <p style="color: #ff6b6b; font-size: 0.9rem; margin-top: 10px;">
-        ⚠️ ランダムマッチは混雑時には時間がかかる場合があります。<br>
-        ボット対戦で練習することをお勧めします。
+    <p style="color: #aaa; font-size: 0.9rem; margin-top: 10px;">
+        ランダムマッチ・ルームマッチ・ボット対戦が利用できます。
     </p>
 
     <button type="button" class="btn" id="createRoom">ルーム作成</button>
@@ -121,7 +139,9 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/i18n.js?v=1783932440589"></script>
 <script src="js/stats.js?v=1783932440589"></script>
+<script src="js/weapons.js?v=1783932440589"></script>
 <script src="js/script.js?v=1783932440589"></script>
 <script src="js/online.js?v=1783932440589"></script>
+<script src="js/shop.js?v=1783932440589"></script>
 </body>
 </html>

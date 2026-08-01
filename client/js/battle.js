@@ -43,10 +43,8 @@ function initialize() {
     addLog(I18N.battleBegin);
 
     if (isBotBattle) {
-        // ボット対戦の場合は即座に開始
         startBotBattle();
     } else {
-        // 通常のオンライン対戦
         socket.emit("requestBattleStart", { roomId });
     }
 }
@@ -101,7 +99,6 @@ function startTimer() {
     timerInterval = setInterval(updateTimer, 1000);
 }
 
-// ボット対戦用の機能
 function startBotBattle() {
     generateBotQuestion();
 }
@@ -139,7 +136,8 @@ function handleBotAnswer(userAnswer) {
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
-        const damage = Math.floor(me.atk * 0.5);
+        const defReduction = Math.floor((enemy.def || 0) * 0.1);
+        const damage = Math.max(1, Math.floor(me.atk * 0.5) - defReduction);
         enemy.hp = Math.max(0, enemy.hp - damage);
         showDamage("enemyDamage", damage);
         addLog("ボットにダメージ: " + damage);
@@ -149,15 +147,15 @@ function handleBotAnswer(userAnswer) {
 
     updateHP();
 
-    // ボットの回答（遅延付き）- ただしユーザーが正解した場合はボットは回答しない
     if (!isCorrect) {
         setTimeout(() => {
-            const botAnswerTime = Math.random() * 3000 + 1000; // 1-4秒
-            const botIsCorrect = Math.random() > 0.3; // 70%の確率で正解
+            const botAnswerTime = Math.random() * 3000 + 1000;
+            const botIsCorrect = Math.random() > 0.3;
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
-                const damage = Math.floor(enemy.atk * 0.5);
+                const defReduction = Math.floor((me.def || 0) * 0.1);
+                const damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
                 me.hp = Math.max(0, me.hp - damage);
                 showDamage("myDamage", damage);
                 addLog("ボットからのダメージ: " + damage);
@@ -167,21 +165,18 @@ function handleBotAnswer(userAnswer) {
 
             updateHP();
 
-            // 勝利判定
             if (enemy.hp <= 0) {
-                finishBattle("win");
+                finishBotBattle("win");
             } else if (me.hp <= 0) {
-                finishBattle("lose");
+                finishBotBattle("lose");
             } else {
-                // 次の問題
                 setTimeout(generateBotQuestion, 2000);
             }
         }, 500);
     } else {
-        // ユーザーが正解した場合、即座に次の問題へ
         setTimeout(() => {
             if (enemy.hp <= 0) {
-                finishBattle("win");
+                finishBotBattle("win");
             } else {
                 generateBotQuestion();
             }
@@ -189,7 +184,8 @@ function handleBotAnswer(userAnswer) {
     }
 }
 
-function finishBattle(result) {
+function finishBotBattle(result) {
+    if (battleEnd) return;
     battleEnd = true;
     if (timerInterval) clearInterval(timerInterval);
     if (countdownInterval) clearInterval(countdownInterval);
@@ -197,16 +193,18 @@ function finishBattle(result) {
     answerInput.disabled = true;
     submitAnswerBtn.disabled = true;
 
-    if (result === "win") {
-        addLog("🎉 勝利！");
-        alert("勝利しました！おめでとうございます！");
-    } else {
-        addLog("敗北...");
-        alert("敗北しました。次は頑張りましょう！");
-    }
+    const win = result === "win";
+    addLog(win ? I18N.victory : I18N.defeat);
 
-    // ボット対戦フラグをクリア
+    localStorage.setItem("battleResult", win ? "win" : "lose");
+    localStorage.setItem("playerHP", String(me.hp));
+    localStorage.setItem("enemyHP", String(enemy.hp));
+    if (win && enemy.equippedWeapon) {
+        localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
+    }
     localStorage.removeItem("isBotBattle");
+
+    setTimeout(() => location.href = "result.html", 2000);
 }
 
 function showCountdown(callback) {
@@ -270,6 +268,12 @@ function finishBattle(winner) {
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
+
+    if (win && enemy.equippedWeapon) {
+        localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
+    } else if (!win && me.equippedWeapon) {
+        localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
+    }
     
     setTimeout(() => location.href = "result.html", 2500);
 }
@@ -295,7 +299,6 @@ function submitAnswer() {
     answerInput.value = "";
 }
 
-// Socket event handlers (only for non-bot battles)
 if (!isBotBattle && socket) {
     socket.on("connect", () => {
         if (roomId && me && me.id) {
@@ -305,98 +308,96 @@ if (!isBotBattle && socket) {
     });
 
     socket.on("battleRejoined", data => {
-    me = data.me;
-    enemy = data.enemy;
-    rejoined = true;
-    localStorage.setItem("battlePlayer", JSON.stringify(me));
-    localStorage.setItem("enemy", JSON.stringify(enemy));
-    updateStats();
-    updateHP();
-    addLog(I18N.reconnected);
-});
-
-socket.on("rejoinFailed", data => {
-    alert(data && data.reason === "battle_finished" ? I18N.battleAlreadyEnd : I18N.rejoinFailed);
-    location.href = "index.html";
-});
-
-socket.on("battleStarted", data => {
-    currentQuestion = data.initialQuestion;
-    showCountdown(() => {
-        questionDisplay.textContent = currentQuestion.question;
-        startTimer();
-        addLog("問題が出されました！");
-        answerInput.disabled = false;
-        submitAnswerBtn.disabled = false;
-        answerInput.focus();
+        me = data.me;
+        enemy = data.enemy;
+        rejoined = true;
+        localStorage.setItem("battlePlayer", JSON.stringify(me));
+        localStorage.setItem("enemy", JSON.stringify(enemy));
+        updateStats();
+        updateHP();
+        addLog(I18N.reconnected);
     });
-});
 
-socket.on("answerResult", data => {
-    const isMyAnswer = data.playerId === me.id;
-    
-    if (isMyAnswer) {
-        if (data.isCorrect) {
-            addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-            if (data.firstCorrect) {
-                addLog("先答！ダメージ: " + data.damage);
-                showDamage("enemyDamage", data.damage);
-            } else {
-                addLog("後答...ダメージなし");
-            }
-        } else {
-            addLog("不正解...");
-        }
-    } else {
-        if (data.isCorrect) {
-            addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-            if (data.firstCorrect) {
-                addLog("相手が先答！ダメージ: " + data.damage);
-                showDamage("myDamage", data.damage);
-            }
-        } else {
-            addLog(enemy.name + "は不正解...");
-        }
-    }
-    
-    // 状態を同期
-    if (data.battleState) {
-        syncBattleState(data.battleState.players);
-    }
-    
-    // 次の問題があれば表示
-    if (data.nextQuestion) {
-        currentQuestion = data.nextQuestion;
+    socket.on("rejoinFailed", data => {
+        alert(data && data.reason === "battle_finished" ? I18N.battleAlreadyEnd : I18N.rejoinFailed);
+        location.href = "index.html";
+    });
+
+    socket.on("battleStarted", data => {
+        currentQuestion = data.initialQuestion;
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
             startTimer();
+            addLog("問題が出されました！");
             answerInput.disabled = false;
             submitAnswerBtn.disabled = false;
             answerInput.focus();
-            addLog("次の問題！");
         });
-    }
-    
-    // 勝利判定
-    if (data.winner) {
-        finishBattle(data.winner);
-    }
-});
+    });
 
-socket.on("battleFinished", data => {
-    if (data.draw) {
-        addLog("引き分け！");
-        localStorage.setItem("battleResult", "draw");
-    } else {
-        finishBattle(data.winner);
-    }
-});
+    socket.on("answerResult", data => {
+        const isMyAnswer = data.playerId === me.id;
+        
+        if (isMyAnswer) {
+            if (data.isCorrect) {
+                addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+                if (data.firstCorrect) {
+                    addLog("先答！ダメージ: " + data.damage);
+                    showDamage("enemyDamage", data.damage);
+                } else {
+                    addLog("後答...ダメージなし");
+                }
+            } else {
+                addLog("不正解...");
+            }
+        } else {
+            if (data.isCorrect) {
+                addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+                if (data.firstCorrect) {
+                    addLog("相手が先答！ダメージ: " + data.damage);
+                    showDamage("myDamage", data.damage);
+                }
+            } else {
+                addLog(enemy.name + "は不正解...");
+            }
+        }
+        
+        if (data.battleState) {
+            syncBattleState(data.battleState.players);
+        }
+        
+        if (data.nextQuestion) {
+            currentQuestion = data.nextQuestion;
+            showCountdown(() => {
+                questionDisplay.textContent = currentQuestion.question;
+                startTimer();
+                answerInput.disabled = false;
+                submitAnswerBtn.disabled = false;
+                answerInput.focus();
+                addLog("次の問題！");
+            });
+        }
+        
+        if (data.winner) {
+            finishBattle(data.winner);
+        }
+    });
 
-socket.on("answerError", data => {
-    addLog("エラー: " + data.message);
-    answerInput.disabled = false;
-    submitAnswerBtn.disabled = false;
-});
+    socket.on("battleFinished", data => {
+        if (data.draw) {
+            addLog("引き分け！");
+            localStorage.setItem("battleResult", "draw");
+            setTimeout(() => location.href = "result.html", 2500);
+        } else {
+            finishBattle(data.winner);
+        }
+    });
+
+    socket.on("answerError", data => {
+        addLog("エラー: " + data.message);
+        answerInput.disabled = false;
+        submitAnswerBtn.disabled = false;
+    });
 
     socket.on("opponentLeft", () => {
         battleEnd = true;
@@ -409,10 +410,9 @@ socket.on("answerError", data => {
 
 function getSavedPlayer() {
     const raw = localStorage.getItem("player");
-    return raw ? JSON.parse(raw) : null;
+    return raw ? migratePlayer(JSON.parse(raw)) : null;
 }
 
-// Event listeners
 submitAnswerBtn.onclick = submitAnswer;
 answerInput.onkeypress = (e) => {
     if (e.key === "Enter") {
