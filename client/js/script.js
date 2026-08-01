@@ -1,12 +1,22 @@
-const socket = io({
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    reconnectionAttempts: 5,
-    transports: ["websocket", "polling"]
-});
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
-if (location.protocol === "file:") { alert(I18N.fileWarn); }
+
+// Initialize socket after DOM is ready
+window.socket = null;
+
+function initializeSocket() {
+    window.socket = io({
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+        transports: ["websocket", "polling"]
+    });
+    
+    // Connection logging
+    window.socket.on("connect", () => {
+        console.log("接続:", window.socket.id);
+    });
+}
 
 function getStatsFromInputs() {
     return {
@@ -300,6 +310,12 @@ function initializeI18nTexts() {
 }
 
 window.onload = () => {
+    // Check file protocol
+    if (location.protocol === "file:") { alert(I18N.fileWarn); }
+    
+    // Initialize socket
+    initializeSocket();
+    
     initializeI18nTexts();
     updateStatGrowthInfo();
     updateRemainingPoints();
