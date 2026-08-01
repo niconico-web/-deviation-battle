@@ -60,6 +60,42 @@ function setupOnlineEventHandlers() {
     }
 
     // ------------------
+    // ボット対戦
+    // ------------------
+    const botMatchBtn = document.getElementById("botMatch");
+    if (botMatchBtn) {
+        botMatchBtn.onclick = () => {
+            const player = JSON.parse(localStorage.getItem("player"));
+            if (!player) {
+                alert("まずはキャラクターを作成してください。");
+                return;
+            }
+
+            // ボット対戦の設定
+            const botPlayer = {
+                id: "bot_" + Date.now(),
+                name: "AIボット",
+                maxHp: 100,
+                hp: 100,
+                atk: 50,
+                def: 40,
+                speed: 30,
+                grade: 5,
+                isBot: true
+            };
+
+            // バトルデータを保存
+            localStorage.setItem("roomId", "bot_battle_" + Date.now());
+            localStorage.setItem("battlePlayer", JSON.stringify(player));
+            localStorage.setItem("enemy", JSON.stringify(botPlayer));
+            localStorage.setItem("isBotBattle", "true");
+
+            alert("ボット対戦を開始します！");
+            location.href = "battle.html";
+        };
+    }
+
+    // ------------------
     // 作成完了
     // ------------------
     if (window.socket) {
