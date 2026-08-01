@@ -160,6 +160,9 @@ module.exports = function(io){
             console.log("Room Ready:", roomId);
             console.log("Host socket:", room.host, "Guest socket:", room.guest);
 
+            // 自動参加成功の通知
+            socket.emit("autoJoinSuccess", roomId);
+
             // 両方のプレイヤーに通知
             io.to(room.host).emit("roomReady", {
                 roomId,

@@ -379,6 +379,15 @@ window.onload = () => {
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
+    // Check for room parameter in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+        console.log("URLからルームコードを検出:", roomParam);
+        // Store room code for auto-join after player initialization
+        window.pendingRoomJoin = roomParam.toUpperCase();
+    }
+
     // Initialize socket
     initializeSocket();
 
@@ -403,6 +412,13 @@ window.onload = () => {
         lockStatInputs(true);
         // Update stat allocation description for existing players
         document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
+
+        // Auto-join room if pending
+        if (window.pendingRoomJoin) {
+            setTimeout(() => {
+                autoJoinRoom(window.pendingRoomJoin);
+            }, 1000);
+        }
     } else {
         console.log("プレイヤーデータなし、デフォルト値を使用");
         setStatsToInputs(DEFAULT_STATS);
@@ -410,6 +426,32 @@ window.onload = () => {
         lockStatInputs(false);
     }
 };
+
+function autoJoinRoom(roomId) {
+    if (!window.socket || !window.socket.connected) {
+        console.log("ソケット未接続、自動参加を延期");
+        setTimeout(() => autoJoinRoom(roomId), 1000);
+        return;
+    }
+
+    const player = getPlayerData();
+    if (!player) {
+        console.log("プレイヤーデータなし、自動参加をキャンセル");
+        // Clear URL parameter
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+    }
+
+    console.log("自動ルーム参加:", roomId);
+    document.getElementById("roomInput").value = roomId;
+
+    // Trigger join
+    window.socket.emit("playerJoin", player);
+    window.socket.emit("joinRoom", { roomId, player });
+
+    // Clear URL parameter immediately
+    window.history.replaceState({}, document.title, window.location.pathname);
+}
 
 function lockStatInputs(locked) {
     STAT_KEYS.forEach(key => {
