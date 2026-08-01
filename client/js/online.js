@@ -1,19 +1,19 @@
 const socket = io();
 
-// �ڑ�
+// 接続
 socket.on("connect", () => {
-    console.log("�ڑ�:", socket.id);
+    console.log("接続:", socket.id);
 });
 
 // ------------------
-// ���[���쐬
+// ルーム作成
 // ------------------
 document.getElementById("createRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("��ɃL�����N�^�[���쐬���Ă��������B");
+        alert("まずはキャラクターを作成してください。");
         return;
     }
 
@@ -22,14 +22,14 @@ document.getElementById("createRoom").onclick = () => {
 };
 
 // ------------------
-// ���[���Q��
+// ルーム参加
 // ------------------
 document.getElementById("joinRoom").onclick = () => {
 
     const player = JSON.parse(localStorage.getItem("player"));
 
     if (!player) {
-        alert("��ɃL�����N�^�[���쐬���Ă��������B");
+        alert("まずはキャラクターを作成してください。");
         return;
     }
 
@@ -40,7 +40,7 @@ document.getElementById("joinRoom").onclick = () => {
         .toUpperCase();
 
     if(roomId === ""){
-        alert("���[���R�[�h����͂��Ă��������B");
+        alert("ルームコードを入力してください。");
         return;
     }
 
@@ -49,25 +49,25 @@ document.getElementById("joinRoom").onclick = () => {
 };
 
 // ------------------
-// 作�?�完�?
+// 作成完了
 // ------------------
 socket.on("roomCreated",(roomId)=>{
 
-    alert("ルー�?コード\n\n"+roomId);
+    alert("ルームコード\n\n"+roomId);
 
 });
 
 // ------------------
-// 参加失�?
+// 参加失敗
 // ------------------
 socket.on("joinFailed",()=>{
 
-    alert("ルー�?が存在しません�?");
+    alert("ルームが存在しません。");
 
 });
 
 // ------------------
-// マッチ�?��?
+// マッチ完了
 // ------------------
 socket.on("roomReady",(data)=>{
 
