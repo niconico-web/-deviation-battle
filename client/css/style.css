@@ -79,9 +79,10 @@ select {
     border-radius: 10px;
     background: #fff;
     color: #222;
-    display: block;
+    display: inline-block;
     height: 44px;
     box-sizing: border-box;
+    cursor: pointer;
 }
 
 .stat-allocation,
@@ -143,6 +144,8 @@ select {
     background: #4a90d9;
     color: #fff;
     box-sizing: border-box;
+    position: relative;
+    z-index: 1;
 }
 
 .btn:active:not(:disabled) {
