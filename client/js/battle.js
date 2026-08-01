@@ -1,4 +1,5 @@
-const socket = io();
+const isBotBattle = localStorage.getItem("isBotBattle") === "true";
+const socket = isBotBattle ? null : io();
 const roomId = localStorage.getItem("roomId");
 let me = JSON.parse(localStorage.getItem("battlePlayer")), enemy = JSON.parse(localStorage.getItem("enemy"));
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
@@ -34,15 +35,20 @@ function initialize() {
         location.href = "index.html";
         return;
     }
-    
+
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
     updateStats();
     updateHP();
     addLog(I18N.battleBegin);
-    
-    // バトル開始をリクエスト
-    socket.emit("requestBattleStart", { roomId });
+
+    if (isBotBattle) {
+        // ボット対戦の場合は即座に開始
+        startBotBattle();
+    } else {
+        // 通常のオンライン対戦
+        socket.emit("requestBattleStart", { roomId });
+    }
 }
 
 function updateStats() {
@@ -93,6 +99,103 @@ function startTimer() {
     questionStartTime = Date.now();
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(updateTimer, 1000);
+}
+
+// ボット対戦用の機能
+function startBotBattle() {
+    generateBotQuestion();
+}
+
+function generateBotQuestion() {
+    const questions = [
+        { question: "1 + 1 = ?", answer: "2" },
+        { question: "2 × 3 = ?", answer: "6" },
+        { question: "10 - 4 = ?", answer: "6" },
+        { question: "5 + 5 = ?", answer: "10" },
+        { question: "8 ÷ 2 = ?", answer: "4" },
+        { question: "3 × 4 = ?", answer: "12" },
+        { question: "15 - 7 = ?", answer: "8" },
+        { question: "6 + 9 = ?", answer: "15" },
+        { question: "20 ÷ 4 = ?", answer: "5" },
+        { question: "7 × 3 = ?", answer: "21" }
+    ];
+
+    const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
+    currentQuestion = { ...randomQuestion, id: Date.now() };
+
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        startTimer();
+        addLog("問題が出されました！");
+        answerInput.disabled = false;
+        submitAnswerBtn.disabled = false;
+        answerInput.focus();
+    });
+}
+
+function handleBotAnswer(userAnswer) {
+    const isCorrect = userAnswer.trim() === currentQuestion.answer;
+    const answerTime = Date.now() - questionStartTime;
+
+    if (isCorrect) {
+        addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
+        const damage = Math.floor(me.atk * 0.5);
+        enemy.hp = Math.max(0, enemy.hp - damage);
+        showDamage("enemyDamage", damage);
+        addLog("ボットにダメージ: " + damage);
+    } else {
+        addLog("不正解...");
+    }
+
+    updateHP();
+
+    // ボットの回答（遅延付き）
+    setTimeout(() => {
+        const botAnswerTime = Math.random() * 3000 + 1000; // 1-4秒
+        const botIsCorrect = Math.random() > 0.3; // 70%の確率で正解
+
+        if (botIsCorrect) {
+            addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
+            const damage = Math.floor(enemy.atk * 0.5);
+            me.hp = Math.max(0, me.hp - damage);
+            showDamage("myDamage", damage);
+            addLog("ボットからのダメージ: " + damage);
+        } else {
+            addLog("ボットは不正解...");
+        }
+
+        updateHP();
+
+        // 勝利判定
+        if (enemy.hp <= 0) {
+            finishBattle("win");
+        } else if (me.hp <= 0) {
+            finishBattle("lose");
+        } else {
+            // 次の問題
+            setTimeout(generateBotQuestion, 2000);
+        }
+    }, 500);
+}
+
+function finishBattle(result) {
+    battleEnd = true;
+    if (timerInterval) clearInterval(timerInterval);
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    answerInput.disabled = true;
+    submitAnswerBtn.disabled = true;
+
+    if (result === "win") {
+        addLog("🎉 勝利！");
+        alert("勝利しました！おめでとうございます！");
+    } else {
+        addLog("敗北...");
+        alert("敗北しました。次は頑張りましょう！");
+    }
+
+    // ボット対戦フラグをクリア
+    localStorage.removeItem("isBotBattle");
 }
 
 function showCountdown(callback) {
@@ -162,30 +265,36 @@ function finishBattle(winner) {
 
 function submitAnswer() {
     if (battleEnd || !currentQuestion) return;
-    
+
     const answer = answerInput.value.trim();
     if (!answer) return;
-    
+
     answerInput.disabled = true;
     submitAnswerBtn.disabled = true;
-    
-    socket.emit("submitAnswer", {
-        roomId,
-        answer
-    });
-    
+
+    if (isBotBattle) {
+        handleBotAnswer(answer);
+    } else {
+        socket.emit("submitAnswer", {
+            roomId,
+            answer
+        });
+    }
+
     answerInput.value = "";
 }
 
-// Socket event handlers
-socket.on("connect", () => {
-    if (roomId && me && me.id) {
-        const p = getSavedPlayer();
-        socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
-    }
-});
+// Socket event handlers (only for non-bot battles)
+if (!isBotBattle && socket) {
+    socket.on("connect", () => {
+        if (roomId && me && me.id) {
+            const p = getSavedPlayer();
+            socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
+        }
+    });
 
-socket.on("battleRejoined", data => {
+if (!isBotBattle) {
+    socket.on("battleRejoined", data => {
     me = data.me;
     enemy = data.enemy;
     rejoined = true;
