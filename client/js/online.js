@@ -67,9 +67,22 @@ function setupOnlineEventHandlers() {
             localStorage.setItem("attemptedJoinRoom", roomId);
             localStorage.setItem("attemptedJoinTime", Date.now().toString());
 
+            // 参加ボタンを無効化
+            joinRoomBtn.disabled = true;
+            joinRoomBtn.textContent = "参加中...";
+
             console.log("ルーム参加を試みます:", roomId);
             window.socket.emit("playerJoin", player);
             window.socket.emit("joinRoom", { roomId, player });
+
+            // タイムアウト処理
+            setTimeout(() => {
+                if (joinRoomBtn.disabled) {
+                    joinRoomBtn.disabled = false;
+                    joinRoomBtn.textContent = "ルーム参加";
+                    alert("ルーム参加に失敗しました。時間をおいて再度お試しください。");
+                }
+            }, 10000);
         };
     }
 
@@ -112,7 +125,8 @@ function setupOnlineEventHandlers() {
     // ------------------
     // 作成完了
     // ------------------
-    if (window.socket) {
+    if (window.socket && !window.socket._roomCreatedListener) {
+        window.socket._roomCreatedListener = true;
         window.socket.on("roomCreated",(roomId)=>{
             // ルームコードをローカルストレージに保存
             localStorage.setItem("lastCreatedRoom", roomId);
@@ -125,43 +139,58 @@ function setupOnlineEventHandlers() {
                 createRoomBtn.textContent = "ルーム作成";
             }
 
-            // ルームコードをクリップボードにコピー
-            navigator.clipboard.writeText(roomId).then(() => {
-                alert("ルームコード: " + roomId + "\n\n✓ コードをクリップボードにコピーしました！\n\n友達にこのコードを教えてください！");
+            // URLを作成
+            const roomUrl = window.location.origin + "/?room=" + roomId;
+
+            // ルームコードとURLをクリップボードにコピー
+            const clipboardText = `ルームコード: ${roomId}\n参加URL: ${roomUrl}`;
+            navigator.clipboard.writeText(clipboardText).then(() => {
+                alert("ルームコード: " + roomId + "\n\n✓ コードとURLをクリップボードにコピーしました！\n\n友達にURLを送るか、コードを教えてください。\n\nURL: " + roomUrl);
             }).catch(() => {
-                alert("ルームコード: " + roomId + "\n\nこのコードを友達に教えてください！\n\n（コードをコピーしてください）");
+                alert("ルームコード: " + roomId + "\n\n参加URL: " + roomUrl + "\n\n友達にURLを送るか、コードを教えてください！");
             });
         });
+    }
 
         // ------------------
         // 参加失敗
         // ------------------
-        window.socket.on("joinFailed",()=>{
-            const attemptedRoom = localStorage.getItem("attemptedJoinRoom");
-            const lastCreatedRoom = localStorage.getItem("lastCreatedRoom");
-            const lastCreatedTime = localStorage.getItem("lastCreatedRoomTime");
+        if (!window.socket._joinFailedListener) {
+            window.socket._joinFailedListener = true;
+            window.socket.on("joinFailed",()=>{
+                // Re-enable join button
+                const joinRoomBtn = document.getElementById("joinRoom");
+                if (joinRoomBtn) {
+                    joinRoomBtn.disabled = false;
+                    joinRoomBtn.textContent = "ルーム参加";
+                }
 
-            let message = "ルームが存在しません。\n\n";
+                const attemptedRoom = localStorage.getItem("attemptedJoinRoom");
+                const lastCreatedRoom = localStorage.getItem("lastCreatedRoom");
+                const lastCreatedTime = localStorage.getItem("lastCreatedRoomTime");
 
-            if (lastCreatedRoom && lastCreatedTime) {
-                const timeDiff = Date.now() - parseInt(lastCreatedTime);
-                const minutesAgo = Math.floor(timeDiff / 60000);
-                message += `最後に作成したルーム: ${lastCreatedRoom} (${minutesAgo}分前)\n`;
-            }
+                let message = "ルームが存在しません。\n\n";
 
-            if (attemptedRoom) {
-                message += `参加しようとしたルーム: ${attemptedRoom}\n`;
-            }
+                if (lastCreatedRoom && lastCreatedTime) {
+                    const timeDiff = Date.now() - parseInt(lastCreatedTime);
+                    const minutesAgo = Math.floor(timeDiff / 60000);
+                    message += `最後に作成したルーム: ${lastCreatedRoom} (${minutesAgo}分前)\n`;
+                }
 
-            message += "\n⚠️ ルームコードを正確に入力しているか確認してください。\n\n";
-            message += "🔧 回避策:\n";
-            message += "1. ルームコードを再度確認して入力\n";
-            message += "2. 新しいルームを作成して友達に教える\n";
-            message += "3. 「ランダムマッチ」または「ボット対戦」を試す\n\n";
-            message += "ボット対戦は練習に最適です！";
+                if (attemptedRoom) {
+                    message += `参加しようとしたルーム: ${attemptedRoom}\n`;
+                }
 
-            alert(message);
-        });
+                message += "\n⚠️ ルームコードを正確に入力しているか確認してください。\n\n";
+                message += "🔧 回避策:\n";
+                message += "1. ルームコードを再度確認して入力\n";
+                message += "2. 新しいルームを作成して友達に教える\n";
+                message += "3. 「ランダムマッチ」または「ボット対戦」を試す\n\n";
+                message += "ボット対戦は練習に最適です！";
+
+                alert(message);
+            });
+        }
 
         // ------------------
         // マッチ完了
@@ -171,7 +200,29 @@ function setupOnlineEventHandlers() {
             localStorage.setItem("roomId", data.roomId);
             localStorage.setItem("battlePlayer", JSON.stringify(data.me));
             localStorage.setItem("enemy", JSON.stringify(data.enemy));
+
+            // Re-enable join button
+            const joinRoomBtn = document.getElementById("joinRoom");
+            if (joinRoomBtn) {
+                joinRoomBtn.disabled = false;
+                joinRoomBtn.textContent = "ルーム参加";
+            }
+
             location.href = "battle.html";
+        });
+
+        // Handle room auto-join success
+        window.socket.on("autoJoinSuccess", (roomId) => {
+            console.log("自動参加成功:", roomId);
+            // Clear pending join
+            window.pendingRoomJoin = null;
+
+            // Re-enable join button
+            const joinRoomBtn = document.getElementById("joinRoom");
+            if (joinRoomBtn) {
+                joinRoomBtn.disabled = false;
+                joinRoomBtn.textContent = "ルーム参加";
+            }
         });
     }
 }
