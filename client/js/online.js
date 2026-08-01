@@ -15,12 +15,13 @@ function setupOnlineEventHandlers() {
 
     if (createRoomBtn) {
         createRoomBtn.onclick = () => {
+            console.log("Create room button clicked");
             const player = JSON.parse(localStorage.getItem("player"));
             if (!player) {
                 alert("まずはキャラクターを作成してください。");
                 return;
             }
-            if (!window.socket || !window.socket.connected) {
+            if (!window.socket) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
@@ -48,6 +49,7 @@ function setupOnlineEventHandlers() {
     // ------------------
     if (joinRoomBtn) {
         joinRoomBtn.onclick = () => {
+            console.log("Join room button clicked");
             const player = JSON.parse(localStorage.getItem("player"));
             if (!player) {
                 alert("まずはキャラクターを作成してください。");
@@ -58,7 +60,7 @@ function setupOnlineEventHandlers() {
                 alert("ルームコードを入力してください。");
                 return;
             }
-            if (!window.socket || !window.socket.connected) {
+            if (!window.socket) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
@@ -92,6 +94,7 @@ function setupOnlineEventHandlers() {
     const botMatchBtn = document.getElementById("botMatch");
     if (botMatchBtn) {
         botMatchBtn.onclick = () => {
+            console.log("Bot match button clicked");
             const player = JSON.parse(localStorage.getItem("player"));
             if (!player) {
                 alert("まずはキャラクターを作成してください。");
@@ -234,21 +237,8 @@ function setupOnlineHandlersWhenReady() {
         return;
     }
 
-    // Wait for socket to be initialized
-    const checkSocket = setInterval(() => {
-        if (window.socket && window.socket.connected) {
-            clearInterval(checkSocket);
-            console.log("Socket connected, setting up online handlers");
-            setupOnlineEventHandlers();
-        }
-    }, 100);
-
-    // Fallback after 5 seconds
-    setTimeout(() => {
-        clearInterval(checkSocket);
-        console.log("Socket check timeout, setting up handlers anyway");
-        setupOnlineEventHandlers();
-    }, 5000);
+    console.log("Setting up online handlers immediately");
+    setupOnlineEventHandlers();
 }
 
 if (document.readyState === "loading") {
