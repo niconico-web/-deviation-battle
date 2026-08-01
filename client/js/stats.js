@@ -26,6 +26,7 @@ function validateStatAllocation(stats) {
 
 function migratePlayer(player) {
     if (!player) return null;
+    console.log("migratePlayer called with:", player);
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
         return {

@@ -228,35 +228,85 @@ document.getElementById("randomMatch").onclick = () => {
         }
     }, 30000); // 30 second timeout
 };
-socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
-socket.on("joinFailed", () => alert(I18N.roomNotFound));
-socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); alert(I18N.matched); location.href = "battle.html"; });
-socket.on("matchFound", data => { 
-    if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
-    localStorage.setItem("roomId", data.roomId); 
-    localStorage.setItem("battlePlayer", JSON.stringify(data.me)); 
-    localStorage.setItem("enemy", JSON.stringify(data.enemy)); 
-    alert(I18N.matchFound); 
-    location.href = "battle.html"; 
-});
-socket.on("matchCancelled", () => { const btn = document.getElementById("randomMatch"); btn.textContent = I18N.randomMatch; btn.disabled = false; alert(I18N.matchCancelled); });
-socket.on("errorMessage", m => alert(m));
-document.getElementById("deletePlayerBtn").onclick = () => {
-    if (!confirm(I18N.deleteConfirm)) return;
-    if (studyStartTime !== null) stopStudy();
-    localStorage.removeItem("player");
-    localStorage.removeItem("battlePlayer");
-    localStorage.removeItem("enemy");
-    localStorage.removeItem("roomId");
-    document.getElementById("playerName").value = "";
-    setStatsToInputs(DEFAULT_STATS);
-    document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";
-    updateXpDisplay({ xp: 0, level: 1 });
-    alert(I18N.deleted);
-};
-document.getElementById("studyStart").onclick = startStudy;
-document.getElementById("studyStop").onclick = stopStudy;
-document.getElementById("studyFocus").onchange = updateStatGrowthInfo;
+function setupSocketEventHandlers() {
+    if (!window.socket) return;
+
+    window.socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
+    window.socket.on("joinFailed", () => alert(I18N.roomNotFound));
+    window.socket.on("roomReady", data => { localStorage.setItem("roomId", data.roomId); localStorage.setItem("battlePlayer", JSON.stringify(data.me)); localStorage.setItem("enemy", JSON.stringify(data.enemy)); alert(I18N.matched); location.href = "battle.html"; });
+    window.socket.on("matchFound", data => {
+        if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
+        localStorage.setItem("roomId", data.roomId);
+        localStorage.setItem("battlePlayer", JSON.stringify(data.me));
+        localStorage.setItem("enemy", JSON.stringify(data.enemy));
+        alert(I18N.matchFound);
+        location.href = "battle.html";
+    });
+    window.socket.on("matchCancelled", () => { const btn = document.getElementById("randomMatch"); btn.textContent = I18N.randomMatch; btn.disabled = false; alert(I18N.matchCancelled); });
+    window.socket.on("errorMessage", m => alert(m));
+}
+
+function setupDOMEventHandlers() {
+    const deleteBtn = document.getElementById("deletePlayerBtn");
+    if (deleteBtn) {
+        deleteBtn.onclick = () => {
+            if (!confirm(I18N.deleteConfirm)) return;
+            if (studyStartTime !== null) stopStudy();
+            localStorage.removeItem("player");
+            localStorage.removeItem("battlePlayer");
+            localStorage.removeItem("enemy");
+            localStorage.removeItem("roomId");
+            document.getElementById("playerName").value = "";
+            setStatsToInputs(DEFAULT_STATS);
+            document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";
+            updateXpDisplay({ xp: 0, level: 1 });
+            alert(I18N.deleted);
+        };
+    }
+
+    const studyStartBtn = document.getElementById("studyStart");
+    if (studyStartBtn) {
+        studyStartBtn.onclick = startStudy;
+    }
+
+    const studyStopBtn = document.getElementById("studyStop");
+    if (studyStopBtn) {
+        studyStopBtn.onclick = stopStudy;
+    }
+
+    const studyFocusSelect = document.getElementById("studyFocus");
+    if (studyFocusSelect) {
+        studyFocusSelect.onchange = updateStatGrowthInfo;
+    }
+
+    const randomMatchBtn = document.getElementById("randomMatch");
+    if (randomMatchBtn) {
+        randomMatchBtn.onclick = () => {
+            const p = getPlayerData();
+            if (!p) { alert(I18N.needChar); return; }
+            const btn = document.getElementById("randomMatch");
+            btn.textContent = I18N.searching;
+            btn.disabled = true;
+            if (!window.socket || !window.socket.connected) {
+                btn.textContent = I18N.randomMatch;
+                btn.disabled = false;
+                alert("サーバーに接続されていません。ページを再読み込みしてください。");
+                return;
+            }
+            window.socket.emit("playerJoin", p);
+            window.socket.emit("requestRandomMatch", p);
+
+            // Add cancel functionality
+            matchmakingTimeout = setTimeout(() => {
+                if(btn.disabled && btn.textContent === I18N.searching){
+                    btn.textContent = I18N.randomMatch;
+                    btn.disabled = false;
+                    alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
+                }
+            }, 30000); // 30 second timeout
+        };
+    }
+}
 
 STAT_KEYS.forEach(key => {
     const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
@@ -330,9 +380,15 @@ window.onload = () => {
     // Initialize socket
     initializeSocket();
 
+    // Setup socket event handlers
+    setTimeout(setupSocketEventHandlers, 200);
+
     initializeI18nTexts();
     updateStatGrowthInfo();
     updateRemainingPoints();
+
+    // Setup DOM event handlers
+    setupDOMEventHandlers();
 
     const player = getPlayerData();
     if (player) {
