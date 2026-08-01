@@ -51,22 +51,11 @@ function deleteRoom(roomId) {
 
 }
 
-module.exports = {
-
-    createRoom,
-
-    joinRoom,
-
-    getRoom,
-
-    deleteRoom
-
-};
 function resetRoom(roomId){
 
     if(!rooms[roomId]) return;
 
-    // 今後HP�?状態を初期化する�?�合�?�ここに追�?
+    // 今後HPや状態を初期化する場合はここに追加
 }
 
 module.exports = {
