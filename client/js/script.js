@@ -1,4 +1,5 @@
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
+let socketHandlersSetup = false;
 
 // Initialize socket after DOM is ready
 window.socket = null;
@@ -229,7 +230,8 @@ document.getElementById("randomMatch").onclick = () => {
     }, 30000); // 30 second timeout
 };
 function setupSocketEventHandlers() {
-    if (!window.socket) return;
+    if (!window.socket || socketHandlersSetup) return;
+    socketHandlersSetup = true;
 
     window.socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
     window.socket.on("joinFailed", () => alert(I18N.roomNotFound));
