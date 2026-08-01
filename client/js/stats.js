@@ -2,9 +2,9 @@ const STAT_KEYS = ["maxHp", "atk", "def", "speed"];
 const STAT_LABELS = {
     maxHp: "HP", atk: I18N.atk, def: I18N.def, speed: I18N.speed
 };
-const TOTAL_STAT_POINTS = 240;
+const TOTAL_STAT_POINTS = 200;
 const MIN_STAT = 10;
-const DEFAULT_STATS = { maxHp: 60, atk: 80, def: 60, speed: 40 };
+const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30 };
 
 function sumStats(stats) {
     return STAT_KEYS.reduce((sum, key) => sum + stats[key], 0);

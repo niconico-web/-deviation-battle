@@ -4,7 +4,7 @@
 function setupOnlineEventHandlers() {
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
-    
+
     if (createRoomBtn) {
         createRoomBtn.onclick = () => {
             const player = JSON.parse(localStorage.getItem("player"));
@@ -12,8 +12,8 @@ function setupOnlineEventHandlers() {
                 alert("まずはキャラクターを作成してください。");
                 return;
             }
-            if (!window.socket) {
-                alert("サーバーに接続されていません。");
+            if (!window.socket || !window.socket.connected) {
+                alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
             window.socket.emit("playerJoin", player);
@@ -36,8 +36,8 @@ function setupOnlineEventHandlers() {
                 alert("ルームコードを入力してください。");
                 return;
             }
-            if (!window.socket) {
-                alert("サーバーに接続されていません。");
+            if (!window.socket || !window.socket.connected) {
+                alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
             window.socket.emit("playerJoin", player);
@@ -73,9 +73,17 @@ function setupOnlineEventHandlers() {
     }
 }
 
-// Setup online handlers when DOM is ready
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupOnlineEventHandlers);
-} else {
-    setupOnlineEventHandlers();
+// Setup online handlers when DOM is ready and socket is initialized
+function setupOnlineHandlersWhenReady() {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => {
+            // Wait a bit for socket to initialize
+            setTimeout(setupOnlineEventHandlers, 100);
+        });
+    } else {
+        // Wait a bit for socket to initialize
+        setTimeout(setupOnlineEventHandlers, 100);
+    }
 }
+
+setupOnlineHandlersWhenReady();
