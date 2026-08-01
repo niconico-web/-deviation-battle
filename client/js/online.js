@@ -75,15 +75,25 @@ function setupOnlineEventHandlers() {
 
 // Setup online handlers when DOM is ready and socket is initialized
 function setupOnlineHandlersWhenReady() {
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => {
-            // Wait a bit for socket to initialize
-            setTimeout(setupOnlineEventHandlers, 100);
-        });
-    } else {
-        // Wait a bit for socket to initialize
-        setTimeout(setupOnlineEventHandlers, 100);
-    }
+    // Wait for socket to be initialized
+    const checkSocket = setInterval(() => {
+        if (window.socket && window.socket.connected) {
+            clearInterval(checkSocket);
+            console.log("Socket connected, setting up online handlers");
+            setupOnlineEventHandlers();
+        }
+    }, 100);
+
+    // Fallback after 5 seconds
+    setTimeout(() => {
+        clearInterval(checkSocket);
+        console.log("Socket check timeout, setting up handlers anyway");
+        setupOnlineEventHandlers();
+    }, 5000);
 }
 
-setupOnlineHandlersWhenReady();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupOnlineHandlersWhenReady);
+} else {
+    setupOnlineHandlersWhenReady();
+}
