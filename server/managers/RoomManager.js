@@ -45,6 +45,12 @@ function getRoom(roomId) {
 
 }
 
+function getRooms() {
+
+    return rooms;
+
+}
+
 function deleteRoom(roomId) {
 
     delete rooms[roomId];
@@ -65,6 +71,8 @@ module.exports = {
     joinRoom,
 
     getRoom,
+
+    getRooms,
 
     deleteRoom,
 
