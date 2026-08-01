@@ -1,7 +1,7 @@
 const socket = io();
 const roomId = localStorage.getItem("roomId");
 let me = JSON.parse(localStorage.getItem("battlePlayer")), enemy = JSON.parse(localStorage.getItem("enemy"));
-let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null;
+let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
 
 const turnText = document.getElementById("turnText");
 const myName = document.getElementById("myName");
@@ -95,6 +95,33 @@ function startTimer() {
     timerInterval = setInterval(updateTimer, 1000);
 }
 
+function showCountdown(callback) {
+    let count = 3;
+    questionDisplay.textContent = count;
+    questionDisplay.style.fontSize = "3rem";
+    questionDisplay.style.fontWeight = "bold";
+    questionDisplay.style.textAlign = "center";
+
+    if (countdownInterval) clearInterval(countdownInterval);
+
+    countdownInterval = setInterval(() => {
+        count--;
+        if (count > 0) {
+            questionDisplay.textContent = count;
+        } else if (count === 0) {
+            questionDisplay.textContent = "GO!!";
+            questionDisplay.style.color = "#ff6b6b";
+        } else {
+            clearInterval(countdownInterval);
+            questionDisplay.style.fontSize = "";
+            questionDisplay.style.fontWeight = "";
+            questionDisplay.style.textAlign = "";
+            questionDisplay.style.color = "";
+            callback();
+        }
+    }, 1000);
+}
+
 function stopTimer() {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -176,12 +203,14 @@ socket.on("rejoinFailed", data => {
 
 socket.on("battleStarted", data => {
     currentQuestion = data.initialQuestion;
-    questionDisplay.textContent = currentQuestion.question;
-    startTimer();
-    addLog("問題が出されました！");
-    answerInput.disabled = false;
-    submitAnswerBtn.disabled = false;
-    answerInput.focus();
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        startTimer();
+        addLog("問題が出されました！");
+        answerInput.disabled = false;
+        submitAnswerBtn.disabled = false;
+        answerInput.focus();
+    });
 });
 
 socket.on("answerResult", data => {
@@ -219,12 +248,14 @@ socket.on("answerResult", data => {
     // 次の問題があれば表示
     if (data.nextQuestion) {
         currentQuestion = data.nextQuestion;
-        questionDisplay.textContent = currentQuestion.question;
-        startTimer();
-        answerInput.disabled = false;
-        submitAnswerBtn.disabled = false;
-        answerInput.focus();
-        addLog("次の問題！");
+        showCountdown(() => {
+            questionDisplay.textContent = currentQuestion.question;
+            startTimer();
+            answerInput.disabled = false;
+            submitAnswerBtn.disabled = false;
+            answerInput.focus();
+            addLog("次の問題！");
+        });
     }
     
     // 勝利判定

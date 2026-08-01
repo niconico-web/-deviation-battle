@@ -1,7 +1,15 @@
+let onlineHandlersSetup = false;
+
 // ------------------
 // ルーム作成
 // ------------------
 function setupOnlineEventHandlers() {
+    if (onlineHandlersSetup) {
+        console.log("Online handlers already setup, skipping");
+        return;
+    }
+    onlineHandlersSetup = true;
+
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
 
@@ -75,6 +83,11 @@ function setupOnlineEventHandlers() {
 
 // Setup online handlers when DOM is ready and socket is initialized
 function setupOnlineHandlersWhenReady() {
+    if (onlineHandlersSetup) {
+        console.log("Online handlers already setup, skipping initialization");
+        return;
+    }
+
     // Wait for socket to be initialized
     const checkSocket = setInterval(() => {
         if (window.socket && window.socket.connected) {
