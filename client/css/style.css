@@ -75,18 +75,19 @@ select {
     padding: 12px 14px;
     margin-bottom: 10px;
     font-size: 16px;
-    border: 1px solid #444;
+    border: 2px solid #666;
     border-radius: 10px;
     background: #fff;
     color: #222;
     display: block;
+    height: 44px;
+    box-sizing: border-box;
 }
 
 .stat-allocation,
 .subjects {
-    display: grid;
+    display: block;
     gap: 10px;
-    grid-template-columns: 1fr;
 }
 
 .stat-allocation-desc {
@@ -275,13 +276,12 @@ select {
 }
 
 .stat-allocation label {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: block;
+    margin-bottom: 15px;
 }
 
 .stat-allocation label select,
 .stat-allocation label input {
-    margin-top: 4px;
+    margin-top: 8px;
     margin-bottom: 0;
 }
