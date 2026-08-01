@@ -10,16 +10,25 @@ function createRoom(roomId, hostSocketId, hostData = null) {
 
         hostData,
 
-        guestData: null
+        guestData: null,
+
+        createdAt: Date.now(),
+
+        expiresAt: Date.now() + 10 * 60 * 1000 // 10分後に期限切れ
 
     };
+
+    console.log("Room created:", roomId, "expires at:", new Date(rooms[roomId].expiresAt));
 
 }
 
 function joinRoom(roomId, guestSocketId, guestData = null) {
 
-    console.log("現在のルーム一覧:", rooms);
+    console.log("現在のルーム一覧:", Object.keys(rooms));
     console.log("参加するルーム:", roomId);
+
+    // 期限切れのルームをクリーンアップ
+    cleanupExpiredRooms();
 
     if (!rooms[roomId]) {
         console.log("ルームが存在しません");
@@ -28,6 +37,13 @@ function joinRoom(roomId, guestSocketId, guestData = null) {
 
     if (rooms[roomId].guest !== null) {
         console.log("すでに満員です");
+        return false;
+    }
+
+    // 期限切れチェック
+    if (Date.now() > rooms[roomId].expiresAt) {
+        console.log("ルームの期限が切れています");
+        deleteRoom(roomId);
         return false;
     }
 
@@ -57,6 +73,18 @@ function deleteRoom(roomId) {
 
 }
 
+function cleanupExpiredRooms() {
+
+    const now = Date.now();
+    for (const roomId in rooms) {
+        if (rooms[roomId].expiresAt && now > rooms[roomId].expiresAt) {
+            console.log("Cleaning up expired room:", roomId);
+            delete rooms[roomId];
+        }
+    }
+
+}
+
 function resetRoom(roomId){
 
     if(!rooms[roomId]) return;
@@ -76,6 +104,8 @@ module.exports = {
 
     deleteRoom,
 
-    resetRoom
+    resetRoom,
+
+    cleanupExpiredRooms
 
 };

@@ -48,6 +48,12 @@ function setupOnlineEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+
+            // 参加情報を保存
+            localStorage.setItem("attemptedJoinRoom", roomId);
+            localStorage.setItem("attemptedJoinTime", Date.now().toString());
+
+            console.log("ルーム参加を試みます:", roomId);
             window.socket.emit("playerJoin", player);
             window.socket.emit("joinRoom", { roomId, player });
         };
@@ -58,14 +64,35 @@ function setupOnlineEventHandlers() {
     // ------------------
     if (window.socket) {
         window.socket.on("roomCreated",(roomId)=>{
-            alert("ルームコード\n\n"+roomId);
+            // ルームコードをローカルストレージに保存
+            localStorage.setItem("lastCreatedRoom", roomId);
+            localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
+            alert("ルームコード\n\n"+roomId + "\n\nこのコードを友達に教えてください！\n\n（コードはコピーしてください）");
         });
 
         // ------------------
         // 参加失敗
         // ------------------
         window.socket.on("joinFailed",()=>{
-            alert("ルームが存在しません。");
+            const attemptedRoom = localStorage.getItem("attemptedJoinRoom");
+            const lastCreatedRoom = localStorage.getItem("lastCreatedRoom");
+            const lastCreatedTime = localStorage.getItem("lastCreatedRoomTime");
+
+            let message = "ルームが存在しません。\n\n";
+
+            if (lastCreatedRoom && lastCreatedTime) {
+                const timeDiff = Date.now() - parseInt(lastCreatedTime);
+                const minutesAgo = Math.floor(timeDiff / 60000);
+                message += `最後に作成したルーム: ${lastCreatedRoom} (${minutesAgo}分前)\n`;
+            }
+
+            if (attemptedRoom) {
+                message += `参加しようとしたルーム: ${attemptedRoom}\n`;
+            }
+
+            message += "\n同じブラウザでルームを作成した場合、\nページを再読み込みしてから参加してください。\n\nまたは、別のブラウザ/デバイスで友達と一緒に試してください。";
+
+            alert(message);
         });
 
         // ------------------
