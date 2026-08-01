@@ -11,11 +11,25 @@ function initializeSocket() {
         reconnectionAttempts: 5,
         transports: ["websocket", "polling"]
     });
-    
+
     // Connection logging
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
+        window.socket.connected = true;
     });
+
+    window.socket.on("disconnect", () => {
+        console.log("切断");
+        window.socket.connected = false;
+    });
+
+    window.socket.on("connect_error", (error) => {
+        console.log("接続エラー:", error);
+        window.socket.connected = false;
+    });
+
+    // Initialize connection state
+    window.socket.connected = false;
 }
 
 function getStatsFromInputs() {
