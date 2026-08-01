@@ -149,33 +149,44 @@ function handleBotAnswer(userAnswer) {
 
     updateHP();
 
-    // ボットの回答（遅延付き）
-    setTimeout(() => {
-        const botAnswerTime = Math.random() * 3000 + 1000; // 1-4秒
-        const botIsCorrect = Math.random() > 0.3; // 70%の確率で正解
+    // ボットの回答（遅延付き）- ただしユーザーが正解した場合はボットは回答しない
+    if (!isCorrect) {
+        setTimeout(() => {
+            const botAnswerTime = Math.random() * 3000 + 1000; // 1-4秒
+            const botIsCorrect = Math.random() > 0.3; // 70%の確率で正解
 
-        if (botIsCorrect) {
-            addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
-            const damage = Math.floor(enemy.atk * 0.5);
-            me.hp = Math.max(0, me.hp - damage);
-            showDamage("myDamage", damage);
-            addLog("ボットからのダメージ: " + damage);
-        } else {
-            addLog("ボットは不正解...");
-        }
+            if (botIsCorrect) {
+                addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
+                const damage = Math.floor(enemy.atk * 0.5);
+                me.hp = Math.max(0, me.hp - damage);
+                showDamage("myDamage", damage);
+                addLog("ボットからのダメージ: " + damage);
+            } else {
+                addLog("ボットは不正解...");
+            }
 
-        updateHP();
+            updateHP();
 
-        // 勝利判定
-        if (enemy.hp <= 0) {
-            finishBattle("win");
-        } else if (me.hp <= 0) {
-            finishBattle("lose");
-        } else {
-            // 次の問題
-            setTimeout(generateBotQuestion, 2000);
-        }
-    }, 500);
+            // 勝利判定
+            if (enemy.hp <= 0) {
+                finishBattle("win");
+            } else if (me.hp <= 0) {
+                finishBattle("lose");
+            } else {
+                // 次の問題
+                setTimeout(generateBotQuestion, 2000);
+            }
+        }, 500);
+    } else {
+        // ユーザーが正解した場合、即座に次の問題へ
+        setTimeout(() => {
+            if (enemy.hp <= 0) {
+                finishBattle("win");
+            } else {
+                generateBotQuestion();
+            }
+        }, 1000);
+    }
 }
 
 function finishBattle(result) {

@@ -46,7 +46,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // ルー�?作�??
+        // ルーム作成
         // -----------------------------
 
         socket.on("createRoom",(player)=>{
@@ -62,11 +62,14 @@ module.exports = function(io){
                 .substring(2, 8)
                 .toUpperCase();
 
-            RoomManager.createRoom(roomId, socket.id, player || null);
-
+            // Socket.IO roomに参加
             socket.join(roomId);
 
-            console.log("Room Create:", roomId);
+            // ルームマネージャーに登録
+            RoomManager.createRoom(roomId, socket.id, player || null);
+
+            console.log("Room Create:", roomId, "by socket:", socket.id);
+            console.log("Socket rooms:", Array.from(socket.rooms));
 
             socket.emit("roomCreated", roomId);
 
@@ -86,7 +89,7 @@ module.exports = function(io){
                 ? data.player
                 : null;
 
-            console.log("Join Request:", roomId);
+            console.log("Join Request:", roomId, "from socket:", socket.id);
             console.log("Available rooms:", Object.keys(RoomManager.getRooms ? RoomManager.getRooms() : {}));
 
             if(!roomId){
@@ -103,6 +106,9 @@ module.exports = function(io){
 
             }
 
+            // Socket.IO roomに参加
+            socket.join(roomId);
+
             const success = RoomManager.joinRoom(
                 roomId,
                 socket.id,
@@ -112,13 +118,14 @@ module.exports = function(io){
             if(!success){
 
                 console.log("Join Failed: Room not found or full:", roomId);
+                socket.leave(roomId);
                 socket.emit("joinFailed");
 
                 return;
 
             }
 
-            socket.join(roomId);
+            console.log("Socket rooms after join:", Array.from(socket.rooms));
 
             const room = RoomManager.getRoom(roomId);
 
@@ -151,7 +158,9 @@ module.exports = function(io){
             }
 
             console.log("Room Ready:", roomId);
+            console.log("Host socket:", room.host, "Guest socket:", room.guest);
 
+            // 両方のプレイヤーに通知
             io.to(room.host).emit("roomReady", {
                 roomId,
                 me: battle.players[room.host],
