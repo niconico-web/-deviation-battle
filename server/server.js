@@ -1,8 +1,10 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const UniqueWeaponManager = require("./managers/UniqueWeaponManager");
 
 const app = express();
+app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
     pingInterval: 25000,
@@ -37,6 +39,25 @@ function getContentType(filePath) {
 require("./socket/connection")(io);
 require("./socket/matchmaking")(io);
 require("./socket/battle")(io);
+
+app.get("/api/unique/claims", (req, res) => {
+    res.json(UniqueWeaponManager.getAllClaims());
+});
+
+app.post("/api/unique/claim", (req, res) => {
+    const { type, playerId, playerName, wins } = req.body || {};
+    if (!type || !playerId || !playerName) {
+        return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+    if (wins < 500) {
+        return res.status(400).json({ success: false, message: "Quest not completed (need 500 wins)" });
+    }
+    const result = UniqueWeaponManager.tryClaim(type, playerId, playerName);
+    if (!result.success) {
+        return res.json({ success: false, claimedBy: result.claimedBy });
+    }
+    res.json({ success: true, claim: result.claim });
+});
 
 const PORT = process.env.PORT || 3000;
 

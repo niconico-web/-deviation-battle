@@ -12,9 +12,33 @@ function resolveBattlePlayer(socketId, storedData){
 
     const live = PlayerManager.getPlayer(socketId);
 
-    if(live) return live;
+    if(live){
+        const stats = live.battleStats || live;
+        return {
+            ...live,
+            id: live.id || storedData?.id || socketId,
+            socketId,
+            maxHp: stats.maxHp ?? live.maxHp,
+            atk: stats.atk ?? live.atk,
+            def: stats.def ?? live.def,
+            speed: stats.speed ?? live.speed,
+            equippedWeapon: live.equippedWeapon || null
+        };
+    }
 
-    if(storedData) return { ...storedData, socketId };
+    if(storedData){
+        const stats = storedData.battleStats || storedData;
+        return {
+            ...storedData,
+            id: storedData.id || socketId,
+            socketId,
+            maxHp: stats.maxHp ?? storedData.maxHp,
+            atk: stats.atk ?? storedData.atk,
+            def: stats.def ?? storedData.def,
+            speed: stats.speed ?? storedData.speed,
+            equippedWeapon: storedData.equippedWeapon || null
+        };
+    }
 
     return null;
 
@@ -166,14 +190,14 @@ module.exports = function(io){
             // 両方のプレイヤーに通知
             io.to(room.host).emit("roomReady", {
                 roomId,
-                me: battle.players[room.host],
-                enemy: battle.players[room.guest]
+                me: battle.players[host.id],
+                enemy: battle.players[guest.id]
             });
 
             io.to(room.guest).emit("roomReady", {
                 roomId,
-                me: battle.players[room.guest],
-                enemy: battle.players[room.host]
+                me: battle.players[guest.id],
+                enemy: battle.players[host.id]
             });
 
         });
@@ -231,13 +255,13 @@ module.exports = function(io){
 
             socket.join(roomId);
 
-            const me = battle.players[socket.id];
-            const enemy = BattleManager.getEnemy(roomId, socket.id);
+            const me = battle.players[oldPlayerId];
+            const enemy = BattleManager.getEnemy(roomId, oldPlayerId);
 
             socket.emit("battleRejoined", {
                 me,
                 enemy,
-                myTurn: battle.turn === socket.id
+                myTurn: battle.turn === oldPlayerId
             });
 
             console.log("Battle Rejoined:", socket.id, "in", roomId);

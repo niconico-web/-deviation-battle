@@ -1,0 +1,192 @@
+// ============================================
+// 武器システム
+// ============================================
+
+const WEAPON_TYPES = {
+    sword_shield: { name: "片手剣＋盾", primary: ["def", "maxHp"], secondary: [] },
+    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [] },
+    greatsword:   { name: "大剣",       primary: ["atk"],          secondary: ["def"] },
+    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [] },
+    scythe:       { name: "鎌",         primary: ["atk", "def"],   secondary: [] },
+    pistol:       { name: "ピストル",   primary: ["speed"],        secondary: ["atk"] },
+    katana:       { name: "刀",         primary: ["atk", "speed"], secondary: [] }
+};
+
+const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
+const UNIQUE_MULT = 1.65; // tier3(1.20) × 1.375 ≒ 1.65
+
+const TIER_PRICES = { tier1: 30, tier2: 50, tier3: 100 };
+
+const WEAPON_CATALOG = {
+    sword_shield: {
+        tier1: { name: "鉄の盾剣" },
+        tier2: { name: "騎士の盾剣" },
+        tier3: { name: "聖騎士の盾剣" },
+        unique: { name: "神盾バルムンク" }
+    },
+    spear: {
+        tier1: { name: "木の槍" },
+        tier2: { name: "鋼の長槍" },
+        tier3: { name: "ドラゴンスレイヤー" },
+        unique: { name: "神槍グングニル" }
+    },
+    greatsword: {
+        tier1: { name: "錆びた大剣" },
+        tier2: { name: "黒鉄の大剣" },
+        tier3: { name: "覇王の大剣" },
+        unique: { name: "終焉の裁き" }
+    },
+    dual_swords: {
+        tier1: { name: "錆びた双剣" },
+        tier2: { name: "疾風の双剣" },
+        tier3: { name: "幻影の双剣" },
+        unique: { name: "無双の双星" }
+    },
+    scythe: {
+        tier1: { name: "農夫の鎌" },
+        tier2: { name: "死神の鎌" },
+        tier3: { name: "冥府の鎌" },
+        unique: { name: "魂狩りの鎌" }
+    },
+    pistol: {
+        tier1: { name: "古式ピストル" },
+        tier2: { name: "連射ピストル" },
+        tier3: { name: "マグナム" },
+        unique: { name: "終末の銃" }
+    },
+    katana: {
+        tier1: { name: "錆びた刀" },
+        tier2: { name: "業物" },
+        tier3: { name: "名刀「村正」" },
+        unique: { name: "天叢雲剣" }
+    }
+};
+
+const UNIQUE_QUEST_WINS = 500;
+const COIN_BATTLE_WIN = 15;
+const COIN_STUDY_30MIN = 20;
+const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
+
+function getWeaponMultiplier(weapon) {
+    if (!weapon) return 1;
+    if (weapon.isUnique) return UNIQUE_MULT;
+    return TIER_MULT[weapon.tier] || 1;
+}
+
+function createWeapon(type, tier, isUnique) {
+    const catalog = WEAPON_CATALOG[type];
+    if (!catalog) return null;
+    const tierKey = isUnique ? "unique" : tier;
+    const info = catalog[tierKey];
+    if (!info) return null;
+    return {
+        id: `${type}_${tierKey}`,
+        type,
+        tier: isUnique ? "unique" : tier,
+        name: info.name,
+        isUnique: !!isUnique
+    };
+}
+
+function getAllShopWeapons() {
+    const list = [];
+    for (const type of Object.keys(WEAPON_TYPES)) {
+        for (const tier of ["tier1", "tier2", "tier3"]) {
+            list.push(createWeapon(type, tier, false));
+        }
+    }
+    return list;
+}
+
+function applyWeaponStats(baseStats, weapon) {
+    if (!weapon) return { ...baseStats };
+    const mult = getWeaponMultiplier(weapon);
+    const typeConf = WEAPON_TYPES[weapon.type];
+    if (!typeConf) return { ...baseStats };
+    const result = { ...baseStats };
+    for (const stat of typeConf.primary) {
+        result[stat] = Math.floor(result[stat] * mult);
+    }
+    for (const stat of typeConf.secondary) {
+        result[stat] = Math.floor(result[stat] * (mult * 0.85));
+    }
+    return result;
+}
+
+function getEffectiveStats(player) {
+    const base = getStatsFromPlayer(player);
+    return applyWeaponStats(base, player.equippedWeapon);
+}
+
+function getBattleStats(player) {
+    return getEffectiveStats(player);
+}
+
+function playerOwnsWeapon(player, weaponId) {
+    return (player.weapons || []).some(w => w.id === weaponId);
+}
+
+function addWeaponToPlayer(player, weapon) {
+    if (!weapon) return player;
+    const weapons = player.weapons || [];
+    if (weapons.some(w => w.id === weapon.id)) return player;
+    return { ...player, weapons: [...weapons, weapon] };
+}
+
+function removeWeaponFromPlayer(player, weaponId) {
+    const weapons = (player.weapons || []).filter(w => w.id !== weaponId);
+    const equippedWeapon = player.equippedWeapon?.id === weaponId ? null : player.equippedWeapon;
+    return { ...player, weapons, equippedWeapon };
+}
+
+function buyWeapon(player, type, tier) {
+    const price = TIER_PRICES[tier];
+    if (!price) return { ok: false, message: "無効な武器です" };
+    const weapon = createWeapon(type, tier, false);
+    if (!weapon) return { ok: false, message: "武器が見つかりません" };
+    if (playerOwnsWeapon(player, weapon.id)) return { ok: false, message: "既に所持しています" };
+    const coins = player.coins || 0;
+    if (coins < price) return { ok: false, message: `コインが足りません（必要: ${price}、所持: ${coins}）` };
+    const updated = addWeaponToPlayer({ ...player, coins: coins - price }, weapon);
+    return { ok: true, player: updated, weapon };
+}
+
+function equipWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    return { ok: true, player: { ...player, equippedWeapon: weapon } };
+}
+
+function unequipWeapon(player) {
+    return { ...player, equippedWeapon: null };
+}
+
+function addCoins(player, amount) {
+    return { ...player, coins: (player.coins || 0) + amount };
+}
+
+function incrementWeaponWin(player) {
+    if (!player.equippedWeapon) return player;
+    const type = player.equippedWeapon.type;
+    const weaponWins = { ...(player.weaponWins || {}) };
+    weaponWins[type] = (weaponWins[type] || 0) + 1;
+    return { ...player, weaponWins };
+}
+
+function getWeaponWinCount(player, type) {
+    return (player.weaponWins || {})[type] || 0;
+}
+
+function canClaimUniqueQuest(player, type) {
+    return getWeaponWinCount(player, type) >= UNIQUE_QUEST_WINS;
+}
+
+function getWeaponDisplayName(weapon) {
+    if (!weapon) return "なし";
+    const tierLabel = weapon.isUnique ? "★ユニーク" : weapon.tier?.toUpperCase() || "";
+    return `${weapon.name} [${tierLabel}]`;
+}
+
+function getWeaponTypeLabel(type) {
+    return WEAPON_TYPES[type]?.name || type;
+}

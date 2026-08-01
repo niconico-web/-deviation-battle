@@ -32,7 +32,7 @@ function generateQuestion(battle) {
     const player2 = battle.players[playerIds[1]];
     
     // 教科をランダムに選択
-    const subjects = ['math', 'jp', 'eng'];
+    const subjects = ['math', 'jp', 'english'];
     const subject = subjects[Math.floor(Math.random() * subjects.length)];
     
     // 二人のプレイヤーの学年に基づいて問題を取得

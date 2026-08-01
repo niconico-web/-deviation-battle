@@ -72,9 +72,14 @@ function getQueueSize() {
     return matchmakingQueue.length;
 }
 
+function getQueue() {
+    return matchmakingQueue;
+}
+
 module.exports = {
     addToQueue,
     removeFromQueue,
     tryMatch,
-    getQueueSize
+    getQueueSize,
+    getQueue
 };

@@ -14,9 +14,7 @@ const battles = {};
 function createBattle(roomId, host, guest){
 
     if(!host?.id || !guest?.id){
-
         return null;
-
     }
 
     battles[roomId] = {
@@ -39,6 +37,8 @@ function createBattle(roomId, host, guest){
                 speed: host.speed,
                 grade: host.grade || 1,
 
+                equippedWeapon: host.equippedWeapon || null,
+
                 answerTime: null,
                 correctAnswers: 0
 
@@ -58,6 +58,8 @@ function createBattle(roomId, host, guest){
                 speed: guest.speed,
                 grade: guest.grade || 1,
 
+                equippedWeapon: guest.equippedWeapon || null,
+
                 answerTime: null,
                 correctAnswers: 0
 
@@ -65,7 +67,7 @@ function createBattle(roomId, host, guest){
 
         },
 
-        turn: null, // 早解きバトルではターン制ではない
+        turn: null,
 
         finished: false
 
@@ -153,23 +155,19 @@ function finishBattle(roomId){
 // ソケ�?�?IDの付け替え（�?��?�ジ遷移後�?�再接続用?�?
 // -----------------------------
 
-function remapPlayerSocket(roomId, oldSocketId, newSocketId){
+function findPlayerIdBySocket(battle, socketId) {
+    return Object.keys(battle.players).find(
+        id => battle.players[id].socketId === socketId
+    );
+}
+
+function remapPlayerSocket(roomId, oldPlayerId, newSocketId){
 
     const battle = battles[roomId];
 
-    if(!battle || !battle.players[oldSocketId]) return false;
+    if(!battle || !battle.players[oldPlayerId]) return false;
 
-    const player = {
-        ...battle.players[oldSocketId],
-        id: newSocketId
-    };
-
-    delete battle.players[oldSocketId];
-    battle.players[newSocketId] = player;
-
-    if(battle.turn === oldSocketId){
-        battle.turn = newSocketId;
-    }
+    battle.players[oldPlayerId].socketId = newSocketId;
 
     return true;
 
@@ -200,6 +198,8 @@ module.exports = {
     finishBattle,
 
     deleteBattle,
+
+    findPlayerIdBySocket,
 
     remapPlayerSocket
 
