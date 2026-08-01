@@ -326,16 +326,17 @@ function initializeI18nTexts() {
 window.onload = () => {
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
-    
+
     // Initialize socket
     initializeSocket();
-    
+
     initializeI18nTexts();
     updateStatGrowthInfo();
     updateRemainingPoints();
-    
+
     const player = getPlayerData();
     if (player) {
+        console.log("既存のプレイヤーデータ found:", player);
         updateStatus(player);
         updateXpDisplay(player);
         document.getElementById("playerName").value = player.name;
@@ -345,6 +346,7 @@ window.onload = () => {
         // Update stat allocation description for existing players
         document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
     } else {
+        console.log("プレイヤーデータなし、デフォルト値を使用");
         setStatsToInputs(DEFAULT_STATS);
         updateXpDisplay({ xp: 0, level: 1 });
         lockStatInputs(false);

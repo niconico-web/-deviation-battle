@@ -136,10 +136,13 @@ select {
     margin-top: 10px;
     font-size: 1rem;
     font-weight: 600;
-    border: none;
+    border: 2px solid #666;
     border-radius: 10px;
     cursor: pointer;
     transition: opacity 0.2s, transform 0.15s;
+    background: #4a90d9;
+    color: #fff;
+    box-sizing: border-box;
 }
 
 .btn:active:not(:disabled) {
@@ -154,6 +157,7 @@ select {
 .btn-primary {
     background: #4a90d9;
     color: #fff;
+    border-color: #4a90d9;
 }
 
 .btn-secondary {
