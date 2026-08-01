@@ -198,7 +198,7 @@ function applyStudyRewards(seconds) {
         ? (player.hp || player.maxHp) + statGain
         : (player.hp || player.maxHp);
 
-    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, { hp, totalStudySeconds: (player.totalStudySeconds || 0) + seconds });
+    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, { hp, totalStudySeconds: (player.totalStudySeconds || 0) + seconds, grade: player.grade });
     localStorage.setItem("player", JSON.stringify(updated));
     setStatsToInputs(stats);
     updateStatus(updated);

@@ -73,7 +73,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // ルー�?坂加
+        // ルーム参加
         // -----------------------------
 
         socket.on("joinRoom",(data)=>{
@@ -87,6 +87,7 @@ module.exports = function(io){
                 : null;
 
             console.log("Join Request:", roomId);
+            console.log("Available rooms:", Object.keys(RoomManager.getRooms ? RoomManager.getRooms() : {}));
 
             if(!roomId){
 
@@ -110,6 +111,7 @@ module.exports = function(io){
 
             if(!success){
 
+                console.log("Join Failed: Room not found or full:", roomId);
                 socket.emit("joinFailed");
 
                 return;
