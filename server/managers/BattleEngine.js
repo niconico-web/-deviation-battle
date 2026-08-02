@@ -31,12 +31,18 @@ function generateQuestion(battle) {
     const player1 = battle.players[playerIds[0]];
     const player2 = battle.players[playerIds[1]];
     
+    console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}`);
+    
     // 教科をランダムに選択
     const subjects = ['math', 'jp', 'english'];
     const subject = subjects[Math.floor(Math.random() * subjects.length)];
     
+    console.log(`[BattleEngine] Selected subject: ${subject}`);
+    
     // 二人のプレイヤーの学年に基づいて問題を取得
     const question = QuestionManager.getBattleQuestion(player1.grade, player2.grade, subject);
+    
+    console.log(`[BattleEngine] Question result:`, question);
     
     if (!question) {
         // 問題が見つからない場合のフォールバック
@@ -63,6 +69,8 @@ function generateQuestion(battle) {
         subject: subject,
         startTime: Date.now()
     };
+    
+    console.log(`[BattleEngine] Generated question:`, battle.currentQuestion);
     
     // プレイヤーの回答時間をリセット
     playerIds.forEach(id => {
