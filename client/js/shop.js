@@ -11,8 +11,23 @@ function renderShop() {
 
     document.getElementById("coinDisplay").textContent = "所持コイン: " + (player.coins || 0);
 
+    // 武器種類ごとにグループ化
     for (const type of Object.keys(WEAPON_TYPES)) {
         const typeName = getWeaponTypeLabel(type);
+        
+        // 武器種類ごとのセクションを作成
+        const typeSection = document.createElement("div");
+        typeSection.className = "weapon-type-section";
+        
+        const typeHeader = document.createElement("h3");
+        typeHeader.className = "weapon-type-header";
+        typeHeader.textContent = typeName;
+        typeSection.appendChild(typeHeader);
+        
+        // tierグリッドを作成
+        const tierGrid = document.createElement("div");
+        tierGrid.className = "tier-grid";
+        
         for (const tier of ["tier1", "tier2", "tier3"]) {
             const weapon = createWeapon(type, tier, false);
             const price = TIER_PRICES[tier];
@@ -23,7 +38,7 @@ function renderShop() {
             item.innerHTML =
                 `<div class="shop-item-info">
                     <strong>${weapon.name}</strong>
-                    <span class="shop-item-type">${typeName} / ${tier.toUpperCase()}</span>
+                    <span class="shop-item-tier">${tier.toUpperCase()}</span>
                 </div>
                 <div class="shop-item-action">
                     ${owned
@@ -31,8 +46,11 @@ function renderShop() {
                         : `<button class="btn btn-small buy-btn" data-type="${type}" data-tier="${tier}">${price}コイン</button>`
                     }
                 </div>`;
-            container.appendChild(item);
+            tierGrid.appendChild(item);
         }
+        
+        typeSection.appendChild(tierGrid);
+        container.appendChild(typeSection);
     }
 
     container.querySelectorAll(".buy-btn").forEach(btn => {
