@@ -104,26 +104,334 @@ function startBotBattle() {
 }
 
 function generateBotQuestion() {
-    const questions = [
-        { question: "1 + 1 = ?", answer: "2" },
-        { question: "2 × 3 = ?", answer: "6" },
-        { question: "10 - 4 = ?", answer: "6" },
-        { question: "5 + 5 = ?", answer: "10" },
-        { question: "8 ÷ 2 = ?", answer: "4" },
-        { question: "3 × 4 = ?", answer: "12" },
-        { question: "15 - 7 = ?", answer: "8" },
-        { question: "6 + 9 = ?", answer: "15" },
-        { question: "20 ÷ 4 = ?", answer: "5" },
-        { question: "7 × 3 = ?", answer: "21" }
-    ];
-
+    // 学年に応じた問題を生成
+    const playerGrade = me.grade || 1;
+    const enemyGrade = enemy.grade || 1;
+    
+    // 学校レベルと学年を判定
+    let schoolLevel, grade;
+    if (playerGrade <= 6) {
+        schoolLevel = 'elementary';
+        grade = playerGrade;
+    } else if (playerGrade <= 9) {
+        schoolLevel = 'junior_high';
+        grade = playerGrade - 6;
+    } else {
+        schoolLevel = 'high_school';
+        grade = playerGrade - 9;
+    }
+    
+    // 教科をランダムに選択
+    const subjects = ['math', 'jp', 'english'];
+    const subject = subjects[Math.floor(Math.random() * subjects.length)];
+    
+    // 固定の問題セット（学年と教科に応じた問題）
+    const questionsByGrade = {
+        elementary: {
+            1: {
+                math: [
+                    { question: "1 + 1 = ?", answer: "2" },
+                    { question: "2 + 3 = ?", answer: "5" },
+                    { question: "5 - 2 = ?", answer: "3" },
+                    { question: "10 - 5 = ?", answer: "5" },
+                    { question: "3 + 4 = ?", answer: "7" }
+                ],
+                jp: [
+                    { question: "あいのうえの「あ」は何行？", answer: "あ行" },
+                    { question: "「い」の後ろのひらがなは？", answer: "う" },
+                    { question: "「か」の後ろのひらがなは？", answer: "き" },
+                    { question: "「さ」の後ろのひらがなは？", answer: "し" },
+                    { question: "「た」の後ろのひらがなは？", answer: "ち" }
+                ],
+                english: [
+                    { question: "「犬」の英語は？", answer: "dog" },
+                    { question: "「猫」の英語は？", answer: "cat" },
+                    { question: "「本」の英語は？", answer: "book" },
+                    { question: "「学校」の英語は？", answer: "school" },
+                    { question: "「先生」の英語は？", answer: "teacher" }
+                ]
+            },
+            2: {
+                math: [
+                    { question: "7 + 8 = ?", answer: "15" },
+                    { question: "15 - 7 = ?", answer: "8" },
+                    { question: "9 + 6 = ?", answer: "15" },
+                    { question: "20 - 12 = ?", answer: "8" },
+                    { question: "5 × 2 = ?", answer: "10" }
+                ],
+                jp: [
+                    { question: "「犬」の読み方は？", answer: "いぬ" },
+                    { question: "「猫」の読み方は？", answer: "ねこ" },
+                    { question: "「鳥」の読み方は？", answer: "とり" },
+                    { question: "「魚」の読み方は？", answer: "さかな" },
+                    { question: "「花」の読み方は？", answer: "はな" }
+                ],
+                english: [
+                    { question: "「走る」の英語は？", answer: "run" },
+                    { question: "「食べる」の英語は？", answer: "eat" },
+                    { question: "「見る」の英語は？", answer: "see" },
+                    { question: "「聞く」の英語は？", answer: "hear" },
+                    { question: "「話す」の英語は？", answer: "speak" }
+                ]
+            },
+            3: {
+                math: [
+                    { question: "23 + 47 = ?", answer: "70" },
+                    { question: "100 - 35 = ?", answer: "65" },
+                    { question: "6 × 7 = ?", answer: "42" },
+                    { question: "81 ÷ 9 = ?", answer: "9" },
+                    { question: "45 ÷ 5 = ?", answer: "9" }
+                ],
+                jp: [
+                    { question: "「走る」の反対語は？", answer: "止まる" },
+                    { question: "「大きい」の反対語は？", answer: "小さい" },
+                    { question: "「明るい」の反対語は？", answer: "暗い" },
+                    { question: "「新しい」の反対語は？", answer: "古い" },
+                    { question: "「高い」の反対語は？", answer: "低い" }
+                ],
+                english: [
+                    { question: "「赤」の英語は？", answer: "red" },
+                    { question: "「青」の英語は？", answer: "blue" },
+                    { question: "「緑」の英語は？", answer: "green" },
+                    { question: "「黄色」の英語は？", answer: "yellow" },
+                    { question: "「黒」の英語は？", answer: "black" }
+                ]
+            },
+            4: {
+                math: [
+                    { question: "345 + 678 = ?", answer: "1023" },
+                    { question: "1000 - 456 = ?", answer: "544" },
+                    { question: "12 × 8 = ?", answer: "96" },
+                    { question: "144 ÷ 12 = ?", answer: "12" },
+                    { question: "25 × 4 = ?", answer: "100" }
+                ],
+                jp: [
+                    { question: "「春」の次の季節は？", answer: "夏" },
+                    { question: "「月曜日」の次の曜日は？", answer: "火曜日" },
+                    { question: "「1月」の次の月は？", answer: "2月" },
+                    { question: "「朝」の次は？", answer: "昼" },
+                    { question: "「今日」の次は？", answer: "明日" }
+                ],
+                english: [
+                    { question: "「月曜日」の英語は？", answer: "monday" },
+                    { question: "「火曜日」の英語は？", answer: "tuesday" },
+                    { question: "「水曜日」の英語は？", answer: "wednesday" },
+                    { question: "「木曜日」の英語は？", answer: "thursday" },
+                    { question: "「金曜日」の英語は？", answer: "friday" }
+                ]
+            },
+            5: {
+                math: [
+                    { question: "2.5 + 3.7 = ?", answer: "6.2" },
+                    { question: "10 - 4.8 = ?", answer: "5.2" },
+                    { question: "1.2 × 5 = ?", answer: "6" },
+                    { question: "15 ÷ 0.5 = ?", answer: "30" },
+                    { question: "3.6 ÷ 1.2 = ?", answer: "3" }
+                ],
+                jp: [
+                    { question: "「国語」の漢字で「くにご」と読む漢字は？", answer: "国" },
+                    { question: "「算数」の漢字で「さんすう」と読む漢字は？", answer: "算" },
+                    { question: "「理科」の漢字で「りか」と読む漢字は？", answer: "理" },
+                    { question: "「社会」の漢字で「しゃかい」と読む漢字は？", answer: "社" },
+                    { question: "「音楽」の漢字で「おんがく」と読む漢字は？", answer: "音" }
+                ],
+                english: [
+                    { question: "「1月」の英語は？", answer: "january" },
+                    { question: "「2月」の英語は？", answer: "february" },
+                    { question: "「3月」の英語は？", answer: "march" },
+                    { question: "「4月」の英語は？", answer: "april" },
+                    { question: "「5月」の英語は？", answer: "may" }
+                ]
+            },
+            6: {
+                math: [
+                    { question: "1/2 + 1/3 = ?", answer: "5/6" },
+                    { question: "3/4 - 1/4 = ?", answer: "1/2" },
+                    { question: "2/3 × 3/4 = ?", answer: "1/2" },
+                    { question: "5 ÷ 1/2 = ?", answer: "10" },
+                    { question: "1/5 ÷ 2 = ?", answer: "1/10" }
+                ],
+                jp: [
+                    { question: "「友情」の意味に近い言葉は？", answer: "友達" },
+                    { question: "「努力」の意味に近い言葉は？", answer: "頑張る" },
+                    { question: "「成功」の反対語は？", answer: "失敗" },
+                    { question: "「希望」の反対語は？", answer: "絶望" },
+                    { question: "「勇気」の意味に近い言葉は？", answer: "勇敢" }
+                ],
+                english: [
+                    { question: "「春」の英語は？", answer: "spring" },
+                    { question: "「夏」の英語は？", answer: "summer" },
+                    { question: "「秋」の英語は？", answer: "autumn" },
+                    { question: "「冬」の英語は？", answer: "winter" },
+                    { question: "「季節」の英語は？", answer: "season" }
+                ]
+            }
+        },
+        junior_high: {
+            1: {
+                math: [
+                    { question: "-5 + 3 = ?", answer: "-2" },
+                    { question: "-2 × -3 = ?", answer: "6" },
+                    { question: "10 ÷ -2 = ?", answer: "-5" },
+                    { question: "3x + 2x = ?", answer: "5x" },
+                    { question: "2(x + 3) = ?", answer: "2x+6" }
+                ],
+                jp: [
+                    { question: "「主語」の例は？", answer: "私,彼,彼女" },
+                    { question: "「述語」の例は？", answer: "走る,食べる,見る" },
+                    { question: "「修飾語」の例は？", answer: "美しい,速く,静かに" },
+                    { question: "「接続詞」の例は？", answer: "そして,しかし,だから" },
+                    { question: "「感動詞」の例は？", answer: "あ,おお,まあ" }
+                ],
+                english: [
+                    { question: "「犬」の英語は？", answer: "dog" },
+                    { question: "「猫」の英語は？", answer: "cat" },
+                    { question: "「本」の英語は？", answer: "book" },
+                    { question: "「学校」の英語は？", answer: "school" },
+                    { question: "「先生」の英語は？", answer: "teacher" }
+                ]
+            },
+            2: {
+                math: [
+                    { question: "x² = 16 の解は？", answer: "4,-4" },
+                    { question: "2x + 5 = 15 の解は？", answer: "5" },
+                    { question: "3x - 7 = 14 の解は？", answer: "7" },
+                    { question: "(x + 2)(x - 3) = ?", answer: "x²-x-6" },
+                    { question: "x² - 5x + 6 = 0 の解は？", answer: "2,3" }
+                ],
+                jp: [
+                    { question: "「比喩」の例は？", answer: "ライオンのように強い" },
+                    { question: "「擬人法」の例は？", answer: "風がささやく" },
+                    { question: "「倒置法」の例は？", answer: "美しい、この花は" },
+                    { question: "「反復法」の例は？", answer: "走った、走った、走った" },
+                    { question: "「対句」の例は？", answer: "山と川,天と地" }
+                ],
+                english: [
+                    { question: "「走る」の現在形は？", answer: "run" },
+                    { question: "「食べる」の過去形は？", answer: "ate" },
+                    { question: "「行く」の過去形は？", answer: "went" },
+                    { question: "「見る」の過去分詞は？", answer: "seen" },
+                    { question: "「持っている」の現在完了形は？", answer: "have" }
+                ]
+            },
+            3: {
+                math: [
+                    { question: "√16 = ?", answer: "4" },
+                    { question: "√25 = ?", answer: "5" },
+                    { question: "2³ = ?", answer: "8" },
+                    { question: "3² = ?", answer: "9" },
+                    { question: "sin 30° = ?", answer: "0.5" }
+                ],
+                jp: [
+                    { question: "「係り結び」の例は？", answer: "～けれども,～ので" },
+                    { question: "「受動態」の例は？", answer: "彼に褒められた" },
+                    { question: "「使役態」の例は？", answer: "彼を行かせた" },
+                    { question: "「尊敬語」の例は？", answer: "いらっしゃる,おっしゃる" },
+                    { question: "「謙譲語」の例は？", answer: "参る,申す" }
+                ],
+                english: [
+                    { question: "「もし～なら」を表す接続詞は？", answer: "if" },
+                    { question: "「～ので」を表す接続詞は？", answer: "because" },
+                    { question: "「～の時」を表す接続詞は？", answer: "when" },
+                    { question: "「～ながら」を表す接続詞は？", answer: "while" },
+                    { question: "「～まで」を表う接続詞は？", answer: "until" }
+                ]
+            }
+        },
+        high_school: {
+            1: {
+                math: [
+                    { question: "log₂ 8 = ?", answer: "3" },
+                    { question: "log₁₀ 100 = ?", answer: "2" },
+                    { question: "2x + 3y = 10, x = 2 の時 y = ?", answer: "2" },
+                    { question: "y = 2x + 1 の傾きは？", answer: "2" },
+                    { question: "y = -3x + 5 のy切片は？", answer: "5" }
+                ],
+                jp: [
+                    { question: "「枕草子」の作者は？", answer: "清少納言" },
+                    { question: "「源氏物語」の作者は？", answer: "紫式部" },
+                    { question: "「徒然草」の作者は？", answer: "吉田兼好" },
+                    { question: "「方丈記」の作者は？", answer: "鴨長明" },
+                    { question: "「奥の細道」の作者は？", answer: "松尾芭蕉" }
+                ],
+                english: [
+                    { question: "「関係代名詞」で使われる単語は？", answer: "which,that,who" },
+                    { question: "「現在完了形」の継続を表すのは？", answer: "have+pp" },
+                    { question: "「仮定法」で使われる動詞の形は？", answer: "過去形" },
+                    { question: "「受動態」の作り方は？", answer: "be過去分詞" },
+                    { question: "「不定詞」の名詞的用法は？", answer: "to動詞" }
+                ]
+            },
+            2: {
+                math: [
+                    { question: "微分 dy/dx (x²) = ?", answer: "2x" },
+                    { question: "微分 dy/dx (x³) = ?", answer: "3x²" },
+                    { question: "積分 ∫x dx = ?", answer: "x²/2" },
+                    { question: "積分 ∫2x dx = ?", answer: "x²" },
+                    { question: "cos 0° = ?", answer: "1" }
+                ],
+                jp: [
+                    { question: "「吾輩は猫である」の作者は？", answer: "夏目漱石" },
+                    { question: "「走れメロス」の作者は？", answer: "太宰治" },
+                    { question: "「城の崎にて」の作者は？", answer: "志賀直哉" },
+                    { question: "「羅生門」の作者は？", answer: "芥川龍之介" },
+                    { question: "「風立ちぬ」の作者は？", answer: "堀辰雄" }
+                ],
+                english: [
+                    { question: "「話法」の種類は？", answer: "直接,間接" },
+                    { question: "「比較」の最上級の作り方は？", answer: "最+est" },
+                    { question: "「分詞」の現在分詞は？", answer: "ing" },
+                    { question: "「分詞」の過去分詞は？", answer: "ed" },
+                    { question: "「動名詞」の形は？", answer: "ing" }
+                ]
+            },
+            3: {
+                math: [
+                    { question: "∫sin x dx = ?", answer: "-cos x" },
+                    { question: "∫cos x dx = ?", answer: "sin x" },
+                    { question: "d/dx (eˣ) = ?", answer: "eˣ" },
+                    { question: "d/dx (ln x) = ?", answer: "1/x" },
+                    { question: "lim (x→0) sin x/x = ?", answer: "1" }
+                ],
+                jp: [
+                    { question: "「山月記」の作者は？", answer: "中島敦" },
+                    { question: "「注文の多い料理店」の作者は？", answer: "宮沢賢治" },
+                    { question: "「高瀬舟」の作者は？", answer: "森鴎外" },
+                    { question: "「舞姫」の作者は？", answer: "森鴎外" },
+                    { question: "「こころ」の作者は？", answer: "夏目漱石" }
+                ],
+                english: [
+                    { question: "「仮定法過去」の例は？", answer: "If I were you" },
+                    { question: "「仮定法過去完了」の例は？", answer: "If I had known" },
+                    { question: "「関係副詞」の例は？", answer: "where,when,why" },
+                    { question: "「原形不定詞」の使い方は？", answer: "使役,知覚" },
+                    { question: "「間接疑問」の語順は？", answer: "S+V" }
+                ]
+            }
+        }
+    };
+    
+    // 学年と教科に対応する問題を取得
+    let questions = [];
+    if (questionsByGrade[schoolLevel] && questionsByGrade[schoolLevel][grade]) {
+        questions = questionsByGrade[schoolLevel][grade][subject] || [];
+    }
+    
+    // 問題がない場合はデフォルトの問題を使用
+    if (questions.length === 0) {
+        questions = [
+            { question: "1 + 1 = ?", answer: "2" },
+            { question: "2 × 3 = ?", answer: "6" }
+        ];
+    }
+    
     const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-    currentQuestion = { ...randomQuestion, id: Date.now() };
+    currentQuestion = { ...randomQuestion, id: Date.now(), subject: subject };
 
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
         startTimer();
-        addLog("問題が出されました！");
+        addLog("問題が出されました！（" + subject.toUpperCase() + "）");
         answerInput.disabled = false;
         submitAnswerBtn.disabled = false;
         answerInput.focus();

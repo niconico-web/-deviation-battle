@@ -39,7 +39,22 @@ function generateQuestion(battle) {
     const question = QuestionManager.getBattleQuestion(player1.grade, player2.grade, subject);
     
     if (!question) {
-        return null;
+        // 問題が見つからない場合のフォールバック
+        console.warn(`問題が見つかりません: player1Grade=${player1.grade}, player2Grade=${player2.grade}, subject=${subject}`);
+        // デフォルトの問題を返す
+        battle.currentQuestion = {
+            question: "1 + 1 = ?",
+            answer: "2",
+            subject: subject,
+            startTime: Date.now()
+        };
+        
+        // プレイヤーの回答時間をリセット
+        playerIds.forEach(id => {
+            battle.players[id].answerTime = null;
+        });
+        
+        return battle.currentQuestion;
     }
     
     // バトルに問題情報を追加

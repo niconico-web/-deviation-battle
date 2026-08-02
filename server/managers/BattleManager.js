@@ -17,6 +17,8 @@ function createBattle(roomId, host, guest){
         return null;
     }
 
+    console.log(`[BattleManager] createBattle: host.grade=${host.grade}, guest.grade=${guest.grade}`);
+
     battles[roomId] = {
 
         roomId,
