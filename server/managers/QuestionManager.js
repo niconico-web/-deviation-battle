@@ -36,17 +36,30 @@ function loadQuestions() {
 // -----------------------------
 function getQuestions(schoolLevel, grade, subject) {
     const questions = loadQuestions();
-    if (!questions) return [];
+    if (!questions) {
+        console.log(`[QuestionManager] getQuestions: questions database not loaded`);
+        return [];
+    }
 
     const schoolData = questions[schoolLevel];
-    if (!schoolData) return [];
+    if (!schoolData) {
+        console.log(`[QuestionManager] getQuestions: schoolLevel=${schoolLevel} not found`);
+        return [];
+    }
 
     const gradeData = schoolData[grade];
-    if (!gradeData) return [];
+    if (!gradeData) {
+        console.log(`[QuestionManager] getQuestions: grade=${grade} not found in schoolLevel=${schoolLevel}`);
+        return [];
+    }
 
     const subjectQuestions = gradeData[subject];
-    if (!subjectQuestions) return [];
+    if (!subjectQuestions) {
+        console.log(`[QuestionManager] getQuestions: subject=${subject} not found in grade=${grade}`);
+        return [];
+    }
 
+    console.log(`[QuestionManager] getQuestions: found ${subjectQuestions.length} questions for schoolLevel=${schoolLevel}, grade=${grade}, subject=${subject}`);
     return subjectQuestions;
 }
 
@@ -55,6 +68,7 @@ function getQuestions(schoolLevel, grade, subject) {
 // -----------------------------
 function getRandomQuestion(schoolLevel, grade, subject) {
     const questions = getQuestions(schoolLevel, grade, subject);
+    console.log(`[QuestionManager] getRandomQuestion: schoolLevel=${schoolLevel}, grade=${grade}, subject=${subject}, questions.length=${questions.length}`);
     if (questions.length === 0) return null;
 
     const randomIndex = Math.floor(Math.random() * questions.length);
@@ -83,7 +97,10 @@ function determineQuestionLevel(player1Grade, player2Grade) {
 // -----------------------------
 function getBattleQuestion(player1Grade, player2Grade, subject) {
     const { schoolLevel, grade } = determineQuestionLevel(player1Grade, player2Grade);
-    return getRandomQuestion(schoolLevel, grade, subject);
+    console.log(`[QuestionManager] getBattleQuestion: player1Grade=${player1Grade}, player2Grade=${player2Grade}, subject=${subject}, schoolLevel=${schoolLevel}, grade=${grade}`);
+    const question = getRandomQuestion(schoolLevel, grade, subject);
+    console.log(`[QuestionManager] Question result:`, question ? 'Found' : 'Not found');
+    return question;
 }
 
 // -----------------------------

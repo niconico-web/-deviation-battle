@@ -22,43 +22,43 @@ const WEAPON_CATALOG = {
         tier1: { name: "鉄の盾剣" },
         tier2: { name: "騎士の盾剣" },
         tier3: { name: "聖騎士の盾剣" },
-        unique: { name: "神盾バルムンク" }
+        unique: { name: "神盾剣ゼウス・ヘカテー" }
     },
     spear: {
         tier1: { name: "木の槍" },
         tier2: { name: "鋼の長槍" },
         tier3: { name: "ドラゴンスレイヤー" },
-        unique: { name: "神槍グングニル" }
+        unique: { name: "神槍　天照" }
     },
     greatsword: {
         tier1: { name: "錆びた大剣" },
         tier2: { name: "黒鉄の大剣" },
         tier3: { name: "覇王の大剣" },
-        unique: { name: "終焉の裁き" }
+        unique: { name: "ベルゼバブ" }
     },
     dual_swords: {
         tier1: { name: "錆びた双剣" },
         tier2: { name: "疾風の双剣" },
         tier3: { name: "幻影の双剣" },
-        unique: { name: "無双の双星" }
+        unique: { name: "巨狼　オルトロス" }
     },
     scythe: {
         tier1: { name: "農夫の鎌" },
         tier2: { name: "死神の鎌" },
         tier3: { name: "冥府の鎌" },
-        unique: { name: "魂狩りの鎌" }
+        unique: { name: "古代鎌　レイブン" }
     },
     pistol: {
         tier1: { name: "古式ピストル" },
         tier2: { name: "連射ピストル" },
         tier3: { name: "マグナム" },
-        unique: { name: "終末の銃" }
+        unique: { name: "九頭蛇　ヒュドラ" }
     },
     katana: {
         tier1: { name: "錆びた刀" },
         tier2: { name: "業物" },
         tier3: { name: "名刀「村正」" },
-        unique: { name: "天叢雲剣" }
+        unique: { name: "天雲　スサノオ" }
     }
 };
 
