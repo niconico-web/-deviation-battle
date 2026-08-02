@@ -168,8 +168,8 @@ function renderUniqueQuests() {
                 const owned = playerOwnsWeapon(player, uniqueWeapon.id);
                 const canClaim = canClaimUniqueQuest(player, type) && !owned && !claim;
                 
-                // クエストが完了している場合は表示しない
-                if (claim && claim.completed) {
+                // クエストが完了している場合、または誰かが既に武器を持っている場合は表示しない
+                if (claim && (claim.completed || claim.claimedAt)) {
                     console.log(`[Shop] ${type}: Quest completed by ${claim.playerName}, skipping display`);
                     continue;
                 }

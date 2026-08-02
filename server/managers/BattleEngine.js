@@ -137,7 +137,7 @@ function processAnswer(battle, playerId, answer) {
         // 正解の場合
         player.correctAnswers++;
         
-        // 相手がまだ回答していない場合、ダメージを与える
+        // 先に正解した場合のみダメージを与える
         if (!enemy.answerTime) {
             const damage = calculateDamage(player, answerTime);
             enemy.hp = Math.max(0, enemy.hp - damage);
@@ -145,38 +145,23 @@ function processAnswer(battle, playerId, answer) {
             result.damage = damage;
             result.enemyHp = enemy.hp;
             result.firstCorrect = true;
-        } else {
-            // 相手が既に回答している場合
-            if (answerTime < enemy.answerTime) {
-                // 早かった場合、ダメージを与える
-                const damage = calculateDamage(player, answerTime);
-                enemy.hp = Math.max(0, enemy.hp - damage);
-                
-                result.damage = damage;
-                result.enemyHp = enemy.hp;
-                result.firstCorrect = true;
+            
+            // 勝利判定
+            if (enemy.hp <= 0) {
+                battle.finished = true;
+                result.winner = playerId;
             } else {
-                // 遅かった場合、ダメージなし
-                result.firstCorrect = false;
+                // バトル終了でなければ、即座に次の問題へ
+                generateQuestion(battle);
+                result.nextQuestion = battle.currentQuestion;
             }
-        }
-        
-        // 勝利判定
-        if (enemy.hp <= 0) {
-            battle.finished = true;
-            result.winner = playerId;
+        } else {
+            // 相手が既に回答している場合、ダメージなし
+            result.firstCorrect = false;
         }
     } else {
         // 不正解の場合
         result.firstCorrect = false;
-    }
-    
-    // 両方が回答した場合、次の問題へ
-    const allAnswered = Object.values(battle.players).every(p => p.answerTime !== null);
-    if (allAnswered && !battle.finished) {
-        // 次の問題を生成
-        generateQuestion(battle);
-        result.nextQuestion = battle.currentQuestion;
     }
     
     return {

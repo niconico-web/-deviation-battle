@@ -498,13 +498,20 @@ function handleBotAnswer(userAnswer) {
         enemy.hp = Math.max(0, enemy.hp - damage);
         showDamage("enemyDamage", damage);
         addLog("ボットにダメージ: " + damage);
+        
+        updateHP();
+        
+        // 勝利判定
+        if (enemy.hp <= 0) {
+            finishBotBattle("win");
+        } else {
+            // 即座に次の問題へ
+            setTimeout(generateBotQuestion, 1000);
+        }
     } else {
         addLog("不正解...");
-    }
-
-    updateHP();
-
-    if (!isCorrect) {
+        
+        // プイヤーが不正解の場合、ボットが回答するチャンス
         setTimeout(() => {
             const botAnswerTime = Math.random() * 3000 + 1000;
             const botIsCorrect = Math.random() > 0.3;
@@ -516,28 +523,22 @@ function handleBotAnswer(userAnswer) {
                 me.hp = Math.max(0, me.hp - damage);
                 showDamage("myDamage", damage);
                 addLog("ボットからのダメージ: " + damage);
+                
+                updateHP();
+                
+                // 勝利判定
+                if (me.hp <= 0) {
+                    finishBotBattle("lose");
+                } else {
+                    // 即座に次の問題へ
+                    setTimeout(generateBotQuestion, 1000);
+                }
             } else {
                 addLog("ボットは不正解...");
-            }
-
-            updateHP();
-
-            if (enemy.hp <= 0) {
-                finishBotBattle("win");
-            } else if (me.hp <= 0) {
-                finishBotBattle("lose");
-            } else {
-                setTimeout(generateBotQuestion, 2000);
+                // 両方不正解の場合、次の問題へ
+                setTimeout(generateBotQuestion, 1000);
             }
         }, 500);
-    } else {
-        setTimeout(() => {
-            if (enemy.hp <= 0) {
-                finishBotBattle("win");
-            } else {
-                generateBotQuestion();
-            }
-        }, 1000);
     }
 }
 
@@ -743,6 +744,13 @@ if (!isBotBattle && socket) {
     socket.on("answerResult", data => {
         console.log("answerResult received:", data);
         const isMyAnswer = data.playerId === me.id;
+        
+        // 相手が先に正解した場合、即座に入力を無効化
+        if (!isMyAnswer && data.isCorrect && data.firstCorrect) {
+            answerInput.disabled = true;
+            submitAnswerBtn.disabled = true;
+            addLog("相手が先に正解しました！回答無効");
+        }
         
         if (isMyAnswer) {
             if (data.isCorrect) {
