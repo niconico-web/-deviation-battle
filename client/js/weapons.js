@@ -9,7 +9,8 @@ const WEAPON_TYPES = {
     dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
     scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 0.95 },
     pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
-    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} }
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} },
+    debug_lance:  { name: "デバッガーランス", primary: ["atk", "speed", "def", "maxHp"], secondary: [], debuff: {}, bonusMult: 2.0, isDebug: true }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -46,22 +47,26 @@ const WEAPON_CATALOG = {
         tier1: { name: "農夫の鎌" },
         tier2: { name: "死神の鎌" },
         tier3: { name: "冥府の鎌" },
-        unique: { name: "古代鎌　レイブン" }
+        unique: { name: "魂狩りの鎌" }
     },
     pistol: {
         tier1: { name: "古式ピストル" },
         tier2: { name: "連射ピストル" },
         tier3: { name: "マグナム" },
-        unique: { name: "九頭蛇　ヒュドラ" }
+        unique: { name: "終末の銃" }
     },
     katana: {
         tier1: { name: "錆びた刀" },
         tier2: { name: "業物" },
         tier3: { name: "名刀「村正」" },
-        unique: { name: "天雲　スサノオ" }
+        unique: { name: "天叢雲剣" }
+    },
+    debug_lance: {
+        unique: { name: "デバッガーランス" }
     }
 };
 
+const DEBUG_UNIQUE_WINS = 1; // デバッグ用ユニーク武器は1勝で入手可能
 const UNIQUE_QUEST_WINS = 500;
 const COIN_BATTLE_WIN = 15;
 const COIN_STUDY_30MIN = 20;
@@ -198,7 +203,9 @@ function getWeaponWinCount(player, type) {
 }
 
 function canClaimUniqueQuest(player, type) {
-    return getWeaponWinCount(player, type) >= UNIQUE_QUEST_WINS;
+    const typeConf = WEAPON_TYPES[type];
+    const requiredWins = typeConf?.isDebug ? DEBUG_UNIQUE_WINS : UNIQUE_QUEST_WINS;
+    return getWeaponWinCount(player, type) >= requiredWins;
 }
 
 function getWeaponDisplayName(weapon) {

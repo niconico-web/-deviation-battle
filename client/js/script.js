@@ -30,6 +30,16 @@ function initializeSocket() {
         window.socket.connected = false;
     });
 
+    // ユニーク武器獲得通知
+    window.socket.on("uniqueWeaponClaimed", (data) => {
+        const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
+        alert(message);
+        // ユニーククエストUIを更新
+        if (typeof renderUniqueQuests === "function") {
+            renderUniqueQuests();
+        }
+    });
+
     // Initialize connection state
     window.socket.connected = false;
 }
