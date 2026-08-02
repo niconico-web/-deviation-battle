@@ -62,8 +62,7 @@ function getWeaponName(type) {
         dual_swords: "巨狼　オルトロス",
         scythe: "魂狩りの鎌",
         pistol: "終末の銃",
-        katana: "天叢雲剣",
-        debug_lance: "デバッガーランス"
+        katana: "天叢雲剣"
     };
     return weaponNames[type] || type;
 }

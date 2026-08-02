@@ -4,13 +4,12 @@
 
 const WEAPON_TYPES = {
     sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: [], debuff: {} },
-    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {} },
+    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp"] } },
     greatsword:   { name: "大剣",       primary: ["atk"], secondary: [], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
     dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
     scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 0.95 },
     pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
-    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} },
-    debug_lance:  { name: "デバッガーランス", primary: ["atk", "speed", "def", "maxHp"], secondary: [], debuff: {}, bonusMult: 2.0, isDebug: true }
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -29,7 +28,8 @@ const WEAPON_CATALOG = {
         tier1: { name: "木の槍" },
         tier2: { name: "鋼の長槍" },
         tier3: { name: "ドラゴンスレイヤー" },
-        unique: { name: "神槍　天照" }
+        unique: { name: "神槍　天照" },
+        debug: { name: "デバッガーランス", isDebug: true }
     },
     greatsword: {
         tier1: { name: "錆びた大剣" },
@@ -60,9 +60,6 @@ const WEAPON_CATALOG = {
         tier2: { name: "業物" },
         tier3: { name: "名刀「村正」" },
         unique: { name: "天雲　スサノオ" }
-    },
-    debug_lance: {
-        unique: { name: "デバッガーランス" }
     }
 };
 
@@ -92,7 +89,9 @@ function createWeapon(type, tier, isUnique) {
         type,
         tier: isUnique ? "unique" : tier,
         name: info.name,
-        isUnique: !!isUnique
+        isUnique: !!isUnique,
+        isDebug: info.isDebug || false,
+        isDebugWeapon: tierKey === "debug"
     };
 }
 
@@ -110,6 +109,20 @@ function applyWeaponStats(baseStats, weapon) {
     if (!weapon) return { ...baseStats };
     const typeConf = WEAPON_TYPES[weapon.type];
     if (!typeConf) return { ...baseStats };
+    
+    // デバッグ武器の場合は特別ボーナスを適用
+    if (weapon.isDebugWeapon && typeConf.debugBonus) {
+        const result = { ...baseStats };
+        const debugBonus = typeConf.debugBonus;
+        const mult = debugBonus.bonusMult || 2.0;
+        
+        // デバッグ武器専用のプライマリステータスに倍率適用
+        for (const stat of debugBonus.primary) {
+            result[stat] = Math.floor(result[stat] * mult);
+        }
+        
+        return result;
+    }
     
     // 基本倍率を取得（bonusMultがあれば使用、なければデフォルト倍率）
     let mult = getWeaponMultiplier(weapon);
@@ -213,8 +226,12 @@ function getWeaponWinCount(player, type) {
 function canClaimUniqueQuest(player, type) {
     const typeConf = WEAPON_TYPES[type];
     // テスト用: 3勝に設定（本番は500に戻す）
-    const requiredWins = typeConf?.isDebug ? DEBUG_UNIQUE_WINS : TEST_UNIQUE_WINS;
+    const requiredWins = TEST_UNIQUE_WINS;
     return getWeaponWinCount(player, type) >= requiredWins;
+}
+
+function canClaimDebugWeapon(player, type) {
+    return getWeaponWinCount(player, type) >= 1;
 }
 
 function getWeaponDisplayName(weapon) {
