@@ -47,19 +47,19 @@ const WEAPON_CATALOG = {
         tier1: { name: "農夫の鎌" },
         tier2: { name: "死神の鎌" },
         tier3: { name: "冥府の鎌" },
-        unique: { name: "魂狩りの鎌" }
+        unique: { name: "グリム・リーパー" }
     },
     pistol: {
         tier1: { name: "古式ピストル" },
         tier2: { name: "連射ピストル" },
         tier3: { name: "マグナム" },
-        unique: { name: "終末の銃" }
+        unique: { name: "九頭蛇　ヒュドラ" }
     },
     katana: {
         tier1: { name: "錆びた刀" },
         tier2: { name: "業物" },
         tier3: { name: "名刀「村正」" },
-        unique: { name: "天叢雲剣" }
+        unique: { name: "天雲　スサノオ" }
     },
     debug_lance: {
         unique: { name: "デバッガーランス" }
@@ -195,7 +195,7 @@ function addCoins(player, amount) {
 
 function incrementWeaponWin(player) {
     if (!player.equippedWeapon) {
-        console.log(`[Weapons] incrementWeaponWin: No equipped weapon`);
+        console.log(`[Weapons] incrementWeaponWin: No equipped weapon - no count added`);
         return player;
     }
     const type = player.equippedWeapon.type;

@@ -76,10 +76,11 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     const gainedXp = 0;
     let gainedCoins = 0;
 
-    console.log(`[Stats] applyBattleRewards: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
+    console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
     if (won) {
         gainedCoins += COIN_BATTLE_WIN;
+        console.log(`[Stats] Calling incrementWeaponWin for weapon: ${player.equippedWeapon?.name} (type: ${player.equippedWeapon?.type})`);
         player = incrementWeaponWin(player);
         console.log(`[Stats] After incrementWeaponWin: weaponWins=${JSON.stringify(player.weaponWins)}`);
         if (options.stolenWeapon) {
@@ -102,7 +103,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     localStorage.setItem("player", JSON.stringify(updated));
     localStorage.setItem("battleXpGain", String(gainedXp));
     localStorage.setItem("battleCoinGain", String(gainedCoins));
-    console.log(`[Stats] Player saved with weaponWins:`, updated.weaponWins);
+    console.log(`[Stats] applyBattleRewards END: Player saved with weaponWins:`, updated.weaponWins);
+    console.log(`[Stats] Saved player data:`, JSON.stringify(updated));
     return updated;
 }
 
