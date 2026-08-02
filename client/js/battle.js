@@ -4,6 +4,11 @@ const roomId = localStorage.getItem("roomId");
 let me = JSON.parse(localStorage.getItem("battlePlayer")), enemy = JSON.parse(localStorage.getItem("enemy"));
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
 
+// ソケットが存在しない場合の安全対策
+if (socket) {
+    socket.connected = false;
+}
+
 const turnText = document.getElementById("turnText");
 const myName = document.getElementById("myName");
 const enemyName = document.getElementById("enemyName");
@@ -37,8 +42,9 @@ function initialize() {
     }
 
     console.log("Battle initialize:", { me, enemy, roomId, isBotBattle });
-    console.log("Socket connected:", socket.connected);
-    console.log("Socket ID:", socket.id);
+    console.log("Socket exists:", !!socket);
+    console.log("Socket connected:", socket ? socket.connected : "N/A");
+    console.log("Socket ID:", socket ? socket.id : "N/A");
 
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
@@ -49,6 +55,12 @@ function initialize() {
     if (isBotBattle) {
         startBotBattle();
     } else {
+        if (!socket) {
+            addLog("エラー: ソケットが初期化されていません");
+            alert("ソケット接続エラーが発生しました。ページを再読み込みしてください。");
+            return;
+        }
+        
         // ソケット接続を待つ
         if (!socket.connected) {
             addLog("サーバー接続待機中...");
@@ -587,7 +599,10 @@ function stopTimer() {
 }
 
 function syncBattleState(players) {
+    console.log("syncBattleState called with players:", players);
     const playerIds = Object.keys(players);
+    console.log("Player IDs:", playerIds, "My ID:", me.id);
+    
     if (playerIds[0] === me.id) {
         Object.assign(me, players[playerIds[0]]);
         Object.assign(enemy, players[playerIds[1]]);
@@ -595,6 +610,9 @@ function syncBattleState(players) {
         Object.assign(enemy, players[playerIds[0]]);
         Object.assign(me, players[playerIds[1]]);
     }
+    
+    console.log("Synced me:", me);
+    console.log("Synced enemy:", enemy);
     
     localStorage.setItem("battlePlayer", JSON.stringify(me));
     localStorage.setItem("enemy", JSON.stringify(enemy));
@@ -673,6 +691,32 @@ if (!isBotBattle && socket) {
         console.log("battleStarted received:", data);
         addLog("バトル開始信号を受信...");
         
+        // プレイヤーデータを同期
+        if (data.players) {
+            const playerIds = Object.keys(data.players);
+            console.log("Syncing player data:", playerIds);
+            
+            if (playerIds[0] === me.id) {
+                me = data.players[playerIds[0]];
+                enemy = data.players[playerIds[1]];
+            } else {
+                enemy = data.players[playerIds[0]];
+                me = data.players[playerIds[1]];
+            }
+            
+            console.log("Synced data:", { me, enemy });
+            
+            // UIを更新
+            myName.textContent = me.name;
+            enemyName.textContent = enemy.name;
+            updateStats();
+            updateHP();
+            
+            // ローカルストレージを更新
+            localStorage.setItem("battlePlayer", JSON.stringify(me));
+            localStorage.setItem("enemy", JSON.stringify(enemy));
+        }
+        
         currentQuestion = data.initialQuestion;
         console.log("Current question set:", currentQuestion);
         
@@ -697,6 +741,7 @@ if (!isBotBattle && socket) {
     });
 
     socket.on("answerResult", data => {
+        console.log("answerResult received:", data);
         const isMyAnswer = data.playerId === me.id;
         
         if (isMyAnswer) {
@@ -724,11 +769,13 @@ if (!isBotBattle && socket) {
         }
         
         if (data.battleState) {
+            console.log("Syncing battle state:", data.battleState.players);
             syncBattleState(data.battleState.players);
         }
         
         if (data.nextQuestion) {
             currentQuestion = data.nextQuestion;
+            console.log("Next question:", currentQuestion);
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
                 startTimer();
