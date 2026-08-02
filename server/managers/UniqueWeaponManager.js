@@ -63,14 +63,42 @@ function getWeaponName(type) {
         dual_swords: "巨狼　オルトロス",
         scythe: "魂狩りの鎌",
         pistol: "終末の銃",
-        katana: "天叢雲剣"
+        katana: "天叢雲剣",
+        spear_debug: "デバッガーランス"
     };
     return weaponNames[type] || type;
+}
+
+function tryClaimDebug(type, playerId, playerName) {
+    const claims = loadClaims();
+    const debugKey = `${type}_debug`;
+    if (claims[debugKey]) {
+        return { success: false, claimedBy: claims[debugKey] };
+    }
+    claims[debugKey] = {
+        playerId,
+        playerName,
+        claimedAt: Date.now(),
+        completed: true
+    };
+    saveClaims(claims);
+    
+    // 全員に通知を送信
+    if (ioInstance) {
+        ioInstance.emit("uniqueQuestCompleted", {
+            type: debugKey,
+            weaponName: getWeaponName(debugKey),
+            playerName
+        });
+    }
+    
+    return { success: true, claim: claims[debugKey] };
 }
 
 module.exports = {
     getAllClaims,
     getClaim,
     tryClaim,
+    tryClaimDebug,
     setIO
 };
