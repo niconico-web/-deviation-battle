@@ -3,13 +3,13 @@
 // ============================================
 
 const WEAPON_TYPES = {
-    sword_shield: { name: "片手剣＋盾", primary: ["def", "maxHp"], secondary: [] },
-    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [] },
-    greatsword:   { name: "大剣",       primary: ["atk"],          secondary: ["def"] },
-    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [] },
-    scythe:       { name: "鎌",         primary: ["atk", "def"],   secondary: [] },
-    pistol:       { name: "ピストル",   primary: ["speed"],        secondary: ["atk"] },
-    katana:       { name: "刀",         primary: ["atk", "speed"], secondary: [] }
+    sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: [], debuff: {} },
+    spear:        { name: "長槍",       primary: ["speed"], secondary: [], debuff: {} },
+    greatsword:   { name: "大剣",       primary: ["atk"], secondary: [], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
+    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
+    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 0.95 },
+    pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -100,16 +100,36 @@ function getAllShopWeapons() {
 
 function applyWeaponStats(baseStats, weapon) {
     if (!weapon) return { ...baseStats };
-    const mult = getWeaponMultiplier(weapon);
     const typeConf = WEAPON_TYPES[weapon.type];
     if (!typeConf) return { ...baseStats };
+    
+    // 基本倍率を取得（bonusMultがあれば使用、なければデフォルト倍率）
+    let mult = getWeaponMultiplier(weapon);
+    if (typeConf.bonusMult) {
+        mult = mult * typeConf.bonusMult;
+    }
+    
     const result = { ...baseStats };
+    
+    // プライマリステータスに倍率適用
     for (const stat of typeConf.primary) {
         result[stat] = Math.floor(result[stat] * mult);
     }
+    
+    // セカンダリステータスに倍率適用（0.85倍）
     for (const stat of typeConf.secondary) {
         result[stat] = Math.floor(result[stat] * (mult * 0.85));
     }
+    
+    // デバフ適用
+    if (typeConf.debuff) {
+        for (const [stat, debuffMult] of Object.entries(typeConf.debuff)) {
+            if (result[stat] !== undefined) {
+                result[stat] = Math.floor(result[stat] * debuffMult);
+            }
+        }
+    }
+    
     return result;
 }
 
