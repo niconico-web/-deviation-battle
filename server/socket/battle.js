@@ -86,6 +86,22 @@ module.exports = function(io){
             if (playerId) {
                 BattleManager.remapPlayerSocket(roomId, playerId, socket.id);
                 console.log(`[Battle] Remapped player ${playerId} to socket ${socket.id}`);
+            } else {
+                console.warn(`[Battle] Could not find player for socket ${socket.id}`);
+            }
+            
+            // もう一方のプレイヤーもルームに参加させる
+            const playerIds = Object.keys(battle.players);
+            const otherPlayerId = playerIds.find(id => id !== playerId);
+            if (otherPlayerId) {
+                const otherPlayer = battle.players[otherPlayerId];
+                const otherSocket = io.sockets.sockets.get(otherPlayer.socketId);
+                if (otherSocket) {
+                    otherSocket.join(roomId);
+                    console.log(`[Battle] Other player ${otherPlayerId} joined room ${roomId}`);
+                } else {
+                    console.warn(`[Battle] Other player socket ${otherPlayer.socketId} not found`);
+                }
             }
             
             const initialization = BattleEngine.initializeBattle(battle);
