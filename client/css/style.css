@@ -292,3 +292,145 @@ select {
     margin-top: 8px;
     margin-bottom: 0;
 }
+
+/* ショップUI */
+.shop-section,
+.inventory-section,
+.quest-section {
+    background: #3b3b3b;
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.shop-section h2,
+.inventory-section h2,
+.quest-section h2 {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
+.coin-display {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #ffd54f;
+    margin-bottom: 8px;
+}
+
+.shop-desc,
+.quest-desc {
+    font-size: 0.875rem;
+    color: #ccc;
+    margin-bottom: 12px;
+}
+
+.shop-list,
+.inventory-list,
+.quest-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.shop-item,
+.inventory-item,
+.quest-item {
+    background: #4a4a4a;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.shop-item.owned,
+.inventory-item.equipped {
+    background: #2a4a3a;
+    border: 1px solid #4a8a5a;
+}
+
+.shop-item-info,
+.inventory-item-info,
+.quest-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.shop-item-info strong,
+.inventory-item-info strong,
+.quest-item-info strong {
+    display: block;
+    font-size: 1rem;
+    margin-bottom: 4px;
+}
+
+.shop-item-type,
+.inventory-item-info span,
+.quest-item-info span {
+    font-size: 0.875rem;
+    color: #bbb;
+    display: block;
+}
+
+.quest-progress {
+    font-size: 0.875rem;
+    color: #a8d8ff;
+    margin-top: 4px;
+}
+
+.shop-item-action,
+.inventory-item-action {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.owned-label,
+.equipped-label {
+    font-size: 0.875rem;
+    color: #81c784;
+    font-weight: 600;
+}
+
+.btn-small {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    min-height: auto;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.buy-btn {
+    background: #4a90d9;
+    color: #fff;
+    border: none;
+}
+
+.equip-btn {
+    background: #5a5a5a;
+    color: #fff;
+    border: none;
+}
+
+.claim-btn {
+    background: #ffd54f;
+    color: #222;
+    border: none;
+    margin-top: 8px;
+    width: 100%;
+}
+
+@media (min-width: 600px) {
+    .shop-list,
+    .inventory-list,
+    .quest-list {
+        gap: 10px;
+    }
+    
+    .shop-item,
+    .inventory-item,
+    .quest-item {
+        padding: 14px 16px;
+    }
+}
