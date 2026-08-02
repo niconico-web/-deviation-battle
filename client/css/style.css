@@ -332,6 +332,26 @@ select {
     gap: 8px;
 }
 
+/* 武器種類セクション */
+.weapon-type-section {
+    margin-bottom: 16px;
+}
+
+.weapon-type-header {
+    margin: 0 0 8px;
+    font-size: 1rem;
+    color: #a8d8ff;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #555;
+}
+
+/* Tierグリッド */
+.tier-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
 .shop-item,
 .inventory-item,
 .quest-item {
@@ -339,9 +359,10 @@ select {
     padding: 12px;
     border-radius: 8px;
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
-    align-items: center;
-    gap: 12px;
+    gap: 8px;
+    min-height: 80px;
 }
 
 .shop-item.owned,
@@ -361,14 +382,16 @@ select {
 .inventory-item-info strong,
 .quest-item-info strong {
     display: block;
-    font-size: 1rem;
+    font-size: 0.875rem;
     margin-bottom: 4px;
+    line-height: 1.2;
 }
 
+.shop-item-tier,
 .shop-item-type,
 .inventory-item-info span,
 .quest-item-info span {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: #bbb;
     display: block;
 }
@@ -383,22 +406,26 @@ select {
 .inventory-item-action {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    margin-top: auto;
 }
 
 .owned-label,
 .equipped-label {
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: #81c784;
     font-weight: 600;
+    text-align: center;
 }
 
 .btn-small {
-    padding: 8px 12px;
-    font-size: 0.875rem;
+    padding: 6px 8px;
+    font-size: 0.75rem;
     min-height: auto;
     margin: 0;
     white-space: nowrap;
+    width: 100%;
 }
 
 .buy-btn {
@@ -432,5 +459,27 @@ select {
     .inventory-item,
     .quest-item {
         padding: 14px 16px;
+    }
+    
+    .tier-grid {
+        gap: 12px;
+    }
+    
+    .shop-item {
+        min-height: 100px;
+    }
+    
+    .shop-item-info strong {
+        font-size: 1rem;
+    }
+    
+    .shop-item-tier,
+    .shop-item-type {
+        font-size: 0.875rem;
+    }
+    
+    .btn-small {
+        padding: 8px 12px;
+        font-size: 0.875rem;
     }
 }
