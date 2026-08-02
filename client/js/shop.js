@@ -144,6 +144,8 @@ function renderUniqueQuests() {
     const player = getPlayerData();
     if (!player) return;
 
+    console.log(`[Shop] renderUniqueQuests: player.weaponWins=${JSON.stringify(player.weaponWins)}`);
+
     fetch("/api/unique/claims")
         .then(r => r.json())
         .then(claims => {
@@ -152,6 +154,8 @@ function renderUniqueQuests() {
                 const wins = getWeaponWinCount(player, type);
                 const claim = claims[type];
                 const uniqueWeapon = createWeapon(type, null, true);
+                
+                console.log(`[Shop] Quest for ${type}: wins=${wins}, claim=${claim}`);
                 
                 // 武器が作成できない場合はスキップ
                 if (!uniqueWeapon) {

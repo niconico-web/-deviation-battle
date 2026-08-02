@@ -195,6 +195,7 @@ function incrementWeaponWin(player) {
     const type = player.equippedWeapon.type;
     const weaponWins = { ...(player.weaponWins || {}) };
     weaponWins[type] = (weaponWins[type] || 0) + 1;
+    console.log(`[Weapons] incrementWeaponWin: type=${type}, newCount=${weaponWins[type]}`);
     return { ...player, weaponWins };
 }
 
