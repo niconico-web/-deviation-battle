@@ -558,7 +558,8 @@ function finishBotBattle(result) {
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
-    if (win && enemy.equippedWeapon) {
+    // デバッグ武器のみ奪えない
+    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
     localStorage.removeItem("isBotBattle");
@@ -634,9 +635,10 @@ function finishBattle(winner) {
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
 
-    if (win && enemy.equippedWeapon) {
+    // デバッグ武器のみ奪えない
+    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
-    } else if (!win && me.equippedWeapon) {
+    } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
     }
     

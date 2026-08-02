@@ -34,8 +34,18 @@ function initializeSocket() {
     window.socket.on("uniqueWeaponClaimed", (data) => {
         const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
         alert(message);
-        // ユニーククエストUIを更新
-        if (typeof renderUniqueQuests === "function") {
+        // ユニーククエストUIを更新（ショップページにいる場合）
+        if (typeof renderUniqueQuests === "function" && document.getElementById("uniqueQuestList")) {
+            renderUniqueQuests();
+        }
+    });
+    
+    // ユニーククエスト完了通知（クエスト自体が削除される）
+    window.socket.on("uniqueQuestCompleted", (data) => {
+        const message = `${data.weaponName}のクエストが${data.playerName}によって完了されました！世界にこの武器は1つしかありません。`;
+        alert(message);
+        // ユニーククエストUIを更新（ショップページにいる場合）
+        if (typeof renderUniqueQuests === "function" && document.getElementById("uniqueQuestList")) {
             renderUniqueQuests();
         }
     });

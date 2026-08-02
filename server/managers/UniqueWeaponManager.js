@@ -38,13 +38,14 @@ function tryClaim(type, playerId, playerName) {
     claims[type] = {
         playerId,
         playerName,
-        claimedAt: Date.now()
+        claimedAt: Date.now(),
+        completed: true // クエスト完了フラグ
     };
     saveClaims(claims);
     
-    // 全員に通知を送信
+    // 全員に通知を送信（クエスト完了通知）
     if (ioInstance) {
-        ioInstance.emit("uniqueWeaponClaimed", {
+        ioInstance.emit("uniqueQuestCompleted", {
             type,
             weaponName: getWeaponName(type),
             playerName
