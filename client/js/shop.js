@@ -238,6 +238,15 @@ function initShop() {
             renderUniqueQuests();
         };
     }
+    
+    // ユニーク武器獲得通知を受信
+    if (window.socket) {
+        window.socket.on("uniqueWeaponClaimed", (data) => {
+            const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
+            alert(message);
+            renderUniqueQuests();
+        });
+    }
 }
 
 if (document.readyState === "loading") {

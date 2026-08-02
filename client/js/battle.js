@@ -632,11 +632,17 @@ if (!isBotBattle && socket) {
     });
 
     socket.on("battleStarted", data => {
+        console.log("battleStarted received:", data);
         currentQuestion = data.initialQuestion;
+        if (!currentQuestion || !currentQuestion.question) {
+            console.error("Invalid question data:", currentQuestion);
+            addLog("エラー: 問題データが無効です");
+            return;
+        }
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
             startTimer();
-            addLog("問題が出されました！");
+            addLog("問題が出されました！" + (currentQuestion.subject ? "（" + currentQuestion.subject.toUpperCase() + "）" : ""));
             answerInput.disabled = false;
             submitAnswerBtn.disabled = false;
             answerInput.focus();
