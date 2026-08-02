@@ -11,12 +11,16 @@ const lostWeaponRaw = localStorage.getItem("lostWeapon");
 const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
 const lostWeapon = lostWeaponRaw ? JSON.parse(lostWeaponRaw) : null;
 
-if (!localStorage.getItem("battleXpGain")) {
-    applyBattleRewards(won, turn, damage, {
-        stolenWeapon: won ? stolenWeapon : null,
-        lostWeapon: !won ? lostWeapon : null
-    });
-}
+console.log(`[Result] Result page loaded: result=${result}, won=${won}`);
+console.log(`[Result] battleXpGain exists:`, !!localStorage.getItem("battleXpGain"));
+
+// 強制的にバトル報酬を適用（デバッグ用）
+console.log(`[Result] Force calling applyBattleRewards for debugging`);
+const updatedPlayer = applyBattleRewards(won, turn, damage, {
+    stolenWeapon: won ? stolenWeapon : null,
+    lostWeapon: !won ? lostWeapon : null
+});
+console.log(`[Result] Updated player:`, updatedPlayer);
 
 const xpGain = localStorage.getItem("battleXpGain") || "0";
 const coinGain = localStorage.getItem("battleCoinGain") || "0";
