@@ -4,7 +4,7 @@
 
 const WEAPON_TYPES = {
     sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: [], debuff: {} },
-    spear:        { name: "長槍",       primary: ["speed"], secondary: [], debuff: {} },
+    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {} },
     greatsword:   { name: "大剣",       primary: ["atk"], secondary: [], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
     dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
     scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 0.95 },
@@ -67,7 +67,10 @@ const WEAPON_CATALOG = {
 };
 
 const DEBUG_UNIQUE_WINS = 1; // デバッグ用ユニーク武器は1勝で入手可能
-const UNIQUE_QUEST_WINS = 500;
+const UNIQUE_QUEST_WINS = 500; // 通常のユニーク武器は500勝で入手可能
+
+// デバッグ用: テスト用に勝利数を減らす
+const TEST_UNIQUE_WINS = 3; // テスト用に3勝に設定（本番は500に戻す）
 const COIN_BATTLE_WIN = 15;
 const COIN_STUDY_30MIN = 20;
 const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
@@ -191,11 +194,15 @@ function addCoins(player, amount) {
 }
 
 function incrementWeaponWin(player) {
-    if (!player.equippedWeapon) return player;
+    if (!player.equippedWeapon) {
+        console.log(`[Weapons] incrementWeaponWin: No equipped weapon`);
+        return player;
+    }
     const type = player.equippedWeapon.type;
     const weaponWins = { ...(player.weaponWins || {}) };
     weaponWins[type] = (weaponWins[type] || 0) + 1;
-    console.log(`[Weapons] incrementWeaponWin: type=${type}, newCount=${weaponWins[type]}`);
+    console.log(`[Weapons] incrementWeaponWin: weaponName=${player.equippedWeapon.name}, type=${type}, newCount=${weaponWins[type]}`);
+    console.log(`[Weapons] All weaponWins:`, weaponWins);
     return { ...player, weaponWins };
 }
 
@@ -205,7 +212,8 @@ function getWeaponWinCount(player, type) {
 
 function canClaimUniqueQuest(player, type) {
     const typeConf = WEAPON_TYPES[type];
-    const requiredWins = typeConf?.isDebug ? DEBUG_UNIQUE_WINS : UNIQUE_QUEST_WINS;
+    // テスト用: 3勝に設定（本番は500に戻す）
+    const requiredWins = typeConf?.isDebug ? DEBUG_UNIQUE_WINS : TEST_UNIQUE_WINS;
     return getWeaponWinCount(player, type) >= requiredWins;
 }
 

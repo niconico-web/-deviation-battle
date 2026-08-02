@@ -155,15 +155,18 @@ function renderUniqueQuests() {
                 const claim = claims[type];
                 const uniqueWeapon = createWeapon(type, null, true);
                 
-                console.log(`[Shop] Quest for ${type}: wins=${wins}, claim=${claim}`);
+                console.log(`[Shop] Quest for ${type}: wins=${wins}, typeConf=${JSON.stringify(typeConf)}, claim=${claim}`);
                 
                 // 武器が作成できない場合はスキップ
                 if (!uniqueWeapon) {
+                    console.log(`[Shop] Skipping ${type} - weapon creation failed`);
                     continue;
                 }
                 
                 const owned = playerOwnsWeapon(player, uniqueWeapon.id);
                 const canClaim = canClaimUniqueQuest(player, type) && !owned && !claim;
+                
+                console.log(`[Shop] ${type}: owned=${owned}, canClaim=${canClaim}`);
 
                 const item = document.createElement("div");
                 item.className = "quest-item";
@@ -208,9 +211,14 @@ function claimUniqueWeapon(type) {
     const player = getPlayerData();
     if (!player) return;
 
+    const typeConf = WEAPON_TYPES[type];
+    const requiredWins = typeConf?.isDebug ? 1 : UNIQUE_QUEST_WINS;
     const wins = getWeaponWinCount(player, type);
-    if (wins < UNIQUE_QUEST_WINS) {
-        alert(`まだクエスト未達成です（${wins}/${UNIQUE_QUEST_WINS}勝）`);
+    
+    console.log(`[Shop] claimUniqueWeapon: type=${type}, wins=${wins}, requiredWins=${requiredWins}`);
+    
+    if (wins < requiredWins) {
+        alert(`まだクエスト未達成です（${wins}/${requiredWins}勝）`);
         return;
     }
 
