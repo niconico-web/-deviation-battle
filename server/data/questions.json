@@ -9,7 +9,7 @@
         { "question": "3 + 4 = ?", "answer": "7" }
       ],
       "jp": [
-        { "question": "あいのうえの「あ」は何行？", "answer": "あ行" },
+        { "question": "あいうえおは何行？", "answer": "あ行" },
         { "question": "「い」の後ろのひらがなは？", "answer": "う" },
         { "question": "「か」の後ろのひらがなは？", "answer": "き" },
         { "question": "「さ」の後ろのひらがなは？", "answer": "し" },
