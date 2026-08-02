@@ -153,6 +153,8 @@ function renderUniqueQuests() {
                 const typeConf = WEAPON_TYPES[type];
                 const wins = getWeaponWinCount(player, type);
                 const claim = claims[type];
+                
+                // 通常のユニーク武器
                 const uniqueWeapon = createWeapon(type, null, true);
                 
                 console.log(`[Shop] Quest for ${type}: wins=${wins}, typeConf=${JSON.stringify(typeConf)}, claim=${claim}`);
@@ -176,16 +178,13 @@ function renderUniqueQuests() {
                 } else if (claim) {
                     statusText = `✗ ${claim.playerName} が先に獲得`;
                 } else {
-                    const requiredWins = typeConf.isDebug ? 1 : UNIQUE_QUEST_WINS;
+                    const requiredWins = UNIQUE_QUEST_WINS;
                     statusText = `${wins} / ${requiredWins} 勝`;
                 }
-                
-                // デバッグ武器の場合は特別マークを追加
-                const debugMark = typeConf.isDebug ? " [DEBUG]" : "";
 
                 item.innerHTML =
                     `<div class="quest-item-info">
-                        <strong>${uniqueWeapon.name}${debugMark}</strong>
+                        <strong>${uniqueWeapon.name}</strong>
                         <span>${getWeaponTypeLabel(type)}のユニーク武器</span>
                         <span class="quest-progress">${statusText}</span>
                     </div>`;
@@ -200,6 +199,43 @@ function renderUniqueQuests() {
                 }
 
                 container.appendChild(item);
+                
+                // デバッグ武器がある場合は別枠で表示（槍のみ）
+                if (type === "spear") {
+                    const debugWeapon = createWeapon(type, "debug", false);
+                    if (debugWeapon) {
+                        const debugOwned = playerOwnsWeapon(player, debugWeapon.id);
+                        const debugCanClaim = canClaimDebugWeapon(player, type) && !debugOwned;
+                        
+                        const debugItem = document.createElement("div");
+                        debugItem.className = "quest-item debug-item";
+                        let debugStatusText = "";
+                        if (debugOwned) {
+                            debugStatusText = "✓ 獲得済";
+                        } else {
+                            debugStatusText = `${wins} / 1 勝`;
+                        }
+
+                        debugItem.innerHTML =
+                            `<div class="quest-item-info">
+                                <strong>${debugWeapon.name} [DEBUG]</strong>
+                                <span>${getWeaponTypeLabel(type)}のデバッグ武器</span>
+                                <span class="quest-progress">${debugStatusText}</span>
+                            </div>`;
+
+                        if (debugCanClaim) {
+                            const debugBtn = document.createElement("button");
+                            debugBtn.className = "btn btn-small claim-btn";
+                            debugBtn.textContent = "デバッグ武器を受け取る";
+                            debugBtn.dataset.type = type;
+                            debugBtn.dataset.isDebug = "true";
+                            debugBtn.onclick = () => claimDebugWeapon(type);
+                            debugItem.appendChild(debugBtn);
+                        }
+
+                        container.appendChild(debugItem);
+                    }
+                }
             }
         })
         .catch(() => {
@@ -211,8 +247,7 @@ function claimUniqueWeapon(type) {
     const player = getPlayerData();
     if (!player) return;
 
-    const typeConf = WEAPON_TYPES[type];
-    const requiredWins = typeConf?.isDebug ? 1 : UNIQUE_QUEST_WINS;
+    const requiredWins = UNIQUE_QUEST_WINS;
     const wins = getWeaponWinCount(player, type);
     
     console.log(`[Shop] claimUniqueWeapon: type=${type}, wins=${wins}, requiredWins=${requiredWins}`);
@@ -252,6 +287,37 @@ function claimUniqueWeapon(type) {
             updateStatus(updated);
         })
         .catch(() => alert("サーバーとの通信に失敗しました。"));
+}
+
+function claimDebugWeapon(type) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const wins = getWeaponWinCount(player, type);
+
+    if (wins < 1) {
+        alert(`1勝が必要です（現在: ${wins}勝）`);
+        return;
+    }
+
+    const weapon = createWeapon(type, "debug", false);
+    if (!weapon) {
+        alert("武器の作成に失敗しました");
+        return;
+    }
+
+    if (playerOwnsWeapon(player, weapon.id)) {
+        alert("既に所持しています");
+        return;
+    }
+
+    // デバッグ武器はサーバー認証なしで直接付与
+    const updated = addWeaponToPlayer(player, weapon);
+    localStorage.setItem("player", JSON.stringify(updated));
+    alert(`${weapon.name} を獲得しました！`);
+    renderUniqueQuests();
+    renderInventory();
+    updateStatus(updated);
 }
 
 function initShop() {

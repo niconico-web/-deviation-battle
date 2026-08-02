@@ -720,7 +720,6 @@ if (!isBotBattle && socket) {
         }
         
         currentQuestion = data.initialQuestion;
-        console.log("Current question set:", currentQuestion);
         
         if (!currentQuestion || !currentQuestion.question) {
             console.error("Invalid question data:", currentQuestion);
@@ -729,10 +728,7 @@ if (!isBotBattle && socket) {
             return;
         }
         
-        addLog("問題データ確認: " + currentQuestion.question);
-        
         showCountdown(() => {
-            console.log("Showing question:", currentQuestion.question);
             questionDisplay.textContent = currentQuestion.question;
             startTimer();
             addLog("問題が出されました！" + (currentQuestion.subject ? "（" + currentQuestion.subject.toUpperCase() + "）" : ""));
@@ -777,7 +773,6 @@ if (!isBotBattle && socket) {
         
         if (data.nextQuestion) {
             currentQuestion = data.nextQuestion;
-            console.log("Next question:", currentQuestion);
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
                 startTimer();
