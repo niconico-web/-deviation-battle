@@ -77,6 +77,17 @@ module.exports = function(io){
             
             console.log(`[Battle] Battle found, players:`, Object.keys(battle.players));
             
+            // リクエストしたプレイヤーをルームに参加させる
+            socket.join(roomId);
+            console.log(`[Battle] Socket ${socket.id} joined room ${roomId}`);
+            
+            // プレイヤーのソケットIDを更新
+            const playerId = BattleManager.findPlayerIdBySocket(battle, socket.id);
+            if (playerId) {
+                BattleManager.remapPlayerSocket(roomId, playerId, socket.id);
+                console.log(`[Battle] Remapped player ${playerId} to socket ${socket.id}`);
+            }
+            
             const initialization = BattleEngine.initializeBattle(battle);
             
             console.log(`[Battle] Sending battleStarted:`, {
