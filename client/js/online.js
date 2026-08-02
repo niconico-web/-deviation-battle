@@ -30,15 +30,34 @@ function setupOnlineEventHandlers() {
             const randomType = botTypes[Math.floor(Math.random() * botTypes.length)];
             const botWeapon = createWeapon(randomType, "tier1", false);
 
+            // プレイヤーの学年に合わせてボットの学年を設定
+            const playerGrade = player.grade || 1;
+            
+            // 学年に応じた基礎ステータスを計算
+            const gradeMultiplier = Math.max(0.8, Math.min(1.5, 0.8 + (playerGrade - 1) * 0.07));
+            const baseMaxHp = Math.floor(100 * gradeMultiplier);
+            const baseAtk = Math.floor(50 * gradeMultiplier);
+            const baseDef = Math.floor(40 * gradeMultiplier);
+            const baseSpeed = Math.floor(30 * gradeMultiplier);
+
+            // 武器補正を適用
+            const botBaseStats = {
+                maxHp: baseMaxHp,
+                atk: baseAtk,
+                def: baseDef,
+                speed: baseSpeed
+            };
+            const botStatsWithWeapon = applyWeaponStats(botBaseStats, botWeapon);
+
             const botPlayer = {
                 id: "bot_" + Date.now(),
                 name: "AIボット",
-                maxHp: 100,
-                hp: 100,
-                atk: 50,
-                def: 40,
-                speed: 30,
-                grade: 5,
+                maxHp: botStatsWithWeapon.maxHp,
+                hp: botStatsWithWeapon.maxHp,
+                atk: botStatsWithWeapon.atk,
+                def: botStatsWithWeapon.def,
+                speed: botStatsWithWeapon.speed,
+                grade: playerGrade,
                 isBot: true,
                 equippedWeapon: botWeapon
             };
