@@ -123,16 +123,20 @@ function updateStatus(player) {
     const weaponText = player.equippedWeapon
         ? getWeaponDisplayName(player.equippedWeapon)
         : "なし";
+    
+    // 武器補正を適用したステータスを取得
+    const battleStats = getBattleStats(player);
+    
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
         "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
         "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p>" +
         "<p><strong>コイン" + I18N.colon + "</strong>" + (player.coins || 0) + "</p>" +
         "<p><strong>装備武器" + I18N.colon + "</strong>" + weaponText + "</p><hr>" +
-        "<p>HP" + I18N.colon + player.maxHp + "</p>" +
-        "<p>" + I18N.atk + I18N.colon + player.atk + "</p>" +
-        "<p>" + I18N.def + I18N.colon + player.def + "</p>" +
-        "<p>" + I18N.speed + I18N.colon + player.speed + "</p>" +
+        "<p>HP" + I18N.colon + battleStats.maxHp + "</p>" +
+        "<p>" + I18N.atk + I18N.colon + battleStats.atk + "</p>" +
+        "<p>" + I18N.def + I18N.colon + battleStats.def + "</p>" +
+        "<p>" + I18N.speed + I18N.colon + battleStats.speed + "</p>" +
         "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>";
 }
