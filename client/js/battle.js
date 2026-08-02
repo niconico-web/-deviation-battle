@@ -37,6 +37,8 @@ function initialize() {
     }
 
     console.log("Battle initialize:", { me, enemy, roomId, isBotBattle });
+    console.log("Socket connected:", socket.connected);
+    console.log("Socket ID:", socket.id);
 
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
@@ -47,8 +49,32 @@ function initialize() {
     if (isBotBattle) {
         startBotBattle();
     } else {
-        console.log("Emitting requestBattleStart for room:", roomId);
-        socket.emit("requestBattleStart", { roomId });
+        if (!socket.connected) {
+            addLog("エラー: サーバーに接続されていません");
+            alert("サーバーに接続されていません。ページを再読み込みしてください。");
+            return;
+        }
+        
+        // 直接ルームに参加してバトル開始
+        console.log("Joining room and requesting battle start:", roomId);
+        addLog("ルームに参加してバトル開始をリクエスト中...");
+        
+        // Socket.io v3+ではemitでjoinできないので、カスタムイベントを使用
+        socket.emit("joinBattleRoom", { roomId, playerId: me.id });
+        
+        // バトル開始リクエスト
+        setTimeout(() => {
+            console.log("Emitting requestBattleStart for room:", roomId);
+            socket.emit("requestBattleStart", { roomId });
+            
+            // タイムアウト処理
+            setTimeout(() => {
+                if (!currentQuestion) {
+                    addLog("エラー: バトル開始の応答がありません");
+                    console.error("No battleStarted response received");
+                }
+            }, 10000);
+        }, 500);
     }
 }
 
@@ -612,6 +638,7 @@ function submitAnswer() {
 
 if (!isBotBattle && socket) {
     socket.on("connect", () => {
+        console.log("Socket connected:", socket.id);
         if (roomId && me && me.id) {
             const p = getSavedPlayer();
             socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
@@ -636,13 +663,22 @@ if (!isBotBattle && socket) {
 
     socket.on("battleStarted", data => {
         console.log("battleStarted received:", data);
+        addLog("バトル開始信号を受信...");
+        
         currentQuestion = data.initialQuestion;
+        console.log("Current question set:", currentQuestion);
+        
         if (!currentQuestion || !currentQuestion.question) {
             console.error("Invalid question data:", currentQuestion);
             addLog("エラー: 問題データが無効です");
+            addLog("受信データ: " + JSON.stringify(data));
             return;
         }
+        
+        addLog("問題データ確認: " + currentQuestion.question);
+        
         showCountdown(() => {
+            console.log("Showing question:", currentQuestion.question);
             questionDisplay.textContent = currentQuestion.question;
             startTimer();
             addLog("問題が出されました！" + (currentQuestion.subject ? "（" + currentQuestion.subject.toUpperCase() + "）" : ""));

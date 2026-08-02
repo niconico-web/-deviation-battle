@@ -5,6 +5,30 @@ module.exports = function(io){
 
     io.on("connection",(socket)=>{
 
+        // バトルルーム参加
+        socket.on("joinBattleRoom", (data) => {
+            const { roomId, playerId } = data;
+            console.log(`[Battle] joinBattleRoom: roomId=${roomId}, playerId=${playerId}, socketId=${socket.id}`);
+            
+            const battle = BattleManager.getBattle(roomId);
+            if (!battle) {
+                console.error(`[Battle] Battle not found for room: ${roomId}`);
+                socket.emit("battleError", { message: "Battle not found" });
+                return;
+            }
+            
+            // ルームに参加
+            socket.join(roomId);
+            console.log(`[Battle] Socket ${socket.id} joined room ${roomId}`);
+            
+            // プレイヤーのソケットIDを更新
+            const player = battle.players[playerId];
+            if (player) {
+                BattleManager.remapPlayerSocket(roomId, playerId, socket.id);
+                console.log(`[Battle] Remapped player ${playerId} to socket ${socket.id}`);
+            }
+        });
+
         socket.on("submitAnswer", (data) => {
             const { roomId, answer } = data;
             const battle = BattleManager.getBattle(roomId);
@@ -43,18 +67,22 @@ module.exports = function(io){
             const { roomId } = data;
             const battle = BattleManager.getBattle(roomId);
             
-            console.log(`[Battle] requestBattleStart: roomId=${roomId}, battle=${!!battle}`);
+            console.log(`[Battle] requestBattleStart: roomId=${roomId}, socketId=${socket.id}, battle=${!!battle}`);
             
             if (!battle) {
+                console.error(`[Battle] Battle not found for room: ${roomId}`);
                 socket.emit("battleError", { message: "Battle not found" });
                 return;
             }
+            
+            console.log(`[Battle] Battle found, players:`, Object.keys(battle.players));
             
             const initialization = BattleEngine.initializeBattle(battle);
             
             console.log(`[Battle] Sending battleStarted:`, {
                 initialQuestion: initialization.initialQuestion,
-                hasPlayers: !!battle.players
+                hasPlayers: !!battle.players,
+                roomClients: io.sockets.adapter.rooms.get(roomId)?.size || 0
             });
             
             // 両方のプレイヤーに最初の問題を送信
@@ -62,6 +90,8 @@ module.exports = function(io){
                 initialQuestion: initialization.initialQuestion,
                 players: battle.players
             });
+            
+            console.log(`[Battle] battleStarted emitted to room: ${roomId}`);
         });
 
         // バトル終了

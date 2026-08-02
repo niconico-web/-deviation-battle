@@ -30,6 +30,12 @@ function renderShop() {
         
         for (const tier of ["tier1", "tier2", "tier3"]) {
             const weapon = createWeapon(type, tier, false);
+            
+            // 武器が作成できない場合はスキップ（デバッグ武器など）
+            if (!weapon || !weapon.id) {
+                continue;
+            }
+            
             const price = TIER_PRICES[tier];
             const owned = playerOwnsWeapon(player, weapon.id);
 
