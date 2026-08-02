@@ -168,6 +168,12 @@ function renderUniqueQuests() {
                 const owned = playerOwnsWeapon(player, uniqueWeapon.id);
                 const canClaim = canClaimUniqueQuest(player, type) && !owned && !claim;
                 
+                // クエストが完了している場合は表示しない
+                if (claim && claim.completed) {
+                    console.log(`[Shop] ${type}: Quest completed by ${claim.playerName}, skipping display`);
+                    continue;
+                }
+                
                 console.log(`[Shop] ${type}: owned=${owned}, canClaim=${canClaim}`);
 
                 const item = document.createElement("div");
@@ -339,9 +345,29 @@ function initShop() {
         window.socket.on("uniqueWeaponClaimed", (data) => {
             const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
             alert(message);
-            renderUniqueQuests();
+            // ショップページにいる場合のみUIを更新
+            if (document.getElementById("uniqueQuestList")) {
+                renderUniqueQuests();
+            }
+        });
+        
+        // ユニーククエスト完了通知を受信
+        window.socket.on("uniqueQuestCompleted", (data) => {
+            const message = `${data.weaponName}のクエストが${data.playerName}によって完了されました！世界にこの武器は1つしかありません。`;
+            alert(message);
+            // ショップページにいる場合のみUIを更新
+            if (document.getElementById("uniqueQuestList")) {
+                renderUniqueQuests();
+            }
         });
     }
+    
+    // 定期的にクエスト状態を更新（他のプレイヤーが獲得した場合に対応）
+    setInterval(() => {
+        if (document.getElementById("uniqueQuestList")) {
+            renderUniqueQuests();
+        }
+    }, 30000); // 30秒ごとに更新
 }
 
 if (document.readyState === "loading") {
