@@ -211,13 +211,16 @@ function renderUniqueQuests() {
                     const debugWeapon = createWeapon(type, "debug", false);
                     if (debugWeapon) {
                         const debugOwned = playerOwnsWeapon(player, debugWeapon.id);
-                        const debugCanClaim = canClaimDebugWeapon(player, type) && !debugOwned;
+                        const debugClaim = claims[`${type}_debug`];
+                        const debugCanClaim = canClaimDebugWeapon(player, type) && !debugOwned && !debugClaim;
                         
                         const debugItem = document.createElement("div");
                         debugItem.className = "quest-item debug-item";
                         let debugStatusText = "";
                         if (debugOwned) {
                             debugStatusText = "✓ 獲得済";
+                        } else if (debugClaim) {
+                            debugStatusText = `✗ ${debugClaim.playerName} が先に獲得`;
                         } else {
                             debugStatusText = `${wins} / 1 勝`;
                         }
@@ -306,24 +309,36 @@ function claimDebugWeapon(type) {
         return;
     }
 
-    const weapon = createWeapon(type, "debug", false);
-    if (!weapon) {
-        alert("武器の作成に失敗しました");
-        return;
-    }
-
-    if (playerOwnsWeapon(player, weapon.id)) {
-        alert("既に所持しています");
-        return;
-    }
-
-    // デバッグ武器はサーバー認証なしで直接付与
-    const updated = addWeaponToPlayer(player, weapon);
-    localStorage.setItem("player", JSON.stringify(updated));
-    alert(`${weapon.name} を獲得しました！`);
-    renderUniqueQuests();
-    renderInventory();
-    updateStatus(updated);
+    fetch("/api/unique/claimDebug", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            type,
+            playerId: player.id,
+            playerName: player.name,
+            wins
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                if (data.claimedBy) {
+                    alert(`${data.claimedBy.playerName} が先にデバッガーランスを獲得しました。`);
+                } else {
+                    alert(data.message || "獲得に失敗しました。");
+                }
+                renderUniqueQuests();
+                return;
+            }
+            const weapon = createWeapon(type, "debug", false);
+            const updated = addWeaponToPlayer(player, weapon);
+            localStorage.setItem("player", JSON.stringify(updated));
+            alert(`おめでとうございます！${weapon.name} を獲得しました！`);
+            renderUniqueQuests();
+            renderInventory();
+            updateStatus(updated);
+        })
+        .catch(() => alert("サーバーとの通信に失敗しました。"));
 }
 
 function initShop() {

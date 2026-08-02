@@ -160,8 +160,24 @@ function processAnswer(battle, playerId, answer) {
             result.firstCorrect = false;
         }
     } else {
-        // 不正解の場合
+        // 不正解の場合 - 間違えた方がダメージを受ける
+        const damage = calculateDamage(enemy, 0); // 相手の攻撃力でダメージ計算
+        player.hp = Math.max(0, player.hp - damage);
+        
+        result.damage = damage;
+        result.playerHp = player.hp;
         result.firstCorrect = false;
+        result.wrongAnswer = true;
+        
+        // 勝利判定
+        if (player.hp <= 0) {
+            battle.finished = true;
+            result.winner = enemyId;
+        } else {
+            // バトル終了でなければ、即座に次の問題へ
+            generateQuestion(battle);
+            result.nextQuestion = battle.currentQuestion;
+        }
     }
     
     return {
