@@ -142,9 +142,16 @@ function renderUniqueQuests() {
         .then(r => r.json())
         .then(claims => {
             for (const type of Object.keys(WEAPON_TYPES)) {
+                const typeConf = WEAPON_TYPES[type];
                 const wins = getWeaponWinCount(player, type);
                 const claim = claims[type];
                 const uniqueWeapon = createWeapon(type, null, true);
+                
+                // 武器が作成できない場合はスキップ
+                if (!uniqueWeapon) {
+                    continue;
+                }
+                
                 const owned = playerOwnsWeapon(player, uniqueWeapon.id);
                 const canClaim = canClaimUniqueQuest(player, type) && !owned && !claim;
 
@@ -156,12 +163,16 @@ function renderUniqueQuests() {
                 } else if (claim) {
                     statusText = `✗ ${claim.playerName} が先に獲得`;
                 } else {
-                    statusText = `${wins} / ${UNIQUE_QUEST_WINS} 勝`;
+                    const requiredWins = typeConf.isDebug ? 1 : UNIQUE_QUEST_WINS;
+                    statusText = `${wins} / ${requiredWins} 勝`;
                 }
+                
+                // デバッグ武器の場合は特別マークを追加
+                const debugMark = typeConf.isDebug ? " [DEBUG]" : "";
 
                 item.innerHTML =
                     `<div class="quest-item-info">
-                        <strong>${uniqueWeapon.name}</strong>
+                        <strong>${uniqueWeapon.name}${debugMark}</strong>
                         <span>${getWeaponTypeLabel(type)}のユニーク武器</span>
                         <span class="quest-progress">${statusText}</span>
                     </div>`;
