@@ -553,6 +553,8 @@ function finishBotBattle(result) {
     const win = result === "win";
     addLog(win ? I18N.victory : I18N.defeat);
 
+    console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}`);
+
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
