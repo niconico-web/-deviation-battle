@@ -36,6 +36,8 @@ function initialize() {
         return;
     }
 
+    console.log("Battle initialize:", { me, enemy, roomId, isBotBattle });
+
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
     updateStats();
@@ -45,6 +47,7 @@ function initialize() {
     if (isBotBattle) {
         startBotBattle();
     } else {
+        console.log("Emitting requestBattleStart for room:", roomId);
         socket.emit("requestBattleStart", { roomId });
     }
 }

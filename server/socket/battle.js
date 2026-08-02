@@ -43,12 +43,19 @@ module.exports = function(io){
             const { roomId } = data;
             const battle = BattleManager.getBattle(roomId);
             
+            console.log(`[Battle] requestBattleStart: roomId=${roomId}, battle=${!!battle}`);
+            
             if (!battle) {
                 socket.emit("battleError", { message: "Battle not found" });
                 return;
             }
             
             const initialization = BattleEngine.initializeBattle(battle);
+            
+            console.log(`[Battle] Sending battleStarted:`, {
+                initialQuestion: initialization.initialQuestion,
+                hasPlayers: !!battle.players
+            });
             
             // 両方のプレイヤーに最初の問題を送信
             io.to(roomId).emit("battleStarted", {
