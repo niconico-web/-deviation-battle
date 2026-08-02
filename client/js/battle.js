@@ -49,33 +49,41 @@ function initialize() {
     if (isBotBattle) {
         startBotBattle();
     } else {
+        // ソケット接続を待つ
         if (!socket.connected) {
-            addLog("エラー: サーバーに接続されていません");
-            alert("サーバーに接続されていません。ページを再読み込みしてください。");
-            return;
-        }
-        
-        // 直接ルームに参加してバトル開始
-        console.log("Joining room and requesting battle start:", roomId);
-        addLog("ルームに参加してバトル開始をリクエスト中...");
-        
-        // Socket.io v3+ではemitでjoinできないので、カスタムイベントを使用
-        socket.emit("joinBattleRoom", { roomId, playerId: me.id });
-        
-        // バトル開始リクエスト
-        setTimeout(() => {
-            console.log("Emitting requestBattleStart for room:", roomId);
-            socket.emit("requestBattleStart", { roomId });
+            addLog("サーバー接続待機中...");
+            socket.once("connect", () => {
+                console.log("Socket connected, starting battle");
+                startOnlineBattle();
+            });
             
-            // タイムアウト処理
+            // 接続タイムアウト
             setTimeout(() => {
-                if (!currentQuestion) {
-                    addLog("エラー: バトル開始の応答がありません");
-                    console.error("No battleStarted response received");
+                if (!socket.connected) {
+                    addLog("エラー: サーバーに接続できませんでした");
+                    alert("サーバーに接続できませんでした。ページを再読み込みしてください。");
                 }
-            }, 10000);
-        }, 500);
+            }, 5000);
+        } else {
+            startOnlineBattle();
+        }
     }
+}
+
+function startOnlineBattle() {
+    console.log("Starting online battle for room:", roomId);
+    addLog("バトル開始をリクエスト中...");
+    
+    // 直接バトル開始をリクエスト（ルーム参加はサーバー側で処理）
+    socket.emit("requestBattleStart", { roomId });
+    
+    // タイムアウト処理
+    setTimeout(() => {
+        if (!currentQuestion) {
+            addLog("エラー: バトル開始の応答がありません");
+            console.error("No battleStarted response received");
+        }
+    }, 10000);
 }
 
 function updateStats() {
