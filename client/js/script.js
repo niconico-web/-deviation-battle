@@ -2,6 +2,9 @@ let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 
+// オーブドロップ定数（weapons.jsから参照）
+let ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
+
 // Initialize socket after DOM is ready
 window.socket = null;
 
@@ -224,7 +227,19 @@ function applyStudyRewards(seconds) {
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
-    const statGain = calcStatGain(seconds);
+    let statGain = calcStatGain(seconds);
+    
+    // 圧倒的成長性をチェック
+    let hasOverwhelmingGrowth = false;
+    if (player.equippedWeapon && player.equippedWeapon.uniqueAbilities) {
+        hasOverwhelmingGrowth = player.equippedWeapon.uniqueAbilities.some(
+            ability => ability.effect === "double_study_growth"
+        );
+    }
+    
+    if (hasOverwhelmingGrowth) {
+        statGain *= 2;
+    }
     
     const [stat1, stat2] = SUBJECT_STATS[subject];
     stats[stat1] += statGain;
@@ -239,6 +254,12 @@ function applyStudyRewards(seconds) {
         gainedCoins = COIN_STUDY_30MIN;
     }
 
+    // オーブドロップ判定（25分以上）
+    let droppedOrb = null;
+    if (seconds >= ORB_DROP_THRESHOLD_SECONDS && typeof rollOrbDrop === "function") {
+        droppedOrb = rollOrbDrop();
+    }
+
     const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
         hp,
         totalStudySeconds: (player.totalStudySeconds || 0) + seconds,
@@ -247,15 +268,27 @@ function applyStudyRewards(seconds) {
         coins: (player.coins || 0) + gainedCoins,
         weapons: player.weapons,
         equippedWeapon: player.equippedWeapon,
-        weaponWins: player.weaponWins
+        weaponWins: player.weaponWins,
+        orbs: player.orbs || []
     });
+
+    // オーブを追加
+    if (droppedOrb) {
+        if (!updated.orbs) updated.orbs = [];
+        updated.orbs.push(droppedOrb);
+    }
+
     localStorage.setItem("player", JSON.stringify(updated));
     setStatsToInputs(stats);
     updateStatus(updated);
     updateXpDisplay(updated);
     const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engDefSpeed, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
     let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
+    if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
     if (gainedCoins > 0) msg += "\nコイン +" + gainedCoins + "（30分以上の勉強ボーナス）";
+    if (droppedOrb && typeof getOrbDisplayName === "function") {
+        msg += "\n\n★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
+    }
     alert(msg);
     if (typeof renderShop === "function") {
         renderShop();

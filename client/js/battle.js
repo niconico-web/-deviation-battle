@@ -493,11 +493,57 @@ function handleBotAnswer(userAnswer) {
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
-        const defReduction = Math.floor((enemy.def || 0) * 0.1);
-        const damage = Math.max(1, Math.floor(me.atk * 0.5) - defReduction);
+        
+        // ユニーク能力適用
+        let enemyDef = enemy.def || 0;
+        let enemyAtk = enemy.atk || 0;
+        let enemySpeed = enemy.speed || 0;
+        let enemyMaxHp = enemy.maxHp || 0;
+        
+        // リ・ミゼラブル（相手の全ステータスを0.8倍）
+        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+            const hasReMiserable = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+            if (hasReMiserable) {
+                enemyDef = Math.floor(enemyDef * 0.8);
+                enemyAtk = Math.floor(enemyAtk * 0.8);
+                enemySpeed = Math.floor(enemySpeed * 0.8);
+                enemyMaxHp = Math.floor(enemyMaxHp * 0.8);
+            }
+        }
+        
+        // 貫通（相手の防御ステータスを50%減らす）
+        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+            const hasPenetration = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "ignore_def_half");
+            if (hasPenetration) {
+                enemyDef = Math.floor(enemyDef * 0.5);
+            }
+        }
+        
+        const defReduction = Math.floor(enemyDef * 0.1);
+        let damage = Math.max(1, Math.floor(me.atk * 0.5) - defReduction);
+        
+        // 必殺（20%の確率でダメージ1.5倍）
+        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+            const hasCritical = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "critical_damage");
+            if (hasCritical && Math.random() < 0.20) {
+                damage = Math.floor(damage * 1.5);
+                addLog("必殺発動！ダメージ1.5倍！");
+            }
+        }
+        
         enemy.hp = Math.max(0, enemy.hp - damage);
         showDamage("enemyDamage", damage);
         addLog("ボットにダメージ: " + damage);
+        
+        // ライフドレイン（与えたダメージの20%分回復）
+        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+            const hasLifeDrain = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "life_drain");
+            if (hasLifeDrain) {
+                const healAmount = Math.floor(damage * 0.2);
+                me.hp = Math.min(me.maxHp, me.hp + healAmount);
+                addLog("ライフドレイン発動！" + healAmount + "回復");
+            }
+        }
         
         updateHP();
         
@@ -518,8 +564,30 @@ function handleBotAnswer(userAnswer) {
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
-                const defReduction = Math.floor((me.def || 0) * 0.1);
-                const damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
+                
+                // ユニーク能力適用（防御側）
+                let myDef = me.def || 0;
+                
+                // 鉄壁（相手からの攻撃のダメージ50%カット）
+                if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+                    const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
+                    if (hasIronWall) {
+                        // ダメージ計算後に50%カットを適用
+                    }
+                }
+                
+                const defReduction = Math.floor(myDef * 0.1);
+                let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
+                
+                // 鉄壁適用
+                if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+                    const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
+                    if (hasIronWall) {
+                        damage = Math.floor(damage * 0.5);
+                        addLog("鉄壁発動！ダメージ50%カット");
+                    }
+                }
+                
                 me.hp = Math.max(0, me.hp - damage);
                 showDamage("myDamage", damage);
                 addLog("ボットからのダメージ: " + damage);
