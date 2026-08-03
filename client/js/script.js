@@ -2,9 +2,6 @@ let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 
-// オーブドロップ定数（weapons.jsから参照）
-let ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
-
 // Initialize socket after DOM is ready
 window.socket = null;
 
@@ -256,7 +253,7 @@ function applyStudyRewards(seconds) {
 
     // オーブドロップ判定（25分以上）
     let droppedOrb = null;
-    if (seconds >= ORB_DROP_THRESHOLD_SECONDS && typeof rollOrbDrop === "function") {
+    if (seconds >= 25 * 60 && typeof rollOrbDrop === "function") {
         droppedOrb = rollOrbDrop();
     }
 

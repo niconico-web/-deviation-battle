@@ -499,7 +499,10 @@ function initShop() {
 }
 
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initShop);
+    document.addEventListener("DOMContentLoaded", () => {
+        // script.jsの関数が利用可能になるのを待ってから初期化
+        setTimeout(initShop, 100);
+    });
 } else {
-    initShop();
+    setTimeout(initShop, 100);
 }
