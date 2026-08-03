@@ -435,6 +435,15 @@ select {
     margin-top: 4px;
 }
 
+/* 武器詳細情報 */
+.weapon-details {
+    font-size: 0.7rem;
+    color: #a8d8ff;
+    margin-top: 4px;
+    line-height: 1.3;
+    padding: 4px 0;
+}
+
 .shop-item-action,
 .inventory-item-action {
     display: flex;
