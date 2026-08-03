@@ -86,11 +86,12 @@ function getWeaponMultiplier(weapon) {
     return TIER_MULT[weapon.tier] || 1;
 }
 
-function createOriginalWeapon(name, statBonuses) {
+function createOriginalWeapon(type, statBonuses) {
     const id = `original_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     return {
         id,
-        name,
+        name: "オリジナル武器",
+        type,
         isOriginal: true,
         multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
         statBonuses: statBonuses || {}, // { atk: 0.5, def: -0.3, speed: 0.2 } etc.
@@ -155,12 +156,41 @@ function applyWeaponStats(baseStats, weapon) {
     // オリジナル武器の場合
     if (weapon.isOriginal) {
         const result = { ...baseStats };
-        const mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+        const typeConf = WEAPON_TYPES[weapon.type];
         
-        // 全ステータスに基本倍率適用
-        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
-            if (result[stat] !== undefined) {
-                result[stat] = Math.floor(result[stat] * mult);
+        // 基本倍率を取得（武器種のbonusMultは適用しない）
+        let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+        
+        // 武器種の設定を適用（bonusMultを除く）
+        if (typeConf) {
+            // プライマリステータスに倍率適用
+            for (const stat of typeConf.primary) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * mult);
+                }
+            }
+            
+            // セカンダリステータスに倍率適用（0.85倍）
+            for (const stat of typeConf.secondary) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * (mult * 0.85));
+                }
+            }
+            
+            // デバフ適用
+            if (typeConf.debuff) {
+                for (const [stat, debuffMult] of Object.entries(typeConf.debuff)) {
+                    if (result[stat] !== undefined) {
+                        result[stat] = Math.floor(result[stat] * debuffMult);
+                    }
+                }
+            }
+        } else {
+            // 武器種がない場合は全ステータスに基本倍率適用
+            for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * mult);
+                }
             }
         }
         
