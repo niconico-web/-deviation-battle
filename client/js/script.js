@@ -251,10 +251,10 @@ function applyStudyRewards(seconds) {
         gainedCoins = COIN_STUDY_30MIN;
     }
 
-    // オーブドロップ判定（25分以上）
+    // オーブドロップ判定（25分以上で確定）
     let droppedOrb = null;
     if (seconds >= 25 * 60 && typeof rollOrbDrop === "function") {
-        droppedOrb = rollOrbDrop();
+        droppedOrb = rollOrbDrop(1.0); // 100%ドロップ
     }
 
     const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
