@@ -101,10 +101,46 @@ function renderInventory() {
             typeLabel = getWeaponTypeLabel(weapon.type);
         }
         
+        // オリジナル武器の詳細情報を生成
+        let weaponDetails = "";
+        if (weapon.isOriginal) {
+            let details = [];
+            
+            // 倍率表示
+            if (weapon.multiplier) {
+                const multPercent = Math.round((weapon.multiplier - 1) * 100);
+                details.push(`倍率: +${multPercent}%`);
+            }
+            
+            // ステータス補正表示
+            if (weapon.statBonuses) {
+                const bonusParts = [];
+                for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+                    const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP" }[stat] || stat;
+                    const sign = bonus > 0 ? "+" : "";
+                    bonusParts.push(`${statLabel}${sign}${(bonus * 100).toFixed(0)}%`);
+                }
+                if (bonusParts.length > 0) {
+                    details.push(bonusParts.join(", "));
+                }
+            }
+            
+            // ユニーク能力表示
+            if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
+                const abilityNames = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
+                details.push(`★${abilityNames}★`);
+            }
+            
+            if (details.length > 0) {
+                weaponDetails = `<div class="weapon-details">${details.join("<br>")}</div>`;
+            }
+        }
+        
         item.innerHTML =
             `<div class="inventory-item-info">
                 <strong>${getWeaponDisplayName(weapon)}</strong>
                 <span>${typeLabel}</span>
+                ${weaponDetails}
             </div>
             <div class="inventory-item-action">
                 ${isEquipped
