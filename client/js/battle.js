@@ -607,12 +607,16 @@ function syncBattleState(players) {
     const playerIds = Object.keys(players);
     console.log("Player IDs:", playerIds, "My ID:", me.id);
     
-    if (playerIds[0] === me.id) {
-        Object.assign(me, players[playerIds[0]]);
-        Object.assign(enemy, players[playerIds[1]]);
-    } else {
-        Object.assign(enemy, players[playerIds[0]]);
-        Object.assign(me, players[playerIds[1]]);
+    // IDで正確にマッチング
+    const myData = players[me.id];
+    const enemyId = playerIds.find(id => id !== me.id);
+    const enemyData = players[enemyId];
+    
+    if (myData) {
+        Object.assign(me, myData);
+    }
+    if (enemyData) {
+        Object.assign(enemy, enemyData);
     }
     
     console.log("Synced me:", me);
@@ -763,6 +767,10 @@ if (!isBotBattle && socket) {
                 }
             } else {
                 addLog("不正解...");
+                if (data.wrongAnswer && data.damage) {
+                    addLog("ダメージを受けた: " + data.damage);
+                    showDamage("myDamage", data.damage);
+                }
             }
         } else {
             if (data.isCorrect) {
@@ -773,6 +781,10 @@ if (!isBotBattle && socket) {
                 }
             } else {
                 addLog(enemy.name + "は不正解...");
+                if (data.wrongAnswer && data.damage) {
+                    addLog(enemy.name + "がダメージを受けた: " + data.damage);
+                    showDamage("enemyDamage", data.damage);
+                }
             }
         }
         

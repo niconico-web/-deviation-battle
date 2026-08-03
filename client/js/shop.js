@@ -93,10 +93,18 @@ function renderInventory() {
         const isEquipped = equipped && equipped.id === weapon.id;
         const item = document.createElement("div");
         item.className = "inventory-item" + (isEquipped ? " equipped" : "");
+        
+        let typeLabel = "";
+        if (weapon.isOriginal) {
+            typeLabel = "オリジナル武器";
+        } else {
+            typeLabel = getWeaponTypeLabel(weapon.type);
+        }
+        
         item.innerHTML =
             `<div class="inventory-item-info">
                 <strong>${getWeaponDisplayName(weapon)}</strong>
-                <span>${getWeaponTypeLabel(weapon.type)}</span>
+                <span>${typeLabel}</span>
             </div>
             <div class="inventory-item-action">
                 ${isEquipped
@@ -136,120 +144,137 @@ function renderInventory() {
     });
 }
 
-function renderUniqueQuests() {
-    const container = document.getElementById("uniqueQuestList");
+function renderOriginalWeapons() {
+    const container = document.getElementById("originalWeaponList");
     if (!container) return;
     container.innerHTML = "";
 
     const player = getPlayerData();
     if (!player) return;
 
-    console.log(`[Shop] renderUniqueQuests: player.weaponWins=${JSON.stringify(player.weaponWins)}`);
+    const originalWeapons = (player.weapons || []).filter(w => w.isOriginal);
+    
+    if (originalWeapons.length === 0) {
+        container.innerHTML = "<p>オリジナル武器を所持していません。</p>";
+        return;
+    }
 
-    fetch("/api/unique/claims")
-        .then(r => r.json())
-        .then(claims => {
-            for (const type of Object.keys(WEAPON_TYPES)) {
-                const typeConf = WEAPON_TYPES[type];
-                const wins = getWeaponWinCount(player, type);
-                const claim = claims[type];
-                
-                // 通常のユニーク武器
-                const uniqueWeapon = createWeapon(type, null, true);
-                
-                console.log(`[Shop] Quest for ${type}: wins=${wins}, typeConf=${JSON.stringify(typeConf)}, claim=${claim}`);
-                
-                // 武器が作成できない場合はスキップ
-                if (!uniqueWeapon) {
-                    console.log(`[Shop] Skipping ${type} - weapon creation failed`);
-                    continue;
-                }
-                
-                const owned = playerOwnsWeapon(player, uniqueWeapon.id);
-                const canClaim = canClaimUniqueQuest(player, type) && !owned && !claim;
-                
-                // クエストが完了している場合、または誰かが既に武器を持っている場合は表示しない
-                if (claim && (claim.completed || claim.claimedAt)) {
-                    console.log(`[Shop] ${type}: Quest completed by ${claim.playerName}, skipping display`);
-                    continue;
-                }
-                
-                console.log(`[Shop] ${type}: owned=${owned}, canClaim=${canClaim}`);
-
-                const item = document.createElement("div");
-                item.className = "quest-item";
-                let statusText = "";
-                if (owned) {
-                    statusText = "✓ 獲得済";
-                } else if (claim) {
-                    statusText = `✗ ${claim.playerName} が先に獲得`;
-                } else {
-                    const requiredWins = UNIQUE_QUEST_WINS;
-                    statusText = `${wins} / ${requiredWins} 勝`;
-                }
-
-                item.innerHTML =
-                    `<div class="quest-item-info">
-                        <strong>${uniqueWeapon.name}</strong>
-                        <span>${getWeaponTypeLabel(type)}のユニーク武器</span>
-                        <span class="quest-progress">${statusText}</span>
-                    </div>`;
-
-                if (canClaim) {
-                    const btn = document.createElement("button");
-                    btn.className = "btn btn-small claim-btn";
-                    btn.textContent = "ユニーク武器を受け取る";
-                    btn.dataset.type = type;
-                    btn.onclick = () => claimUniqueWeapon(type);
-                    item.appendChild(btn);
-                }
-
-                container.appendChild(item);
-                
-                // デバッグ武器がある場合は別枠で表示（槍のみ）
-                if (type === "spear") {
-                    const debugWeapon = createWeapon(type, "debug", false);
-                    if (debugWeapon) {
-                        const debugOwned = playerOwnsWeapon(player, debugWeapon.id);
-                        const debugClaim = claims[`${type}_debug`];
-                        const debugCanClaim = canClaimDebugWeapon(player, type) && !debugOwned && !debugClaim;
-                        
-                        const debugItem = document.createElement("div");
-                        debugItem.className = "quest-item debug-item";
-                        let debugStatusText = "";
-                        if (debugOwned) {
-                            debugStatusText = "✓ 獲得済";
-                        } else if (debugClaim) {
-                            debugStatusText = `✗ ${debugClaim.playerName} が先に獲得`;
-                        } else {
-                            debugStatusText = `${wins} / 1 勝`;
-                        }
-
-                        debugItem.innerHTML =
-                            `<div class="quest-item-info">
-                                <strong>${debugWeapon.name} [DEBUG]</strong>
-                                <span>${getWeaponTypeLabel(type)}のデバッグ武器</span>
-                                <span class="quest-progress">${debugStatusText}</span>
-                            </div>`;
-
-                        if (debugCanClaim) {
-                            const debugBtn = document.createElement("button");
-                            debugBtn.className = "btn btn-small claim-btn";
-                            debugBtn.textContent = "デバッグ武器を受け取る";
-                            debugBtn.dataset.type = type;
-                            debugBtn.dataset.isDebug = "true";
-                            debugBtn.onclick = () => claimDebugWeapon(type);
-                            debugItem.appendChild(debugBtn);
-                        }
-
-                        container.appendChild(debugItem);
-                    }
-                }
+    for (const weapon of originalWeapons) {
+        const item = document.createElement("div");
+        item.className = "quest-item";
+        
+        const canUpgrade = canUpgradeOriginalWeapon(weapon);
+        const upgradeCost = getOriginalWeaponUpgradeCost(weapon);
+        const progress = ((weapon.multiplier - ORIGINAL_WEAPON_BASE_MULTIPLIER) / (ORIGINAL_WEAPON_MAX_MULTIPLIER - ORIGINAL_WEAPON_BASE_MULTIPLIER) * 100).toFixed(1);
+        
+        let bonusText = "";
+        if (weapon.statBonuses) {
+            const bonusParts = [];
+            for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+                const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP" }[stat] || stat;
+                const sign = bonus > 0 ? "+" : "";
+                bonusParts.push(`${statLabel}${sign}${(bonus * 100).toFixed(0)}%`);
             }
-        })
-        .catch(() => {
-            container.innerHTML = "<p>ユニーククエスト情報の取得に失敗しました。</p>";
-        });
+            if (bonusParts.length > 0) {
+                bonusText = bonusParts.join(", ");
+            }
+        }
+
+        item.innerHTML =
+            `<div class="quest-item-info">
+                <strong>${weapon.name}</strong>
+                <span>倍率: ${weapon.multiplier.toFixed(3)}x (${progress}%)</span>
+                <span class="quest-progress">${bonusText || "補正なし"}</span>
+            </div>`;
+
+        if (canUpgrade) {
+            const upgradeBtn = document.createElement("button");
+            upgradeBtn.className = "btn btn-small";
+            upgradeBtn.textContent = `強化 (${upgradeCost}コイン)`;
+            upgradeBtn.onclick = () => upgradeOriginalWeaponUI(weapon);
+            item.appendChild(upgradeBtn);
+        } else {
+            const maxLabel = document.createElement("span");
+            maxLabel.className = "owned-label";
+            maxLabel.textContent = "MAX";
+            item.appendChild(maxLabel);
+        }
+
+        container.appendChild(item);
+    }
+}
+
+function upgradeOriginalWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const cost = getOriginalWeaponUpgradeCost(weapon);
+    if (player.coins < cost) {
+        alert(`コインが足りません（必要: ${cost}、所持: ${player.coins}）`);
+        return;
+    }
+
+    const upgraded = upgradeOriginalWeapon(weapon);
+    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+    if (weaponIndex === -1) return;
+
+    player.weapons[weaponIndex] = upgraded;
+    player.coins -= cost;
+    
+    localStorage.setItem("player", JSON.stringify(player));
+    alert(`${weapon.name} を強化しました！倍率: ${upgraded.multiplier.toFixed(3)}x`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(player);
+}
+
+function showOriginalWeaponCreationDialog() {
+    const player = getPlayerData();
+    if (!player) return;
+
+    if (player.coins < ORIGINAL_WEAPON_COST) {
+        alert(`コインが足りません（必要: ${ORIGINAL_WEAPON_COST}、所持: ${player.coins}）`);
+        return;
+    }
+
+    const name = prompt("オリジナル武器の名前を入力してください:");
+    if (!name || name.trim() === "") return;
+
+    // ステータス補正設定
+    const statBonuses = {};
+    let totalBonus = 0;
+
+    const stats = [
+        { key: 'atk', label: '攻撃' },
+        { key: 'def', label: '防御' },
+        { key: 'speed', label: '速さ' },
+        { key: 'maxHp', label: 'HP' }
+    ];
+
+    for (const stat of stats) {
+        const input = prompt(`${stat.label}の補正を入力してください（例: +0.1, -0.05, 0）\nプラスで強化、マイナスで弱体化、0で変更なし:`, "0");
+        if (input !== null) {
+            const value = parseFloat(input);
+            if (!isNaN(value)) {
+                statBonuses[stat.key] = value;
+                totalBonus += value;
+            }
+        }
+    }
+
+    if (totalBonus > 0.5) {
+        alert(`補正の合計が大きすぎます（${totalBonus.toFixed(2)}）。合計で0.5以下にしてください。`);
+        return;
+    }
+
+    const weapon = createOriginalWeapon(name.trim(), statBonuses);
+    const updated = addWeaponToPlayer({ ...player, coins: player.coins - ORIGINAL_WEAPON_COST }, weapon);
+    
+    localStorage.setItem("player", JSON.stringify(updated));
+    alert(`オリジナル武器「${weapon.name}」を作成しました！`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(updated);
 }
 
 function claimUniqueWeapon(type) {
@@ -344,45 +369,22 @@ function claimDebugWeapon(type) {
 function initShop() {
     renderShop();
     renderInventory();
-    renderUniqueQuests();
+    renderOriginalWeapons();
 
     const refreshBtn = document.getElementById("refreshShop");
     if (refreshBtn) {
         refreshBtn.onclick = () => {
             renderShop();
             renderInventory();
-            renderUniqueQuests();
+            renderOriginalWeapons();
         };
     }
-    
-    // ユニーク武器獲得通知を受信
-    if (window.socket) {
-        window.socket.on("uniqueWeaponClaimed", (data) => {
-            const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
-            alert(message);
-            // ショップページにいる場合のみUIを更新
-            if (document.getElementById("uniqueQuestList")) {
-                renderUniqueQuests();
-            }
-        });
-        
-        // ユニーククエスト完了通知を受信
-        window.socket.on("uniqueQuestCompleted", (data) => {
-            const message = `${data.weaponName}のクエストが${data.playerName}によって完了されました！世界にこの武器は1つしかありません。`;
-            alert(message);
-            // ショップページにいる場合のみUIを更新
-            if (document.getElementById("uniqueQuestList")) {
-                renderUniqueQuests();
-            }
-        });
+
+    // オリジナル武器作成ボタン
+    const createBtn = document.getElementById("createOriginalWeaponBtn");
+    if (createBtn) {
+        createBtn.onclick = showOriginalWeaponCreationDialog;
     }
-    
-    // 定期的にクエスト状態を更新（他のプレイヤーが獲得した場合に対応）
-    setInterval(() => {
-        if (document.getElementById("uniqueQuestList")) {
-            renderUniqueQuests();
-        }
-    }, 30000); // 30秒ごとに更新
 }
 
 if (document.readyState === "loading") {

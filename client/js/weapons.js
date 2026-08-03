@@ -72,10 +72,54 @@ const COIN_BATTLE_WIN = 15;
 const COIN_STUDY_30MIN = 20;
 const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
 
+// オリジナル武器設定
+const ORIGINAL_WEAPON_COST = 30; // 作成コスト
+const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
+const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
+const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
+const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
+
 function getWeaponMultiplier(weapon) {
     if (!weapon) return 1;
+    if (weapon.isOriginal) return weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
     if (weapon.isUnique) return UNIQUE_MULT;
     return TIER_MULT[weapon.tier] || 1;
+}
+
+function createOriginalWeapon(name, statBonuses) {
+    const id = `original_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    return {
+        id,
+        name,
+        isOriginal: true,
+        multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
+        statBonuses: statBonuses || {}, // { atk: 0.5, def: -0.3, speed: 0.2 } etc.
+        upgradeCount: 0
+    };
+}
+
+function upgradeOriginalWeapon(weapon) {
+    if (!weapon.isOriginal) return weapon;
+    if (weapon.multiplier >= ORIGINAL_WEAPON_MAX_MULTIPLIER) return weapon;
+    
+    const newMultiplier = Math.min(
+        ORIGINAL_WEAPON_MAX_MULTIPLIER,
+        weapon.multiplier + ORIGINAL_WEAPON_UPGRADE_INCREMENT
+    );
+    
+    return {
+        ...weapon,
+        multiplier: newMultiplier,
+        upgradeCount: weapon.upgradeCount + 1
+    };
+}
+
+function canUpgradeOriginalWeapon(weapon) {
+    return weapon.isOriginal && weapon.multiplier < ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function getOriginalWeaponUpgradeCost(weapon) {
+    return ORIGINAL_WEAPON_UPGRADE_COST;
 }
 
 function createWeapon(type, tier, isUnique) {
@@ -107,6 +151,31 @@ function getAllShopWeapons() {
 
 function applyWeaponStats(baseStats, weapon) {
     if (!weapon) return { ...baseStats };
+    
+    // オリジナル武器の場合
+    if (weapon.isOriginal) {
+        const result = { ...baseStats };
+        const mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+        
+        // 全ステータスに基本倍率適用
+        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+            if (result[stat] !== undefined) {
+                result[stat] = Math.floor(result[stat] * mult);
+            }
+        }
+        
+        // カスタム補正適用
+        if (weapon.statBonuses) {
+            for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * (1 + bonus));
+                }
+            }
+        }
+        
+        return result;
+    }
+    
     const typeConf = WEAPON_TYPES[weapon.type];
     if (!typeConf) return { ...baseStats };
     
@@ -236,6 +305,7 @@ function canClaimDebugWeapon(player, type) {
 
 function getWeaponDisplayName(weapon) {
     if (!weapon) return "なし";
+    if (weapon.isOriginal) return weapon.name;
     const tierLabel = weapon.isUnique ? "★ユニーク" : weapon.tier?.toUpperCase() || "";
     return `${weapon.name} [${tierLabel}]`;
 }
