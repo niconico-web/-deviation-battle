@@ -255,6 +255,9 @@ function showOriginalWeaponCreationDialog() {
         return;
     }
 
+    const name = prompt("オリジナル武器の名前を入力してください:");
+    if (!name || name.trim() === "") return;
+
     // 武器種選択
     const weaponTypes = Object.keys(WEAPON_TYPES);
     let typeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
@@ -296,7 +299,7 @@ function showOriginalWeaponCreationDialog() {
         return;
     }
 
-    const weapon = createOriginalWeapon(selectedType, statBonuses);
+    const weapon = createOriginalWeapon(name.trim(), selectedType, statBonuses);
     const updated = addWeaponToPlayer({ ...player, coins: player.coins - ORIGINAL_WEAPON_COST }, weapon);
     
     localStorage.setItem("player", JSON.stringify(updated));

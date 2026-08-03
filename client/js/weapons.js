@@ -86,11 +86,11 @@ function getWeaponMultiplier(weapon) {
     return TIER_MULT[weapon.tier] || 1;
 }
 
-function createOriginalWeapon(type, statBonuses) {
+function createOriginalWeapon(name, type, statBonuses) {
     const id = `original_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
     return {
         id,
-        name: "オリジナル武器",
+        name: name || "オリジナル武器",
         type,
         isOriginal: true,
         multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
