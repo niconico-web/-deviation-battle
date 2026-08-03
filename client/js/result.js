@@ -24,6 +24,8 @@ console.log(`[Result] Updated player:`, updatedPlayer);
 
 const xpGain = localStorage.getItem("battleXpGain") || "0";
 const coinGain = localStorage.getItem("battleCoinGain") || "0";
+const droppedOrbRaw = localStorage.getItem("droppedOrb");
+const droppedOrb = droppedOrbRaw ? JSON.parse(droppedOrbRaw) : null;
 
 title.textContent = won ? I18N.win : I18N.lose;
 title.className = won ? "win" : "lose";
@@ -50,8 +52,20 @@ if (stealEl) {
     }
 }
 
+// オーブドロップ表示
+const orbEl = document.getElementById("orbText");
+if (orbEl) {
+    if (droppedOrb && typeof getOrbDisplayName === "function") {
+        orbEl.textContent = "★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
+        orbEl.style.display = "block";
+    } else {
+        orbEl.style.display = "none";
+    }
+}
+
 localStorage.removeItem("stolenWeapon");
 localStorage.removeItem("lostWeapon");
 localStorage.removeItem("battleCoinGain");
+localStorage.removeItem("droppedOrb");
 
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";

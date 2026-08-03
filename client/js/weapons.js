@@ -2,6 +2,245 @@
 // 武器システム
 // ============================================
 
+// ============================================
+// オーブシステム
+// ============================================
+
+const ORB_TIERS = {
+    tier1: { name: "Tier1", dropRate: 0.30, statRange: [0.05, 0.10] },
+    tier2: { name: "Tier2", dropRate: 0.10, statRange: [0.10, 0.15] },
+    tier3: { name: "Tier3", dropRate: 0.075, statRange: [0.15, 0.20] },
+    tier4: { name: "Tier4", dropRate: 0.025, statRange: [0.15, 0.20] }
+};
+
+const ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
+const ORB_DROP_CHANCE = 0.50; // 50%
+
+const ORB_UNIQUE_ABILITIES = {
+    life_drain: {
+        name: "ライフドレイン",
+        description: "相手に攻撃したとき、その時与えたダメージの20%分自分のHPを回復できる",
+        effect: "life_drain"
+    },
+    overwhelming_growth: {
+        name: "圧倒的成長性",
+        description: "勉強タイマー使用時のステータスの上り幅が2倍になる",
+        effect: "double_study_growth"
+    },
+    re_miserable: {
+        name: "リ・ミゼラブル",
+        description: "戦闘時相手の全ステータスを0.8倍",
+        effect: "enemy_stat_debuff"
+    },
+    penetration: {
+        name: "貫通",
+        description: "相手の防御ステータスを50%減らす",
+        effect: "ignore_def_half"
+    },
+    iron_wall: {
+        name: "鉄壁",
+        description: "相手からの攻撃のダメージ50%カット",
+        effect: "damage_cut_half"
+    },
+    sure_hit: {
+        name: "必中",
+        description: "相手の回避率を無視して相手に絶対攻撃をあてられる",
+        effect: "ignore_evasion"
+    },
+    critical_hit: {
+        name: "必殺",
+        description: "20%の確率で相手への攻撃のダメージ1.5倍",
+        effect: "critical_damage"
+    }
+};
+
+const ORB_STAT_TYPES = ["atk", "def", "speed", "maxHp"];
+
+const ORB_STAT_LABELS = {
+    atk: "攻撃",
+    def: "防御",
+    speed: "速さ",
+    maxHp: "HP"
+};
+
+function createOrb(tier) {
+    const tierConfig = ORB_TIERS[tier];
+    if (!tierConfig) return null;
+    
+    const statType = ORB_STAT_TYPES[Math.floor(Math.random() * ORB_STAT_TYPES.length)];
+    const minBonus = tierConfig.statRange[0];
+    const maxBonus = tierConfig.statRange[1];
+    const bonus = minBonus + Math.random() * (maxBonus - minBonus);
+    
+    const id = `orb_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    
+    const orb = {
+        id,
+        tier,
+        statType,
+        bonus: Math.round(bonus * 1000) / 1000, // 小数点3桁まで
+        uniqueAbility: null
+    };
+    
+    // Tier4のみユニーク能力を付与
+    if (tier === "tier4") {
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES);
+        const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
+        orb.uniqueAbility = {
+            key: abilityKey,
+            ...ORB_UNIQUE_ABILITIES[abilityKey]
+        };
+    }
+    
+    return orb;
+}
+
+function rollOrbDrop() {
+    if (Math.random() > ORB_DROP_CHANCE) return null;
+    
+    const rand = Math.random();
+    let cumulative = 0;
+    
+    for (const [tier, config] of Object.entries(ORB_TIERS)) {
+        cumulative += config.dropRate;
+        if (rand < cumulative) {
+            return createOrb(tier);
+        }
+    }
+    
+    return null;
+}
+
+function getOrbDisplayName(orb) {
+    if (!orb) return "不明なオーブ";
+    const tierName = ORB_TIERS[orb.tier]?.name || orb.tier;
+    const statLabel = ORB_STAT_LABELS[orb.statType] || orb.statType;
+    const bonusPercent = Math.round(orb.bonus * 100);
+    
+    let name = `${tierName}オーブ (${statLabel}+${bonusPercent}%)`;
+    
+    if (orb.uniqueAbility) {
+        name += ` [${orb.uniqueAbility.name}]`;
+    }
+    
+    return name;
+}
+
+function applyOrbToWeapon(weapon, orbs) {
+    if (!weapon || !orbs || orbs.length === 0) return weapon;
+    
+    const newWeapon = { ...weapon };
+    const totalBonus = {};
+    
+    // オーブの補正を集計
+    for (const orb of orbs) {
+        if (!totalBonus[orb.statType]) {
+            totalBonus[orb.statType] = 0;
+        }
+        totalBonus[orb.statType] += orb.bonus;
+    }
+    
+    // ステータス補正を適用
+    newWeapon.statBonuses = { ...weapon.statBonuses };
+    for (const [stat, bonus] of Object.entries(totalBonus)) {
+        if (!newWeapon.statBonuses[stat]) {
+            newWeapon.statBonuses[stat] = 0;
+        }
+        newWeapon.statBonuses[stat] += bonus;
+    }
+    
+    // ユニーク能力を適用（Tier4オーブから）
+    const uniqueAbilities = orbs
+        .filter(orb => orb.uniqueAbility)
+        .map(orb => orb.uniqueAbility);
+    
+    if (uniqueAbilities.length > 0) {
+        newWeapon.uniqueAbilities = uniqueAbilities;
+    }
+    
+    // オーブの合計倍率を計算
+    let orbMultiplier = 1.0;
+    for (const orb of orbs) {
+        const tierMult = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 }[orb.tier] || 1.0;
+        orbMultiplier *= tierMult;
+    }
+    
+    newWeapon.multiplier = (weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER) * orbMultiplier;
+    newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
+    
+    return newWeapon;
+}
+
+// ユニーク能力を適用したステータス計算
+function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
+    if (!weapon || !weapon.uniqueAbilities) return baseStats;
+    
+    const stats = { ...baseStats };
+    
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "enemy_stat_debuff": // リ・ミゼラブル
+                if (isEnemy) {
+                    stats.atk = Math.floor(stats.atk * 0.8);
+                    stats.def = Math.floor(stats.def * 0.8);
+                    stats.speed = Math.floor(stats.speed * 0.8);
+                    stats.maxHp = Math.floor(stats.maxHp * 0.8);
+                }
+                break;
+            case "ignore_def_half": // 貫通
+                if (isEnemy) {
+                    stats.def = Math.floor(stats.def * 0.5);
+                }
+                break;
+            // 他の能力はダメージ計算時に処理
+        }
+    }
+    
+    return stats;
+}
+
+// ユニーク abilityによるダメージ計算
+function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
+    if (!weapon || !weapon.uniqueAbilities) return baseDamage;
+    
+    let damage = baseDamage;
+    
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "critical_damage": // 必殺
+                if (Math.random() < 0.20) {
+                    damage = Math.floor(damage * 1.5);
+                }
+                break;
+            case "life_drain": // ライフドレイン
+                // ダメージ計算後に回復処理を行うため、ここではフラグのみ設定
+                break;
+            case "damage_cut_half": // 鉄壁
+                // 防御側の処理
+                break;
+        }
+    }
+    
+    return damage;
+}
+
+// 防御側のダメージ軽減計算
+function calculateDefenseWithAbilities(baseDamage, defender, weapon) {
+    if (!weapon || !weapon.uniqueAbilities) return baseDamage;
+    
+    let damage = baseDamage;
+    
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "damage_cut_half": // 鉄壁
+                damage = Math.floor(damage * 0.5);
+                break;
+        }
+    }
+    
+    return damage;
+}
+
 const WEAPON_TYPES = {
     sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: [], debuff: {} },
     spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp"] } },

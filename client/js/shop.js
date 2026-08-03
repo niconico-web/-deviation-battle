@@ -198,11 +198,18 @@ function renderOriginalWeapons() {
             }
         }
 
+        // ユニーク能力表示
+        let abilityText = "";
+        if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
+            abilityText = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
                 <span>倍率: ${weapon.multiplier.toFixed(3)}x (${progress}%)</span>
                 <span class="quest-progress">${bonusText || "補正なし"}</span>
+                ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
             </div>`;
 
         if (canUpgrade) {
@@ -218,6 +225,42 @@ function renderOriginalWeapons() {
             item.appendChild(maxLabel);
         }
 
+        container.appendChild(item);
+    }
+}
+
+function renderOrbInventory() {
+    const container = document.getElementById("orbInventory");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const player = getPlayerData();
+    if (!player) return;
+
+    const orbs = player.orbs || [];
+    
+    if (orbs.length === 0) {
+        container.innerHTML = "<p>オーブを所持していません。\n勉強タイマーを25分以上使用するか、戦闘で勝利して入手してください。</p>";
+        return;
+    }
+
+    for (const orb of orbs) {
+        const item = document.createElement("div");
+        item.className = `inventory-item orb-item ${orb.tier}`;
+        
+        const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "不明なオーブ";
+        
+        let abilityInfo = "";
+        if (orb.uniqueAbility) {
+            abilityInfo = `<div class="orb-unique-ability">★${orb.uniqueAbility.name}★</div>`;
+        }
+        
+        item.innerHTML =
+            `<div class="inventory-item-info">
+                <strong>${orbName}</strong>
+                ${abilityInfo}
+            </div>`;
+        
         container.appendChild(item);
     }
 }
@@ -255,6 +298,12 @@ function showOriginalWeaponCreationDialog() {
         return;
     }
 
+    // オーブ所持チェック
+    if (!player.orbs || player.orbs.length === 0) {
+        alert("オリジナル武器を作成するにはオーブが必要です！\n勉強タイマーを25分以上使用するか、戦闘で勝利してオーブを入手してください。");
+        return;
+    }
+
     const name = prompt("オリジナル武器の名前を入力してください:");
     if (!name || name.trim() === "") return;
 
@@ -272,40 +321,69 @@ function showOriginalWeaponCreationDialog() {
     
     const selectedType = weaponTypes[typeIndex];
 
-    // ステータス補正設定
-    const statBonuses = {};
-    let totalBonus = 0;
-
-    const stats = [
-        { key: 'atk', label: '攻撃' },
-        { key: 'def', label: '防御' },
-        { key: 'speed', label: '速さ' },
-        { key: 'maxHp', label: 'HP' }
-    ];
-
-    for (const stat of stats) {
-        const input = prompt(`${stat.label}の補正を入力してください（例: +0.1, -0.05, 0）\nプラスで強化、マイナスで弱体化、0で変更なし:`, "0");
-        if (input !== null) {
-            const value = parseFloat(input);
-            if (!isNaN(value)) {
-                statBonuses[stat.key] = value;
-                totalBonus += value;
-            }
+    // オーブ選択（1~3個）
+    const availableOrbs = player.orbs;
+    let orbOptions = availableOrbs.map((orb, index) => {
+        const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
+        return `${index + 1}. ${orbName}`;
+    }).join('\n');
+    
+    const selectedOrbIndices = [];
+    const maxOrbs = Math.min(3, availableOrbs.length);
+    
+    for (let i = 0; i < maxOrbs; i++) {
+        const remainingOptions = availableOrbs
+            .map((orb, index) => {
+                if (selectedOrbIndices.includes(index)) return null;
+                const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
+                return `${index + 1}. ${orbName}`;
+            })
+            .filter(opt => opt !== null)
+            .join('\n');
+        
+        const promptText = i === 0 
+            ? `使用するオーブを選択してください（1~${maxOrbs}個）:\n${remainingOptions}\n番号を入力（キャンセルで終了）:`
+            : `追加のオーブを選択してください（残り${maxOrbs - i}個まで）:\n${remainingOptions}\n番号を入力（キャンセルで終了）:`;
+        
+        const orbInput = prompt(promptText, "1");
+        if (orbInput === null) break;
+        
+        const orbIndex = parseInt(orbInput) - 1;
+        if (isNaN(orbIndex) || orbIndex < 0 || orbIndex >= availableOrbs.length || selectedOrbIndices.includes(orbIndex)) {
+            alert("無効な番号です");
+            i--;
+            continue;
         }
+        
+        selectedOrbIndices.push(orbIndex);
     }
 
-    if (totalBonus > 0.5) {
-        alert(`補正の合計が大きすぎます（${totalBonus.toFixed(2)}）。合計で0.5以下にしてください。`);
+    if (selectedOrbIndices.length === 0) {
+        alert("オーブを少なくとも1つ選択してください");
         return;
     }
 
-    const weapon = createOriginalWeapon(name.trim(), selectedType, statBonuses);
-    const updated = addWeaponToPlayer({ ...player, coins: player.coins - ORIGINAL_WEAPON_COST }, weapon);
+    const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
+
+    // 基本武器を作成（補正なし）
+    const baseWeapon = createOriginalWeapon(name.trim(), selectedType, {});
+    
+    // オーブを適用
+    const weapon = applyOrbToWeapon(baseWeapon, selectedOrbs);
+    
+    // 使用したオーブを削除
+    const remainingOrbs = player.orbs.filter((_, index) => !selectedOrbIndices.includes(index));
+    
+    const updated = addWeaponToPlayer({ ...player, coins: player.coins - ORIGINAL_WEAPON_COST, orbs: remainingOrbs }, weapon);
     
     localStorage.setItem("player", JSON.stringify(updated));
-    alert(`オリジナル武器「${weapon.name}」を作成しました！`);
+    
+    let orbInfo = selectedOrbs.map(orb => typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "Orb").join(", ");
+    alert(`オリジナル武器「${weapon.name}」を作成しました！\n使用オーブ: ${orbInfo}\n倍率: ${weapon.multiplier.toFixed(3)}x`);
+    
     renderOriginalWeapons();
     renderInventory();
+    renderOrbInventory(); // オーブインベントリを更新
     updateStatus(updated);
 }
 
@@ -402,6 +480,7 @@ function initShop() {
     renderShop();
     renderInventory();
     renderOriginalWeapons();
+    renderOrbInventory();
 
     const refreshBtn = document.getElementById("refreshShop");
     if (refreshBtn) {

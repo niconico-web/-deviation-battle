@@ -37,6 +37,7 @@ function migratePlayer(player) {
     if (player.coins == null) player.coins = 0;
     if (!player.weapons) player.weapons = [];
     if (!player.weaponWins) player.weaponWins = {};
+    if (!player.orbs) player.orbs = [];
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
         return {
@@ -78,6 +79,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
+    let droppedOrb = null;
+
     if (won) {
         gainedCoins += COIN_BATTLE_WIN;
         console.log(`[Stats] Calling incrementWeaponWin for weapon: ${player.equippedWeapon?.name} (type: ${player.equippedWeapon?.type})`);
@@ -85,6 +88,11 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         console.log(`[Stats] After incrementWeaponWin: weaponWins=${JSON.stringify(player.weaponWins)}`);
         if (options.stolenWeapon) {
             player = addWeaponToPlayer(player, options.stolenWeapon);
+        }
+        
+        // オーブドロップ判定（戦闘勝利時）
+        if (typeof rollOrbDrop === "function") {
+            droppedOrb = rollOrbDrop();
         }
     }
     if (options.lostWeapon) {
@@ -98,11 +106,26 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         coins: (player.coins || 0) + gainedCoins,
         weapons: player.weapons,
         equippedWeapon: player.equippedWeapon,
-        weaponWins: player.weaponWins
+        weaponWins: player.weaponWins,
+        orbs: player.orbs || []
     });
+
+    // オーブを追加
+    if (droppedOrb) {
+        if (!updated.orbs) updated.orbs = [];
+        updated.orbs.push(droppedOrb);
+    }
+
     localStorage.setItem("player", JSON.stringify(updated));
     localStorage.setItem("battleXpGain", String(gainedXp));
     localStorage.setItem("battleCoinGain", String(gainedCoins));
+    
+    if (droppedOrb) {
+        localStorage.setItem("droppedOrb", JSON.stringify(droppedOrb));
+    } else {
+        localStorage.removeItem("droppedOrb");
+    }
+    
     console.log(`[Stats] applyBattleRewards END: Player saved with weaponWins:`, updated.weaponWins);
     console.log(`[Stats] Saved player data:`, JSON.stringify(updated));
     return updated;
@@ -137,7 +160,8 @@ function buildPlayer(name, stats, xp, options = {}) {
         coins: options.coins != null ? options.coins : 0,
         weapons: options.weapons || [],
         equippedWeapon: options.equippedWeapon || null,
-        weaponWins: options.weaponWins || {}
+        weaponWins: options.weaponWins || {},
+        orbs: options.orbs || []
     };
 }
 
