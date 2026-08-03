@@ -197,8 +197,8 @@ function updateStudyTimerDisplay() {
 const SUBJECT_STATS = {
     jp: ["maxHp", "def"],     // 国語 → HP・防御
     math: ["atk", "speed"],   // 数学 → 攻撃・速さ
-    eng: ["atk", "speed"],    // 英語 → 攻撃・速さ
-    sci: ["atk", "def"],      // 理科 → 攻撃・防御
+    eng: ["def", "speed"],    // 英語 → 防御・速さ
+    sci: ["atk", "maxHp"],    // 理科 → 攻撃・HP
     soc: ["maxHp", "def"]     // 社会 → HP・防御
 };
 
@@ -209,7 +209,6 @@ function updateStatGrowthInfo() {
     const statNames = {
         maxHp: "HP",
         atk: I18N.atk,
-        sp: I18N.sp,
         def: I18N.def,
         speed: I18N.speed
     };
@@ -254,7 +253,7 @@ function applyStudyRewards(seconds) {
     setStatsToInputs(stats);
     updateStatus(updated);
     updateXpDisplay(updated);
-    const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engSp, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
+    const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engDefSpeed, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
     let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
     if (gainedCoins > 0) msg += "\nコイン +" + gainedCoins + "（30分以上の勉強ボーナス）";
     alert(msg);
