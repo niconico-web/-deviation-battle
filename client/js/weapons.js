@@ -249,6 +249,15 @@ function removeWeaponFromPlayer(player, weaponId) {
     return { ...player, weapons, equippedWeapon };
 }
 
+function discardWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (player.equippedWeapon?.id === weaponId) return { ok: false, message: "装備中の武器は捨てられません" };
+    
+    const updated = removeWeaponFromPlayer(player, weaponId);
+    return { ok: true, player: updated, weapon };
+}
+
 function buyWeapon(player, type, tier) {
     const price = TIER_PRICES[tier];
     if (!price) return { ok: false, message: "無効な武器です" };
