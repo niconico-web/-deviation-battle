@@ -111,6 +111,7 @@ function renderInventory() {
                     ? '<span class="equipped-label">装備中</span>'
                     : `<button class="btn btn-small equip-btn" data-id="${weapon.id}">装備</button>`
                 }
+                ${!isEquipped ? `<button class="btn btn-small btn-danger discard-btn" data-id="${weapon.id}">捨てる</button>` : ''}
             </div>`;
         container.appendChild(item);
     }
@@ -133,6 +134,23 @@ function renderInventory() {
         btn.onclick = () => {
             const p = getPlayerData();
             const result = equipWeapon(p, btn.dataset.id);
+            if (!result.ok) {
+                alert(result.message);
+                return;
+            }
+            localStorage.setItem("player", JSON.stringify(result.player));
+            renderInventory();
+            updateStatus(result.player);
+        };
+    });
+
+    container.querySelectorAll(".discard-btn").forEach(btn => {
+        btn.onclick = () => {
+            const weaponName = (player.weapons || []).find(w => w.id === btn.dataset.id)?.name || "武器";
+            if (!confirm(`${weaponName} を捨てますか？この操作は取り消せません。`)) return;
+            
+            const p = getPlayerData();
+            const result = discardWeapon(p, btn.dataset.id);
             if (!result.ok) {
                 alert(result.message);
                 return;
