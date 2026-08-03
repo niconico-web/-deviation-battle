@@ -7,14 +7,14 @@
 // ============================================
 
 const ORB_TIERS = {
-    tier1: { name: "Tier1", dropRate: 0.30, statRange: [0.05, 0.10] },
-    tier2: { name: "Tier2", dropRate: 0.10, statRange: [0.10, 0.15] },
-    tier3: { name: "Tier3", dropRate: 0.075, statRange: [0.15, 0.20] },
-    tier4: { name: "Tier4", dropRate: 0.025, statRange: [0.15, 0.20] }
+    tier1: { name: "Tier1", dropRate: 0.50, statRange: [0.05, 0.10] },
+    tier2: { name: "Tier2", dropRate: 0.30, statRange: [0.10, 0.15] },
+    tier3: { name: "Tier3", dropRate: 0.15, statRange: [0.15, 0.20] },
+    tier4: { name: "Tier4", dropRate: 0.05, statRange: [0.15, 0.20] }
 };
 
 const ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
-const ORB_DROP_CHANCE = 0.50; // 50%
+const ORB_DROP_CHANCE = 0.50; // 50%（戦闘勝利時）
 
 const ORB_UNIQUE_ABILITIES = {
     life_drain: {
@@ -95,8 +95,8 @@ function createOrb(tier) {
     return orb;
 }
 
-function rollOrbDrop() {
-    if (Math.random() > ORB_DROP_CHANCE) return null;
+function rollOrbDrop(dropChance = ORB_DROP_CHANCE) {
+    if (Math.random() > dropChance) return null;
     
     const rand = Math.random();
     let cumulative = 0;
@@ -140,13 +140,10 @@ function applyOrbToWeapon(weapon, orbs) {
         totalBonus[orb.statType] += orb.bonus;
     }
     
-    // ステータス補正を適用
-    newWeapon.statBonuses = { ...weapon.statBonuses };
+    // ステータス補正を適用（既存の補正を上書きせず、オーブの補正のみを適用）
+    newWeapon.statBonuses = {}; // 新しい武器なので補正をリセット
     for (const [stat, bonus] of Object.entries(totalBonus)) {
-        if (!newWeapon.statBonuses[stat]) {
-            newWeapon.statBonuses[stat] = 0;
-        }
-        newWeapon.statBonuses[stat] += bonus;
+        newWeapon.statBonuses[stat] = bonus;
     }
     
     // ユニーク能力を適用（Tier4オーブから）
@@ -156,6 +153,8 @@ function applyOrbToWeapon(weapon, orbs) {
     
     if (uniqueAbilities.length > 0) {
         newWeapon.uniqueAbilities = uniqueAbilities;
+    } else {
+        newWeapon.uniqueAbilities = []; // ユニーク能力をリセット
     }
     
     // オーブの合計倍率を計算
@@ -165,8 +164,9 @@ function applyOrbToWeapon(weapon, orbs) {
         orbMultiplier *= tierMult;
     }
     
-    newWeapon.multiplier = (weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER) * orbMultiplier;
+    newWeapon.multiplier = ORIGINAL_WEAPON_BASE_MULTIPLIER * orbMultiplier; // 基礎倍率から再計算
     newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
+    newWeapon.upgradeCount = 0; // 強化回数をリセット
     
     return newWeapon;
 }
