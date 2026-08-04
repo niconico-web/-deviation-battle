@@ -59,6 +59,14 @@ function initialize() {
     console.log("Socket connected:", socket ? socket.connected : "N/A");
     console.log("Socket ID:", socket ? socket.id : "N/A");
 
+    // 武器補正が適用されたmaxHpに合わせて現在のHPを調整
+    if (me.hp > me.maxHp) {
+        me.hp = me.maxHp;
+    }
+    if (enemy.hp > enemy.maxHp) {
+        enemy.hp = enemy.maxHp;
+    }
+
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
     updateStats();
