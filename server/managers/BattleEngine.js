@@ -39,8 +39,8 @@ function generateQuestion(battle) {
     
     console.log(`[BattleEngine] Selected subject: ${subject}`);
     
-    // 二人のプレイヤーの学年に基づいて問題を取得
-    const question = QuestionManager.getBattleQuestion(player1.grade, player2.grade, subject);
+    // 二人のプレイヤーの学年に基づいて問題を取得（選択肢付き）
+    const question = QuestionManager.getBattleQuestionWithOptions(player1.grade, player2.grade, subject);
     
     console.log(`[BattleEngine] Question result:`, question);
     

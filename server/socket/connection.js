@@ -300,32 +300,10 @@ module.exports = function(io){
 
             }
 
-            const result = BattleEngine.executeAction(
-                battle,
-                socket.id,
-                data.action
-            );
-
-            if(!result){
-
-                socket.emit("actionError", { message: "無効㝪行動㝧�?" });
-
-                return;
-
-            }
-
-            io.to(data.roomId).emit("battleUpdate", result);
-
-            if(result.winner){
-
-                io.to(data.roomId).emit("battleFinished", {
-                    roomId: data.roomId,
-                    winner: result.winner
-                });
-
-                BattleManager.finishBattle(data.roomId);
-
-            }
+            // executeAction is not implemented in current BattleEngine
+            // This event handler may be for a different battle system
+            socket.emit("actionError", { message: "Action not implemented" });
+            return;
 
         });
 

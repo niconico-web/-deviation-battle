@@ -2,6 +2,13 @@
 // 武器システム
 // ============================================
 
+// オリジナル武器設定
+const ORIGINAL_WEAPON_COST = 30; // 作成コスト
+const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
+const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
+const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
+const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
+
 // ============================================
 // オーブシステム
 // ============================================
@@ -246,7 +253,7 @@ const WEAPON_TYPES = {
     spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp"] } },
     greatsword:   { name: "大剣",       primary: ["atk"], secondary: [], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
     dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
-    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 0.95 },
+    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 1.1 },
     pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
     katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} }
 };
@@ -310,13 +317,6 @@ const TEST_UNIQUE_WINS = 3; // テスト用に3勝に設定（本番は500に戻
 const COIN_BATTLE_WIN = 15;
 const COIN_STUDY_30MIN = 20;
 const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
-
-// オリジナル武器設定
-const ORIGINAL_WEAPON_COST = 30; // 作成コスト
-const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
-const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
-const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
-const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
 
 function getWeaponMultiplier(weapon) {
     if (!weapon) return 1;
@@ -400,19 +400,31 @@ function applyWeaponStats(baseStats, weapon) {
         // 基本倍率を取得（武器種のbonusMultは適用しない）
         let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
         
+        // カスタム補正を考慮した倍率計算
+        const statMultipliers = { atk: mult, def: mult, speed: mult, maxHp: mult };
+        
+        // カスタム補正を倍率に反映
+        if (weapon.statBonuses) {
+            for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+                if (statMultipliers[stat] !== undefined) {
+                    statMultipliers[stat] = statMultipliers[stat] * (1 + bonus);
+                }
+            }
+        }
+        
         // 武器種の設定を適用（bonusMultを除く）
         if (typeConf) {
             // プライマリステータスに倍率適用
             for (const stat of typeConf.primary) {
                 if (result[stat] !== undefined) {
-                    result[stat] = Math.floor(result[stat] * mult);
+                    result[stat] = Math.floor(result[stat] * statMultipliers[stat]);
                 }
             }
             
             // セカンダリステータスに倍率適用（0.85倍）
             for (const stat of typeConf.secondary) {
                 if (result[stat] !== undefined) {
-                    result[stat] = Math.floor(result[stat] * (mult * 0.85));
+                    result[stat] = Math.floor(result[stat] * (statMultipliers[stat] * 0.85));
                 }
             }
             
@@ -428,17 +440,15 @@ function applyWeaponStats(baseStats, weapon) {
             // 武器種がない場合は全ステータスに基本倍率適用
             for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
                 if (result[stat] !== undefined) {
-                    result[stat] = Math.floor(result[stat] * mult);
+                    result[stat] = Math.floor(result[stat] * statMultipliers[stat]);
                 }
             }
         }
         
-        // カスタム補正適用
-        if (weapon.statBonuses) {
-            for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
-                if (result[stat] !== undefined) {
-                    result[stat] = Math.floor(result[stat] * (1 + bonus));
-                }
+        // 最小値を保証（最低でも基礎ステータス以上）
+        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+            if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+                result[stat] = baseStats[stat];
             }
         }
         
@@ -457,6 +467,13 @@ function applyWeaponStats(baseStats, weapon) {
         // デバッグ武器専用のプライマリステータスに倍率適用
         for (const stat of debugBonus.primary) {
             result[stat] = Math.floor(result[stat] * mult);
+        }
+        
+        // 最小値を保証（最低でも基礎ステータス以上）
+        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+            if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+                result[stat] = baseStats[stat];
+            }
         }
         
         return result;
@@ -486,6 +503,13 @@ function applyWeaponStats(baseStats, weapon) {
             if (result[stat] !== undefined) {
                 result[stat] = Math.floor(result[stat] * debuffMult);
             }
+        }
+    }
+    
+    // 最小値を保証（最低でも基礎ステータス以上）
+    for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+        if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+            result[stat] = baseStats[stat];
         }
     }
     
