@@ -158,7 +158,9 @@ function getStatsFromPlayer(player) {
 function buildPlayer(name, stats, xp, options = {}) {
     const lv = calcLevel(xp || 0);
     const maxHp = stats.maxHp;
-    const hp = options.hp != null ? Math.min(options.hp, maxHp) : maxHp;
+    // 武器補正が適用されたmaxHpを考慮してHPを調整
+    const battleMaxHp = options.equippedWeapon ? applyWeaponStats({ maxHp }, options.equippedWeapon).maxHp : maxHp;
+    const hp = options.hp != null ? Math.min(options.hp, battleMaxHp) : battleMaxHp;
     return {
         id: options.id || generatePlayerId(),
         name,

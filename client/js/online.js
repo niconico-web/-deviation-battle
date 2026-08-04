@@ -2,8 +2,9 @@ let onlineHandlersSetup = false;
 
 function getBattleReadyPlayer(player) {
     const battleStats = getBattleStats(player);
-    // HPがmaxHpを超えないように調整
-    const adjustedHp = Math.min(player.hp || battleStats.maxHp, battleStats.maxHp);
+    // 武器補正前のHPを保存し、武器補正後のmaxHpに合わせて調整
+    const baseHp = player.hp || getStatsFromPlayer(player).maxHp;
+    const adjustedHp = Math.min(baseHp, battleStats.maxHp);
     return {
         ...player,
         ...battleStats,
