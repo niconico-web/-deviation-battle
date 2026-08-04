@@ -312,7 +312,10 @@ function getMatchPlayer() {
     const p = getPlayerData();
     if (!p) return null;
     const battleStats = getBattleStats(p);
-    return { ...p, ...battleStats, battleStats };
+    // HPがmaxHpを超えないように調整
+    const baseHp = p.hp || getStatsFromPlayer(p).maxHp;
+    const adjustedHp = Math.min(baseHp, battleStats.maxHp);
+    return { ...p, ...battleStats, hp: adjustedHp, battleStats };
 }
 
 function setupSocketEventHandlers() {

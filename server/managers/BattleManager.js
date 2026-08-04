@@ -126,6 +126,12 @@ function createBattle(roomId, host, guest){
     const hostStats = applyWeaponStats(host);
     const guestStats = applyWeaponStats(guest);
 
+    // オリジナルのHPを保持し、武器補正後のmaxHpに合わせて調整
+    const hostOriginalHp = host.hp || host.maxHp;
+    const guestOriginalHp = guest.hp || guest.maxHp;
+    const hostAdjustedHp = Math.min(hostOriginalHp, hostStats.maxHp);
+    const guestAdjustedHp = Math.min(guestOriginalHp, guestStats.maxHp);
+
     battles[roomId] = {
 
         roomId,
@@ -138,7 +144,7 @@ function createBattle(roomId, host, guest){
                 socketId: host.socketId,
                 name: host.name,
 
-                hp: hostStats.maxHp,
+                hp: hostAdjustedHp,
                 maxHp: hostStats.maxHp,
 
                 atk: hostStats.atk,
@@ -159,7 +165,7 @@ function createBattle(roomId, host, guest){
                 socketId: guest.socketId,
                 name: guest.name,
 
-                hp: guestStats.maxHp,
+                hp: guestAdjustedHp,
                 maxHp: guestStats.maxHp,
 
                 atk: guestStats.atk,
