@@ -12,137 +12,170 @@
 </head>
 <body>
 <div id="app" class="container">
-<header class="page-header">
-    <h1>School Battle</h1>
-    <p class="subtitle" id="subtitle">持ち点を振り分けて戦うオンライン対戦</p>
-</header>
+    <!-- サイドバーメニュー -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h1>School Battle</h1>
+        </div>
+        <ul class="sidebar-menu">
+            <li><button class="menu-btn active" data-section="stats">📊 ステータス</button></li>
+            <li><button class="menu-btn" data-section="weapons">⚔️ 武器</button></li>
+            <li><button class="menu-btn" data-section="timer">⏱️ タイマー</button></li>
+            <li><button class="menu-btn" data-section="battle">⚔️ バトル</button></li>
+        </ul>
+    </nav>
 
-<section class="section">
-    <label class="field-label" for="playerName" id="playerNameLabel">プレイヤー名</label>
-    <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
-</section>
+    <!-- モバイルメニューボタン -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰ メニュー</button>
 
-<section class="section">
-    <h2 id="statAllocationTitle">ステータス配分</h2>
-    <p class="stat-allocation-desc" id="statAllocationDesc">持ち点200ポイントを自由に振り分けてください。</p>
-    <p id="remainingPoints" class="remaining-points">残り持ち点：200 / 200</p>
+    <!-- メインコンテンツ -->
+    <main class="main-content">
+        <header class="page-header">
+            <h1>School Battle</h1>
+            <p class="subtitle" id="subtitle">持ち点を振り分けて戦うオンライン対戦</p>
+        </header>
 
-    <div class="stat-allocation">
-        <label>学年
-            <select id="statGrade">
-                <option value="1">小学校1年生</option>
-                <option value="2">小学校2年生</option>
-                <option value="3">小学校3年生</option>
-                <option value="4">小学校4年生</option>
-                <option value="5">小学校5年生</option>
-                <option value="6">小学校6年生</option>
-                <option value="7">中学校1年生</option>
-                <option value="8">中学校2年生</option>
-                <option value="9">中学校3年生</option>
-                <option value="10">高校1年生</option>
-                <option value="11">高校2年生</option>
-                <option value="12">高校3年生</option>
-            </select>
-        </label>
+        <!-- プレイヤー名入力（常に表示） -->
+        <section class="section">
+            <label class="field-label" for="playerName" id="playerNameLabel">プレイヤー名</label>
+            <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
+        </section>
 
-        <label>HP
-            <input id="statMaxHp" type="number" value="50" min="10" max="280">
-        </label>
+        <!-- ステータス系セクション -->
+        <div id="section-stats" class="content-section active">
+            <section class="section">
+                <h2 id="statAllocationTitle">ステータス配分</h2>
+                <p class="stat-allocation-desc" id="statAllocationDesc">持ち点200ポイントを自由に振り分けてください。</p>
+                <p id="remainingPoints" class="remaining-points">残り持ち点：200 / 200</p>
 
-        <label id="atkLabel">
-            <span id="atkLabelText">攻撃</span>
-            <input id="statAtk" type="number" value="70" min="10" max="280">
-        </label>
+                <div class="stat-allocation">
+                    <label>学年
+                        <select id="statGrade">
+                            <option value="1">小学校1年生</option>
+                            <option value="2">小学校2年生</option>
+                            <option value="3">小学校3年生</option>
+                            <option value="4">小学校4年生</option>
+                            <option value="5">小学校5年生</option>
+                            <option value="6">小学校6年生</option>
+                            <option value="7">中学校1年生</option>
+                            <option value="8">中学校2年生</option>
+                            <option value="9">中学校3年生</option>
+                            <option value="10">高校1年生</option>
+                            <option value="11">高校2年生</option>
+                            <option value="12">高校3年生</option>
+                        </select>
+                    </label>
 
-        <label id="defLabel">
-            <span id="defLabelText">防御</span>
-            <input id="statDef" type="number" value="50" min="10" max="280">
-        </label>
+                    <label>HP
+                        <input id="statMaxHp" type="number" value="50" min="10" max="280">
+                    </label>
 
-        <label id="speedLabel">
-            <span id="speedLabelText">速さ</span>
-            <input id="statSpeed" type="number" value="30" min="10" max="280">
-        </label>
-    </div>
+                    <label id="atkLabel">
+                        <span id="atkLabelText">攻撃</span>
+                        <input id="statAtk" type="number" value="70" min="10" max="280">
+                    </label>
 
-    <button type="button" class="btn btn-primary" id="createCharBtn" onclick="createCharacter()">キャラクター作成</button>
-</section>
+                    <label id="defLabel">
+                        <span id="defLabelText">防御</span>
+                        <input id="statDef" type="number" value="50" min="10" max="280">
+                    </label>
 
-<section class="study-section section">
-    <h2 id="studyTimerTitle">勉強タイマー</h2>
+                    <label id="speedLabel">
+                        <span id="speedLabelText">速さ</span>
+                        <input id="statSpeed" type="number" value="30" min="10" max="280">
+                    </label>
+                </div>
 
-    <p class="study-desc" id="studyDesc">勉強時間が長いほど経験値が増えます。1分ごとに選んだステータスが1ポイント上昇します。</p>
+                <button type="button" class="btn btn-primary" id="createCharBtn" onclick="createCharacter()">キャラクター作成</button>
+            </section>
 
-    <label class="field-label" for="studyFocus" id="studyFocusLabel">強化するステータス</label>
+            <section id="status" class="status-section"></section>
+            <section id="xpDisplay" class="xp-section"></section>
+        </div>
 
-    <select id="studyFocus">
-        <option value="jp" id="jpOpt">国語（HP・防御）</option>
-        <option value="math" id="mathOpt">算数・数学（攻撃・速さ）</option>
-        <option value="eng" id="engOpt">英語（防御・速さ）</option>
-        <option value="sci" id="sciOpt">理科（攻撃・HP）</option>
-        <option value="soc" id="socOpt">社会（HP・防御）</option>
-    </select>
+        <!-- 武器系セクション -->
+        <div id="section-weapons" class="content-section">
+            <section class="shop-section section">
+                <h2>武器ショップ</h2>
+                <p id="coinDisplay" class="coin-display">所持コイン: 0</p>
+                <p class="shop-desc">バトル勝利で15コイン、30分以上の勉強で20コイン獲得できます。</p>
+                <div id="shopList" class="shop-list"></div>
+                <button type="button" class="btn" id="refreshShop">更新</button>
+            </section>
 
-    <div id="studyTimer" class="study-timer">00:00:00</div>
+            <section class="inventory-section section">
+                <h2>所持武器</h2>
+                <div id="inventoryList" class="inventory-list"></div>
+            </section>
 
-    <button type="button" class="btn" id="studyStart" onclick="startStudy()">勉強開始</button>
-    <button type="button" class="btn" id="studyStop" onclick="stopStudy()" disabled>勉強終了</button>
-</section>
+            <section class="quest-section section">
+                <h2>オリジナル武器</h2>
+                <p class="quest-desc">30コインとオーブでオリジナル武器を作成できます。オーブの補正が武器に反映されます。</p>
+                <div id="originalWeaponSection">
+                    <button type="button" class="btn" id="createOriginalWeaponBtn">オリジナル武器作成 (30コイン)</button>
+                    <div id="originalWeaponList" class="quest-list"></div>
+                </div>
+            </section>
 
-<section id="status" class="status-section"></section>
-<section id="xpDisplay" class="xp-section"></section>
+            <section class="inventory-section section">
+                <h2>オーブ</h2>
+                <p class="quest-desc">勉強タイマーを25分以上使用するか、戦闘で勝利するとオーブがドロップすることがあります。</p>
+                <div id="orbInventory" class="inventory-list"></div>
+            </section>
+        </div>
 
-<section class="shop-section section">
-    <h2>武器ショップ</h2>
-    <p id="coinDisplay" class="coin-display">所持コイン: 0</p>
-    <p class="shop-desc">バトル勝利で15コイン、30分以上の勉強で20コイン獲得できます。</p>
-    <div id="shopList" class="shop-list"></div>
-    <button type="button" class="btn" id="refreshShop">更新</button>
-</section>
+        <!-- タイマー系セクション -->
+        <div id="section-timer" class="content-section">
+            <section class="study-section section">
+                <h2 id="studyTimerTitle">勉強タイマー</h2>
 
-<section class="inventory-section section">
-    <h2>所持武器</h2>
-    <div id="inventoryList" class="inventory-list"></div>
-</section>
+                <p class="study-desc" id="studyDesc">勉強時間が長いほど経験値が増えます。1分ごとに選んだステータスが1ポイント上昇します。</p>
 
-<section class="quest-section section">
-    <h2>オリジナル武器</h2>
-    <p class="quest-desc">30コインとオーブでオリジナル武器を作成できます。オーブの補正が武器に反映されます。</p>
-    <div id="originalWeaponSection">
-        <button type="button" class="btn" id="createOriginalWeaponBtn">オリジナル武器作成 (30コイン)</button>
-        <div id="originalWeaponList" class="quest-list"></div>
-    </div>
-</section>
+                <label class="field-label" for="studyFocus" id="studyFocusLabel">強化するステータス</label>
 
-<section class="inventory-section section">
-    <h2>オーブ</h2>
-    <p class="quest-desc">勉強タイマーを25分以上使用するか、戦闘で勝利するとオーブがドロップすることがあります。</p>
-    <div id="orbInventory" class="inventory-list"></div>
-</section>
+                <select id="studyFocus">
+                    <option value="jp" id="jpOpt">国語（HP・防御）</option>
+                    <option value="math" id="mathOpt">算数・数学（攻撃・速さ）</option>
+                    <option value="eng" id="engOpt">英語（防御・速さ）</option>
+                    <option value="sci" id="sciOpt">理科（攻撃・HP）</option>
+                    <option value="soc" id="socOpt">社会（HP・防御）</option>
+                </select>
 
-<section class="online-section section">
-    <h2 id="onlineTitle">オンライン対戦</h2>
+                <div id="studyTimer" class="study-timer">00:00:00</div>
 
-    <button type="button" class="btn" id="randomMatch">ランダムマッチ（開発中なので安定しません）</button>
+                <button type="button" class="btn" id="studyStart" onclick="startStudy()">勉強開始</button>
+                <button type="button" class="btn" id="studyStop" onclick="stopStudy()" disabled>勉強終了</button>
+            </section>
+        </div>
 
-    <button type="button" class="btn" id="botMatch">ボット対戦（練習用）</button>
+        <!-- バトル系セクション -->
+        <div id="section-battle" class="content-section">
+            <section class="online-section section">
+                <h2 id="onlineTitle">オンライン対戦</h2>
 
-    <p style="color: #aaa; font-size: 0.9rem; margin-top: 10px;">
-        ランダムマッチ・ルームマッチ・ボット対戦が利用できます。
-    </p>
+                <button type="button" class="btn" id="randomMatch">ランダムマッチ（開発中なので安定しません）</button>
 
-    <button type="button" class="btn" id="createRoom">ルーム作成</button>
+                <button type="button" class="btn" id="botMatch">ボット対戦（練習用）</button>
 
-    <div id="joinSection">
-        <label for="roomInput" id="roomCodeLabel">ルームコード</label>
-        <input id="roomInput" type="text" placeholder="6桁のコード" maxlength="6">
-        <button type="button" class="btn" id="joinRoom">ルーム参加</button>
-    </div>
-</section>
+                <p style="color: #aaa; font-size: 0.9rem; margin-top: 10px;">
+                    ランダムマッチ・ルームマッチ・ボット対戦が利用できます。
+                </p>
 
-<section id="playerDataSection" class="player-data-section">
-    <button type="button" class="btn btn-danger" id="deletePlayerBtn" onclick="deletePlayer()">プレイヤー削除</button>
-</section>
+                <button type="button" class="btn" id="createRoom">ルーム作成</button>
+
+                <div id="joinSection">
+                    <label for="roomInput" id="roomCodeLabel">ルームコード</label>
+                    <input id="roomInput" type="text" placeholder="6桁のコード" maxlength="6">
+                    <button type="button" class="btn" id="joinRoom">ルーム参加</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- プレイヤー削除（常に表示） -->
+        <section id="playerDataSection" class="player-data-section">
+            <button type="button" class="btn btn-danger" id="deletePlayerBtn" onclick="deletePlayer()">プレイヤー削除</button>
+        </section>
+    </main>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>

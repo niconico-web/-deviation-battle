@@ -291,13 +291,37 @@ function renderOrbInventory() {
             abilityInfo = `<div class="orb-unique-ability">★${orb.uniqueAbility.name}★</div>`;
         }
         
+        const orbIndex = orbs.indexOf(orb);
+        
         item.innerHTML =
             `<div class="inventory-item-info">
                 <strong>${orbName}</strong>
                 ${abilityInfo}
-            </div>`;
+            </div>
+            <button class="btn btn-danger" onclick="discardOrb(${orbIndex})">捨てる</button>`;
         
         container.appendChild(item);
+    }
+}
+
+function discardOrb(orbIndex) {
+    const player = getPlayerData();
+    if (!player) return;
+    
+    if (!player.orbs || orbIndex < 0 || orbIndex >= player.orbs.length) {
+        alert("無効なオーブです");
+        return;
+    }
+    
+    const orb = player.orbs[orbIndex];
+    const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "不明なオーブ";
+    
+    if (confirm(`${orbName} を捨てますか？この操作は取り消せません。`)) {
+        player.orbs.splice(orbIndex, 1);
+        localStorage.setItem("player", JSON.stringify(player));
+        renderOrbInventory();
+        updateStatus(player);
+        alert(`${orbName} を捨てました`);
     }
 }
 
