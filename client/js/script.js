@@ -312,10 +312,8 @@ function getMatchPlayer() {
     const p = getPlayerData();
     if (!p) return null;
     const battleStats = getBattleStats(p);
-    // HPがmaxHpを超えないように調整
-    const baseHp = p.hp || getStatsFromPlayer(p).maxHp;
-    const adjustedHp = Math.min(baseHp, battleStats.maxHp);
-    return { ...p, ...battleStats, hp: adjustedHp, battleStats };
+    // 武器補正後のmaxHpをHPとして設定（常にフルHPで開始）
+    return { ...p, ...battleStats, hp: battleStats.maxHp, battleStats };
 }
 
 function setupSocketEventHandlers() {
@@ -325,14 +323,6 @@ function setupSocketEventHandlers() {
     window.socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
     window.socket.on("joinFailed", () => alert(I18N.roomNotFound));
     window.socket.on("roomReady", data => {
-        // HPがmaxHpを超えている場合に修正
-        if (data.me.hp > data.me.maxHp) {
-            data.me.hp = data.me.maxHp;
-        }
-        if (data.enemy.hp > data.enemy.maxHp) {
-            data.enemy.hp = data.enemy.maxHp;
-        }
-        
         localStorage.setItem("roomId", data.roomId);
         localStorage.setItem("battlePlayer", JSON.stringify(data.me));
         localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -341,15 +331,6 @@ function setupSocketEventHandlers() {
     });
     window.socket.on("matchFound", data => {
         if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
-        
-        // HPがmaxHpを超えている場合に修正
-        if (data.me.hp > data.me.maxHp) {
-            data.me.hp = data.me.maxHp;
-        }
-        if (data.enemy.hp > data.enemy.maxHp) {
-            data.enemy.hp = data.enemy.maxHp;
-        }
-        
         localStorage.setItem("roomId", data.roomId);
         localStorage.setItem("battlePlayer", JSON.stringify(data.me));
         localStorage.setItem("enemy", JSON.stringify(data.enemy));

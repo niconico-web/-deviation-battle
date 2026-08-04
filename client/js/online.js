@@ -2,13 +2,11 @@ let onlineHandlersSetup = false;
 
 function getBattleReadyPlayer(player) {
     const battleStats = getBattleStats(player);
-    // 武器補正前のHPを保存し、武器補正後のmaxHpに合わせて調整
-    const baseHp = player.hp || getStatsFromPlayer(player).maxHp;
-    const adjustedHp = Math.min(baseHp, battleStats.maxHp);
+    // 武器補正後のmaxHpをHPとして設定（常にフルHPで開始）
     return {
         ...player,
         ...battleStats,
-        hp: adjustedHp,
+        hp: battleStats.maxHp,
         battleStats
     };
 }
@@ -70,14 +68,6 @@ function setupOnlineEventHandlers() {
             };
 
             const battlePlayer = getBattleReadyPlayer(player);
-
-            // HPがmaxHpを超えている場合に修正
-            if (battlePlayer.hp > battlePlayer.maxHp) {
-                battlePlayer.hp = battlePlayer.maxHp;
-            }
-            if (botPlayer.hp > botPlayer.maxHp) {
-                botPlayer.hp = botPlayer.maxHp;
-            }
 
             localStorage.setItem("roomId", "bot_battle_" + Date.now());
             localStorage.setItem("battlePlayer", JSON.stringify(battlePlayer));

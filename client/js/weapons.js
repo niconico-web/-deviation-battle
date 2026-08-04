@@ -566,7 +566,14 @@ function buyWeapon(player, type, tier) {
 function equipWeapon(player, weaponId) {
     const weapon = (player.weapons || []).find(w => w.id === weaponId);
     if (!weapon) return { ok: false, message: "武器を所持していません" };
-    return { ok: true, player: { ...player, equippedWeapon: weapon } };
+    
+    // 武器装備時にHPを調整
+    const baseStats = getStatsFromPlayer(player);
+    const newStats = applyWeaponStats(baseStats, weapon);
+    const hpRatio = player.hp / player.maxHp;
+    const newHp = Math.floor(newStats.maxHp * hpRatio);
+    
+    return { ok: true, player: { ...player, equippedWeapon: weapon, hp: newHp } };
 }
 
 function unequipWeapon(player) {
