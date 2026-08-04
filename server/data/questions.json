@@ -65,7 +65,7 @@
         { "question": "「あ」から始まる言葉は？", "answer": "あめ" },
         { "question": "「か」から始まる言葉は？", "answer": "かさ" },
         { "question": "「さ」から始まる言葉は？", "answer": "さくら" }
-      ],
+      ]
     },
     "2": {
       "math": [
@@ -132,7 +132,7 @@
         { "question": "岩のひらがなは？", "answer": "いわ" },
         { "question": "「赤」の反対語は？", "answer": "青" },
         { "question": "「白」の反対語は？", "answer": "黒" }
-      ],
+      ]
     },
     "3": {
       "math": [
@@ -199,7 +199,7 @@
         { "question": "「簡単」の反対語は？", "answer": "難しい" },
         { "question": "「正しい」の反対語は？", "answer": "間違っている" },
         { "question": "「豊か」の反対語は？", "answer": "貧しい" }
-      ],
+      ]
     },
     "4": {
       "math": [
@@ -267,7 +267,7 @@
         { "question": "「明日」の次は？", "answer": "明後日" },
         { "question": "「去年」の次は？", "answer": "今年" },
         { "question": "「今年」の次は？", "answer": "来年" }
-      ],
+      ]
     },
     "5": {
       "math": [
@@ -332,7 +332,7 @@
         { "question": "「買う」の漢字で「か」と読む漢字は？", "answer": "買" },
         { "question": "「売る」の漢字で「う」と読む漢字は？", "answer": "売" },
         { "question": "「作る」の漢字で「つく」と読む漢字は？", "answer": "作" }
-      ],
+      ]
     },
     "6": {
       "math": [
@@ -398,7 +398,7 @@
         { "question": "「安全」の意味は？", "answer": "危なくない" },
         { "question": "「危険」の意味は？", "answer": "危ない" },
         { "question": "「正しい」の意味は？", "answer": "間違っていない" }
-      ],
+      ]
     }
   },
   "junior_high": {
@@ -468,7 +468,7 @@
         { "question": "嫌いの英語は？", "answer": "hate" },
         { "question": "赤の英語は？", "answer": "red" },
         { "question": "青の英語は？", "answer": "blue" }
-      ],
+      ]
     },
     "2": {
       "math": [
@@ -533,7 +533,7 @@
         { "question": "立つの過去形は？", "answer": "stood" },
         { "question": "知るの過去形は？", "answer": "knew" },
         { "question": "知るの過去分詞は？", "answer": "known" }
-      ],
+      ]
     },
     "3": {
       "math": [
@@ -659,12 +659,12 @@
         { "question": "I have finished my homeworkの完了形は？", "answer": "havefinished" },
         { "question": "He will go to schoolの未来形は？", "answer": "willgo" },
         { "question": "The book is written by meの能動態は？", "answer": "Iwritethebook" },
-        { "question": "The cake was eaten by himの能動態は？", "answer": "Heatethecake" }
+        { "question": "The cake was eaten by himの能動態は？", "answer": "Heatethecake" },
         { "question": "最上級の作り方は？", "answer": "形容詞+est" },
         { "question": "助動詞の過去形は？", "answer": "could,would,shouldなど" },
         { "question": "andは何詞？", "answer": "接続詞" },
         { "question": "inは何詞？", "answer": "前置詞" },
-        { "question": "theは何詞？", "answer": "冠詞" }
+        { "question": "theは何詞？", "answer": "冠詞" },
         { "question": "現在完了進行形の形は？", "answer": "havebeen+ing" },
         { "question": "過去完了形の形は？", "answer": "had+pp" },
         { "question": "未来完了形の形は？", "answer": "willhave+pp" },
@@ -677,7 +677,7 @@
         { "question": "The man who is runningのwhoは？", "answer": "関係代名詞主格" },
         { "question": "The book which I readのwhichは？", "answer": "関係代名詞目的格" },
         { "question": "Whose pen is thisのwhoseは？", "answer": "関係代名詞所有格" }
-      ],
+      ]
     },
     "2": {
       "math": [
@@ -758,7 +758,7 @@
         { "question": "The broken windowのbrokenは？", "answer": "過去分詞" },
         { "question": "Swimming is funのSwimmingは？", "answer": "動名詞" },
         { "question": "I made him goのgoは？", "answer": "原形不定詞" }
-      ],
+      ]
     },
     "3": {
       "math": [
@@ -825,7 +825,7 @@
         { "question": "If I had known I would have goneは？", "answer": "仮定法過去完了" },
         { "question": "The house in which I liveのin whichは？", "answer": "関係詞継続用法" },
         { "question": "Tom who is my friendのwhoは？", "answer": "非制限用法" }
-      ],
+      ]
     }
   }
 }
