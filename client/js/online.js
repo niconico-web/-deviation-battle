@@ -2,9 +2,12 @@ let onlineHandlersSetup = false;
 
 function getBattleReadyPlayer(player) {
     const battleStats = getBattleStats(player);
+    // HPがmaxHpを超えないように調整
+    const adjustedHp = Math.min(player.hp || battleStats.maxHp, battleStats.maxHp);
     return {
         ...player,
         ...battleStats,
+        hp: adjustedHp,
         battleStats
     };
 }
@@ -66,6 +69,14 @@ function setupOnlineEventHandlers() {
             };
 
             const battlePlayer = getBattleReadyPlayer(player);
+
+            // HPがmaxHpを超えている場合に修正
+            if (battlePlayer.hp > battlePlayer.maxHp) {
+                battlePlayer.hp = battlePlayer.maxHp;
+            }
+            if (botPlayer.hp > botPlayer.maxHp) {
+                botPlayer.hp = botPlayer.maxHp;
+            }
 
             localStorage.setItem("roomId", "bot_battle_" + Date.now());
             localStorage.setItem("battlePlayer", JSON.stringify(battlePlayer));

@@ -669,6 +669,10 @@ select {
     }
 
     .content-section {
+        display: none;
+    }
+
+    .content-section.active {
         display: block;
     }
 
