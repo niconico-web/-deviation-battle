@@ -60,6 +60,7 @@ function initialize() {
     console.log("Socket ID:", socket ? socket.id : "N/A");
 
     // 武器補正が適用されたmaxHpに合わせて現在のHPを調整
+    // 武器による補正が減少する場合でもHPはmaxHpを超えないようにする
     if (me.hp > me.maxHp) {
         me.hp = me.maxHp;
     }
