@@ -587,6 +587,12 @@ function lockStatInputs(locked) {
     if (gradeSelect) {
         gradeSelect.disabled = locked;
     }
+    // Lock player name input
+    const playerNameInput = document.getElementById("playerName");
+    if (playerNameInput) {
+        playerNameInput.disabled = locked;
+        playerNameInput.readOnly = locked;
+    }
     const createBtn = document.getElementById("createCharBtn");
     if (createBtn) {
         createBtn.disabled = locked;
