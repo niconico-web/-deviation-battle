@@ -34,6 +34,17 @@ function statLabel(k, v) {
     return I18N[k] + I18N.colon + v;
 }
 
+function getSubjectDisplayName(subject) {
+    const subjectNames = {
+        'math': '算数・数学',
+        'jp': '国語',
+        'english': '英語',
+        'science': '理科',
+        'social': '社会'
+    };
+    return subjectNames[subject] || subject;
+}
+
 function initialize() {
     if (!me || !enemy) {
         alert(I18N.noBattleData);
@@ -475,12 +486,12 @@ function generateBotQuestion() {
     }
     
     const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
-    currentQuestion = { ...randomQuestion, id: Date.now(), subject: subject };
+    currentQuestion = { ...randomQuestion, id: Date.now(), subject: subject, subjectDisplayName: getSubjectDisplayName(subject) };
 
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
         startTimer();
-        addLog("問題が出されました！（" + subject.toUpperCase() + "）");
+        addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
         answerInput.disabled = false;
         submitAnswerBtn.disabled = false;
         answerInput.focus();
@@ -806,7 +817,8 @@ if (!isBotBattle && socket) {
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
             startTimer();
-            addLog("問題が出されました！" + (currentQuestion.subject ? "（" + currentQuestion.subject.toUpperCase() + "）" : ""));
+            const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+            addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
             answerInput.disabled = false;
             submitAnswerBtn.disabled = false;
             answerInput.focus();
@@ -866,10 +878,11 @@ if (!isBotBattle && socket) {
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
                 startTimer();
+                const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
                 answerInput.disabled = false;
                 submitAnswerBtn.disabled = false;
                 answerInput.focus();
-                addLog("次の問題！");
+                addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
             });
         }
         

@@ -196,11 +196,24 @@ function updateStudyTimerDisplay() {
 // Map subjects to the 2 stats they strengthen
 const SUBJECT_STATS = {
     jp: ["maxHp", "def"],     // 国語 → HP・防御
-    math: ["atk", "speed"],   // 数学 → 攻撃・速さ
+    math: ["atk", "speed"],   // 算数・数学 → 攻撃・速さ
     eng: ["def", "speed"],    // 英語 → 防御・速さ
     sci: ["atk", "maxHp"],    // 理科 → 攻撃・HP
     soc: ["maxHp", "def"]     // 社会 → HP・防御
 };
+
+// Subject display names
+const SUBJECT_DISPLAY_NAMES = {
+    jp: "国語",
+    math: "算数・数学",
+    eng: "英語",
+    sci: "理科",
+    soc: "社会"
+};
+
+function getSubjectDisplayName(subject) {
+    return SUBJECT_DISPLAY_NAMES[subject] || subject;
+}
 
 // Display stat growth info based on selected subject
 function updateStatGrowthInfo() {
