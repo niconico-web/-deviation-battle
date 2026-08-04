@@ -6,6 +6,20 @@ const TOTAL_STAT_POINTS = 200;
 const MIN_STAT = 10;
 const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30 };
 
+function getSubjectDisplayName(subject) {
+    const subjectNames = {
+        'math': '算数・数学',
+        'jp': '国語',
+        'english': '英語',
+        'eng': '英語',
+        'science': '理科',
+        'sci': '理科',
+        'social': '社会',
+        'soc': '社会'
+    };
+    return subjectNames[subject] || subject;
+}
+
 function sumStats(stats) {
     return STAT_KEYS.reduce((sum, key) => sum + stats[key], 0);
 }

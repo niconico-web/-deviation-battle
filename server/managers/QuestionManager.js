@@ -116,11 +116,26 @@ function checkAnswer(question, userAnswer) {
     return normalizedCorrect === normalizedUser;
 }
 
+// -----------------------------
+// 教科名を日本語に変換
+// -----------------------------
+function getSubjectDisplayName(subject) {
+    const subjectNames = {
+        'math': '算数・数学',
+        'jp': '国語',
+        'english': '英語',
+        'science': '理科',
+        'social': '社会'
+    };
+    return subjectNames[subject] || subject;
+}
+
 module.exports = {
     loadQuestions,
     getQuestions,
     getRandomQuestion,
     determineQuestionLevel,
     getBattleQuestion,
-    checkAnswer
+    checkAnswer,
+    getSubjectDisplayName
 };

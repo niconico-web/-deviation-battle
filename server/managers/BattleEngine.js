@@ -52,6 +52,7 @@ function generateQuestion(battle) {
             question: "1 + 1 = ?",
             answer: "2",
             subject: subject,
+            subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
             startTime: Date.now()
         };
         
@@ -67,6 +68,7 @@ function generateQuestion(battle) {
     battle.currentQuestion = {
         ...question,
         subject: subject,
+        subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
         startTime: Date.now()
     };
     
