@@ -114,12 +114,14 @@ function startOnlineBattle() {
 function updateStats() {
     myAtk.textContent = statLabel("atk", me.atk);
     myDef.textContent = statLabel("def", me.def);
-    mySpeed.textContent = statLabel("speed", me.speed);
+    const myDodgeChance = Math.min(45, Math.floor((me.speed || 0) * 0.5));
+    mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
     myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
     
     enemyAtk.textContent = statLabel("atk", enemy.atk);
     enemyDef.textContent = statLabel("def", enemy.def);
-    enemySpeed.textContent = statLabel("speed", enemy.speed);
+    const enemyDodgeChance = Math.min(45, Math.floor((enemy.speed || 0) * 0.5));
+    enemySpeed.textContent = statLabel("speed", enemy.speed) + ` (回避${enemyDodgeChance}%)`;
     enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
 }
 
@@ -900,6 +902,17 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(enemyDef * 0.1);
         let damage = Math.max(1, Math.floor(me.atk * 0.5) - defReduction);
         
+        // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
+        const mySpeed = me.speed || 0;
+        const dodgeChance = Math.min(45, mySpeed * 0.5); // 最大45%回避
+        
+        // 45%を超える分は攻撃ボーナスに変換
+        if (mySpeed > 90) {
+            const excessSpeed = mySpeed - 90;
+            const attackBonus = Math.floor(excessSpeed * 0.1); // 超過分の10%を攻撃ボーナス
+            damage += attackBonus;
+        }
+        
         // 必殺（20%の確率でダメージ1.5倍）
         if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
             const hasCritical = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "critical_damage");
@@ -909,14 +922,22 @@ function handleBotAnswer(userAnswer) {
             }
         }
         
-        enemy.hp = Math.max(0, enemy.hp - damage);
-        showDamage("enemyDamage", damage);
-        addLog("ボットにダメージ: " + damage);
+        // 回避判定（敵の回避率）
+        const enemyDodgeChance = Math.min(45, enemySpeed * 0.5);
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < enemyDodgeChance) {
+            showDamage("enemyDamage", 0);
+            addLog("回避！ダメージなし");
+        } else {
+            enemy.hp = Math.max(0, enemy.hp - damage);
+            showDamage("enemyDamage", damage);
+            addLog("ボットにダメージ: " + damage);
+        }
         
         // ライフドレイン（与えたダメージの20%分回復）
         if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
             const hasLifeDrain = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "life_drain");
-            if (hasLifeDrain) {
+            if (hasLifeDrain && damage > 0) {
                 const healAmount = Math.floor(damage * 0.2);
                 me.hp = Math.min(me.maxHp, me.hp + healAmount);
                 addLog("ライフドレイン発動！" + healAmount + "回復");
@@ -937,8 +958,8 @@ function handleBotAnswer(userAnswer) {
         
         // プイヤーが不正解の場合、ボットが回答するチャンス
         setTimeout(() => {
-            const botAnswerTime = Math.random() * 3000 + 1000;
-            const botIsCorrect = Math.random() > 0.3;
+            const botAnswerTime = Math.random() * 2000 + 500; // 0.5-2.5秒に短縮
+            const botIsCorrect = Math.random() > 0.15; // 正解率を85%に向上
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
@@ -957,6 +978,17 @@ function handleBotAnswer(userAnswer) {
                 const defReduction = Math.floor(myDef * 0.1);
                 let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
                 
+                // 素早さによる補正（ボット側）
+                const enemySpeed = enemy.speed || 0;
+                const enemyDodgeChance = Math.min(45, enemySpeed * 0.5);
+                
+                // 45%を超える分は攻撃ボーナスに変換
+                if (enemySpeed > 90) {
+                    const excessSpeed = enemySpeed - 90;
+                    const attackBonus = Math.floor(excessSpeed * 0.1);
+                    damage += attackBonus;
+                }
+                
                 // 鉄壁適用
                 if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
                     const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
@@ -966,9 +998,18 @@ function handleBotAnswer(userAnswer) {
                     }
                 }
                 
-                me.hp = Math.max(0, me.hp - damage);
-                showDamage("myDamage", damage);
-                addLog("ボットからのダメージ: " + damage);
+                // 回避判定（プレイヤーの回避率）
+                const mySpeed = me.speed || 0;
+                const myDodgeChance = Math.min(45, mySpeed * 0.5);
+                const dodgeRoll = Math.random() * 100;
+                if (dodgeRoll < myDodgeChance) {
+                    showDamage("myDamage", 0);
+                    addLog("回避！ダメージなし");
+                } else {
+                    me.hp = Math.max(0, me.hp - damage);
+                    showDamage("myDamage", damage);
+                    addLog("ボットからのダメージ: " + damage);
+                }
                 
                 updateHP();
                 
@@ -1058,20 +1099,20 @@ function syncBattleState(players) {
     const enemyId = playerIds.find(id => id !== me.id);
     const enemyData = players[enemyId];
     
-    if (myData) {
-        Object.assign(me, myData);
+    // HPのみを同期（他のステータスはローカルの値を維持）
+    if (myData && myData.hp !== undefined) {
+        me.hp = myData.hp;
     }
-    if (enemyData) {
-        Object.assign(enemy, enemyData);
+    if (enemyData && enemyData.hp !== undefined) {
+        enemy.hp = enemyData.hp;
     }
     
-    console.log("Synced me:", me);
-    console.log("Synced enemy:", enemy);
+    console.log("Synced me.hp:", me.hp);
+    console.log("Synced enemy.hp:", enemy.hp);
     
     localStorage.setItem("battlePlayer", JSON.stringify(me));
     localStorage.setItem("enemy", JSON.stringify(enemy));
     updateHP();
-    updateStats();
 }
 
 function finishBattle(winner) {
@@ -1184,7 +1225,10 @@ if (!isBotBattle && socket) {
         if (isMyAnswer) {
             if (data.isCorrect) {
                 addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-                if (data.firstCorrect) {
+                if (data.dodged) {
+                    addLog("相手が回避！ダメージなし");
+                    showDamage("enemyDamage", 0);
+                } else if (data.firstCorrect) {
                     addLog("先答！ダメージ: " + data.damage);
                     showDamage("enemyDamage", data.damage);
                 } else {
@@ -1192,7 +1236,10 @@ if (!isBotBattle && socket) {
                 }
             } else {
                 addLog("不正解...");
-                if (data.wrongAnswer && data.damage) {
+                if (data.dodged) {
+                    addLog("回避！ダメージなし");
+                    showDamage("myDamage", 0);
+                } else if (data.wrongAnswer && data.damage) {
                     addLog("ダメージを受けた: " + data.damage);
                     showDamage("myDamage", data.damage);
                 }
@@ -1200,13 +1247,19 @@ if (!isBotBattle && socket) {
         } else {
             if (data.isCorrect) {
                 addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-                if (data.firstCorrect) {
+                if (data.dodged) {
+                    addLog("回避！ダメージなし");
+                    showDamage("myDamage", 0);
+                } else if (data.firstCorrect) {
                     addLog("相手が先答！ダメージ: " + data.damage);
                     showDamage("myDamage", data.damage);
                 }
             } else {
                 addLog(enemy.name + "は不正解...");
-                if (data.wrongAnswer && data.damage) {
+                if (data.dodged) {
+                    addLog(enemy.name + "が回避！ダメージなし");
+                    showDamage("enemyDamage", 0);
+                } else if (data.wrongAnswer && data.damage) {
                     addLog(enemy.name + "がダメージを受けた: " + data.damage);
                     showDamage("enemyDamage", data.damage);
                 }

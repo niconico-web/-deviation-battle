@@ -335,6 +335,48 @@ function setupSocketEventHandlers() {
 }
 
 function setupDOMEventHandlers() {
+    // モバイルメニュートグル
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (mobileMenuToggle && sidebar) {
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+        
+        // メニュー外をクリックしたら閉じる
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        });
+    }
+
+    // サイドバーメニューのイベントハンドラー
+    const menuButtons = document.querySelectorAll('.menu-btn');
+    menuButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const section = button.dataset.section;
+            if (section) {
+                // 全てのメニューボタンとセクションのactiveクラスを削除
+                menuButtons.forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+                
+                // クリックされたボタンと対応するセクションにactiveクラスを追加
+                button.classList.add('active');
+                const targetSection = document.getElementById(`section-${section}`);
+                if (targetSection) {
+                    targetSection.classList.add('active');
+                }
+                
+                // モバイルの場合はメニューを閉じる
+                if (window.innerWidth < 768) {
+                    sidebar.classList.remove('active');
+                }
+            }
+        });
+    });
+
     const deleteBtn = document.getElementById("deletePlayerBtn");
     if (deleteBtn) {
         deleteBtn.onclick = () => {

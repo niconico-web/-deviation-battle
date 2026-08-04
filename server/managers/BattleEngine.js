@@ -95,9 +95,16 @@ function calculateDamage(attacker, answerTimeMs) {
     const timePenalty = Math.floor(answerTimeSeconds * TIME_PENALTY_PER_SECOND);
     damage = Math.max(1, damage - timePenalty);
     
-    // 速さによるボーナス
-    const speedBonus = Math.floor(attacker.speed * SPEED_BONUS_MULTIPLIER);
-    damage += speedBonus;
+    // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
+    const speed = attacker.speed || 0;
+    const dodgeChance = Math.min(45, speed * 0.5); // 最大45%回避
+    
+    // 45%を超える分は攻撃ボーナスに変換
+    if (speed > 90) {
+        const excessSpeed = speed - 90;
+        const attackBonus = Math.floor(excessSpeed * 0.1); // 超過分の10%を攻撃ボーナス
+        damage += attackBonus;
+    }
     
     // ランダム要素（±5）
     damage += randomRange(-5, 5);
@@ -105,7 +112,10 @@ function calculateDamage(attacker, answerTimeMs) {
     // 最小ダメージ保証
     damage = Math.max(1, damage);
     
-    return damage;
+    return {
+        damage,
+        dodgeChance
+    };
 }
 
 // -----------------------------
@@ -141,12 +151,22 @@ function processAnswer(battle, playerId, answer) {
         
         // 先に正解した場合のみダメージを与える
         if (!enemy.answerTime) {
-            const damage = calculateDamage(player, answerTime);
-            enemy.hp = Math.max(0, enemy.hp - damage);
+            const damageResult = calculateDamage(player, answerTime);
+            const damage = damageResult.damage;
+            const dodgeChance = damageResult.dodgeChance;
             
-            result.damage = damage;
-            result.enemyHp = enemy.hp;
-            result.firstCorrect = true;
+            // 回避判定
+            const dodgeRoll = Math.random() * 100;
+            if (dodgeRoll < dodgeChance) {
+                result.damage = 0;
+                result.dodged = true;
+                result.dodgeChance = dodgeChance;
+            } else {
+                enemy.hp = Math.max(0, enemy.hp - damage);
+                result.damage = damage;
+                result.enemyHp = enemy.hp;
+                result.firstCorrect = true;
+            }
             
             // 勝利判定
             if (enemy.hp <= 0) {
@@ -163,13 +183,23 @@ function processAnswer(battle, playerId, answer) {
         }
     } else {
         // 不正解の場合 - 間違えた方がダメージを受ける
-        const damage = calculateDamage(enemy, 0); // 相手の攻撃力でダメージ計算
-        player.hp = Math.max(0, player.hp - damage);
+        const damageResult = calculateDamage(enemy, 0);
+        const damage = damageResult.damage;
+        const dodgeChance = damageResult.dodgeChance;
         
-        result.damage = damage;
-        result.playerHp = player.hp;
-        result.firstCorrect = false;
-        result.wrongAnswer = true;
+        // 回避判定
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            player.hp = Math.max(0, player.hp - damage);
+            result.damage = damage;
+            result.playerHp = player.hp;
+            result.firstCorrect = false;
+            result.wrongAnswer = true;
+        }
         
         // 勝利判定
         if (player.hp <= 0) {
