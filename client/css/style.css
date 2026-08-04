@@ -635,6 +635,9 @@ select {
         height: 100%;
         z-index: 1000;
         border-radius: 0;
+        background: #252525;
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.5);
+        overflow-y: auto;
     }
 
     .sidebar.active {
@@ -646,7 +649,7 @@ select {
         position: fixed;
         top: 16px;
         right: 16px;
-        z-index: 999;
+        z-index: 1001;
         background: #4a90d9;
         color: #fff;
         border: none;
