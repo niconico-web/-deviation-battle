@@ -8,7 +8,110 @@
 const battles = {};
 
 // -----------------------------
-// ?????
+// 武器によるステータス補正を適用
+// -----------------------------
+
+function applyWeaponStats(player) {
+    if (!player.equippedWeapon) {
+        return {
+            maxHp: player.maxHp,
+            atk: player.atk,
+            def: player.def,
+            speed: player.speed
+        };
+    }
+
+    const weapon = player.equippedWeapon;
+    const baseStats = {
+        maxHp: player.maxHp,
+        atk: player.atk,
+        def: player.def,
+        speed: player.speed
+    };
+
+    // 武器の倍率を取得
+    let multiplier = 1.0;
+    if (weapon.multiplier) {
+        multiplier = weapon.multiplier;
+    } else if (weapon.tier) {
+        const tierMults = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 };
+        multiplier = tierMults[weapon.tier] || 1.0;
+    }
+
+    // 武器種の設定を取得
+    const weaponTypes = {
+        sword_shield: { primary: ["def", "atk"], secondary: [], debuff: {} },
+        spear: { primary: ["atk", "speed"], secondary: [], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp"] } },
+        greatsword: { primary: ["atk", "maxHp"], secondary: ["speed"], debuff: { speed: 0.85 } },
+        dual_swords: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
+        scythe: { primary: ["atk", "speed"], secondary: ["maxHp"], debuff: { maxHp: 0.85 } },
+        pistol: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
+        katana: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } }
+    };
+
+    const typeConf = weaponTypes[weapon.type];
+    
+    // カスタム補正を考慮した倍率計算
+    const statMultipliers = { atk: multiplier, def: multiplier, speed: multiplier, maxHp: multiplier };
+    
+    // カスタム補正を倍率に反映
+    if (weapon.statBonuses) {
+        for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+            if (statMultipliers[stat] !== undefined) {
+                statMultipliers[stat] = statMultipliers[stat] * (1 + bonus);
+            }
+        }
+    }
+
+    // 武器種の設定を適用
+    if (typeConf) {
+        // デバッグ武器のボーナス
+        if (weapon.isDebugWeapon && typeConf.debugBonus) {
+            const debugBonus = typeConf.debugBonus;
+            const debugMult = debugBonus.bonusMult || 2.0;
+            for (const stat of debugBonus.primary) {
+                if (baseStats[stat] !== undefined) {
+                    baseStats[stat] = Math.floor(baseStats[stat] * debugMult);
+                }
+            }
+        }
+
+        // プライマリステータスに倍率適用
+        for (const stat of typeConf.primary) {
+            if (baseStats[stat] !== undefined) {
+                baseStats[stat] = Math.floor(baseStats[stat] * statMultipliers[stat]);
+            }
+        }
+        
+        // セカンダリステータスに倍率適用（0.85倍）
+        for (const stat of typeConf.secondary) {
+            if (baseStats[stat] !== undefined) {
+                baseStats[stat] = Math.floor(baseStats[stat] * (statMultipliers[stat] * 0.85));
+            }
+        }
+        
+        // デバフ適用
+        if (typeConf.debuff) {
+            for (const [stat, debuffMult] of Object.entries(typeConf.debuff)) {
+                if (baseStats[stat] !== undefined) {
+                    baseStats[stat] = Math.floor(baseStats[stat] * debuffMult);
+                }
+            }
+        }
+    } else {
+        // 武器種がない場合は全ステータスに基本倍率適用
+        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+            if (baseStats[stat] !== undefined) {
+                baseStats[stat] = Math.floor(baseStats[stat] * statMultipliers[stat]);
+            }
+        }
+    }
+
+    return baseStats;
+}
+
+// -----------------------------
+// バトル作成
 // -----------------------------
 
 function createBattle(roomId, host, guest){
@@ -17,7 +120,11 @@ function createBattle(roomId, host, guest){
         return null;
     }
 
-    console.log(`[BattleManager] createBattle: host.grade=${host.grade}, guest.grade=${guest.grade}`);
+    console.log(`[BattleManager] createBattle: host.grade=${host.grade}, guest.grade=${host.grade}`);
+
+    // 武器によるステータス補正を適用
+    const hostStats = applyWeaponStats(host);
+    const guestStats = applyWeaponStats(guest);
 
     battles[roomId] = {
 
@@ -31,12 +138,12 @@ function createBattle(roomId, host, guest){
                 socketId: host.socketId,
                 name: host.name,
 
-                hp: host.maxHp,
-                maxHp: host.maxHp,
+                hp: hostStats.maxHp,
+                maxHp: hostStats.maxHp,
 
-                atk: host.atk,
-                def: host.def,
-                speed: host.speed,
+                atk: hostStats.atk,
+                def: hostStats.def,
+                speed: hostStats.speed,
                 grade: host.grade || 1,
 
                 equippedWeapon: host.equippedWeapon || null,
@@ -52,12 +159,12 @@ function createBattle(roomId, host, guest){
                 socketId: guest.socketId,
                 name: guest.name,
 
-                hp: guest.maxHp,
-                maxHp: guest.maxHp,
+                hp: guestStats.maxHp,
+                maxHp: guestStats.maxHp,
 
-                atk: guest.atk,
-                def: guest.def,
-                speed: guest.speed,
+                atk: guestStats.atk,
+                def: guestStats.def,
+                speed: guestStats.speed,
                 grade: guest.grade || 1,
 
                 equippedWeapon: guest.equippedWeapon || null,
