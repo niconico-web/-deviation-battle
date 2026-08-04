@@ -1,7 +1,10 @@
 const isBotBattle = localStorage.getItem("isBotBattle") === "true";
 const socket = isBotBattle ? null : io();
 const roomId = localStorage.getItem("roomId");
-let me = JSON.parse(localStorage.getItem("battlePlayer")), enemy = JSON.parse(localStorage.getItem("enemy"));
+const battlePlayerData = localStorage.getItem("battlePlayer");
+const enemyData = localStorage.getItem("enemy");
+let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
+let enemy = enemyData ? JSON.parse(enemyData) : null;
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
 
 // ソケットが存在しない場合の安全対策
@@ -25,8 +28,7 @@ const enemyDef = document.getElementById("enemyDef");
 const enemySpeed = document.getElementById("enemySpeed");
 const enemyGrade = document.getElementById("enemyGrade");
 const questionDisplay = document.getElementById("questionDisplay");
-const answerInput = document.getElementById("answerInput");
-const submitAnswerBtn = document.getElementById("submitAnswerBtn");
+const choicesContainer = document.getElementById("choicesContainer");
 const timerDisplay = document.getElementById("timer");
 const log = document.getElementById("log");
 
@@ -161,6 +163,101 @@ function startTimer() {
 
 function startBotBattle() {
     generateBotQuestion();
+}
+
+function generateChoices(question) {
+    choicesContainer.innerHTML = '';
+    
+    // 選択肢を生成
+    let options;
+    if (question.options && question.options.length === 4) {
+        // サーバーから選択肢が提供されている場合
+        options = question.options;
+    } else {
+        // クライアント側で選択肢を生成
+        options = generateOptionsForQuestion(question);
+    }
+    
+    // 選択肢ボタンを作成
+    options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.className = 'choice-btn';
+        button.textContent = option;
+        button.onclick = () => handleChoiceClick(option);
+        choicesContainer.appendChild(button);
+    });
+}
+
+function generateOptionsForQuestion(question) {
+    const options = [question.answer];
+    
+    // 答えが数値の場合
+    if (!isNaN(question.answer)) {
+        const numAnswer = parseInt(question.answer);
+        const usedNumbers = new Set([numAnswer]);
+        
+        while (options.length < 4) {
+            let offset;
+            if (Math.random() < 0.5) {
+                offset = Math.floor(Math.random() * 5) + 1;
+            } else {
+                offset = -(Math.floor(Math.random() * 5) + 1);
+            }
+            
+            const wrongAnswer = numAnswer + offset;
+            if (!usedNumbers.has(wrongAnswer) && wrongAnswer >= 0) {
+                usedNumbers.add(wrongAnswer);
+                options.push(String(wrongAnswer));
+            }
+        }
+    } else {
+        // 文字列の場合は固定のダミー選択肢を生成
+        const commonWrongAnswers = ['?', '×', '不明', 'その他'];
+        const usedAnswers = new Set([question.answer]);
+        
+        for (const wrong of commonWrongAnswers) {
+            if (!usedAnswers.has(wrong) && options.length < 4) {
+                usedAnswers.add(wrong);
+                options.push(wrong);
+            }
+        }
+        
+        // まだ足りない場合は適当な文字列を追加
+        while (options.length < 4) {
+            const randomStr = String.fromCharCode(65 + options.length - 1);
+            if (!usedAnswers.has(randomStr)) {
+                usedAnswers.add(randomStr);
+                options.push(randomStr);
+            }
+        }
+    }
+    
+    // 選択肢をシャッフル
+    return shuffleArray(options);
+}
+
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+function handleChoiceClick(selectedOption) {
+    // ボタンを無効化
+    const buttons = choicesContainer.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => btn.disabled = true);
+    
+    if (isBotBattle) {
+        handleBotAnswer(selectedOption);
+    } else {
+        socket.emit("submitAnswer", {
+            roomId,
+            answer: selectedOption
+        });
+    }
 }
 
 function generateBotQuestion() {
@@ -490,11 +587,10 @@ function generateBotQuestion() {
 
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
+        // 選択肢を生成
+        generateChoices(currentQuestion);
         startTimer();
         addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
-        answerInput.disabled = false;
-        submitAnswerBtn.disabled = false;
-        answerInput.focus();
     });
 }
 
@@ -627,8 +723,8 @@ function finishBotBattle(result) {
     if (timerInterval) clearInterval(timerInterval);
     if (countdownInterval) clearInterval(countdownInterval);
 
-    answerInput.disabled = true;
-    submitAnswerBtn.disabled = true;
+    const buttons = choicesContainer.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => btn.disabled = true);
 
     const win = result === "win";
     addLog(win ? I18N.victory : I18N.defeat);
@@ -729,27 +825,6 @@ function finishBattle(winner) {
     setTimeout(() => location.href = "result.html", 2500);
 }
 
-function submitAnswer() {
-    if (battleEnd || !currentQuestion) return;
-
-    const answer = answerInput.value.trim();
-    if (!answer) return;
-
-    answerInput.disabled = true;
-    submitAnswerBtn.disabled = true;
-
-    if (isBotBattle) {
-        handleBotAnswer(answer);
-    } else {
-        socket.emit("submitAnswer", {
-            roomId,
-            answer
-        });
-    }
-
-    answerInput.value = "";
-}
-
 if (!isBotBattle && socket) {
     socket.on("connect", () => {
         console.log("Socket connected:", socket.id);
@@ -816,12 +891,11 @@ if (!isBotBattle && socket) {
         
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
+            // 選択肢を生成
+            generateChoices(currentQuestion);
             startTimer();
             const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
             addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
-            answerInput.disabled = false;
-            submitAnswerBtn.disabled = false;
-            answerInput.focus();
         });
     });
 
@@ -831,8 +905,8 @@ if (!isBotBattle && socket) {
         
         // 相手が先に正解した場合、即座に入力を無効化
         if (!isMyAnswer && data.isCorrect && data.firstCorrect) {
-            answerInput.disabled = true;
-            submitAnswerBtn.disabled = true;
+            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => btn.disabled = true);
             addLog("相手が先に正解しました！回答無効");
         }
         
@@ -877,11 +951,10 @@ if (!isBotBattle && socket) {
             currentQuestion = data.nextQuestion;
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
+                // 選択肢を生成
+                generateChoices(currentQuestion);
                 startTimer();
                 const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-                answerInput.disabled = false;
-                submitAnswerBtn.disabled = false;
-                answerInput.focus();
                 addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
             });
         }
@@ -903,8 +976,8 @@ if (!isBotBattle && socket) {
 
     socket.on("answerError", data => {
         addLog("エラー: " + data.message);
-        answerInput.disabled = false;
-        submitAnswerBtn.disabled = false;
+        const buttons = choicesContainer.querySelectorAll('.choice-btn');
+        buttons.forEach(btn => btn.disabled = false);
     });
 
     socket.on("opponentLeft", () => {
@@ -918,14 +991,15 @@ if (!isBotBattle && socket) {
 
 function getSavedPlayer() {
     const raw = localStorage.getItem("player");
-    return raw ? migratePlayer(JSON.parse(raw)) : null;
+    if (!raw) return null;
+    const player = JSON.parse(raw);
+    // Simple migration without external dependencies
+    if (!player.id) player.id = "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+    if (player.coins == null) player.coins = 0;
+    if (!player.weapons) player.weapons = [];
+    if (!player.weaponWins) player.weaponWins = {};
+    if (!player.orbs) player.orbs = [];
+    return player;
 }
-
-submitAnswerBtn.onclick = submitAnswer;
-answerInput.onkeypress = (e) => {
-    if (e.key === "Enter") {
-        submitAnswer();
-    }
-};
 
 window.onload = () => initialize();

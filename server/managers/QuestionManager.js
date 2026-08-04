@@ -104,6 +104,85 @@ function getBattleQuestion(player1Grade, player2Grade, subject) {
 }
 
 // -----------------------------
+// 選択肢を生成
+// -----------------------------
+function generateOptions(answer) {
+    const options = [answer];
+    
+    // 答えが数値の場合
+    if (!isNaN(answer)) {
+        const numAnswer = parseInt(answer);
+        const usedNumbers = new Set([numAnswer]);
+        
+        while (options.length < 4) {
+            let offset;
+            if (Math.random() < 0.5) {
+                offset = Math.floor(Math.random() * 5) + 1;
+            } else {
+                offset = -(Math.floor(Math.random() * 5) + 1);
+            }
+            
+            const wrongAnswer = numAnswer + offset;
+            if (!usedNumbers.has(wrongAnswer) && wrongAnswer >= 0) {
+                usedNumbers.add(wrongAnswer);
+                options.push(String(wrongAnswer));
+            }
+        }
+    } else {
+        // 文字列の場合は固定のダミー選択肢を生成
+        const commonWrongAnswers = ['?', '×', '不明', 'その他'];
+        const usedAnswers = new Set([answer]);
+        
+        for (const wrong of commonWrongAnswers) {
+            if (!usedAnswers.has(wrong) && options.length < 4) {
+                usedAnswers.add(wrong);
+                options.push(wrong);
+            }
+        }
+        
+        // まだ足りない場合は適当な文字列を追加
+        while (options.length < 4) {
+            const randomStr = String.fromCharCode(65 + options.length - 1);
+            if (!usedAnswers.has(randomStr)) {
+                usedAnswers.add(randomStr);
+                options.push(randomStr);
+            }
+        }
+    }
+    
+    // 選択肢をシャッフル
+    return shuffleArray(options);
+}
+
+// -----------------------------
+// 配列をシャッフル
+// -----------------------------
+function shuffleArray(array) {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+}
+
+// -----------------------------
+// バトル用の問題を取得（選択肢付き）
+// -----------------------------
+function getBattleQuestionWithOptions(player1Grade, player2Grade, subject) {
+    const question = getBattleQuestion(player1Grade, player2Grade, subject);
+    if (!question) return null;
+    
+    // 選択肢を生成
+    const options = generateOptions(question.answer);
+    
+    return {
+        ...question,
+        options
+    };
+}
+
+// -----------------------------
 // 答えを確認
 // -----------------------------
 function checkAnswer(question, userAnswer) {
@@ -136,6 +215,7 @@ module.exports = {
     getRandomQuestion,
     determineQuestionLevel,
     getBattleQuestion,
+    getBattleQuestionWithOptions,
     checkAnswer,
     getSubjectDisplayName
 };
