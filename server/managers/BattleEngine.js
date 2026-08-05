@@ -203,8 +203,8 @@ function processAnswer(battle, playerId, answer) {
         }
     }
     
-    // 両方のプレイヤーが回答した場合、次の問題へ
-    if (bothAnswered && !battle.finished) {
+    // 一方が正解した場合、または両方のプレイヤーが回答した場合、次の問題へ
+    if ((isCorrect || bothAnswered) && !battle.finished) {
         generateQuestion(battle);
         result.nextQuestion = battle.currentQuestion;
     }
