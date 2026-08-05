@@ -6,6 +6,9 @@
 const BattleManager = require("../managers/BattleManager");
 const RoomManager = require("../managers/RoomManager");
 
+// BattleManagerのタイマー管理を使用
+const disconnectTimers = BattleManager.disconnectTimers;
+
 module.exports = function(io){
 
     io.on("connection",(socket)=>{
@@ -25,28 +28,30 @@ module.exports = function(io){
                     if (playerId) {
                         console.log(`Player ${playerId} disconnected from battle ${roomId}`);
                         
-                        // 相手プレイヤーに通知
-                        const enemyId = Object.keys(battle.players).find(id => id !== playerId);
-                        if (enemyId) {
-                            const enemy = battle.players[enemyId];
-                            const enemySocket = io.sockets.sockets.get(enemy.socketId);
-                            
-                            if (enemySocket) {
-                                enemySocket.emit("opponentLeft");
+                        // 10秒後に相手プレイヤーに通知（再接続の猶予期間）
+                        const timerKey = `${roomId}_${playerId}`;
+                        
+                        disconnectTimers[timerKey] = setTimeout(() => {
+                            const battle = BattleManager.getBattle(roomId);
+                            if (battle && !battle.finished) {
+                                const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+                                if (enemyId) {
+                                    const enemy = battle.players[enemyId];
+                                    const enemySocket = io.sockets.sockets.get(enemy.socketId);
+                                    
+                                    if (enemySocket) {
+                                        console.log(`Notifying enemy ${enemyId} that player ${playerId} left`);
+                                        enemySocket.emit("opponentLeft");
+                                    }
+                                }
                             }
-                        }
+                            delete disconnectTimers[timerKey];
+                        }, 10000); // 10秒待つ
                     }
                 }
                 
-                // ルームマネージャーからも削除
-                const room = RoomManager.getRoom(roomId);
-                if (room) {
-                    if (room.host === socket.id) {
-                        RoomManager.deleteRoom(roomId);
-                    } else if (room.guest === socket.id) {
-                        room.guest = null;
-                    }
-                }
+                // ルームマネージャーからは削除しない（再接続のために残す）
+                // バトルが終了した場合のみ削除する
             });
         });
 

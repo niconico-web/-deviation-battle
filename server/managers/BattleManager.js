@@ -7,6 +7,9 @@
 
 const battles = {};
 
+// 切断通知のタイマー管理
+const disconnectTimers = {};
+
 // -----------------------------
 // 武器によるステータス補正を適用
 // -----------------------------
@@ -45,7 +48,7 @@ function applyWeaponStats(player) {
         greatsword: { primary: ["atk", "maxHp"], secondary: ["speed"], debuff: { speed: 0.85 } },
         dual_swords: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
         scythe: { primary: ["atk", "speed"], secondary: ["maxHp"], debuff: { maxHp: 0.85 } },
-        pistol: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
+        pistol: { primary: ["def", "speed"], secondary: ["atk"], debuff: { atk: 0.85 } },
         katana: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } }
     };
 
@@ -310,6 +313,8 @@ module.exports = {
 
     findPlayerIdBySocket,
 
-    remapPlayerSocket
+    remapPlayerSocket,
+
+    disconnectTimers
 
 };

@@ -8,6 +8,9 @@ const RoomManager = require("../managers/RoomManager");
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
 
+// BattleManagerのタイマー管理を使用
+const disconnectTimers = BattleManager.disconnectTimers;
+
 function resolveBattlePlayer(socketId, storedData){
 
     const live = PlayerManager.getPlayer(socketId);
@@ -233,6 +236,14 @@ module.exports = function(io){
 
                 return;
 
+            }
+
+            // 切断通知タイマーをキャンセル
+            const timerKey = `${roomId}_${oldPlayerId}`;
+            if (disconnectTimers[timerKey]) {
+                clearTimeout(disconnectTimers[timerKey]);
+                delete disconnectTimers[timerKey];
+                console.log(`Cancelled disconnect timer for ${timerKey}`);
             }
 
             const remapped = BattleManager.remapPlayerSocket(

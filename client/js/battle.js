@@ -1183,14 +1183,18 @@ function finishBattle(winner) {
 }
 
 if (!isBotBattle && socket) {
+    let isFirstConnection = true;
+    
     socket.on("connect", () => {
         console.log("Socket connected:", socket.id);
         addLog("サーバーに接続しました");
         
-        if (roomId && me && me.id) {
+        // 初回接続時のみ、既存のバトルに再参加を試みる
+        if (!isFirstConnection && roomId && me && me.id) {
             const p = getSavedPlayer();
             socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
         }
+        isFirstConnection = false;
     });
 
     socket.on("disconnect", () => {
@@ -1215,13 +1219,10 @@ if (!isBotBattle && socket) {
         console.log("Socket reconnected after", attemptNumber, "attempts");
         addLog("再接続に成功しました");
         
-        // 再接続後にバトル状態を同期
+        // 再接続後にバトルに再参加
         if (roomId && me && me.id) {
-            socket.emit("requestBattleStart", { 
-                roomId,
-                playerId: me.id,
-                playerName: me.name
-            });
+            const p = getSavedPlayer();
+            socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
         }
     });
 
@@ -1484,11 +1485,18 @@ if (!isBotBattle && socket) {
     });
 
     socket.on("opponentLeft", () => {
-        battleEnd = true;
-        stopTimer();
-        addLog(I18N.opponentLeft);
-        alert(I18N.opponentLeft);
-        location.href = "index.html";
+        addLog("相手との接続が切れました。再接続を待っています...");
+        
+        // バトルを終了せず、再接続を待つ
+        // 相手が再接続した場合はbattleRejoinedイベントが来る
+        setTimeout(() => {
+            if (!rejoined) {
+                battleEnd = true;
+                stopTimer();
+                alert(I18N.opponentLeft);
+                location.href = "index.html";
+            }
+        }, 15000); // 15秒待つ
     });
 }
 
