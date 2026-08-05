@@ -48,7 +48,7 @@ function applyWeaponStats(player) {
         greatsword: { primary: ["atk", "maxHp"], secondary: ["speed"], debuff: { speed: 0.85 } },
         dual_swords: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
         scythe: { primary: ["atk", "speed"], secondary: ["maxHp"], debuff: { maxHp: 0.85 } },
-        pistol: { primary: ["def", "speed"], secondary: ["atk"], debuff: { atk: 0.85 } },
+        pistol: { primary: ["def", "maxHp"], secondary: ["atk"], debuff: { atk: 0.85 } },
         katana: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } }
     };
 
@@ -125,9 +125,14 @@ function createBattle(roomId, host, guest){
 
     console.log(`[BattleManager] createBattle: host.grade=${host.grade}, guest.grade=${host.grade}`);
 
-    // 武器によるステータス補正を適用
-    const hostStats = applyWeaponStats(host);
-    const guestStats = applyWeaponStats(guest);
+    // クライアント側で既に武器補正が適用されているステータスを使用
+    // battleStatsがある場合はそれを使用し、ない場合はベースステータスを使用
+    const hostStats = host.battleStats || host;
+    const guestStats = guest.battleStats || guest;
+
+    // 武器情報は保持
+    const hostWeapon = host.equippedWeapon || null;
+    const guestWeapon = guest.equippedWeapon || null;
 
     battles[roomId] = {
 
@@ -149,7 +154,7 @@ function createBattle(roomId, host, guest){
                 speed: hostStats.speed,
                 grade: host.grade || 1,
 
-                equippedWeapon: host.equippedWeapon || null,
+                equippedWeapon: hostWeapon,
 
                 answerTime: null,
                 correctAnswers: 0
@@ -170,7 +175,7 @@ function createBattle(roomId, host, guest){
                 speed: guestStats.speed,
                 grade: guest.grade || 1,
 
-                equippedWeapon: guest.equippedWeapon || null,
+                equippedWeapon: guestWeapon,
 
                 answerTime: null,
                 correctAnswers: 0
