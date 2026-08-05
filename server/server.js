@@ -39,6 +39,7 @@ function getContentType(filePath) {
 require("./socket/connection")(io);
 require("./socket/matchmaking")(io);
 require("./socket/battle")(io);
+require("./socket/disconnect")(io);
 
 app.get("/api/unique/claims", (req, res) => {
     res.json(UniqueWeaponManager.getAllClaims());
@@ -53,6 +54,21 @@ app.post("/api/unique/claim", (req, res) => {
         return res.status(400).json({ success: false, message: "Quest not completed (need 500 wins)" });
     }
     const result = UniqueWeaponManager.tryClaim(type, playerId, playerName);
+    if (!result.success) {
+        return res.json({ success: false, claimedBy: result.claimedBy });
+    }
+    res.json({ success: true, claim: result.claim });
+});
+
+app.post("/api/unique/claimDebug", (req, res) => {
+    const { type, playerId, playerName, wins } = req.body || {};
+    if (!type || !playerId || !playerName) {
+        return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+    if (wins < 1) {
+        return res.status(400).json({ success: false, message: "Quest not completed (need 1 win)" });
+    }
+    const result = UniqueWeaponManager.tryClaimDebug(type, playerId, playerName);
     if (!result.success) {
         return res.json({ success: false, claimedBy: result.claimedBy });
     }
