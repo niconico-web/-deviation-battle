@@ -95,6 +95,15 @@ function createCharacter() {
     const stats = getStatsFromInputs();
     const existing = getPlayerData();
 
+    // 名前のバリデーション（新規作成時のみ）
+    if (!existing && typeof validateName === "function") {
+        const validation = validateName(name);
+        if (!validation.valid) {
+            alert(validation.reason);
+            return;
+        }
+    }
+
     if (!existing) {
         const validation = validateStatAllocation(stats);
         if (!validation.ok) { alert(validation.message); return; }

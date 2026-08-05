@@ -367,6 +367,13 @@ function showOriginalWeaponCreationDialog() {
     const name = prompt("オリジナル武器の名前を入力してください:");
     if (!name || name.trim() === "") return;
 
+    // 名前のバリデーション
+    const validation = validateName(name.trim());
+    if (!validation.valid) {
+        alert(validation.reason);
+        return;
+    }
+
     // 武器種選択
     const weaponTypes = Object.keys(WEAPON_TYPES);
     let typeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
