@@ -25,7 +25,8 @@ function resolveBattlePlayer(socketId, storedData){
             atk: stats.atk ?? live.atk,
             def: stats.def ?? live.def,
             speed: stats.speed ?? live.speed,
-            equippedWeapon: live.equippedWeapon || null
+            equippedWeapon: live.equippedWeapon || null,
+            battleStats: stats // battleStatsを明示的に保持
         };
     }
 
@@ -39,7 +40,8 @@ function resolveBattlePlayer(socketId, storedData){
             atk: stats.atk ?? storedData.atk,
             def: stats.def ?? storedData.def,
             speed: stats.speed ?? storedData.speed,
-            equippedWeapon: storedData.equippedWeapon || null
+            equippedWeapon: storedData.equippedWeapon || null,
+            battleStats: stats // battleStatsを明示的に保持
         };
     }
 
