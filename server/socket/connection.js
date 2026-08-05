@@ -183,6 +183,7 @@ module.exports = function(io){
 
             console.log("Room Ready:", roomId);
             console.log("Host socket:", room.host, "Guest socket:", room.guest);
+            console.log("Battle players:", battle.players);
 
             // 自動参加成功の通知
             socket.emit("autoJoinSuccess", roomId);
@@ -199,6 +200,12 @@ module.exports = function(io){
                 me: battle.players[guest.id],
                 enemy: battle.players[host.id]
             });
+            
+            // 両方のプレイヤーをルームに参加させる
+            io.to(room.host).sockets.get(room.host)?.join(roomId);
+            io.to(room.guest).sockets.get(room.guest)?.join(roomId);
+            
+            console.log(`[Connection] Both players joined room ${roomId}`);
 
         });
 

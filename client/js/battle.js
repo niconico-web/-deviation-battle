@@ -106,10 +106,15 @@ function initialize() {
 
 function startOnlineBattle() {
     console.log("Starting online battle for room:", roomId);
+    console.log("Player data:", { me: me.id, enemy: enemy.id });
     addLog("バトル開始をリクエスト中...");
     
-    // 直接バトル開始をリクエスト（ルーム参加はサーバー側で処理）
-    socket.emit("requestBattleStart", { roomId });
+    // プレイヤー情報を含めてバトル開始をリクエスト
+    socket.emit("requestBattleStart", { 
+        roomId,
+        playerId: me.id,
+        playerName: me.name
+    });
     
     // タイムアウト処理
     setTimeout(() => {
@@ -1101,23 +1106,54 @@ function stopTimer() {
 function syncBattleState(players) {
     console.log("syncBattleState called with players:", players);
     const playerIds = Object.keys(players);
-    console.log("Player IDs:", playerIds, "My ID:", me.id);
+    console.log("Player IDs:", playerIds, "My ID:", me.id, "My Name:", me.name);
     
-    // IDで正確にマッチング
-    const myData = players[me.id];
-    const enemyId = playerIds.find(id => id !== me.id);
-    const enemyData = players[enemyId];
+    // 名前でマッチングを試みる（IDが変わっている可能性があるため）
+    let myData = null;
+    let enemyData = null;
     
-    // HPのみを同期（他のステータスはローカルの値を維持）
-    if (myData && myData.hp !== undefined) {
-        me.hp = myData.hp;
+    // まずIDで完全一致を探す
+    myData = players[me.id];
+    if (myData) {
+        const enemyId = playerIds.find(id => id !== me.id);
+        enemyData = players[enemyId];
+        console.log("Found by ID match");
+    } else {
+        // IDで見つからない場合、名前でマッチング
+        console.log("ID match failed, trying name match");
+        for (const pid of playerIds) {
+            const player = players[pid];
+            if (player.name === me.name) {
+                myData = player;
+                const enemyId = playerIds.find(id => id !== pid);
+                enemyData = players[enemyId];
+                console.log("Found by name match, updating my ID from", me.id, "to", pid);
+                me.id = pid; // IDを更新
+                break;
+            }
+        }
     }
-    if (enemyData && enemyData.hp !== undefined) {
-        enemy.hp = enemyData.hp;
+    
+    // HPとステータスを同期
+    if (myData) {
+        if (myData.hp !== undefined) {
+            me.hp = myData.hp;
+        }
+        if (myData.maxHp !== undefined) {
+            me.maxHp = myData.maxHp;
+        }
+    }
+    if (enemyData) {
+        if (enemyData.hp !== undefined) {
+            enemy.hp = enemyData.hp;
+        }
+        if (enemyData.maxHp !== undefined) {
+            enemy.maxHp = enemyData.maxHp;
+        }
     }
     
-    console.log("Synced me.hp:", me.hp);
-    console.log("Synced enemy.hp:", enemy.hp);
+    console.log("Synced me.hp:", me.hp, "me.maxHp:", me.maxHp);
+    console.log("Synced enemy.hp:", enemy.hp, "enemy.maxHp:", enemy.maxHp);
     
     localStorage.setItem("battlePlayer", JSON.stringify(me));
     localStorage.setItem("enemy", JSON.stringify(enemy));
@@ -1149,11 +1185,63 @@ function finishBattle(winner) {
 if (!isBotBattle && socket) {
     socket.on("connect", () => {
         console.log("Socket connected:", socket.id);
+        addLog("サーバーに接続しました");
+        
         if (roomId && me && me.id) {
             const p = getSavedPlayer();
             socket.emit("rejoinBattle", { roomId, oldPlayerId: me.id, player: p || me });
         }
     });
+
+    socket.on("disconnect", () => {
+        console.log("Socket disconnected");
+        addLog("接続が切れました。再接続中...");
+        
+        // 自動的に再接続を試みる
+        setTimeout(() => {
+            if (!socket.connected) {
+                addLog("再接続を試みています...");
+                socket.connect();
+            }
+        }, 3000);
+    });
+
+    socket.on("connect_error", (error) => {
+        console.error("Socket connection error:", error);
+        addLog("接続エラー: " + error.message);
+    });
+
+    socket.on("reconnect", (attemptNumber) => {
+        console.log("Socket reconnected after", attemptNumber, "attempts");
+        addLog("再接続に成功しました");
+        
+        // 再接続後にバトル状態を同期
+        if (roomId && me && me.id) {
+            socket.emit("requestBattleStart", { 
+                roomId,
+                playerId: me.id,
+                playerName: me.name
+            });
+        }
+    });
+
+    socket.on("reconnect_attempt", (attemptNumber) => {
+        console.log("Reconnect attempt:", attemptNumber);
+    });
+
+    socket.on("reconnect_failed", () => {
+        console.error("Reconnect failed");
+        addLog("再接続に失敗しました。ページを再読み込みしてください。");
+        alert("サーバーへの再接続に失敗しました。ページを再読み込みしてください。");
+    });
+
+    // ハートビートで接続を監視
+    setInterval(() => {
+        if (socket && !socket.connected) {
+            console.warn("Socket disconnected, attempting to reconnect...");
+            addLog("接続が切れています。再接続を試みます...");
+        }
+    }, 5000);
 
     socket.on("battleRejoined", data => {
         me = data.me;
@@ -1179,26 +1267,52 @@ if (!isBotBattle && socket) {
         if (data.players) {
             const playerIds = Object.keys(data.players);
             console.log("Syncing player data:", playerIds);
+            console.log("My current ID:", me.id, "Enemy current ID:", enemy.id);
             
-            if (playerIds[0] === me.id) {
-                me = data.players[playerIds[0]];
-                enemy = data.players[playerIds[1]];
+            // 名前でマッチングを試みる
+            let myData = null;
+            let enemyData = null;
+            
+            // まずIDで完全一致を探す
+            myData = data.players[me.id];
+            if (myData) {
+                const enemyId = playerIds.find(id => id !== me.id);
+                enemyData = data.players[enemyId];
+                console.log("Found by ID match");
             } else {
-                enemy = data.players[playerIds[0]];
-                me = data.players[playerIds[1]];
+                // IDで見つからない場合、名前でマッチング
+                console.log("ID match failed, trying name match");
+                for (const pid of playerIds) {
+                    const player = data.players[pid];
+                    if (player.name === me.name) {
+                        myData = player;
+                        const enemyId = playerIds.find(id => id !== pid);
+                        enemyData = data.players[enemyId];
+                        console.log("Found by name match, updating my ID from", me.id, "to", pid);
+                        me.id = pid; // IDを更新
+                        break;
+                    }
+                }
             }
             
-            console.log("Synced data:", { me, enemy });
-            
-            // UIを更新
-            myName.textContent = me.name;
-            enemyName.textContent = enemy.name;
-            updateStats();
-            updateHP();
-            
-            // ローカルストレージを更新
-            localStorage.setItem("battlePlayer", JSON.stringify(me));
-            localStorage.setItem("enemy", JSON.stringify(enemy));
+            if (myData && enemyData) {
+                me = myData;
+                enemy = enemyData;
+                console.log("Synced data:", { me, enemy });
+                
+                // UIを更新
+                myName.textContent = me.name;
+                enemyName.textContent = enemy.name;
+                updateStats();
+                updateHP();
+                
+                // ローカルストレージを更新
+                localStorage.setItem("battlePlayer", JSON.stringify(me));
+                localStorage.setItem("enemy", JSON.stringify(enemy));
+            } else {
+                console.error("Failed to match players:", { myData, enemyData, availablePlayers: data.players });
+                addLog("エラー: プレイヤーデータの同期に失敗しました");
+            }
         }
         
         currentQuestion = data.initialQuestion;
@@ -1222,7 +1336,18 @@ if (!isBotBattle && socket) {
 
     socket.on("answerResult", data => {
         console.log("answerResult received:", data);
-        const isMyAnswer = data.playerId === me.id;
+        console.log("Current me.id:", me.id, "data.playerId:", data.playerId);
+        
+        // IDマッチングを試みる（IDが変わっている可能性があるため）
+        let isMyAnswer = data.playerId === me.id;
+        
+        // IDでマッチしない場合、名前でマッチングを試みる
+        if (!isMyAnswer && data.playerName) {
+            isMyAnswer = data.playerName === me.name;
+            console.log("ID match failed, trying name match:", isMyAnswer);
+        }
+        
+        console.log("isMyAnswer:", isMyAnswer);
         
         // 相手が先に正解した場合、即座に入力を無効化
         if (!isMyAnswer && data.isCorrect && data.firstCorrect) {
@@ -1240,6 +1365,10 @@ if (!isBotBattle && socket) {
                 } else if (data.firstCorrect) {
                     addLog("先答！ダメージ: " + data.damage);
                     showDamage("enemyDamage", data.damage);
+                    // 敵のHPを直接更新
+                    if (data.enemyHp !== undefined) {
+                        enemy.hp = data.enemyHp;
+                    }
                 } else {
                     addLog("後答...ダメージなし");
                 }
@@ -1251,6 +1380,10 @@ if (!isBotBattle && socket) {
                 } else if (data.wrongAnswer && data.damage) {
                     addLog("ダメージを受けた: " + data.damage);
                     showDamage("myDamage", data.damage);
+                    // 自分のHPを直接更新
+                    if (data.playerHp !== undefined) {
+                        me.hp = data.playerHp;
+                    }
                 }
             }
         } else {
@@ -1262,6 +1395,10 @@ if (!isBotBattle && socket) {
                 } else if (data.firstCorrect) {
                     addLog("相手が先答！ダメージ: " + data.damage);
                     showDamage("myDamage", data.damage);
+                    // 自分のHPを直接更新（相手からのダメージ）
+                    if (data.playerHp !== undefined) {
+                        me.hp = data.playerHp;
+                    }
                 }
             } else {
                 addLog(enemy.name + "は不正解...");
@@ -1271,17 +1408,31 @@ if (!isBotBattle && socket) {
                 } else if (data.wrongAnswer && data.damage) {
                     addLog(enemy.name + "がダメージを受けた: " + data.damage);
                     showDamage("enemyDamage", data.damage);
+                    // 敵のHPを直接更新
+                    if (data.enemyHp !== undefined) {
+                        enemy.hp = data.enemyHp;
+                    }
                 }
             }
         }
+        
+        // HP同期とUI更新
+        updateHP();
+        localStorage.setItem("battlePlayer", JSON.stringify(me));
+        localStorage.setItem("enemy", JSON.stringify(enemy));
         
         if (data.battleState) {
             console.log("Syncing battle state:", data.battleState.players);
             syncBattleState(data.battleState.players);
         }
         
+        // 次の問題がある場合の処理
         if (data.nextQuestion) {
             currentQuestion = data.nextQuestion;
+            // ボタンを再有効化
+            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => btn.disabled = false);
+            
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
                 // 選択肢を生成
@@ -1290,6 +1441,10 @@ if (!isBotBattle && socket) {
                 const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
                 addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
             });
+        } else {
+            // 次の問題がない場合（相手がまだ回答していない）、ボタンを再有効化
+            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => btn.disabled = false);
         }
         
         if (data.winner) {
@@ -1311,6 +1466,21 @@ if (!isBotBattle && socket) {
         addLog("エラー: " + data.message);
         const buttons = choicesContainer.querySelectorAll('.choice-btn');
         buttons.forEach(btn => btn.disabled = false);
+    });
+
+    socket.on("battleStateUpdate", data => {
+        console.log("battleStateUpdate received:", data);
+        
+        // プレイヤー状態を同期
+        if (data.players) {
+            syncBattleState(data.players);
+        }
+        
+        // 現在の問題を同期（必要な場合）
+        if (data.currentQuestion && !data.nextQuestion) {
+            // 次の問題がまだ送信されていない場合のみ同期
+            console.log("Syncing current question");
+        }
     });
 
     socket.on("opponentLeft", () => {

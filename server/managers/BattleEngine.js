@@ -44,6 +44,11 @@ function generateQuestion(battle) {
     
     console.log(`[BattleEngine] Question result:`, question);
     
+    // プレイヤーの回答時間をリセット（新しい問題の前にリセット）
+    playerIds.forEach(id => {
+        battle.players[id].answerTime = null;
+    });
+    
     if (!question) {
         // 問題が見つからない場合のフォールバック
         console.warn(`問題が見つかりません: player1Grade=${player1.grade}, player2Grade=${player2.grade}, subject=${subject}`);
@@ -55,11 +60,6 @@ function generateQuestion(battle) {
             subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
             startTime: Date.now()
         };
-        
-        // プレイヤーの回答時間をリセット
-        playerIds.forEach(id => {
-            battle.players[id].answerTime = null;
-        });
         
         return battle.currentQuestion;
     }
@@ -73,11 +73,6 @@ function generateQuestion(battle) {
     };
     
     console.log(`[BattleEngine] Generated question:`, battle.currentQuestion);
-    
-    // プレイヤーの回答時間をリセット
-    playerIds.forEach(id => {
-        battle.players[id].answerTime = null;
-    });
     
     return battle.currentQuestion;
 }
@@ -140,10 +135,14 @@ function processAnswer(battle, playerId, answer) {
     
     let result = {
         playerId,
+        playerName: player.name,
         isCorrect,
         answerTime,
         question: battle.currentQuestion.question
     };
+    
+    // 両方のプレイヤーが回答したかチェック
+    const bothAnswered = player.answerTime !== null && enemy.answerTime !== null;
     
     if (isCorrect) {
         // 正解の場合
@@ -172,10 +171,6 @@ function processAnswer(battle, playerId, answer) {
             if (enemy.hp <= 0) {
                 battle.finished = true;
                 result.winner = playerId;
-            } else {
-                // バトル終了でなければ、即座に次の問題へ
-                generateQuestion(battle);
-                result.nextQuestion = battle.currentQuestion;
             }
         } else {
             // 相手が既に回答している場合、ダメージなし
@@ -205,11 +200,13 @@ function processAnswer(battle, playerId, answer) {
         if (player.hp <= 0) {
             battle.finished = true;
             result.winner = enemyId;
-        } else {
-            // バトル終了でなければ、即座に次の問題へ
-            generateQuestion(battle);
-            result.nextQuestion = battle.currentQuestion;
         }
+    }
+    
+    // 両方のプレイヤーが回答した場合、次の問題へ
+    if (bothAnswered && !battle.finished) {
+        generateQuestion(battle);
+        result.nextQuestion = battle.currentQuestion;
     }
     
     return {
