@@ -202,8 +202,8 @@ module.exports = function(io){
             });
             
             // 両方のプレイヤーをルームに参加させる
-            io.to(room.host).sockets.get(room.host)?.join(roomId);
-            io.to(room.guest).sockets.get(room.guest)?.join(roomId);
+            io.sockets.sockets.get(room.host)?.join(roomId);
+            io.sockets.sockets.get(room.guest)?.join(roomId);
             
             console.log(`[Connection] Both players joined room ${roomId}`);
 
