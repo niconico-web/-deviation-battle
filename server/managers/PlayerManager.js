@@ -4,6 +4,7 @@
 // Commit #009
 // ============================================
 
+const ContentFilter = require("./ContentFilter");
 const players = {};
 
 // -------------------------
@@ -15,6 +16,15 @@ const players = {};
 // -------------------------
 
 function addPlayer(socketId, player){
+
+    // プレイヤー名のバリデーション
+    if (player && player.name) {
+        const validation = ContentFilter.validateName(player.name);
+        if (!validation.valid) {
+            console.log(`[PlayerManager] Invalid player name rejected: ${player.name} - ${validation.reason}`);
+            throw new Error(validation.reason);
+        }
+    }
 
     players[socketId] = {
 

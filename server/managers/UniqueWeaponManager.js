@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const ContentFilter = require("./ContentFilter");
 
 const CLAIMS_FILE = path.join(__dirname, "../data/unique_claims.json");
 
@@ -31,6 +32,13 @@ function getClaim(type) {
 }
 
 function tryClaim(type, playerId, playerName) {
+    // プレイヤー名のバリデーション
+    const validation = ContentFilter.validateName(playerName);
+    if (!validation.valid) {
+        console.log(`[UniqueWeaponManager] Invalid player name rejected: ${playerName} - ${validation.reason}`);
+        return { success: false, reason: validation.reason };
+    }
+
     const claims = loadClaims();
     if (claims[type]) {
         return { success: false, claimedBy: claims[type] };
@@ -70,6 +78,13 @@ function getWeaponName(type) {
 }
 
 function tryClaimDebug(type, playerId, playerName) {
+    // プレイヤー名のバリデーション
+    const validation = ContentFilter.validateName(playerName);
+    if (!validation.valid) {
+        console.log(`[UniqueWeaponManager] Invalid player name rejected (debug): ${playerName} - ${validation.reason}`);
+        return { success: false, reason: validation.reason };
+    }
+
     const claims = loadClaims();
     const debugKey = `${type}_debug`;
     if (claims[debugKey]) {
