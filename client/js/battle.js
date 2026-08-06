@@ -637,10 +637,16 @@ function calculateBotDifficulty() {
     const randomMaxHp = remainingStats;
     
     // ボットのステータスを設定
+    const oldMaxHp = enemy.maxHp || 50;
+    const oldHpRatio = enemy.hp / oldMaxHp;
+    
     enemy.atk = minAtk + randomAtk;
     enemy.def = minDef + randomDef;
     enemy.speed = minSpeed + randomSpeed;
     enemy.maxHp = minMaxHp + randomMaxHp;
+    
+    // HP比率を維持して現在HPを更新
+    enemy.hp = Math.floor(enemy.maxHp * oldHpRatio);
     
     // 正解率は固定（85%）
     const botAccuracy = 0.85;
@@ -654,6 +660,10 @@ function calculateBotDifficulty() {
 function generateBotQuestion() {
     // ボットの難易度を計算
     const botDifficulty = calculateBotDifficulty();
+    
+    // ステータス更新を反映
+    updateStats();
+    updateHP();
     
     // 学年に応じた問題を生成
     const playerGrade = me.grade || 1;
