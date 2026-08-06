@@ -477,16 +477,6 @@ function generateSimilarHiragana(hiragana) {
         }
     }
     
-    // 文字の順序を入れ替えた誤答
-    if (hiragana.length >= 2) {
-        for (let i = 0; i < hiragana.length - 1; i++) {
-            const swapped = hiragana.substring(0, i) + hiragana[i + 1] + hiragana[i] + hiragana.substring(i + 2);
-            if (swapped !== hiragana && !similar.includes(swapped)) {
-                similar.push(swapped);
-            }
-        }
-    }
-    
     return similar;
 }
 
@@ -1011,9 +1001,6 @@ function generateBotQuestion() {
 function handleBotAnswer(userAnswer) {
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
-    
-    // ボットの難易度を取得
-    const botDifficulty = calculateBotDifficulty();
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
