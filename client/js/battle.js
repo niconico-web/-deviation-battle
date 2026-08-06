@@ -315,7 +315,7 @@ function generateStringWrongAnswers(correct) {
     const usedAnswers = new Set();
     usedAnswers.add(correct); // 正解を追加して重複を防ぐ
     
-    // 文学的技法に関する問題の場合、技法を混ぜた誤答のみを生成
+    // 文学的技法に関する問題の場合、技法を混ぜた誤答のみを生成（最優先）
     if (isLiteraryTechniqueQuestion(correct)) {
         const literaryWrongs = generateLiteraryTechniqueWrongAnswers(correct);
         for (const wrong of literaryWrongs) {
@@ -327,6 +327,7 @@ function generateStringWrongAnswers(correct) {
         return shuffleArray(wrongs);
     }
     
+    // 文学的技法でない場合のみ、以下の処理を行う
     // ひらがなの場合、類似したひらがなを生成
     if (isHiragana(correct)) {
         const hiraganaWrongs = generateSimilarHiragana(correct);
@@ -916,7 +917,17 @@ function generateBotQuestion() {
                     { question: "「源氏物語」の作者は？", answer: "紫式部" },
                     { question: "「徒然草」の作者は？", answer: "吉田兼好" },
                     { question: "「方丈記」の作者は？", answer: "鴨長明" },
-                    { question: "「奥の細道」の作者は？", answer: "松尾芭蕉" }
+                    { question: "「奥の細道」の作者は？", answer: "松尾芭蕉" },
+                    { question: "「美しい、この花は」で使われている技法は？", answer: "倒置法" },
+                    { question: "「ライオンのように強い」で使われている技法は？", answer: "比喩" },
+                    { question: "「走った、走った、走った」で使われている技法は？", answer: "反復" },
+                    { question: "「山と川、天と地」で使われている技法は？", answer: "対句" },
+                    { question: "「風がささやく」で使われている技法は？", answer: "擬人法" },
+                    { question: "「～けれども、～ので」で使われている技法は？", answer: "係り結び" },
+                    { question: "「彼に褒められた」で使われている技法は？", answer: "受動態" },
+                    { question: "「彼を行かせた」で使われている技法は？", answer: "使役態" },
+                    { question: "「いらっしゃる、おっしゃる」で使われている技法は？", answer: "尊敬語" },
+                    { question: "「参る、申す」で使われている技法は？", answer: "謙譲語" }
                 ],
                 english: [
                     { question: "「関係代名詞」で使われる単語は？", answer: "which,that,who" },
