@@ -350,8 +350,10 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
     };
     
     // 正解に含まれる技法を特定
+    let matchedTechnique = null;
     for (const [technique, examples] of Object.entries(techniqueMap)) {
         if (correct.includes(technique)) {
+            matchedTechnique = technique;
             // その技法の正解例以外の技法の例を誤答として追加
             for (const example of examples) {
                 if (!wrongs.includes(example) && example !== correct) {
@@ -362,12 +364,39 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
         }
     }
     
+    // 正解例を少し変えた誤答を生成
+    if (matchedTechnique) {
+        const modifiedAnswers = generateModifiedCorrectAnswer(correct);
+        for (const modified of modifiedAnswers) {
+            if (!wrongs.includes(modified) && modified !== correct) {
+                wrongs.push(modified);
+            }
+        }
+    }
+    
     // もしマッチする技法が見つからない場合は、従来の方法で誤答を生成
     if (wrongs.length === 0) {
         wrongs.push(...generateSimilarStringArray(correct));
     }
     
     return wrongs;
+}
+
+// 正解例を少し変えた誤答を生成
+function generateModifiedCorrectAnswer(correct) {
+    const modified = [];
+    
+    // 文字の順序を入れ替えた誤答
+    if (correct.length >= 2) {
+        for (let i = 0; i < correct.length - 1; i++) {
+            const swapped = correct.substring(0, i) + correct[i + 1] + correct[i] + correct.substring(i + 2);
+            if (swapped !== correct && !modified.includes(swapped)) {
+                modified.push(swapped);
+            }
+        }
+    }
+    
+    return modified;
 }
 
 // ひらがなかどうかを判定
