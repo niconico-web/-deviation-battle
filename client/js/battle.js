@@ -184,6 +184,8 @@ function startTimer() {
 }
 
 function startBotBattle() {
+    // ボットの難易度を計算（バトル開始時に1回だけ）
+    calculateBotDifficulty();
     generateBotQuestion();
 }
 
@@ -358,7 +360,7 @@ function isLiteraryTechniqueQuestion(answer) {
     return literaryKeywords.some(keyword => answer.includes(keyword));
 }
 
-// 文学的技法の誤答を生成（技法を混ぜる）
+// 文学的技法の誤答を生成（技法を混ぜるのみ）
 function generateLiteraryTechniqueWrongAnswers(correct) {
     const wrongs = [];
     const usedAnswers = new Set();
@@ -389,17 +391,6 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
                 }
             }
             break;
-        }
-    }
-    
-    // もしマッチする技法が見つからない場合は、従来の方法で誤答を生成
-    if (wrongs.length === 0) {
-        const similarArray = generateSimilarStringArray(correct);
-        for (const similar of similarArray) {
-            if (!usedAnswers.has(similar)) {
-                usedAnswers.add(similar);
-                wrongs.push(similar);
-            }
         }
     }
     
@@ -676,9 +667,6 @@ function calculateBotDifficulty() {
 }
 
 function generateBotQuestion() {
-    // ボットの難易度を計算
-    const botDifficulty = calculateBotDifficulty();
-    
     // ステータス更新を反映
     updateStats();
     updateHP();
@@ -1238,6 +1226,7 @@ function finishBotBattle(result) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
     localStorage.removeItem("isBotBattle");
+    localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
     setTimeout(() => location.href = "result.html", 2000);
 }
@@ -1338,6 +1327,9 @@ function finishBattle(winner) {
     battleEnd = true;
     stopTimer();
     
+    const buttons = choicesContainer.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => btn.disabled = true);
+
     const win = winner === me.id;
     addLog(win ? I18N.victory : I18N.defeat);
     
@@ -1351,6 +1343,8 @@ function finishBattle(winner) {
     } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
     }
+    
+    localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
     
     setTimeout(() => location.href = "result.html", 2500);
 }
