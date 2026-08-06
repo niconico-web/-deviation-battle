@@ -365,7 +365,36 @@ function generateStringWrongAnswers(correct) {
 // 文学的技法の問題かどうかを判定
 function isLiteraryTechniqueQuestion(answer) {
     const literaryKeywords = ['倒置法', '比喩', '反復', '対句', '擬人法', '係り結び', '受動態', '使役態', '尊敬語', '謙譲語'];
-    return literaryKeywords.some(keyword => answer.includes(keyword));
+    
+    // 正解に技法名が含まれている場合
+    if (literaryKeywords.some(keyword => answer.includes(keyword))) {
+        return true;
+    }
+    
+    // 技法の例文から技法を判定
+    const exampleToTechnique = {
+        '美しい、この花は': '倒置法',
+        'ライオンのように強い': '比喩',
+        '走った、走った、走った': '反復',
+        '山と川': '対句',
+        '天と地': '対句',
+        '風がささやく': '擬人法',
+        '～けれども、～ので': '係り結び',
+        '彼に褒められた': '受動態',
+        '彼を行かせた': '使役態',
+        'いらっしゃる': '尊敬語',
+        'おっしゃる': '尊敬語',
+        '参る': '謙譲語',
+        '申す': '謙譲語'
+    };
+    
+    for (const [example, technique] of Object.entries(exampleToTechnique)) {
+        if (answer.includes(example)) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 // 文学的技法の誤答を生成（技法を混ぜるのみ）
@@ -388,17 +417,50 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
         '謙譲語': ['彼を行かせた', '彼に褒められた', 'いらっしゃる、おっしゃる', '～けれども、～ので']
     };
     
-    // 正解に含まれる技法を特定
+    // 例文から技法を判定するマッピング
+    const exampleToTechnique = {
+        '美しい、この花は': '倒置法',
+        'ライオンのように強い': '比喩',
+        '走った、走った、走った': '反復',
+        '山と川': '対句',
+        '天と地': '対句',
+        '風がささやく': '擬人法',
+        '～けれども、～ので': '係り結び',
+        '彼に褒められた': '受動態',
+        '彼を行かせた': '使役態',
+        'いらっしゃる': '尊敬語',
+        'おっしゃる': '尊敬語',
+        '参る': '謙譲語',
+        '申す': '謙譲語'
+    };
+    
+    let targetTechnique = null;
+    
+    // 正解に含まれる技法を特定（技法名が含まれている場合）
     for (const [technique, examples] of Object.entries(techniqueMap)) {
         if (correct.includes(technique)) {
-            // その技法の正解例以外の技法の例を誤答として追加
-            for (const example of examples) {
-                if (!usedAnswers.has(example)) {
-                    usedAnswers.add(example);
-                    wrongs.push(example);
-                }
-            }
+            targetTechnique = technique;
             break;
+        }
+    }
+    
+    // 技法名が含まれていない場合、例文から技法を判定
+    if (!targetTechnique) {
+        for (const [example, technique] of Object.entries(exampleToTechnique)) {
+            if (correct.includes(example)) {
+                targetTechnique = technique;
+                break;
+            }
+        }
+    }
+    
+    // 技法が特定できた場合、その技法の誤答を生成
+    if (targetTechnique && techniqueMap[targetTechnique]) {
+        for (const example of techniqueMap[targetTechnique]) {
+            if (!usedAnswers.has(example)) {
+                usedAnswers.add(example);
+                wrongs.push(example);
+            }
         }
     }
     
