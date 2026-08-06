@@ -299,8 +299,12 @@ function generateNumericWrongAnswers(correct) {
 function generateStringWrongAnswers(correct) {
     const wrongs = [];
     
+    // 文学的技法に関する問題の場合、技法を混ぜた誤答を生成
+    if (isLiteraryTechniqueQuestion(correct)) {
+        wrongs.push(...generateLiteraryTechniqueWrongAnswers(correct));
+    }
     // ひらがなの場合、類似したひらがなを生成
-    if (isHiragana(correct)) {
+    else if (isHiragana(correct)) {
         wrongs.push(...generateSimilarHiragana(correct));
     }
     // 英語の場合、類似した単語やスペルミスを生成
@@ -313,6 +317,51 @@ function generateStringWrongAnswers(correct) {
     }
     
     return shuffleArray(wrongs);
+}
+
+// 文学的技法の問題かどうかを判定
+function isLiteraryTechniqueQuestion(answer) {
+    const literaryKeywords = ['倒置法', '比喩', '反復', '対句', '擬人法', '係り結び', '受動態', '使役態', '尊敬語', '謙譲語'];
+    return literaryKeywords.some(keyword => answer.includes(keyword));
+}
+
+// 文学的技法の誤答を生成（技法を混ぜる）
+function generateLiteraryTechniqueWrongAnswers(correct) {
+    const wrongs = [];
+    
+    // 文学的技法のマッピング
+    const techniqueMap = {
+        '倒置法': ['比喩のように強い', '走った、走った、走った', '山と川、天と地', '風がささやく'],
+        '比喩': ['美しい、この花は', '走った、走った、走った', '山と川、天と地', '風がささやく'],
+        '反復': ['美しい、この花は', 'ライオンのように強い', '山と川、天と地', '風がささやく'],
+        '対句': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
+        '擬人法': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '山と川、天と地'],
+        '係り結び': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
+        '受動態': ['彼を行かせた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
+        '使役態': ['彼に褒められた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
+        '尊敬語': ['彼を行かせた', '彼に褒められた', '参る、申す', '～けれども、～ので'],
+        '謙譲語': ['彼を行かせた', '彼に褒められた', 'いらっしゃる、おっしゃる', '～けれども、～ので']
+    };
+    
+    // 正解に含まれる技法を特定
+    for (const [technique, examples] of Object.entries(techniqueMap)) {
+        if (correct.includes(technique)) {
+            // その技法の正解例以外の技法の例を誤答として追加
+            for (const example of examples) {
+                if (!wrongs.includes(example) && example !== correct) {
+                    wrongs.push(example);
+                }
+            }
+            break;
+        }
+    }
+    
+    // もしマッチする技法が見つからない場合は、従来の方法で誤答を生成
+    if (wrongs.length === 0) {
+        wrongs.push(...generateSimilarStringArray(correct));
+    }
+    
+    return wrongs;
 }
 
 // ひらがなかどうかを判定
@@ -547,7 +596,50 @@ function handleChoiceClick(selectedOption) {
     }
 }
 
+function calculateBotDifficulty() {
+    // プレイヤーのステータスに基づいてボットの強さを計算
+    const playerGrade = me.grade || 1;
+    const playerAtk = me.atk || 10;
+    const playerDef = me.def || 10;
+    const playerSpeed = me.speed || 10;
+    
+    // 基本正解率（学年に応じて調整）
+    let baseAccuracy = 0.70; // 基本正解率70%
+    
+    // 学年による補正（学年が高いほど正解率アップ）
+    if (playerGrade <= 3) {
+        baseAccuracy = 0.65;
+    } else if (playerGrade <= 6) {
+        baseAccuracy = 0.75;
+    } else if (playerGrade <= 9) {
+        baseAccuracy = 0.80;
+    } else {
+        baseAccuracy = 0.85;
+    }
+    
+    // ステータスによる補正
+    const totalStats = playerAtk + playerDef + playerSpeed;
+    const statMultiplier = Math.min(1.15, 1 + (totalStats - 30) / 200); // ステータスが高いほど少し強く
+    
+    // ボットの正解率を計算
+    const botAccuracy = Math.min(0.95, baseAccuracy * statMultiplier);
+    
+    // ボットの攻撃力補正（プレイヤーの防御力に応じて調整）
+    const botAttackMultiplier = Math.max(0.8, Math.min(1.3, playerDef / 20));
+    
+    // ボットのステータスを動的に調整
+    enemy.atk = Math.floor((enemy.atk || 10) * botAttackMultiplier);
+    
+    return {
+        accuracy: botAccuracy,
+        attackMultiplier: botAttackMultiplier
+    };
+}
+
 function generateBotQuestion() {
+    // ボットの難易度を計算
+    const botDifficulty = calculateBotDifficulty();
+    
     // 学年に応じた問題を生成
     const playerGrade = me.grade || 1;
     const enemyGrade = enemy.grade || 1;
@@ -884,6 +976,9 @@ function generateBotQuestion() {
 function handleBotAnswer(userAnswer) {
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
+    
+    // ボットの難易度を取得
+    const botDifficulty = calculateBotDifficulty();
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
@@ -970,10 +1065,45 @@ function handleBotAnswer(userAnswer) {
     } else {
         addLog("不正解...");
         
-        // プイヤーが不正解の場合、ボットが回答するチャンス
+        // 不正解時、即座にダメージを受ける
+        let myDef = me.def || 0;
+        const defReduction = Math.floor(myDef * 0.1);
+        let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
+        
+        // 鉄壁（相手からの攻撃のダメージ50%カット）
+        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
+            const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
+            if (hasIronWall) {
+                damage = Math.floor(damage * 0.5);
+                addLog("鉄壁発動！ダメージ50%カット");
+            }
+        }
+        
+        // 回避判定（プレイヤーの回避率）
+        const mySpeed = me.speed || 0;
+        const myDodgeChance = Math.min(45, mySpeed * 0.5);
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < myDodgeChance) {
+            showDamage("myDamage", 0);
+            addLog("回避！ダメージなし");
+        } else {
+            me.hp = Math.max(0, me.hp - damage);
+            showDamage("myDamage", damage);
+            addLog("ダメージを受けた: " + damage);
+        }
+        
+        updateHP();
+        
+        // 勝利判定
+        if (me.hp <= 0) {
+            finishBotBattle("lose");
+            return;
+        }
+        
+        // ボットが回答するチャンス
         setTimeout(() => {
             const botAnswerTime = Math.random() * 2000 + 500; // 0.5-2.5秒に短縮
-            const botIsCorrect = Math.random() > 0.15; // 正解率を85%に向上
+            const botIsCorrect = Math.random() < botDifficulty.accuracy; // 計算された正解率を使用
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
