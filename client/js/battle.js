@@ -186,6 +186,9 @@ function startTimer() {
 function startBotBattle() {
     // ボットの難易度を計算（バトル開始時に1回だけ）
     calculateBotDifficulty();
+    // ステータス更新を反映
+    updateStats();
+    updateHP();
     generateBotQuestion();
 }
 
@@ -309,7 +312,7 @@ function generateStringWrongAnswers(correct) {
     const usedAnswers = new Set();
     usedAnswers.add(correct); // 正解を追加して重複を防ぐ
     
-    // 文学的技法に関する問題の場合、技法を混ぜた誤答を生成
+    // 文学的技法に関する問題の場合、技法を混ぜた誤答のみを生成
     if (isLiteraryTechniqueQuestion(correct)) {
         const literaryWrongs = generateLiteraryTechniqueWrongAnswers(correct);
         for (const wrong of literaryWrongs) {
@@ -318,6 +321,7 @@ function generateStringWrongAnswers(correct) {
                 wrongs.push(wrong);
             }
         }
+        return shuffleArray(wrongs);
     }
     
     // ひらがなの場合、類似したひらがなを生成
