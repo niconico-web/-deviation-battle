@@ -125,16 +125,22 @@ function startOnlineBattle() {
     }, 10000);
 }
 
+function calculateDodgeChance(speed) {
+    if (!speed || speed <= 0) return 0;
+    // 素早さ7500で45%回避率に到達
+    return Math.min(45, Math.floor((speed / 7500) * 45));
+}
+
 function updateStats() {
     myAtk.textContent = statLabel("atk", me.atk);
     myDef.textContent = statLabel("def", me.def);
-    const myDodgeChance = Math.min(45, Math.floor((me.speed || 0) * 0.5));
+    const myDodgeChance = calculateDodgeChance(me.speed);
     mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
     myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
     
     enemyAtk.textContent = statLabel("atk", enemy.atk);
     enemyDef.textContent = statLabel("def", enemy.def);
-    const enemyDodgeChance = Math.min(45, Math.floor((enemy.speed || 0) * 0.5));
+    const enemyDodgeChance = calculateDodgeChance(enemy.speed);
     enemySpeed.textContent = statLabel("speed", enemy.speed) + ` (回避${enemyDodgeChance}%)`;
     enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
 }
@@ -597,42 +603,42 @@ function handleChoiceClick(selectedOption) {
 }
 
 function calculateBotDifficulty() {
-    // プレイヤーのステータスに基づいてボットの強さを計算
+    // プレイヤーのステータスに基づいてボットのステータスを調整
     const playerGrade = me.grade || 1;
     const playerAtk = me.atk || 10;
     const playerDef = me.def || 10;
     const playerSpeed = me.speed || 10;
     
-    // 基本正解率（学年に応じて調整）
-    let baseAccuracy = 0.70; // 基本正解率70%
-    
-    // 学年による補正（学年が高いほど正解率アップ）
+    // 基本ステータス倍率（学年に応じて調整）
+    let baseMultiplier = 1.0;
     if (playerGrade <= 3) {
-        baseAccuracy = 0.65;
+        baseMultiplier = 0.8;
     } else if (playerGrade <= 6) {
-        baseAccuracy = 0.75;
+        baseMultiplier = 0.9;
     } else if (playerGrade <= 9) {
-        baseAccuracy = 0.80;
+        baseMultiplier = 1.0;
     } else {
-        baseAccuracy = 0.85;
+        baseMultiplier = 1.1;
     }
     
-    // ステータスによる補正
+    // ステータスによる補正（プレイヤーのステータスに合わせて調整）
     const totalStats = playerAtk + playerDef + playerSpeed;
-    const statMultiplier = Math.min(1.15, 1 + (totalStats - 30) / 200); // ステータスが高いほど少し強く
-    
-    // ボットの正解率を計算
-    const botAccuracy = Math.min(0.95, baseAccuracy * statMultiplier);
-    
-    // ボットの攻撃力補正（プレイヤーの防御力に応じて調整）
-    const botAttackMultiplier = Math.max(0.8, Math.min(1.3, playerDef / 20));
+    const statMultiplier = Math.min(1.2, Math.max(0.8, totalStats / 100));
     
     // ボットのステータスを動的に調整
-    enemy.atk = Math.floor((enemy.atk || 10) * botAttackMultiplier);
+    const finalMultiplier = baseMultiplier * statMultiplier;
+    
+    enemy.atk = Math.floor((enemy.atk || 10) * finalMultiplier);
+    enemy.def = Math.floor((enemy.def || 10) * finalMultiplier);
+    enemy.speed = Math.floor((enemy.speed || 10) * finalMultiplier);
+    enemy.maxHp = Math.floor((enemy.maxHp || 50) * finalMultiplier);
+    
+    // 正解率は固定（85%）
+    const botAccuracy = 0.85;
     
     return {
         accuracy: botAccuracy,
-        attackMultiplier: botAttackMultiplier
+        statMultiplier: finalMultiplier
     };
 }
 
@@ -1013,12 +1019,12 @@ function handleBotAnswer(userAnswer) {
         
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         const mySpeed = me.speed || 0;
-        const dodgeChance = Math.min(45, mySpeed * 0.5); // 最大45%回避
+        const dodgeChance = calculateDodgeChance(mySpeed);
         
         // 45%を超える分は攻撃ボーナスに変換
-        if (mySpeed > 90) {
-            const excessSpeed = mySpeed - 90;
-            const attackBonus = Math.floor(excessSpeed * 0.1); // 超過分の10%を攻撃ボーナス
+        if (mySpeed > 7500) {
+            const excessSpeed = mySpeed - 7500;
+            const attackBonus = Math.floor(excessSpeed * 0.001); // 超過分の0.1%を攻撃ボーナス
             damage += attackBonus;
         }
         
@@ -1032,7 +1038,7 @@ function handleBotAnswer(userAnswer) {
         }
         
         // 回避判定（敵の回避率）
-        const enemyDodgeChance = Math.min(45, enemySpeed * 0.5);
+        const enemyDodgeChance = calculateDodgeChance(enemySpeed);
         const dodgeRoll = Math.random() * 100;
         if (dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
@@ -1081,7 +1087,7 @@ function handleBotAnswer(userAnswer) {
         
         // 回避判定（プレイヤーの回避率）
         const mySpeed = me.speed || 0;
-        const myDodgeChance = Math.min(45, mySpeed * 0.5);
+        const myDodgeChance = calculateDodgeChance(mySpeed);
         const dodgeRoll = Math.random() * 100;
         if (dodgeRoll < myDodgeChance) {
             showDamage("myDamage", 0);
@@ -1124,12 +1130,12 @@ function handleBotAnswer(userAnswer) {
                 
                 // 素早さによる補正（ボット側）
                 const enemySpeed = enemy.speed || 0;
-                const enemyDodgeChance = Math.min(45, enemySpeed * 0.5);
+                const enemyDodgeChance = calculateDodgeChance(enemySpeed);
                 
                 // 45%を超える分は攻撃ボーナスに変換
-                if (enemySpeed > 90) {
-                    const excessSpeed = enemySpeed - 90;
-                    const attackBonus = Math.floor(excessSpeed * 0.1);
+                if (enemySpeed > 7500) {
+                    const excessSpeed = enemySpeed - 7500;
+                    const attackBonus = Math.floor(excessSpeed * 0.001);
                     damage += attackBonus;
                 }
                 
