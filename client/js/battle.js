@@ -304,31 +304,58 @@ function generateNumericWrongAnswers(correct) {
 // 文字列の誤答を生成（意味のある誤答）
 function generateStringWrongAnswers(correct) {
     const wrongs = [];
+    const usedAnswers = new Set();
+    usedAnswers.add(correct); // 正解を追加して重複を防ぐ
     
     // 文学的技法に関する問題の場合、技法を混ぜた誤答を生成
     if (isLiteraryTechniqueQuestion(correct)) {
-        wrongs.push(...generateLiteraryTechniqueWrongAnswers(correct));
+        const literaryWrongs = generateLiteraryTechniqueWrongAnswers(correct);
+        for (const wrong of literaryWrongs) {
+            if (!usedAnswers.has(wrong)) {
+                usedAnswers.add(wrong);
+                wrongs.push(wrong);
+            }
+        }
     }
     
     // すべての文字列問題で文字順序入れ替えの誤答を生成
     const modifiedAnswers = generateModifiedCorrectAnswer(correct);
     for (const modified of modifiedAnswers) {
-        if (!wrongs.includes(modified) && modified !== correct) {
+        if (!usedAnswers.has(modified)) {
+            usedAnswers.add(modified);
             wrongs.push(modified);
         }
     }
     
     // ひらがなの場合、類似したひらがなを生成
     if (isHiragana(correct)) {
-        wrongs.push(...generateSimilarHiragana(correct));
+        const hiraganaWrongs = generateSimilarHiragana(correct);
+        for (const wrong of hiraganaWrongs) {
+            if (!usedAnswers.has(wrong)) {
+                usedAnswers.add(wrong);
+                wrongs.push(wrong);
+            }
+        }
     }
     // 英語の場合、類似した単語やスペルミスを生成
     else if (isEnglish(correct)) {
-        wrongs.push(...generateSimilarEnglish(correct));
+        const englishWrongs = generateSimilarEnglish(correct);
+        for (const wrong of englishWrongs) {
+            if (!usedAnswers.has(wrong)) {
+                usedAnswers.add(wrong);
+                wrongs.push(wrong);
+            }
+        }
     }
     // その他の場合、類似した文字列を生成
     else {
-        wrongs.push(...generateSimilarStringArray(correct));
+        const stringWrongs = generateSimilarStringArray(correct);
+        for (const wrong of stringWrongs) {
+            if (!usedAnswers.has(wrong)) {
+                usedAnswers.add(wrong);
+                wrongs.push(wrong);
+            }
+        }
     }
     
     return shuffleArray(wrongs);
@@ -343,6 +370,8 @@ function isLiteraryTechniqueQuestion(answer) {
 // 文学的技法の誤答を生成（技法を混ぜる）
 function generateLiteraryTechniqueWrongAnswers(correct) {
     const wrongs = [];
+    const usedAnswers = new Set();
+    usedAnswers.add(correct); // 正解を追加して重複を防ぐ
     
     // 文学的技法のマッピング
     const techniqueMap = {
@@ -365,7 +394,8 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
             matchedTechnique = technique;
             // その技法の正解例以外の技法の例を誤答として追加
             for (const example of examples) {
-                if (!wrongs.includes(example) && example !== correct) {
+                if (!usedAnswers.has(example)) {
+                    usedAnswers.add(example);
                     wrongs.push(example);
                 }
             }
@@ -377,7 +407,8 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
     if (matchedTechnique) {
         const modifiedAnswers = generateModifiedCorrectAnswer(correct);
         for (const modified of modifiedAnswers) {
-            if (!wrongs.includes(modified) && modified !== correct) {
+            if (!usedAnswers.has(modified)) {
+                usedAnswers.add(modified);
                 wrongs.push(modified);
             }
         }
@@ -385,7 +416,13 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
     
     // もしマッチする技法が見つからない場合は、従来の方法で誤答を生成
     if (wrongs.length === 0) {
-        wrongs.push(...generateSimilarStringArray(correct));
+        const similarArray = generateSimilarStringArray(correct);
+        for (const similar of similarArray) {
+            if (!usedAnswers.has(similar)) {
+                usedAnswers.add(similar);
+                wrongs.push(similar);
+            }
+        }
     }
     
     return wrongs;
@@ -581,25 +618,6 @@ function generateSimilarStringArray(str) {
             if (swapped !== str && !similar.includes(swapped)) {
                 similar.push(swapped);
             }
-        }
-    }
-    
-    // 1文字削除した誤答
-    if (str.length > 1) {
-        for (let i = 0; i < str.length; i++) {
-            const deleted = str.substring(0, i) + str.substring(i + 1);
-            if (!similar.includes(deleted)) {
-                similar.push(deleted);
-            }
-        }
-    }
-    
-    // 1文字追加した誤答（文字列の末尾に）
-    const commonChars = 'の、は、が、を、に、で、と、も、';
-    for (const char of commonChars) {
-        const added = str + char;
-        if (!similar.includes(added)) {
-            similar.push(added);
         }
     }
     
