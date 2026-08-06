@@ -309,8 +309,17 @@ function generateStringWrongAnswers(correct) {
     if (isLiteraryTechniqueQuestion(correct)) {
         wrongs.push(...generateLiteraryTechniqueWrongAnswers(correct));
     }
+    
+    // すべての文字列問題で文字順序入れ替えの誤答を生成
+    const modifiedAnswers = generateModifiedCorrectAnswer(correct);
+    for (const modified of modifiedAnswers) {
+        if (!wrongs.includes(modified) && modified !== correct) {
+            wrongs.push(modified);
+        }
+    }
+    
     // ひらがなの場合、類似したひらがなを生成
-    else if (isHiragana(correct)) {
+    if (isHiragana(correct)) {
         wrongs.push(...generateSimilarHiragana(correct));
     }
     // 英語の場合、類似した単語やスペルミスを生成
