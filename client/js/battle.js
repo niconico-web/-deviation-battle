@@ -603,42 +603,51 @@ function handleChoiceClick(selectedOption) {
 }
 
 function calculateBotDifficulty() {
-    // プレイヤーのステータスに基づいてボットのステータスを調整
-    const playerGrade = me.grade || 1;
+    // プレイヤーのステータス合計値を計算
     const playerAtk = me.atk || 10;
     const playerDef = me.def || 10;
     const playerSpeed = me.speed || 10;
+    const playerMaxHp = me.maxHp || 50;
+    const playerTotalStats = playerAtk + playerDef + playerSpeed + playerMaxHp;
     
-    // 基本ステータス倍率（学年に応じて調整）
-    let baseMultiplier = 1.0;
-    if (playerGrade <= 3) {
-        baseMultiplier = 0.8;
-    } else if (playerGrade <= 6) {
-        baseMultiplier = 0.9;
-    } else if (playerGrade <= 9) {
-        baseMultiplier = 1.0;
-    } else {
-        baseMultiplier = 1.1;
-    }
+    // ボットのステータス合計値をプレイヤーと同じにする
+    const botTotalStats = playerTotalStats;
     
-    // ステータスによる補正（プレイヤーのステータスに合わせて調整）
-    const totalStats = playerAtk + playerDef + playerSpeed;
-    const statMultiplier = Math.min(1.2, Math.max(0.8, totalStats / 100));
+    // ステータスをランダムに振り分ける
+    // 最小値を確保するために、各ステータスに最低値を割り当て
+    const minAtk = 5;
+    const minDef = 5;
+    const minSpeed = 5;
+    const minMaxHp = 20;
+    const reservedStats = minAtk + minDef + minSpeed + minMaxHp;
     
-    // ボットのステータスを動的に調整
-    const finalMultiplier = baseMultiplier * statMultiplier;
+    // 残りのステータスポイント
+    let remainingStats = Math.max(0, botTotalStats - reservedStats);
     
-    enemy.atk = Math.floor((enemy.atk || 10) * finalMultiplier);
-    enemy.def = Math.floor((enemy.def || 10) * finalMultiplier);
-    enemy.speed = Math.floor((enemy.speed || 10) * finalMultiplier);
-    enemy.maxHp = Math.floor((enemy.maxHp || 50) * finalMultiplier);
+    // ランダムに振り分ける
+    const randomAtk = Math.floor(Math.random() * remainingStats * 0.3);
+    remainingStats -= randomAtk;
+    
+    const randomDef = Math.floor(Math.random() * remainingStats * 0.3);
+    remainingStats -= randomDef;
+    
+    const randomSpeed = Math.floor(Math.random() * remainingStats * 0.3);
+    remainingStats -= randomSpeed;
+    
+    const randomMaxHp = remainingStats;
+    
+    // ボットのステータスを設定
+    enemy.atk = minAtk + randomAtk;
+    enemy.def = minDef + randomDef;
+    enemy.speed = minSpeed + randomSpeed;
+    enemy.maxHp = minMaxHp + randomMaxHp;
     
     // 正解率は固定（85%）
     const botAccuracy = 0.85;
     
     return {
         accuracy: botAccuracy,
-        statMultiplier: finalMultiplier
+        statMultiplier: 1.0
     };
 }
 
