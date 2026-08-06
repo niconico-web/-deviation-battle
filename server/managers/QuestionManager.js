@@ -197,9 +197,57 @@ function generateNumericWrongAnswers(correct) {
     return shuffleArray(wrongs);
 }
 
+// 文学的技法の問題かどうかを判定
+function isLiteraryTechniqueQuestion(answer) {
+    const literaryKeywords = ['倒置法', '比喩', '反復', '対句', '擬人法', '係り結び', '受動態', '使役態', '尊敬語', '謙譲語'];
+    return literaryKeywords.some(keyword => answer.includes(keyword));
+}
+
+// 文学的技法の誤答を生成（技法を混ぜるのみ）
+function generateLiteraryTechniqueWrongAnswers(correct) {
+    const wrongs = [];
+    const usedAnswers = new Set();
+    usedAnswers.add(correct); // 正解を追加して重複を防ぐ
+    
+    // 文学的技法のマッピング
+    const techniqueMap = {
+        '倒置法': ['比喩のように強い', '走った、走った、走った', '山と川、天と地', '風がささやく'],
+        '比喩': ['美しい、この花は', '走った、走った、走った', '山と川、天と地', '風がささやく'],
+        '反復': ['美しい、この花は', 'ライオンのように強い', '山と川、天と地', '風がささやく'],
+        '対句': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
+        '擬人法': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '山と川、天と地'],
+        '係り結び': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
+        '受動態': ['彼を行かせた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
+        '使役態': ['彼に褒められた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
+        '尊敬語': ['彼を行かせた', '彼に褒められた', '参る、申す', '～けれども、～ので'],
+        '謙譲語': ['彼を行かせた', '彼に褒められた', 'いらっしゃる、おっしゃる', '～けれども、～ので']
+    };
+    
+    // 正解に含まれる技法を特定
+    for (const [technique, examples] of Object.entries(techniqueMap)) {
+        if (correct.includes(technique)) {
+            // その技法の正解例以外の技法の例を誤答として追加
+            for (const example of examples) {
+                if (!usedAnswers.has(example)) {
+                    usedAnswers.add(example);
+                    wrongs.push(example);
+                }
+            }
+            break;
+        }
+    }
+    
+    return wrongs;
+}
+
 // 文字列の誤答を生成（意味のある誤答）
 function generateStringWrongAnswers(correct) {
     const wrongs = [];
+    
+    // 文学的技法に関する問題の場合、技法を混ぜた誤答のみを生成
+    if (isLiteraryTechniqueQuestion(correct)) {
+        return generateLiteraryTechniqueWrongAnswers(correct);
+    }
     
     // ひらがなの場合、類似したひらがなを生成
     if (isHiragana(correct)) {
@@ -288,16 +336,6 @@ function generateSimilarHiragana(hiragana) {
                 if (newStr !== hiragana && !similar.includes(newStr)) {
                     similar.push(newStr);
                 }
-            }
-        }
-    }
-    
-    // 文字の順序を入れ替えた誤答
-    if (hiragana.length >= 2) {
-        for (let i = 0; i < hiragana.length - 1; i++) {
-            const swapped = hiragana.substring(0, i) + hiragana[i + 1] + hiragana[i] + hiragana.substring(i + 2);
-            if (swapped !== hiragana && !similar.includes(swapped)) {
-                similar.push(swapped);
             }
         }
     }
