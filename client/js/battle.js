@@ -318,15 +318,6 @@ function generateStringWrongAnswers(correct) {
         }
     }
     
-    // すべての文字列問題で文字順序入れ替えの誤答を生成
-    const modifiedAnswers = generateModifiedCorrectAnswer(correct);
-    for (const modified of modifiedAnswers) {
-        if (!usedAnswers.has(modified)) {
-            usedAnswers.add(modified);
-            wrongs.push(modified);
-        }
-    }
-    
     // ひらがなの場合、類似したひらがなを生成
     if (isHiragana(correct)) {
         const hiraganaWrongs = generateSimilarHiragana(correct);
@@ -388,10 +379,8 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
     };
     
     // 正解に含まれる技法を特定
-    let matchedTechnique = null;
     for (const [technique, examples] of Object.entries(techniqueMap)) {
         if (correct.includes(technique)) {
-            matchedTechnique = technique;
             // その技法の正解例以外の技法の例を誤答として追加
             for (const example of examples) {
                 if (!usedAnswers.has(example)) {
@@ -400,17 +389,6 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
                 }
             }
             break;
-        }
-    }
-    
-    // 正解例を少し変えた誤答を生成
-    if (matchedTechnique) {
-        const modifiedAnswers = generateModifiedCorrectAnswer(correct);
-        for (const modified of modifiedAnswers) {
-            if (!usedAnswers.has(modified)) {
-                usedAnswers.add(modified);
-                wrongs.push(modified);
-            }
         }
     }
     
@@ -428,22 +406,6 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
     return wrongs;
 }
 
-// 正解例を少し変えた誤答を生成
-function generateModifiedCorrectAnswer(correct) {
-    const modified = [];
-    
-    // 文字の順序を入れ替えた誤答
-    if (correct.length >= 2) {
-        for (let i = 0; i < correct.length - 1; i++) {
-            const swapped = correct.substring(0, i) + correct[i + 1] + correct[i] + correct.substring(i + 2);
-            if (swapped !== correct && !modified.includes(swapped)) {
-                modified.push(swapped);
-            }
-        }
-    }
-    
-    return modified;
-}
 
 // ひらがなかどうかを判定
 function isHiragana(str) {
@@ -611,13 +573,13 @@ function generateSimilarEnglish(english) {
 function generateSimilarStringArray(str) {
     const similar = [];
     
-    // 文字の順序を入れ替えた誤答
-    if (str.length >= 2) {
-        for (let i = 0; i < str.length - 1; i++) {
-            const swapped = str.substring(0, i) + str[i + 1] + str[i] + str.substring(i + 2);
-            if (swapped !== str && !similar.includes(swapped)) {
-                similar.push(swapped);
-            }
+    // ランダムに1文字変更
+    if (str.length > 0) {
+        const randomIndex = Math.floor(Math.random() * str.length);
+        const replacement = String.fromCharCode(str.charCodeAt(randomIndex) + 1);
+        const modified = str.substring(0, randomIndex) + replacement + str.substring(randomIndex + 1);
+        if (modified !== str) {
+            similar.push(modified);
         }
     }
     
