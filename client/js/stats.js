@@ -85,6 +85,13 @@ function calcStatGain(s) { return Math.max(1, Math.floor(s / 60)); }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
 
 function applyBattleRewards(won, turns, damage, options = {}) {
+    // 報酬が既に適用されているかチェック
+    if (localStorage.getItem("rewardsApplied") === "true") {
+        console.log(`[Stats] Rewards already applied, skipping`);
+        const raw = localStorage.getItem("player");
+        return raw ? JSON.parse(raw) : null;
+    }
+
     const raw = localStorage.getItem("player"); if (!raw) return null;
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
@@ -133,6 +140,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     localStorage.setItem("player", JSON.stringify(updated));
     localStorage.setItem("battleXpGain", String(gainedXp));
     localStorage.setItem("battleCoinGain", String(gainedCoins));
+    localStorage.setItem("rewardsApplied", "true"); // 報酬適用フラグを設定
     
     if (droppedOrb) {
         localStorage.setItem("droppedOrb", JSON.stringify(droppedOrb));
