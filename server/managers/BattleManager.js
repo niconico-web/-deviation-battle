@@ -49,7 +49,8 @@ function applyWeaponStats(player) {
         dual_swords: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
         scythe: { primary: ["atk", "speed"], secondary: ["maxHp"], debuff: { maxHp: 0.85 } },
         pistol: { primary: ["def", "maxHp"], secondary: ["atk"], debuff: { atk: 0.85 } },
-        katana: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } }
+        katana: { primary: ["atk", "speed"], secondary: ["def"], debuff: { def: 0.85 } },
+        magic_wand: { primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } }
     };
 
     const typeConf = weaponTypes[weapon.type];
@@ -157,7 +158,8 @@ function createBattle(roomId, host, guest){
                 equippedWeapon: hostWeapon,
 
                 answerTime: null,
-                correctAnswers: 0
+                correctAnswers: 0,
+                ultimateGauge: { current: 0, max: 100 }
 
             },
 
@@ -178,7 +180,8 @@ function createBattle(roomId, host, guest){
                 equippedWeapon: guestWeapon,
 
                 answerTime: null,
-                correctAnswers: 0
+                correctAnswers: 0,
+                ultimateGauge: { current: 0, max: 100 }
 
             }
 

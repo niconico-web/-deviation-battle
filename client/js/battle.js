@@ -1242,6 +1242,7 @@ function handleBotAnswer(userAnswer) {
         }
         
         updateHP();
+        updateUltimateGauge();
         
         // 勝利判定
         if (enemy.hp <= 0) {
@@ -1442,7 +1443,7 @@ function syncBattleState(players) {
         console.log("ID match failed, trying name match");
         for (const pid of playerIds) {
             const player = players[pid];
-            if (player.name === me.name) {
+            if (player && player.name === me.name) {
                 myData = player;
                 const enemyId = playerIds.find(id => id !== pid);
                 enemyData = players[enemyId];
@@ -1453,22 +1454,35 @@ function syncBattleState(players) {
         }
     }
     
-    // HPとステータスを同期
-    if (myData) {
-        if (myData.hp !== undefined) {
-            me.hp = myData.hp;
-        }
-        if (myData.maxHp !== undefined) {
-            me.maxHp = myData.maxHp;
-        }
+    // データが見つからない場合の警告
+    if (!myData) {
+        console.warn("Could not find my data in syncBattleState");
+        return;
     }
-    if (enemyData) {
-        if (enemyData.hp !== undefined) {
-            enemy.hp = enemyData.hp;
-        }
-        if (enemyData.maxHp !== undefined) {
-            enemy.maxHp = enemyData.maxHp;
-        }
+    if (!enemyData) {
+        console.warn("Could not find enemy data in syncBattleState");
+        return;
+    }
+    
+    // HPとステータスを同期
+    if (myData.hp !== undefined) {
+        me.hp = myData.hp;
+    }
+    if (myData.maxHp !== undefined) {
+        me.maxHp = myData.maxHp;
+    }
+    if (myData.ultimateGauge !== undefined) {
+        me.ultimateGauge = myData.ultimateGauge;
+    }
+    
+    if (enemyData.hp !== undefined) {
+        enemy.hp = enemyData.hp;
+    }
+    if (enemyData.maxHp !== undefined) {
+        enemy.maxHp = enemyData.maxHp;
+    }
+    if (enemyData.ultimateGauge !== undefined) {
+        enemy.ultimateGauge = enemyData.ultimateGauge;
     }
     
     console.log("Synced me.hp:", me.hp, "me.maxHp:", me.maxHp);
@@ -1477,6 +1491,22 @@ function syncBattleState(players) {
     localStorage.setItem("battlePlayer", JSON.stringify(me));
     localStorage.setItem("enemy", JSON.stringify(enemy));
     updateHP();
+    updateUltimateGauge();
+    
+    // HPが0になった場合は即座にバトル終了チェック
+    if (me.hp <= 0 || enemy.hp <= 0) {
+        console.log("HP reached zero, checking battle end");
+        if (!battleEnd) {
+            // 自分が負けた場合
+            if (me.hp <= 0) {
+                finishBattle(enemyData.id);
+            } 
+            // 敵が負けた場合
+            else if (enemy.hp <= 0) {
+                finishBattle(myData.id);
+            }
+        }
+    }
 }
 
 function finishBattle(winner) {
@@ -1811,7 +1841,22 @@ if (!isBotBattle && socket) {
         }
         
         if (data.winner) {
+            console.log("Winner detected in answerResult:", data.winner);
             finishBattle(data.winner);
+        }
+        
+        // battleStateのfinishedフラグもチェック
+        if (data.battleState && data.battleState.finished) {
+            console.log("Battle finished flag detected in battleState");
+            if (!data.winner) {
+                // winnerがない場合、HPを見て判定
+                if (me.hp <= 0) {
+                    const enemyId = Object.keys(data.battleState.players).find(id => id !== me.id);
+                    finishBattle(enemyId);
+                } else if (enemy.hp <= 0) {
+                    finishBattle(me.id);
+                }
+            }
         }
     });
 
