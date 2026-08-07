@@ -147,11 +147,16 @@ function setupOnlineEventHandlers() {
             // タイムアウト処理
             setTimeout(() => {
                 console.log("createRoom timeout check");
+                console.log("Socket still connected:", window.socket.connected);
                 window.socket.off("roomCreated", onRoomCreated);
                 if (createRoomBtn.disabled) {
                     createRoomBtn.disabled = false;
                     createRoomBtn.textContent = "ルーム作成";
-                    alert("ルーム作成に失敗しました。もう一度お試しください。");
+                    if (!window.socket.connected) {
+                        alert("サーバーとの接続が失われました。ページを再読み込みしてください。");
+                    } else {
+                        alert("ルーム作成に失敗しました。もう一度お試しください。");
+                    }
                 }
             }, 10000);
         };

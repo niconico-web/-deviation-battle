@@ -19,6 +19,7 @@ function initializeSocket() {
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
         window.socket.connected = true;
+        console.log("Socket connected property set to true");
     });
 
     window.socket.on("disconnect", () => {
@@ -33,7 +34,11 @@ function initializeSocket() {
     
     // 接続状態を定期的にチェック
     setInterval(() => {
-        window.socket.connected = window.socket.io && window.socket.io.engine && window.socket.io.engine.connected;
+        const actualConnected = window.socket.io && window.socket.io.engine && window.socket.io.engine.connected;
+        if (window.socket.connected !== actualConnected) {
+            console.log("Socket connection state changed:", window.socket.connected, "->", actualConnected);
+            window.socket.connected = actualConnected;
+        }
     }, 1000);
 
     // ユニーク武器獲得通知
@@ -60,6 +65,7 @@ function initializeSocket() {
     window.socket.connected = false;
     
     console.log("Socket initialized, waiting for connection...");
+    console.log("Initial socket.connected state:", window.socket.connected);
     
     // イベントハンドラーを設定
     setupSocketEventHandlers();
