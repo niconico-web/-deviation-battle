@@ -108,9 +108,8 @@ module.exports = function(io){
             console.log("[Connection] Socket connected:", socket.connected);
             console.log("[Connection] Emitting roomCreated to socket:", socket.id);
 
-            socket.emit("roomCreated", roomId);
             io.to(roomId).emit("roomCreated", roomId);
-            console.log("[Connection] roomCreated emitted successfully to socket:", socket.id);
+            console.log("[Connection] roomCreated emitted successfully to room:", roomId);
         });
 
         // -----------------------------

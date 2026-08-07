@@ -366,7 +366,9 @@ function setupSocketEventHandlers() {
         localStorage.setItem("battlePlayer", JSON.stringify(data.me));
         localStorage.setItem("enemy", JSON.stringify(data.enemy));
         alert(I18N.matchFound);
-        location.href = "battle.html";
+        setTimeout(() => {
+            location.href = "battle.html";
+        }, 50); // 50ミリ秒待機
     });
 
     window.socket.on("matchCancelled", () => {

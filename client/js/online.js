@@ -111,7 +111,7 @@ function setupOnlineEventHandlers() {
             createRoomBtn.disabled = true;
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);
-            console.log("Emitting playerJoin and createRoom with player:", battlePlayer);
+            console.log("Emitting createRoom with player:", battlePlayer);
             console.log("Socket ID:", window.socket.id);
             console.log("Socket connected:", window.socket.connected);
             
@@ -141,7 +141,6 @@ function setupOnlineEventHandlers() {
                 alert(message || "ルーム作成に失敗しました。もう一度お試しください。");
             });
 
-            window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("createRoom", battlePlayer);
 
             setTimeout(() => {
@@ -194,7 +193,9 @@ function setupOnlineEventHandlers() {
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
-                location.href = "battle.html";
+                setTimeout(() => {
+                    location.href = "battle.html";
+                }, 50); // 50ミリ秒待機
             };
 
             const handleJoinFailed = () => {
