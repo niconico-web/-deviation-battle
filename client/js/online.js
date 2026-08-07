@@ -74,11 +74,38 @@ window.setupOnlineSocketHandlers = function() {
 };
 
 function setupOnlineEventHandlers() {
-    if (onlineHandlersSetup) return;
+    // ソケットがあればハンドラー設定を試行
+    if (window.socket) {
+        console.log("Setting up online event handlers in online.js");
+        console.log("Socket connected status:", window.socket.connected);
+        
+        // 既に接続済みの場合は即座にハンドラーを設定
+        if (window.socket.connected) {
+            console.log("Socket already connected, setting up handlers immediately");
+            window.setupOnlineSocketHandlers();
+        } else {
+            console.log("Socket not connected, waiting for connect event");
+            // 接続した後にイベントハンドラーを設定
+            window.socket.on("connect", () => {
+                console.log("Socket connected in online.js, setting up handlers");
+                window.setupOnlineSocketHandlers();
+            });
+        }
+    } else {
+        console.log("Socket not available in online.js, will retry in 1 second");
+        // リトライ時にフラグをリセットしてハンドラー設定を許可
+        onlineHandlersSetup = false;
+        setTimeout(() => {
+            if (window.socket) {
+                console.log("Retry: Socket now available, setting up handlers");
+                setupOnlineEventHandlers();
+            }
+        }, 1000);
+    }
+    
     onlineHandlersSetup = true;
-
-    console.log("Setting up online event handlers in online.js");
-
+    
+    // ボタンイベントハンドラーの設定
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
     const botMatchBtn = document.getElementById("botMatch");
@@ -196,32 +223,6 @@ function setupOnlineEventHandlers() {
             window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("joinRoom", { roomId, player: battlePlayer });
         };
-    }
-
-    if (window.socket) {
-        console.log("Setting up online event handlers in online.js");
-        console.log("Socket connected status:", window.socket.connected);
-        
-        // 既に接続済みの場合は即座にハンドラーを設定
-        if (window.socket.connected) {
-            console.log("Socket already connected, setting up handlers immediately");
-            window.setupOnlineSocketHandlers();
-        } else {
-            console.log("Socket not connected, waiting for connect event");
-            // 接続した後にイベントハンドラーを設定
-            window.socket.on("connect", () => {
-                console.log("Socket connected in online.js, setting up handlers");
-                window.setupOnlineSocketHandlers();
-            });
-        }
-    } else {
-        console.log("Socket not available in online.js, will retry in 1 second");
-        setTimeout(() => {
-            if (window.socket) {
-                console.log("Retry: Socket now available, setting up handlers");
-                setupOnlineEventHandlers();
-            }
-        }, 1000);
     }
 }
 
