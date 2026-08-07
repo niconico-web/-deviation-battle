@@ -19,8 +19,6 @@ function initializeSocket() {
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
         window.socket.connected = true;
-        // 接続後にイベントハンドラーを設定
-        setupSocketEventHandlers();
     });
 
     window.socket.on("disconnect", () => {
@@ -62,6 +60,9 @@ function initializeSocket() {
     window.socket.connected = false;
     
     console.log("Socket initialized, waiting for connection...");
+    
+    // イベントハンドラーを設定
+    setupSocketEventHandlers();
 }
 
 function getStatsFromInputs() {
@@ -373,6 +374,9 @@ function setupSocketEventHandlers() {
     
     console.log("Socket event handlers setup complete");
 }
+
+// グローバルにアクセス可能に
+window.setupSocketEventHandlers = setupSocketEventHandlers;
 
 function setupDOMEventHandlers() {
     // モバイルメニュートグル
