@@ -371,18 +371,22 @@ function setupSocketEventHandlers() {
 window.setupSocketEventHandlers = setupSocketEventHandlers;
 
 function updateOnlineButtons(isConnected) {
+    console.log(`updateOnlineButtons called with: ${isConnected}`);
     const randomMatchBtn = document.getElementById("randomMatch");
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
 
     if (randomMatchBtn) {
         randomMatchBtn.disabled = !isConnected;
+        console.log(`randomMatchBtn.disabled set to: ${!isConnected}`);
     }
     if (createRoomBtn) {
         createRoomBtn.disabled = !isConnected;
+        console.log(`createRoomBtn.disabled set to: ${!isConnected}`);
     }
     if (joinRoomBtn) {
         joinRoomBtn.disabled = !isConnected;
+        console.log(`joinRoomBtn.disabled set to: ${!isConnected}`);
     }
 }
 
@@ -528,6 +532,7 @@ function initializeI18nTexts() {
 }
 
 window.onload = () => {
+    console.log("window.onload triggered.");
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
