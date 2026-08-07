@@ -88,7 +88,9 @@ function setupOnlineEventHandlers() {
             localStorage.setItem("enemy", JSON.stringify(botPlayer));
             localStorage.setItem("isBotBattle", "true");
 
-            location.href = "battle.html";
+            setTimeout(() => {
+                location.href = "battle.html";
+            }, 50);
         };
     }
 
