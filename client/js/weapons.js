@@ -1029,12 +1029,20 @@ function getWeaponUltimateName(weapon) {
     
     // 通常武器の場合
     const catalog = WEAPON_CATALOG[weapon.type];
-    if (!catalog) return "なし";
+    if (!catalog) {
+        console.warn("No catalog found for weapon type:", weapon.type);
+        return "なし";
+    }
     
     const tierKey = weapon.isUnique ? "unique" : weapon.tier;
     const weaponInfo = catalog[tierKey];
     
-    return weaponInfo?.ultimate || "なし";
+    if (!weaponInfo) {
+        console.warn("No weapon info found for tierKey:", tierKey, "in type:", weapon.type);
+        return "なし";
+    }
+    
+    return weaponInfo.ultimate || "なし";
 }
 
 // 必殺技ゲージを初期化

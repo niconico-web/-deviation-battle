@@ -226,6 +226,7 @@ function processAnswer(battle, playerId, answer) {
         if (player.hp <= 0) {
             battle.finished = true;
             result.winner = enemyId;
+            console.log(`[BattleEngine] Player ${playerId} HP reached 0, winner: ${enemyId}`);
         }
     }
     
@@ -233,6 +234,11 @@ function processAnswer(battle, playerId, answer) {
     if ((isCorrect || bothAnswered) && !battle.finished) {
         generateQuestion(battle);
         result.nextQuestion = battle.currentQuestion;
+    }
+    
+    // バトルが終了した場合、winnerをresultに含める
+    if (battle.finished && result.winner) {
+        console.log(`[BattleEngine] Battle finished, winner: ${result.winner}`);
     }
     
     return {

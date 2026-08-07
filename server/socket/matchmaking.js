@@ -5,14 +5,17 @@ const BattleManager = require("../managers/BattleManager");
 function toBattlePlayer(player, socketId) {
     const battleStats = player.battleStats || player;
     console.log(`[Matchmaking] toBattlePlayer: player.grade=${player.grade}, battleStats.grade=${battleStats.grade}`);
+    console.log(`[Matchmaking] Player data:`, JSON.stringify(player));
+    console.log(`[Matchmaking] BattleStats:`, JSON.stringify(battleStats));
+    
     return {
         id: player.id,
         socketId,
-        name: player.name,
-        maxHp: battleStats.maxHp ?? player.maxHp,
-        atk: battleStats.atk ?? player.atk,
-        def: battleStats.def ?? player.def,
-        speed: battleStats.speed ?? player.speed,
+        name: player.name || "Unknown",
+        maxHp: battleStats.maxHp ?? player.maxHp ?? 50,
+        atk: battleStats.atk ?? player.atk ?? 10,
+        def: battleStats.def ?? player.def ?? 10,
+        speed: battleStats.speed ?? player.speed ?? 10,
         grade: player.grade || battleStats.grade || 1,
         equippedWeapon: player.equippedWeapon || null
     };
