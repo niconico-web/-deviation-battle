@@ -20,9 +20,8 @@ function initializeSocket() {
     // Connection logging
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
-        window.socket.connected = true;
-        updateOnlineButtons(true); // ボタンを有効化
-        console.log("Socket connected property set to true");
+        // updateOnlineButtons(true); // ボタンを有効化 - setIntervalが管理
+        // console.log("Socket connected property set to true"); // setIntervalが管理
         
         // Call setup for online features
         if (typeof setupOnlineEventHandlers === 'function') {
@@ -37,19 +36,17 @@ function initializeSocket() {
 
     window.socket.on("disconnect", () => {
         console.log("切断");
-        window.socket.connected = false;
-        updateOnlineButtons(false); // ボタンを無効化
-        console.log("Socket connected property set to false");
+        // updateOnlineButtons(false); // ボタンを無効化 - setIntervalが管理
+        // console.log("Socket connected property set to false"); // setIntervalが管理
     });
 
     window.socket.on("connect_error", (error) => {
         console.log("接続エラー:", error);
-        window.socket.connected = false;
     });
     
     // 接続状態を定期的にチェック
     setInterval(() => {
-        const actualConnected = window.socket.io && window.socket.io.engine && window.socket.io.engine.connected;
+        const actualConnected = Boolean(window.socket.io && window.socket.io.engine && window.socket.io.engine.connected);
         if (window.socket.connected !== actualConnected) {
             console.log("Socket connection state changed:", window.socket.connected, "->", actualConnected);
             window.socket.connected = actualConnected;
@@ -78,7 +75,7 @@ function initializeSocket() {
     });
 
     // Initialize connection state
-    window.socket.connected = false;
+    // window.socket.connected = false; // setIntervalが管理
     
     console.log("Socket initialized, waiting for connection...");
     console.log("Initial socket.connected state:", window.socket.connected);
