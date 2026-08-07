@@ -14,7 +14,6 @@ const io = new Server(server, {
         origin: "*",
         methods: ["GET", "POST"]
     },
-    allowEIO3: true,
     connectionStateRecovery: {
         maxDisconnectionDuration: 2 * 60 * 1000,
         skipMiddlewares: true
