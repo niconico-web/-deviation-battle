@@ -154,12 +154,13 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 }
 
 function getStatsFromPlayer(player) {
+    const p = player || {}; // Ensure player is not null/undefined
     return {
-        maxHp: player.maxHp ?? DEFAULT_STATS.maxHp,
-        atk: player.atk ?? DEFAULT_STATS.atk,
-        def: player.def ?? DEFAULT_STATS.def,
-        speed: player.speed ?? DEFAULT_STATS.speed,
-        grade: player.grade ?? 1
+        maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
+        atk: Number(p.atk) || DEFAULT_STATS.atk,
+        def: Number(p.def) || DEFAULT_STATS.def,
+        speed: Number(p.speed) || DEFAULT_STATS.speed,
+        grade: Number(p.grade) || 1
     };
 }
 

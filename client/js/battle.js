@@ -1713,172 +1713,58 @@ if (!isBotBattle && socket) {
 
     socket.on("answerResult", data => {
         console.log("answerResult received:", data);
-        console.log("Current me.id:", me.id, "data.playerId:", data.playerId);
-        
-        // IDマッチングを試みる（IDが変わっている可能性があるため）
-        let isMyAnswer = data.playerId === me.id;
-        
-        // IDでマッチしない場合、名前でマッチングを試みる
-        if (!isMyAnswer && data.playerName) {
-            isMyAnswer = data.playerName === me.name;
-            console.log("ID match failed, trying name match:", isMyAnswer);
-        }
-        
-        console.log("isMyAnswer:", isMyAnswer);
-        
-        // 相手が先に正解した場合、即座に入力を無効化
-        if (!isMyAnswer && data.isCorrect && data.firstCorrect) {
-            const buttons = choicesContainer.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = true);
-            addLog("相手が先に正解しました！回答無効");
-        }
-        
-        if (isMyAnswer) {
-            if (data.isCorrect) {
-                addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-                showCorrectEffect();
-                
-                // 必殺技ゲージ更新
-                if (data.ultimateGauge !== undefined) {
-                    if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
-                    me.ultimateGauge.current = data.ultimateGauge;
-                    updateUltimateGauge();
-                    
-                    // 必殺技ゲージがMAXの時
-                    if (data.ultimateReady) {
-                        const ultimateName = getWeaponUltimateName(me.equippedWeapon);
-                        addLog("必殺技ゲージMAX！次の正解で「" + ultimateName + "」発動！");
-                    }
-                    
-                    // 必殺技発動時
-                    if (data.ultimateActivated) {
-                        const ultimateName = getWeaponUltimateName(me.equippedWeapon);
-                        addLog("必殺技「" + ultimateName + "」発動！ダメージ1.5倍！");
-                        showUltimateEffect();
-                    }
-                }
-                
-                if (data.dodged) {
-                    addLog("相手が回避！ダメージなし");
-                    showDamage("enemyDamage", 0);
-                } else if (data.firstCorrect) {
-                    addLog("先答！ダメージ: " + data.damage);
-                    showDamage("enemyDamage", data.damage);
-                    // 敵のHPを直接更新
-                    if (data.enemyHp !== undefined) {
-                        enemy.hp = data.enemyHp;
-                    }
-                } else {
-                    addLog("後答...ダメージなし");
-                }
-            } else {
-                addLog("不正解...");
-                if (data.dodged) {
-                    addLog("回避！ダメージなし");
-                    showDamage("myDamage", 0);
-                } else if (data.wrongAnswer && data.damage) {
-                    addLog("ダメージを受けた: " + data.damage);
-                    showDamage("myDamage", data.damage);
-                    // 自分のHPを直接更新
-                    if (data.playerHp !== undefined) {
-                        me.hp = data.playerHp;
-                    }
-                }
+        const isMyAnswer = data.playerId === me.id || (data.playerName && data.playerName === me.name);
+
+        // Display logs and effects based on the immediate result
+        if (data.isCorrect) {
+            addLog(`${data.playerName}が正解！`);
+            if (isMyAnswer) showCorrectEffect();
+            if (data.ultimateActivated) {
+                const ultimateName = getWeaponUltimateName(isMyAnswer ? me.equippedWeapon : enemy.equippedWeapon);
+                addLog(`${data.playerName}の必殺技「${ultimateName}」発動！`);
+                showUltimateEffect();
             }
         } else {
-            if (data.isCorrect) {
-                addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
-                
-                // 敵の必殺技ゲージ更新
-                if (data.ultimateGauge !== undefined) {
-                    if (!enemy.ultimateGauge) enemy.ultimateGauge = { current: 0, max: 100 };
-                    enemy.ultimateGauge.current = data.ultimateGauge;
-                    updateUltimateGauge();
-                    
-                    // 敵の必殺技発動時
-                    if (data.ultimateActivated) {
-                        const ultimateName = getWeaponUltimateName(enemy.equippedWeapon);
-                        addLog(enemy.name + "の必殺技「" + ultimateName + "」発動！");
-                        showUltimateEffect();
-                    }
-                }
-                
-                if (data.dodged) {
-                    addLog("回避！ダメージなし");
-                    showDamage("myDamage", 0);
-                } else if (data.firstCorrect) {
-                    addLog("相手が先答！ダメージ: " + data.damage);
-                    showDamage("myDamage", data.damage);
-                    // 自分のHPを直接更新（相手からのダメージ）
-                    if (data.playerHp !== undefined) {
-                        me.hp = data.playerHp;
-                    }
-                }
-            } else {
-                addLog(enemy.name + "は不正解...");
-                if (data.dodged) {
-                    addLog(enemy.name + "が回避！ダメージなし");
-                    showDamage("enemyDamage", 0);
-                } else if (data.wrongAnswer && data.damage) {
-                    addLog(enemy.name + "がダメージを受けた: " + data.damage);
-                    showDamage("enemyDamage", data.damage);
-                    // 敵のHPを直接更新
-                    if (data.enemyHp !== undefined) {
-                        enemy.hp = data.enemyHp;
-                    }
-                }
-            }
+            addLog(`${data.playerName}は不正解...`);
         }
         
-        // HP同期とUI更新
-        updateHP();
-        updateUltimateGauge();
-        localStorage.setItem("battlePlayer", JSON.stringify(me));
-        localStorage.setItem("enemy", JSON.stringify(enemy));
-        
+        // Display damage/dodge info
+        if (data.damage !== undefined) {
+            const target = isMyAnswer ? "enemy" : "my";
+            if(data.dodged) {
+                addLog(`${target === "my" ? "自分" : "相手"}が回避！`);
+                showDamage(`${target}Damage`, 0);
+            } else {
+                addLog(`${target === "my" ? "自分" : "相手"}に${data.damage}のダメージ！`);
+                showDamage(`${target}Damage`, data.damage);
+            }
+        }
+
+        // Authoritative state update from the server
         if (data.battleState) {
-            console.log("Syncing battle state:", data.battleState.players);
+            console.log("Syncing battle state from answerResult:", data.battleState.players);
             syncBattleState(data.battleState.players);
         }
         
-        // 次の問題がある場合の処理
+        // Handle next question
         if (data.nextQuestion) {
             currentQuestion = data.nextQuestion;
-            // ボタンを再有効化
-            const buttons = choicesContainer.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = false);
-            
             showCountdown(() => {
                 questionDisplay.textContent = currentQuestion.question;
-                // 選択肢を生成
                 generateChoices(currentQuestion);
                 startTimer();
                 const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
                 addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
             });
-        } else {
-            // 次の問題がない場合（相手がまだ回答していない）、ボタンを再有効化
+        } else if (isMyAnswer && data.isCorrect && data.firstCorrect) {
+            // Disable buttons if I was the first to answer correctly, until next question arrives
             const buttons = choicesContainer.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = false);
+            buttons.forEach(btn => btn.disabled = true);
         }
-        
+
+        // Check for a winner from the result payload
         if (data.winner) {
-            console.log("Winner detected in answerResult:", data.winner);
             finishBattle(data.winner);
-        }
-        
-        // battleStateのfinishedフラグもチェック
-        if (data.battleState && data.battleState.finished) {
-            console.log("Battle finished flag detected in battleState");
-            if (!data.winner) {
-                // winnerがない場合、HPを見て判定
-                if (me.hp <= 0) {
-                    const enemyId = Object.keys(data.battleState.players).find(id => id !== me.id);
-                    finishBattle(enemyId);
-                } else if (enemy.hp <= 0) {
-                    finishBattle(me.id);
-                }
-            }
         }
     });
 
@@ -1896,21 +1782,6 @@ if (!isBotBattle && socket) {
         addLog("エラー: " + data.message);
         const buttons = choicesContainer.querySelectorAll('.choice-btn');
         buttons.forEach(btn => btn.disabled = false);
-    });
-
-    socket.on("battleStateUpdate", data => {
-        console.log("battleStateUpdate received:", data);
-        
-        // プレイヤー状態を同期
-        if (data.players) {
-            syncBattleState(data.players);
-        }
-        
-        // 現在の問題を同期（必要な場合）
-        if (data.currentQuestion && !data.nextQuestion) {
-            // 次の問題がまだ送信されていない場合のみ同期
-            console.log("Syncing current question");
-        }
     });
 
     socket.on("opponentLeft", () => {
