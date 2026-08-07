@@ -23,6 +23,12 @@ function initializeSocket() {
         window.socket.connected = true;
         updateOnlineButtons(true); // ボタンを有効化
         console.log("Socket connected property set to true");
+        
+        // Call setup for online features
+        if (typeof setupOnlineEventHandlers === 'function') {
+            setupOnlineEventHandlers();
+        }
+
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
             window.socket.emit("requestRandomMatch", pendingRandomMatchPlayer);

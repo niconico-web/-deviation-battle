@@ -293,7 +293,4 @@ function setupOnlineEventHandlers() {
     }
 }
 
-document.addEventListener("socketConnected", () => {
-    console.log("Socket is connected, setting up online event handlers.");
-    setupOnlineEventHandlers();
-});
+
