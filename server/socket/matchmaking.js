@@ -78,11 +78,15 @@ module.exports = function(io){
                 }
 
                 console.log(`[Matchmaking] Sending matchFound to host: ${socket.id}`);
+                console.log(`[Matchmaking] Host data:`, battleData.players[player.id]);
+                console.log(`[Matchmaking] Enemy data:`, battleData.players[opponent.player.id]);
+                
                 socket.emit("matchFound", {
                     roomId,
                     me: battleData.players[player.id],
                     enemy: battleData.players[opponent.player.id]
                 });
+                console.log(`[Matchmaking] matchFound emitted to host`);
 
                 console.log(`[Matchmaking] Sending matchFound to guest: ${opponent.socketId}`);
                 io.to(opponent.socketId).emit("matchFound", {
@@ -90,6 +94,7 @@ module.exports = function(io){
                     me: battleData.players[opponent.player.id],
                     enemy: battleData.players[player.id]
                 });
+                console.log(`[Matchmaking] matchFound emitted to guest`);
             } else {
                 console.log("[Matchmaking] No match found, player waiting in queue");
             }
