@@ -32,6 +32,78 @@ function setupOnlineEventHandlers() {
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
     const botMatchBtn = document.getElementById("botMatch");
+    const randomMatchBtn = document.getElementById("randomMatch");
+
+    if (randomMatchBtn) {
+        let isMatching = false;
+        randomMatchBtn.onclick = function() {
+            if (isMatching) {
+                // マッチングをキャンセル
+                isMatching = false;
+                randomMatchBtn.textContent = "ランダムマッチ";
+                randomMatchBtn.disabled = false;
+                const player = migratePlayer(JSON.parse(localStorage.getItem("player")));
+                if (player && window.socket) {
+                    window.socket.emit("cancelMatchmaking", player.id);
+                }
+                // イベントリスナーを解除
+                window.socket.off("matchFound");
+                window.socket.off("matchCancelled");
+                window.socket.off("errorMessage");
+                return;
+            }
+
+            const player = migratePlayer(JSON.parse(localStorage.getItem("player")));
+            if (!player) {
+                alert("まずはキャラクターを作成してください。");
+                return;
+            }
+            if (!window.socket || !window.socket.connected) {
+                alert("サーバーに接続されていません。ページを再読み込みしてください。");
+                return;
+            }
+
+            isMatching = true;
+            randomMatchBtn.textContent = "マッチング待機中... (クリックでキャンセル)";
+            const battlePlayer = getBattleReadyPlayer(player);
+            
+            const handleMatchFound = (data) => {
+                isMatching = false;
+                randomMatchBtn.textContent = "ランダムマッチ";
+                randomMatchBtn.disabled = false;
+
+                localStorage.setItem("roomId", data.roomId);
+                localStorage.setItem("battlePlayer", JSON.stringify(data.me));
+                localStorage.setItem("enemy", JSON.stringify(data.enemy));
+                setTimeout(() => {
+                    location.href = "battle.html";
+                }, 50);
+            };
+
+            const handleMatchCancelled = () => {
+                isMatching = false;
+                randomMatchBtn.textContent = "ランダムマッチ";
+                randomMatchBtn.disabled = false;
+                alert("マッチングがキャンセルされました。");
+            };
+
+            const handleErrorMessage = (message) => {
+                isMatching = false;
+                randomMatchBtn.textContent = "ランダムマッチ";
+                randomMatchBtn.disabled = false;
+                alert(message || "マッチングに失敗しました。");
+            };
+
+            window.socket.off("matchFound");
+            window.socket.off("matchCancelled");
+            window.socket.off("errorMessage");
+            window.socket.on("matchFound", handleMatchFound);
+            window.socket.on("matchCancelled", handleMatchCancelled);
+            window.socket.on("errorMessage", handleErrorMessage);
+
+            window.socket.emit("requestRandomMatch", battlePlayer);
+        };
+    }
 
     if (botMatchBtn) {
         botMatchBtn.onclick = function() {
@@ -106,7 +178,7 @@ function setupOnlineEventHandlers() {
                 return;
             }
             // socket.connectedプロパティのチェックを緩和（Socket.IOの状態チェックを使用）
-            if (!window.socket.connected && !window.socket.io) {
+            if (!window.socket.connected) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
@@ -176,7 +248,7 @@ function setupOnlineEventHandlers() {
                 return;
             }
             // socket.connectedプロパティのチェックを緩和
-            if (!window.socket.connected && !window.socket.io) {
+            if (!window.socket.connected) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
@@ -184,7 +256,7 @@ function setupOnlineEventHandlers() {
             joinRoomBtn.textContent = "参加中...";
             localStorage.setItem("attemptedJoinRoom", roomId);
             const battlePlayer = getBattleReadyPlayer(player);
-            console.log("Emitting playerJoin and joinRoom with roomId:", roomId, "player:", battlePlayer);
+            console.log("Emitting joinRoom with roomId:", roomId, "player:", battlePlayer);
             
             // roomReadyイベントを受信する一時的なリスナー
             const handleRoomReady = (data) => {
@@ -219,7 +291,6 @@ function setupOnlineEventHandlers() {
             window.socket.on("roomReady", handleRoomReady);
             window.socket.on("joinFailed", handleJoinFailed);
 
-            window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("joinRoom", { roomId, player: battlePlayer });
 
             setTimeout(() => {
