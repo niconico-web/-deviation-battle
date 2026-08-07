@@ -85,13 +85,19 @@ function setupOnlineEventHandlers() {
                 alert("まずはキャラクターを作成してください。");
                 return;
             }
-            if (!window.socket || !window.socket.connected) {
+            if (!window.socket) {
+                alert("ソケットが初期化されていません。ページを再読み込みしてください。");
+                return;
+            }
+            // socket.connectedプロパティのチェックを緩和（Socket.IOの状態チェックを使用）
+            if (!window.socket.connected && !window.socket.io) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
             createRoomBtn.disabled = true;
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);
+            console.log("Emitting playerJoin and createRoom with player:", battlePlayer);
             window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("createRoom", battlePlayer);
         };
@@ -109,7 +115,12 @@ function setupOnlineEventHandlers() {
                 alert("ルームコードを入力してください。");
                 return;
             }
-            if (!window.socket || !window.socket.connected) {
+            if (!window.socket) {
+                alert("ソケットが初期化されていません。ページを再読み込みしてください。");
+                return;
+            }
+            // socket.connectedプロパティのチェックを緩和
+            if (!window.socket.connected && !window.socket.io) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
@@ -117,6 +128,7 @@ function setupOnlineEventHandlers() {
             joinRoomBtn.textContent = "参加中...";
             localStorage.setItem("attemptedJoinRoom", roomId);
             const battlePlayer = getBattleReadyPlayer(player);
+            console.log("Emitting playerJoin and joinRoom with roomId:", roomId, "player:", battlePlayer);
             window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("joinRoom", { roomId, player: battlePlayer });
         };

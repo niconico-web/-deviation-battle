@@ -29,6 +29,11 @@ function initializeSocket() {
         console.log("接続エラー:", error);
         window.socket.connected = false;
     });
+    
+    // 接続状態を定期的にチェック
+    setInterval(() => {
+        window.socket.connected = window.socket.io && window.socket.io.engine && window.socket.io.engine.connected;
+    }, 1000);
 
     // ユニーク武器獲得通知
     window.socket.on("uniqueWeaponClaimed", (data) => {
@@ -433,12 +438,20 @@ function setupDOMEventHandlers() {
             const btn = document.getElementById("randomMatch");
             btn.textContent = I18N.searching;
             btn.disabled = true;
-            if (!window.socket || !window.socket.connected) {
+            if (!window.socket) {
+                btn.textContent = I18N.randomMatch;
+                btn.disabled = false;
+                alert("ソケットが初期化されていません。ページを再読み込みしてください。");
+                return;
+            }
+            // socket.connectedプロパティのチェックを緩和
+            if (!window.socket.connected && !window.socket.io) {
                 btn.textContent = I18N.randomMatch;
                 btn.disabled = false;
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+            console.log("Emitting playerJoin and requestRandomMatch with player:", p);
             window.socket.emit("playerJoin", p);
             window.socket.emit("requestRandomMatch", p);
 
