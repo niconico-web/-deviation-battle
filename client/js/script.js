@@ -21,6 +21,7 @@ function initializeSocket() {
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
         window.socket.connected = true;
+        updateOnlineButtons(true); // ボタンを有効化
         console.log("Socket connected property set to true");
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
@@ -31,6 +32,7 @@ function initializeSocket() {
     window.socket.on("disconnect", () => {
         console.log("切断");
         window.socket.connected = false;
+        updateOnlineButtons(false); // ボタンを無効化
         console.log("Socket connected property set to false");
     });
 
@@ -396,6 +398,22 @@ function setupSocketEventHandlers() {
 
 // グローバルにアクセス可能に
 window.setupSocketEventHandlers = setupSocketEventHandlers;
+
+function updateOnlineButtons(isConnected) {
+    const randomMatchBtn = document.getElementById("randomMatch");
+    const createRoomBtn = document.getElementById("createRoom");
+    const joinRoomBtn = document.getElementById("joinRoom");
+
+    if (randomMatchBtn) {
+        randomMatchBtn.disabled = !isConnected;
+    }
+    if (createRoomBtn) {
+        createRoomBtn.disabled = !isConnected;
+    }
+    if (joinRoomBtn) {
+        joinRoomBtn.disabled = !isConnected;
+    }
+}
 
 function setupDOMEventHandlers() {
     // モバイルメニュートグル

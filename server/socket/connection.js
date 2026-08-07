@@ -63,18 +63,6 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // プレイヤー登録
-        // -----------------------------
-
-        socket.on("playerJoin",(player)=>{
-
-            PlayerManager.addPlayer(socket.id, player);
-
-            console.log("Player Join:", player.name);
-
-        });
-
-        // -----------------------------
         // ルーム作成
         // -----------------------------
 
@@ -108,7 +96,7 @@ module.exports = function(io){
             console.log("[Connection] Socket connected:", socket.connected);
             console.log("[Connection] Emitting roomCreated to socket:", socket.id);
 
-            io.to(roomId).emit("roomCreated", roomId);
+            socket.emit("roomCreated", roomId);
             console.log("[Connection] roomCreated emitted successfully to room:", roomId);
         });
 
