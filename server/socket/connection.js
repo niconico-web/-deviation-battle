@@ -79,43 +79,38 @@ module.exports = function(io){
         // -----------------------------
 
         socket.on("createRoom",(player)=>{
+            console.log("[Connection] createRoom received from socket:", socket.id);
+            console.log("[Connection] Player data:", player);
 
-            console.log("createRoom received from socket:", socket.id);
-            console.log("Player data:", player);
+            const safePlayer = player && typeof player === "object" ? player : null;
 
-            if(player){
-
-                PlayerManager.addPlayer(socket.id, player);
-                console.log("Player added to PlayerManager");
-
+            if(safePlayer){
+                PlayerManager.addPlayer(socket.id, safePlayer);
+                console.log("[Connection] Player added to PlayerManager");
             }
 
-            const roomId = Math.random()
-                .toString(36)
-                .substring(2, 8)
-                .toUpperCase();
+            const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-            // Socket.IO roomに参加
-            socket.join(roomId);
-            console.log("Socket joined room:", roomId);
+            try {
+                socket.join(roomId);
+                console.log("[Connection] Socket joined room:", roomId);
+            } catch (error) {
+                console.error("[Connection] Failed to join socket room", error);
+                socket.emit("errorMessage", "ルーム作成に失敗しました");
+                return;
+            }
 
-            // ルームマネージャーに登録
-            RoomManager.createRoom(roomId, socket.id, player || null);
-            console.log("Room created in RoomManager");
+            RoomManager.createRoom(roomId, socket.id, safePlayer || null);
+            console.log("[Connection] Room created in RoomManager", roomId);
 
-            console.log("Room Create:", roomId, "by socket:", socket.id);
-            console.log("Socket rooms:", Array.from(socket.rooms));
-            console.log("Socket connected:", socket.connected);
-            console.log("Emitting roomCreated to socket:", socket.id);
+            console.log("[Connection] Room Create:", roomId, "by socket:", socket.id);
+            console.log("[Connection] Socket rooms:", Array.from(socket.rooms));
+            console.log("[Connection] Socket connected:", socket.connected);
+            console.log("[Connection] Emitting roomCreated to socket:", socket.id);
 
             socket.emit("roomCreated", roomId);
-            console.log("roomCreated emitted successfully");
-            
-            // 送信確認のために遅延してログ
-            setTimeout(() => {
-                console.log("roomCreated emission check completed");
-            }, 100);
-
+            io.to(roomId).emit("roomCreated", roomId);
+            console.log("[Connection] roomCreated emitted successfully to socket:", socket.id);
         });
 
         // -----------------------------

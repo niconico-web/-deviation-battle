@@ -115,11 +115,8 @@ function setupOnlineEventHandlers() {
             console.log("Socket ID:", window.socket.id);
             console.log("Socket connected:", window.socket.connected);
             
-            // ルーム作成イベントを受信する一時的なリスナー
-            const onRoomCreated = (roomId) => {
+            const handleRoomCreated = (roomId) => {
                 console.log("roomCreated event received:", roomId);
-                window.socket.off("roomCreated", onRoomCreated);
-                
                 localStorage.setItem("lastCreatedRoom", roomId);
                 localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
 
@@ -134,21 +131,20 @@ function setupOnlineEventHandlers() {
                     alert("ルームコード: " + roomId + "\n\n参加URL: " + roomUrl);
                 });
             };
-            
-            window.socket.on("roomCreated", onRoomCreated);
-            console.log("roomCreated listener registered");
-            
+
+            window.socket.off("roomCreated");
+            window.socket.off("errorMessage");
+            window.socket.on("roomCreated", handleRoomCreated);
+            window.socket.on("errorMessage", (message) => {
+                createRoomBtn.disabled = false;
+                createRoomBtn.textContent = "ルーム作成";
+                alert(message || "ルーム作成に失敗しました。もう一度お試しください。");
+            });
+
             window.socket.emit("playerJoin", battlePlayer);
-            console.log("playerJoin emitted");
-            
             window.socket.emit("createRoom", battlePlayer);
-            console.log("createRoom emitted");
-            
-            // タイムアウト処理
+
             setTimeout(() => {
-                console.log("createRoom timeout check");
-                console.log("Socket still connected:", window.socket.connected);
-                window.socket.off("roomCreated", onRoomCreated);
                 if (createRoomBtn.disabled) {
                     createRoomBtn.disabled = false;
                     createRoomBtn.textContent = "ルーム作成";
@@ -190,25 +186,19 @@ function setupOnlineEventHandlers() {
             console.log("Emitting playerJoin and joinRoom with roomId:", roomId, "player:", battlePlayer);
             
             // roomReadyイベントを受信する一時的なリスナー
-            const onRoomReady = (data) => {
+            const handleRoomReady = (data) => {
                 console.log("roomReady event received:", data);
-                window.socket.off("roomReady", onRoomReady);
-                
                 joinRoomBtn.disabled = false;
                 joinRoomBtn.textContent = "ルーム参加";
-                
+
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
                 location.href = "battle.html";
             };
-            
-            // joinFailedイベントを受信する一時的なリスナー
-            const onJoinFailed = () => {
+
+            const handleJoinFailed = () => {
                 console.log("joinFailed event received");
-                window.socket.off("joinFailed", onJoinFailed);
-                window.socket.off("roomReady", onRoomReady);
-                
                 joinRoomBtn.disabled = false;
                 joinRoomBtn.textContent = "ルーム参加";
 
@@ -220,17 +210,16 @@ function setupOnlineEventHandlers() {
                 message += "\nルームコードを確認するか、新しいルームを作成してください。";
                 alert(message);
             };
-            
-            window.socket.on("roomReady", onRoomReady);
-            window.socket.on("joinFailed", onJoinFailed);
-            
+
+            window.socket.off("roomReady");
+            window.socket.off("joinFailed");
+            window.socket.on("roomReady", handleRoomReady);
+            window.socket.on("joinFailed", handleJoinFailed);
+
             window.socket.emit("playerJoin", battlePlayer);
             window.socket.emit("joinRoom", { roomId, player: battlePlayer });
-            
-            // タイムアウト処理
+
             setTimeout(() => {
-                window.socket.off("roomReady", onRoomReady);
-                window.socket.off("joinFailed", onJoinFailed);
                 if (joinRoomBtn.disabled) {
                     joinRoomBtn.disabled = false;
                     joinRoomBtn.textContent = "ルーム参加";

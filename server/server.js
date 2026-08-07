@@ -14,7 +14,11 @@ const io = new Server(server, {
         origin: "*",
         methods: ["GET", "POST"]
     },
-    allowEIO3: true
+    allowEIO3: true,
+    connectionStateRecovery: {
+        maxDisconnectionDuration: 2 * 60 * 1000,
+        skipMiddlewares: true
+    }
 });
 
 const path = require("path");
@@ -80,6 +84,16 @@ const PORT = process.env.PORT || 3000;
 // Diagnostic logging
 io.on('connection', (socket) => {
     console.log(`[${new Date().toISOString()}] Socket connected - ID: ${socket.id}`);
+
+    socket.onAny((eventName, ...args) => {
+        if (eventName !== 'ping' && eventName !== 'pong') {
+            console.log(`[Socket] Event received: ${eventName} from ${socket.id}`);
+        }
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log(`[${new Date().toISOString()}] Socket disconnected - ID: ${socket.id} reason: ${reason}`);
+    });
 });
 
 io.on('error', (err) => {
