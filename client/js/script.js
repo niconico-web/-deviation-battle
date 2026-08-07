@@ -6,6 +6,7 @@ let matchmakingTimeout = null;
 window.socket = null;
 
 function initializeSocket() {
+    console.log("Initializing socket...");
     window.socket = io({
         reconnection: true,
         reconnectionDelay: 1000,
@@ -57,6 +58,8 @@ function initializeSocket() {
 
     // Initialize connection state
     window.socket.connected = false;
+    
+    console.log("Socket initialized, waiting for connection...");
 }
 
 function getStatsFromInputs() {
@@ -344,6 +347,7 @@ function setupSocketEventHandlers() {
         location.href = "battle.html";
     });
     window.socket.on("matchFound", data => {
+        console.log("matchFound event received:", data);
         if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
         localStorage.setItem("roomId", data.roomId);
         localStorage.setItem("battlePlayer", JSON.stringify(data.me));
@@ -351,8 +355,25 @@ function setupSocketEventHandlers() {
         alert(I18N.matchFound);
         location.href = "battle.html";
     });
-    window.socket.on("matchCancelled", () => { const btn = document.getElementById("randomMatch"); btn.textContent = I18N.randomMatch; btn.disabled = false; alert(I18N.matchCancelled); });
-    window.socket.on("errorMessage", m => alert(m));
+    window.socket.on("matchCancelled", () => { 
+        console.log("matchCancelled event received");
+        const btn = document.getElementById("randomMatch"); 
+        if (btn) {
+            btn.textContent = I18N.randomMatch; 
+            btn.disabled = false; 
+        }
+        alert(I18N.matchCancelled); 
+    });
+    
+    window.socket.on("errorMessage", m => {
+        console.log("errorMessage event received:", m);
+        alert(m);
+        const btn = document.getElementById("randomMatch");
+        if (btn) {
+            btn.textContent = I18N.randomMatch;
+            btn.disabled = false;
+        }
+    });
 }
 
 function setupDOMEventHandlers() {
