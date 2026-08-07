@@ -12,20 +12,9 @@ function getBattleReadyPlayer(player) {
 }
 
 function setupOnlineEventHandlers() {
-    // ソケットがあればハンドラー設定を試行
-    if (window.socket) {
-        console.log("Setting up online event handlers in online.js");
-        console.log("Socket connected status:", window.socket.connected);
-    } else {
-        console.log("Socket not available in online.js, will retry in 1 second");
-        setTimeout(() => {
-            if (window.socket) {
-                console.log("Retry: Socket now available, setting up handlers");
-                setupOnlineEventHandlers();
-            }
-        }, 1000);
+    if (onlineHandlersSetup) {
+        return;
     }
-    
     onlineHandlersSetup = true;
     
     // ボタンイベントハンドラーの設定
@@ -304,9 +293,7 @@ function setupOnlineEventHandlers() {
     }
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", setupOnlineEventHandlers);
-} else {
-    console.log("DOM already loaded, setting up online event handlers immediately");
+document.addEventListener("socketConnected", () => {
+    console.log("Socket is connected, setting up online event handlers.");
     setupOnlineEventHandlers();
-}
+});
