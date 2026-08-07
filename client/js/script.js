@@ -1,6 +1,7 @@
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
+let pendingRandomMatchPlayer = null;
 
 // Initialize socket after DOM is ready
 window.socket = null;
@@ -21,6 +22,10 @@ function initializeSocket() {
         console.log("接続:", window.socket.id);
         window.socket.connected = true;
         console.log("Socket connected property set to true");
+        if (pendingRandomMatchPlayer) {
+            console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
+            window.socket.emit("requestRandomMatch", pendingRandomMatchPlayer);
+        }
     });
 
     window.socket.on("disconnect", () => {
@@ -488,6 +493,8 @@ function setupDOMEventHandlers() {
             console.log("Emitting playerJoin and requestRandomMatch with player:", p);
             console.log("Socket ID:", window.socket.id);
             console.log("Socket connected:", window.socket.connected);
+            
+            pendingRandomMatchPlayer = p;
             
             if (matchmakingTimeout) clearTimeout(matchmakingTimeout);
             matchmakingTimeout = setTimeout(() => {
