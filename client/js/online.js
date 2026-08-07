@@ -215,7 +215,13 @@ function setupOnlineEventHandlers() {
             });
         }
     } else {
-        console.log("Socket not available in online.js");
+        console.log("Socket not available in online.js, will retry in 1 second");
+        setTimeout(() => {
+            if (window.socket) {
+                console.log("Retry: Socket now available, setting up handlers");
+                setupOnlineEventHandlers();
+            }
+        }, 1000);
     }
 }
 
