@@ -80,9 +80,13 @@ module.exports = function(io){
 
         socket.on("createRoom",(player)=>{
 
+            console.log("createRoom received from socket:", socket.id);
+            console.log("Player data:", player);
+
             if(player){
 
                 PlayerManager.addPlayer(socket.id, player);
+                console.log("Player added to PlayerManager");
 
             }
 
@@ -93,14 +97,17 @@ module.exports = function(io){
 
             // Socket.IO roomに参加
             socket.join(roomId);
+            console.log("Socket joined room:", roomId);
 
             // ルームマネージャーに登録
             RoomManager.createRoom(roomId, socket.id, player || null);
+            console.log("Room created in RoomManager");
 
             console.log("Room Create:", roomId, "by socket:", socket.id);
             console.log("Socket rooms:", Array.from(socket.rooms));
 
             socket.emit("roomCreated", roomId);
+            console.log("roomCreated emitted to socket:", socket.id);
 
         });
 
@@ -119,6 +126,7 @@ module.exports = function(io){
                 : null;
 
             console.log("Join Request:", roomId, "from socket:", socket.id);
+            console.log("Guest player data:", guestPlayer);
             console.log("Available rooms:", Object.keys(RoomManager.getRooms ? RoomManager.getRooms() : {}));
 
             if(!roomId){
@@ -132,11 +140,13 @@ module.exports = function(io){
             if(guestPlayer){
 
                 PlayerManager.addPlayer(socket.id, guestPlayer);
+                console.log("Guest player added to PlayerManager");
 
             }
 
             // Socket.IO roomに参加
             socket.join(roomId);
+            console.log("Socket joined room:", roomId);
 
             const success = RoomManager.joinRoom(
                 roomId,
@@ -157,14 +167,18 @@ module.exports = function(io){
             console.log("Socket rooms after join:", Array.from(socket.rooms));
 
             const room = RoomManager.getRoom(roomId);
+            console.log("Room data:", room);
 
             const host = resolveBattlePlayer(room.host, room.hostData);
-
             const guest = resolveBattlePlayer(room.guest, room.guestData);
+
+            console.log("Resolved host:", host);
+            console.log("Resolved guest:", guest);
 
             if(!host || !guest){
 
                 console.log("Join Failed: player data missing", roomId);
+                console.log("Host:", host, "Guest:", guest);
 
                 socket.emit("joinFailed");
 
@@ -180,6 +194,7 @@ module.exports = function(io){
 
             if(!battle){
 
+                console.log("Battle creation failed");
                 socket.emit("joinFailed");
 
                 return;
@@ -189,26 +204,47 @@ module.exports = function(io){
             console.log("Room Ready:", roomId);
             console.log("Host socket:", room.host, "Guest socket:", room.guest);
             console.log("Battle players:", battle.players);
+            console.log("Host data being sent:", battle.players[host.id]);
+            console.log("Guest data being sent:", battle.players[guest.id]);
 
             // 自動参加成功の通知
             socket.emit("autoJoinSuccess", roomId);
 
             // 両方のプレイヤーに通知
+            const hostData = battle.players[host.id];
+            const guestData = battle.players[guest.id];
+            
+            console.log("Sending roomReady to host:", room.host);
             io.to(room.host).emit("roomReady", {
                 roomId,
-                me: battle.players[host.id],
-                enemy: battle.players[guest.id]
+                me: hostData,
+                enemy: guestData
             });
 
+            console.log("Sending roomReady to guest:", room.guest);
             io.to(room.guest).emit("roomReady", {
                 roomId,
-                me: battle.players[guest.id],
-                enemy: battle.players[host.id]
+                me: guestData,
+                enemy: hostData
             });
             
             // 両方のプレイヤーをルームに参加させる
-            io.sockets.sockets.get(room.host)?.join(roomId);
-            io.sockets.sockets.get(room.guest)?.join(roomId);
+            const hostSocket = io.sockets.sockets.get(room.host);
+            const guestSocket = io.sockets.sockets.get(room.guest);
+            
+            if (hostSocket) {
+                hostSocket.join(roomId);
+                console.log("Host socket joined room:", roomId);
+            } else {
+                console.warn("Host socket not found:", room.host);
+            }
+            
+            if (guestSocket) {
+                guestSocket.join(roomId);
+                console.log("Guest socket joined room:", roomId);
+            } else {
+                console.warn("Guest socket not found:", room.guest);
+            }
             
             console.log(`[Connection] Both players joined room ${roomId}`);
 

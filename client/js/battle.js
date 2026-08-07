@@ -1622,7 +1622,9 @@ if (!isBotBattle && socket) {
         if (data.players) {
             const playerIds = Object.keys(data.players);
             console.log("Syncing player data:", playerIds);
-            console.log("My current ID:", me.id, "Enemy current ID:", enemy.id);
+            console.log("My current ID:", me.id, "My Name:", me.name);
+            console.log("Enemy current ID:", enemy.id, "Enemy Name:", enemy.name);
+            console.log("Received players data:", JSON.stringify(data.players));
             
             // 名前でマッチングを試みる
             let myData = null;
@@ -1633,13 +1635,14 @@ if (!isBotBattle && socket) {
             if (myData) {
                 const enemyId = playerIds.find(id => id !== me.id);
                 enemyData = data.players[enemyId];
-                console.log("Found by ID match");
+                console.log("Found by ID match - myData:", myData, "enemyData:", enemyData);
             } else {
                 // IDで見つからない場合、名前でマッチング
                 console.log("ID match failed, trying name match");
                 for (const pid of playerIds) {
                     const player = data.players[pid];
-                    if (player.name === me.name) {
+                    console.log("Checking player:", pid, "name:", player.name, "against my name:", me.name);
+                    if (player && player.name === me.name) {
                         myData = player;
                         const enemyId = playerIds.find(id => id !== pid);
                         enemyData = data.players[enemyId];
@@ -1650,24 +1653,43 @@ if (!isBotBattle && socket) {
                 }
             }
             
-            if (myData && enemyData) {
-                me = myData;
-                enemy = enemyData;
-                console.log("Synced data:", { me, enemy });
-                
-                // UIを更新
-                myName.textContent = me.name;
-                enemyName.textContent = enemy.name;
-                updateStats();
-                updateHP();
-                
-                // ローカルストレージを更新
-                localStorage.setItem("battlePlayer", JSON.stringify(me));
-                localStorage.setItem("enemy", JSON.stringify(enemy));
-            } else {
-                console.error("Failed to match players:", { myData, enemyData, availablePlayers: data.players });
-                addLog("エラー: プレイヤーデータの同期に失敗しました");
+            // データが見つからない場合のエラーハンドリング
+            if (!myData) {
+                console.error("Could not find my data in battleStarted!");
+                addLog("エラー: プレーデータの同期に失敗しました");
+                return;
             }
+            if (!enemyData) {
+                console.error("Could not find enemy data in battleStarted!");
+                addLog("エラー: 敵データの同期に失敗しました");
+                return;
+            }
+            
+            // データを更新
+            me = { ...me, ...myData };
+            enemy = { ...enemy, ...enemyData };
+            
+            console.log("Updated me:", me);
+            console.log("Updated enemy:", enemy);
+            
+            // 必殺技ゲージ初期化
+            if (!me.ultimateGauge) {
+                me.ultimateGauge = { current: 0, max: 100 };
+            }
+            if (!enemy.ultimateGauge) {
+                enemy.ultimateGauge = { current: 0, max: 100 };
+            }
+            
+            localStorage.setItem("battlePlayer", JSON.stringify(me));
+            localStorage.setItem("enemy", JSON.stringify(enemy));
+            
+            updateStats();
+            updateHP();
+            updateUltimateGauge();
+            
+            // UIを更新
+            myName.textContent = me.name;
+            enemyName.textContent = enemy.name;
         }
         
         currentQuestion = data.initialQuestion;
