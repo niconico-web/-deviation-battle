@@ -1,14 +1,14 @@
 const rooms = {};
 
 function createRoom(roomId, hostSocketId, hostData = null) {
-
+    console.log(`[RoomManager] Creating room ${roomId} for host ${hostSocketId} with data:`, hostData);
     rooms[roomId] = {
 
         host: hostSocketId,
 
         guest: null,
 
-        hostData,
+        hostData: hostData,
 
         guestData: null,
 

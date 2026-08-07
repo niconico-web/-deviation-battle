@@ -100,10 +100,10 @@ module.exports = function(io){
                 return;
             }
 
-            RoomManager.createRoom(roomId, socket.id, safePlayer || null);
+            RoomManager.createRoom(roomId, socket.id, PlayerManager.getPlayer(socket.id));
             console.log("[Connection] Room created in RoomManager", roomId);
 
-            console.log("[Connection] Room Create:", roomId, "by socket:", socket.id);
+            console.log("[Connection] Room Create:", roomId, "by socket:", socket.id, "with player:", PlayerManager.getPlayer(socket.id));
             console.log("[Connection] Socket rooms:", Array.from(socket.rooms));
             console.log("[Connection] Socket connected:", socket.connected);
             console.log("[Connection] Emitting roomCreated to socket:", socket.id);
@@ -171,8 +171,8 @@ module.exports = function(io){
             const room = RoomManager.getRoom(roomId);
             console.log("Room data:", room);
 
-            const host = resolveBattlePlayer(room.host, room.hostData);
-            const guest = resolveBattlePlayer(room.guest, room.guestData);
+            const host = resolveBattlePlayer(room.host, PlayerManager.getPlayer(room.host));
+            const guest = resolveBattlePlayer(room.guest, PlayerManager.getPlayer(room.guest));
 
             console.log("Resolved host:", host);
             console.log("Resolved guest:", guest);

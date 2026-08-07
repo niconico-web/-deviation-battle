@@ -54,7 +54,7 @@ function tryMatch(player) {
     // Find a match (first available player in queue that is NOT the current player)
     // Need to check queue length after adding current player
     if (matchmakingQueue.length >= 2) {
-        const matchIndex = matchmakingQueue.findIndex(entry => entry.id !== player.id);
+        const matchIndex = matchmakingQueue.findIndex(entry => entry.socketId !== player.socketId);
         console.log(`[Matchmaking] Found potential match at index: ${matchIndex}`);
         
         if (matchIndex !== -1) {

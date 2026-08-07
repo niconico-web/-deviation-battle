@@ -56,7 +56,7 @@ module.exports = function(io){
 
                 console.log(`[Matchmaking] Creating room ${roomId} for matched players`);
                 RoomManager.createRoom(roomId, socket.id, player);
-                RoomManager.joinRoom(roomId, opponent.socketId, opponent.player);
+                RoomManager.joinRoom(roomId, opponent.socketId, opponent.player); // 修正: opponent.playerを渡す
 
                 socket.join(roomId);
                 const opponentSocket = io.sockets.sockets.get(opponent.socketId);
