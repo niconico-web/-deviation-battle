@@ -47,6 +47,7 @@ function initializeSocket() {
         if (window.socket.connected !== actualConnected) {
             console.log("Socket connection state changed:", window.socket.connected, "->", actualConnected);
             window.socket.connected = actualConnected;
+            updateOnlineButtons(actualConnected);
         }
     }, 1000);
 
@@ -357,42 +358,6 @@ function setupSocketEventHandlers() {
     
     console.log("Setting up socket event handlers...");
 
-    window.socket.on("matchFound", (data) => {
-        console.log("matchFound event received:", data);
-        const btn = document.getElementById("randomMatch");
-        if (btn) {
-            btn.textContent = I18N.randomMatch;
-            btn.disabled = false;
-        }
-        localStorage.setItem("roomId", data.roomId);
-        localStorage.setItem("battlePlayer", JSON.stringify(data.me));
-        localStorage.setItem("enemy", JSON.stringify(data.enemy));
-        alert(I18N.matchFound);
-        setTimeout(() => {
-            location.href = "battle.html";
-        }, 50); // 50ミリ秒待機
-    });
-
-    window.socket.on("matchCancelled", () => {
-        console.log("matchCancelled event received");
-        const btn = document.getElementById("randomMatch");
-        if (btn) {
-            btn.textContent = I18N.randomMatch;
-            btn.disabled = false;
-        }
-        alert(I18N.matchCancelled);
-    });
-
-    window.socket.on("errorMessage", (message) => {
-        console.log("errorMessage event received:", message);
-        const btn = document.getElementById("randomMatch");
-        if (btn) {
-            btn.textContent = I18N.randomMatch;
-            btn.disabled = false;
-        }
-        alert(message || "ランダムマッチに失敗しました");
-    });
-
     console.log("Socket event handlers setup complete");
 }
 
@@ -488,48 +453,6 @@ function setupDOMEventHandlers() {
     const studyFocusSelect = document.getElementById("studyFocus");
     if (studyFocusSelect) {
         studyFocusSelect.onchange = updateStatGrowthInfo;
-    }
-
-    const randomMatchBtn = document.getElementById("randomMatch");
-    if (randomMatchBtn) {
-        randomMatchBtn.onclick = () => {
-            const p = getMatchPlayer();
-            if (!p) { alert(I18N.needChar); return; }
-            const btn = document.getElementById("randomMatch");
-            btn.textContent = I18N.searching;
-            btn.disabled = true;
-            if (!window.socket) {
-                btn.textContent = I18N.randomMatch;
-                btn.disabled = false;
-                alert("ソケットが初期化されていません。ページを再読み込みしてください。");
-                return;
-            }
-            if (!window.socket.connected && !window.socket.io) {
-                btn.textContent = I18N.randomMatch;
-                btn.disabled = false;
-                alert("サーバーに接続されていません。ページを再読み込みしてください。");
-                return;
-            }
-            console.log("Emitting requestRandomMatch with player:", p);
-            console.log("Socket ID:", window.socket.id);
-            console.log("Socket connected:", window.socket.connected);
-            
-            pendingRandomMatchPlayer = p;
-            
-            if (matchmakingTimeout) clearTimeout(matchmakingTimeout);
-            matchmakingTimeout = setTimeout(() => {
-                console.log("matchmaking timeout check");
-                if (btn.disabled && btn.textContent === I18N.searching) {
-                    btn.textContent = I18N.randomMatch;
-                    btn.disabled = false;
-                    if (p.id) window.socket.emit("cancelMatchmaking", p.id);
-                    alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
-                }
-            }, 30000);
-            
-            window.socket.emit("requestRandomMatch", p);
-            console.log("requestRandomMatch emitted");
-        };
     }
 }
 
