@@ -209,24 +209,29 @@ module.exports = function(io){
 
             // 自動参加成功の通知
             socket.emit("autoJoinSuccess", roomId);
+            console.log("autoJoinSuccess emitted to guest socket:", socket.id);
 
             // 両方のプレイヤーに通知
             const hostData = battle.players[host.id];
             const guestData = battle.players[guest.id];
             
             console.log("Sending roomReady to host:", room.host);
+            console.log("Host data:", hostData);
             io.to(room.host).emit("roomReady", {
                 roomId,
                 me: hostData,
                 enemy: guestData
             });
+            console.log("roomReady emitted to host");
 
             console.log("Sending roomReady to guest:", room.guest);
+            console.log("Guest data:", guestData);
             io.to(room.guest).emit("roomReady", {
                 roomId,
                 me: guestData,
                 enemy: hostData
             });
+            console.log("roomReady emitted to guest");
             
             // 両方のプレイヤーをルームに参加させる
             const hostSocket = io.sockets.sockets.get(room.host);
