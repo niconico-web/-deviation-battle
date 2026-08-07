@@ -19,6 +19,8 @@ function initializeSocket() {
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
         window.socket.connected = true;
+        // 接続後にイベントハンドラーを設定
+        setupSocketEventHandlers();
     });
 
     window.socket.on("disconnect", () => {
@@ -336,16 +338,10 @@ function getMatchPlayer() {
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
     socketHandlersSetup = true;
+    
+    console.log("Setting up socket event handlers...");
 
-    window.socket.on("roomCreated", roomId => { alert(I18N.roomCreated + "\n\n" + I18N.roomCodeMsg + I18N.colon + roomId + "\n\n" + I18N.tellFriend); });
-    window.socket.on("joinFailed", () => alert(I18N.roomNotFound));
-    window.socket.on("roomReady", data => {
-        localStorage.setItem("roomId", data.roomId);
-        localStorage.setItem("battlePlayer", JSON.stringify(data.me));
-        localStorage.setItem("enemy", JSON.stringify(data.enemy));
-        alert(I18N.matched);
-        location.href = "battle.html";
-    });
+    // ランダムマッチング用のイベントハンドラーのみを設定
     window.socket.on("matchFound", data => {
         console.log("matchFound event received:", data);
         if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
@@ -374,6 +370,8 @@ function setupSocketEventHandlers() {
             btn.disabled = false;
         }
     });
+    
+    console.log("Socket event handlers setup complete");
 }
 
 function setupDOMEventHandlers() {
