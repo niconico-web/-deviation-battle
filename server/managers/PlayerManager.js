@@ -22,7 +22,8 @@ function addPlayer(socketId, player){
         const validation = ContentFilter.validateName(player.name);
         if (!validation.valid) {
             console.log(`[PlayerManager] Invalid player name rejected: ${player.name} - ${validation.reason}`);
-            throw new Error(validation.reason);
+            // エラーをスローせず、デフォルト名を設定
+            player.name = 'Player_' + socketId.substring(0, 8);
         }
     }
 
