@@ -342,37 +342,8 @@ function setupSocketEventHandlers() {
     
     console.log("Setting up socket event handlers...");
 
-    // ランダムマッチング用のイベントハンドラーのみを設定
-    window.socket.on("matchFound", data => {
-        console.log("matchFound event received:", data);
-        if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
-        localStorage.setItem("roomId", data.roomId);
-        localStorage.setItem("battlePlayer", JSON.stringify(data.me));
-        localStorage.setItem("enemy", JSON.stringify(data.enemy));
-        alert(I18N.matchFound);
-        location.href = "battle.html";
-    });
-    window.socket.on("matchCancelled", () => { 
-        console.log("matchCancelled event received");
-        const btn = document.getElementById("randomMatch"); 
-        if (btn) {
-            btn.textContent = I18N.randomMatch; 
-            btn.disabled = false; 
-        }
-        alert(I18N.matchCancelled); 
-    });
-    
-    window.socket.on("errorMessage", m => {
-        console.log("errorMessage event received:", m);
-        alert(m);
-        const btn = document.getElementById("randomMatch");
-        if (btn) {
-            btn.textContent = I18N.randomMatch;
-            btn.disabled = false;
-        }
-    });
-    
-    console.log("Socket event handlers setup complete");
+    // グローバルイベントハンドラーは不要になりました（ボタンクリック時に一時的に設定）
+    console.log("Socket event handlers setup complete (using temporary listeners on button clicks)");
 }
 
 // グローバルにアクセス可能に
@@ -475,10 +446,57 @@ function setupDOMEventHandlers() {
                 return;
             }
             console.log("Emitting playerJoin and requestRandomMatch with player:", p);
+            
+            // matchFoundイベントを受信する一時的なリスナー
+            const onMatchFound = (data) => {
+                console.log("matchFound event received:", data);
+                window.socket.off("matchFound", onMatchFound);
+                window.socket.off("matchCancelled", onMatchCancelled);
+                window.socket.off("errorMessage", onErrorMessage);
+                
+                if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
+                localStorage.setItem("roomId", data.roomId);
+                localStorage.setItem("battlePlayer", JSON.stringify(data.me));
+                localStorage.setItem("enemy", JSON.stringify(data.enemy));
+                alert(I18N.matchFound);
+                location.href = "battle.html";
+            };
+            
+            // matchCancelledイベントを受信する一時的なリスナー
+            const onMatchCancelled = () => {
+                console.log("matchCancelled event received");
+                window.socket.off("matchFound", onMatchFound);
+                window.socket.off("matchCancelled", onMatchCancelled);
+                window.socket.off("errorMessage", onErrorMessage);
+                
+                btn.textContent = I18N.randomMatch;
+                btn.disabled = false;
+                alert(I18N.matchCancelled);
+            };
+            
+            // errorMessageイベントを受信する一時的なリスナー
+            const onErrorMessage = (m) => {
+                console.log("errorMessage event received:", m);
+                window.socket.off("matchFound", onMatchFound);
+                window.socket.off("matchCancelled", onMatchCancelled);
+                window.socket.off("errorMessage", onErrorMessage);
+                
+                alert(m);
+                btn.textContent = I18N.randomMatch;
+                btn.disabled = false;
+            };
+            
+            window.socket.on("matchFound", onMatchFound);
+            window.socket.on("matchCancelled", onMatchCancelled);
+            window.socket.on("errorMessage", onErrorMessage);
+            
             window.socket.emit("playerJoin", p);
             window.socket.emit("requestRandomMatch", p);
 
             matchmakingTimeout = setTimeout(() => {
+                window.socket.off("matchFound", onMatchFound);
+                window.socket.off("matchCancelled", onMatchCancelled);
+                window.socket.off("errorMessage", onErrorMessage);
                 if (btn.disabled && btn.textContent === I18N.searching) {
                     btn.textContent = I18N.randomMatch;
                     btn.disabled = false;
