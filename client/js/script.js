@@ -492,7 +492,7 @@ function setupDOMEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
-            console.log("Emitting playerJoin and requestRandomMatch with player:", p);
+            console.log("Emitting requestRandomMatch with player:", p);
             console.log("Socket ID:", window.socket.id);
             console.log("Socket connected:", window.socket.connected);
             
@@ -508,9 +508,6 @@ function setupDOMEventHandlers() {
                     alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
                 }
             }, 30000);
-            
-            window.socket.emit("playerJoin", p);
-            console.log("playerJoin emitted");
             
             window.socket.emit("requestRandomMatch", p);
             console.log("requestRandomMatch emitted");
