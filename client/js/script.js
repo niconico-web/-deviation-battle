@@ -446,6 +446,8 @@ function setupDOMEventHandlers() {
                 return;
             }
             console.log("Emitting playerJoin and requestRandomMatch with player:", p);
+            console.log("Socket ID:", window.socket.id);
+            console.log("Socket connected:", window.socket.connected);
             
             // matchFoundイベントを受信する一時的なリスナー
             const onMatchFound = (data) => {
@@ -489,11 +491,16 @@ function setupDOMEventHandlers() {
             window.socket.on("matchFound", onMatchFound);
             window.socket.on("matchCancelled", onMatchCancelled);
             window.socket.on("errorMessage", onErrorMessage);
+            console.log("matchFound listener registered");
             
             window.socket.emit("playerJoin", p);
+            console.log("playerJoin emitted");
+            
             window.socket.emit("requestRandomMatch", p);
+            console.log("requestRandomMatch emitted");
 
             matchmakingTimeout = setTimeout(() => {
+                console.log("matchmaking timeout check");
                 window.socket.off("matchFound", onMatchFound);
                 window.socket.off("matchCancelled", onMatchCancelled);
                 window.socket.off("errorMessage", onErrorMessage);
