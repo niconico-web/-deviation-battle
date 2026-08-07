@@ -166,7 +166,6 @@ function setupOnlineEventHandlers() {
                 alert("ソケットが初期化されていません。ページを再読み込みしてください。");
                 return;
             }
-            // socket.connectedプロパティのチェックを緩和（Socket.IOの状態チェックを使用）
             if (!window.socket.connected) {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
@@ -174,17 +173,31 @@ function setupOnlineEventHandlers() {
             createRoomBtn.disabled = true;
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);
-            console.log("Emitting createRoom with player:", battlePlayer);
-            console.log("Socket ID:", window.socket.id);
-            console.log("Socket connected:", window.socket.connected);
+            
+            const cleanupListeners = () => {
+                window.socket.off("roomCreated", handleRoomCreated);
+                window.socket.off("errorMessage", handleErrorMessage);
+                window.socket.off("roomReady", handleRoomReadyForHost);
+            };
+
+            const handleRoomReadyForHost = (data) => {
+                console.log("Room is ready for host!", data);
+                localStorage.setItem("roomId", data.roomId);
+                localStorage.setItem("battlePlayer", JSON.stringify(data.me));
+                localStorage.setItem("enemy", JSON.stringify(data.enemy));
+                cleanupListeners();
+                setTimeout(() => {
+                    location.href = "battle.html";
+                }, 50);
+            };
             
             const handleRoomCreated = (roomId) => {
                 console.log("roomCreated event received:", roomId);
                 localStorage.setItem("lastCreatedRoom", roomId);
                 localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
 
-                createRoomBtn.disabled = false;
-                createRoomBtn.textContent = "ルーム作成";
+                createRoomBtn.textContent = "相手の参加待ち...";
+                // Button remains disabled
 
                 const roomUrl = window.location.origin + "/?room=" + roomId;
                 const clipboardText = `ルームコード: ${roomId}\n参加URL: ${roomUrl}`;
@@ -194,27 +207,27 @@ function setupOnlineEventHandlers() {
                     alert("ルームコード: " + roomId + "\n\n参加URL: " + roomUrl);
                 });
             };
-
-            window.socket.off("roomCreated");
-            window.socket.off("errorMessage");
-            window.socket.on("roomCreated", handleRoomCreated);
-            window.socket.on("errorMessage", (message) => {
+            
+            const handleErrorMessage = (message) => {
                 createRoomBtn.disabled = false;
                 createRoomBtn.textContent = "ルーム作成";
                 alert(message || "ルーム作成に失敗しました。もう一度お試しください。");
-            });
+                cleanupListeners();
+            };
+
+            cleanupListeners(); // Clean up any previous listeners before setting new ones
+            window.socket.on("roomCreated", handleRoomCreated);
+            window.socket.on("roomReady", handleRoomReadyForHost);
+            window.socket.on("errorMessage", handleErrorMessage);
 
             window.socket.emit("createRoom", battlePlayer);
 
             setTimeout(() => {
-                if (createRoomBtn.disabled) {
+                if (createRoomBtn.textContent === "作成中...") {
                     createRoomBtn.disabled = false;
                     createRoomBtn.textContent = "ルーム作成";
-                    if (!window.socket.connected) {
-                        alert("サーバーとの接続が失われました。ページを再読み込みしてください。");
-                    } else {
-                        alert("ルーム作成に失敗しました。もう一度お試しください。");
-                    }
+                    alert("ルーム作成に失敗しました(タイムアウト)。もう一度お試しください。");
+                    cleanupListeners();
                 }
             }, 10000);
         };
