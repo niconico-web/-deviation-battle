@@ -28,8 +28,8 @@ module.exports = function(io){
         socket.on("requestRandomMatch", (player) => {
             console.log(`[Matchmaking] requestRandomMatch received from socket: ${socket.id}`);
             console.log(`[Matchmaking] Player data:`, player);
-            
-            if(!player || !player.id){
+
+            if(!player || typeof player !== "object" || !player.id){
                 console.error("[Matchmaking] Invalid player data");
                 socket.emit("errorMessage", "プレイヤーデータが必要です");
                 return;

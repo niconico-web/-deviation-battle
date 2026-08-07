@@ -4,25 +4,36 @@ const matchmakingQueue = [];
 function addToQueue(player) {
     console.log(`[Matchmaking] Adding player to queue: ${player.id}, socket: ${player.socketId}`);
     console.log(`[Matchmaking] Current queue size: ${matchmakingQueue.length}`);
-    
-    // Check if player is already in queue
-    const existingIndex = matchmakingQueue.findIndex(p => p.id === player.id);
+
+    const existingPlayerIndex = matchmakingQueue.findIndex(entry => entry.id === player.id);
+    const existingSocketIndex = matchmakingQueue.findIndex(entry => entry.socketId === player.socketId);
+    const existingIndex = existingPlayerIndex !== -1 ? existingPlayerIndex : existingSocketIndex;
+
     if (existingIndex !== -1) {
-        console.log(`[Matchmaking] Player ${player.id} already in queue`);
-        return { success: false, message: "Already in queue" };
+        const existingEntry = matchmakingQueue[existingIndex];
+        console.log(`[Matchmaking] Existing queue entry found for ${player.id} on socket ${player.socketId}; refreshing state`);
+
+        matchmakingQueue[existingIndex] = {
+            ...existingEntry,
+            id: player.id,
+            socketId: player.socketId,
+            player: player,
+            timestamp: Date.now()
+        };
+
+        console.log(`[Matchmaking] Queue entry refreshed. Queue size: ${matchmakingQueue.length}`);
+        return tryMatch(player);
     }
-    
-    // Add to queue
+
     matchmakingQueue.push({
         id: player.id,
         socketId: player.socketId,
         player: player,
         timestamp: Date.now()
     });
-    
+
     console.log(`[Matchmaking] Player added. Queue size: ${matchmakingQueue.length}`);
-    
-    // Try to find a match
+
     return tryMatch(player);
 }
 
@@ -43,7 +54,7 @@ function tryMatch(player) {
     // Find a match (first available player in queue that is NOT the current player)
     // Need to check queue length after adding current player
     if (matchmakingQueue.length >= 2) {
-        const matchIndex = matchmakingQueue.findIndex(p => p.id !== player.id);
+        const matchIndex = matchmakingQueue.findIndex(entry => entry.id !== player.id);
         console.log(`[Matchmaking] Found potential match at index: ${matchIndex}`);
         
         if (matchIndex !== -1) {

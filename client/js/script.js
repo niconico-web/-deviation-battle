@@ -11,8 +11,9 @@ function initializeSocket() {
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
-        transports: ["websocket", "polling"]
+        reconnectionAttempts: 10,
+        transports: ["websocket", "polling"],
+        forceNew: false
     });
 
     // Connection logging
@@ -25,6 +26,7 @@ function initializeSocket() {
     window.socket.on("disconnect", () => {
         console.log("切断");
         window.socket.connected = false;
+        console.log("Socket connected property set to false");
     });
 
     window.socket.on("connect_error", (error) => {
@@ -348,8 +350,41 @@ function setupSocketEventHandlers() {
     
     console.log("Setting up socket event handlers...");
 
-    // グローバルイベントハンドラーは不要になりました（ボタンクリック時に一時的に設定）
-    console.log("Socket event handlers setup complete (using temporary listeners on button clicks)");
+    window.socket.on("matchFound", (data) => {
+        console.log("matchFound event received:", data);
+        const btn = document.getElementById("randomMatch");
+        if (btn) {
+            btn.textContent = I18N.randomMatch;
+            btn.disabled = false;
+        }
+        localStorage.setItem("roomId", data.roomId);
+        localStorage.setItem("battlePlayer", JSON.stringify(data.me));
+        localStorage.setItem("enemy", JSON.stringify(data.enemy));
+        alert(I18N.matchFound);
+        location.href = "battle.html";
+    });
+
+    window.socket.on("matchCancelled", () => {
+        console.log("matchCancelled event received");
+        const btn = document.getElementById("randomMatch");
+        if (btn) {
+            btn.textContent = I18N.randomMatch;
+            btn.disabled = false;
+        }
+        alert(I18N.matchCancelled);
+    });
+
+    window.socket.on("errorMessage", (message) => {
+        console.log("errorMessage event received:", message);
+        const btn = document.getElementById("randomMatch");
+        if (btn) {
+            btn.textContent = I18N.randomMatch;
+            btn.disabled = false;
+        }
+        alert(message || "ランダムマッチに失敗しました");
+    });
+
+    console.log("Socket event handlers setup complete");
 }
 
 // グローバルにアクセス可能に
@@ -444,7 +479,6 @@ function setupDOMEventHandlers() {
                 alert("ソケットが初期化されていません。ページを再読み込みしてください。");
                 return;
             }
-            // socket.connectedプロパティのチェックを緩和
             if (!window.socket.connected && !window.socket.io) {
                 btn.textContent = I18N.randomMatch;
                 btn.disabled = false;
@@ -455,61 +489,9 @@ function setupDOMEventHandlers() {
             console.log("Socket ID:", window.socket.id);
             console.log("Socket connected:", window.socket.connected);
             
-            // matchFoundイベントを受信する一時的なリスナー
-            const onMatchFound = (data) => {
-                console.log("matchFound event received:", data);
-                window.socket.off("matchFound", onMatchFound);
-                window.socket.off("matchCancelled", onMatchCancelled);
-                window.socket.off("errorMessage", onErrorMessage);
-                
-                if(matchmakingTimeout) clearTimeout(matchmakingTimeout);
-                localStorage.setItem("roomId", data.roomId);
-                localStorage.setItem("battlePlayer", JSON.stringify(data.me));
-                localStorage.setItem("enemy", JSON.stringify(data.enemy));
-                alert(I18N.matchFound);
-                location.href = "battle.html";
-            };
-            
-            // matchCancelledイベントを受信する一時的なリスナー
-            const onMatchCancelled = () => {
-                console.log("matchCancelled event received");
-                window.socket.off("matchFound", onMatchFound);
-                window.socket.off("matchCancelled", onMatchCancelled);
-                window.socket.off("errorMessage", onErrorMessage);
-                
-                btn.textContent = I18N.randomMatch;
-                btn.disabled = false;
-                alert(I18N.matchCancelled);
-            };
-            
-            // errorMessageイベントを受信する一時的なリスナー
-            const onErrorMessage = (m) => {
-                console.log("errorMessage event received:", m);
-                window.socket.off("matchFound", onMatchFound);
-                window.socket.off("matchCancelled", onMatchCancelled);
-                window.socket.off("errorMessage", onErrorMessage);
-                
-                alert(m);
-                btn.textContent = I18N.randomMatch;
-                btn.disabled = false;
-            };
-            
-            window.socket.on("matchFound", onMatchFound);
-            window.socket.on("matchCancelled", onMatchCancelled);
-            window.socket.on("errorMessage", onErrorMessage);
-            console.log("matchFound listener registered");
-            
-            window.socket.emit("playerJoin", p);
-            console.log("playerJoin emitted");
-            
-            window.socket.emit("requestRandomMatch", p);
-            console.log("requestRandomMatch emitted");
-
+            if (matchmakingTimeout) clearTimeout(matchmakingTimeout);
             matchmakingTimeout = setTimeout(() => {
                 console.log("matchmaking timeout check");
-                window.socket.off("matchFound", onMatchFound);
-                window.socket.off("matchCancelled", onMatchCancelled);
-                window.socket.off("errorMessage", onErrorMessage);
                 if (btn.disabled && btn.textContent === I18N.searching) {
                     btn.textContent = I18N.randomMatch;
                     btn.disabled = false;
@@ -517,6 +499,12 @@ function setupDOMEventHandlers() {
                     alert("対戦相手が見つかりませんでした。時間をおいて再度お試しください。");
                 }
             }, 30000);
+            
+            window.socket.emit("playerJoin", p);
+            console.log("playerJoin emitted");
+            
+            window.socket.emit("requestRandomMatch", p);
+            console.log("requestRandomMatch emitted");
         };
     }
 }
