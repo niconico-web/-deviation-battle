@@ -75,13 +75,6 @@ module.exports = function(io){
                 const finalResult = BattleEngine.finalizeBattle(battle);
                 io.to(roomId).emit("battleFinished", finalResult);
                 BattleManager.deleteBattle(roomId);
-            } else {
-                // バトルが続いている場合、全プレイヤーの状態を同期
-                console.log(`[Battle] Battle continuing, syncing state`);
-                io.to(roomId).emit("battleStateUpdate", {
-                    players: battle.players,
-                    currentQuestion: battle.currentQuestion
-                });
             }
         });
 
