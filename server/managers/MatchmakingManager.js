@@ -5,9 +5,10 @@ function addToQueue(player) {
     console.log(`[Matchmaking] Adding player to queue: ${player.id}, socket: ${player.socketId}`);
     console.log(`[Matchmaking] Current queue size: ${matchmakingQueue.length}`);
 
-    const existingPlayerIndex = matchmakingQueue.findIndex(entry => entry.id === player.id);
-    const existingSocketIndex = matchmakingQueue.findIndex(entry => entry.socketId === player.socketId);
-    const existingIndex = existingPlayerIndex !== -1 ? existingPlayerIndex : existingSocketIndex;
+    // If the player or socket is already present, refresh the entry instead of duplicating
+    const existingIndexById = matchmakingQueue.findIndex(entry => entry.id === player.id);
+    const existingIndexBySocket = matchmakingQueue.findIndex(entry => entry.socketId === player.socketId);
+    const existingIndex = existingIndexById !== -1 ? existingIndexById : existingIndexBySocket;
 
     if (existingIndex !== -1) {
         const existingEntry = matchmakingQueue[existingIndex];
@@ -22,23 +23,36 @@ function addToQueue(player) {
         };
 
         console.log(`[Matchmaking] Queue entry refreshed. Queue size: ${matchmakingQueue.length}`);
-        return tryMatch(player);
+        return tryMatch(matchmakingQueue[existingIndex]);
     }
 
-    matchmakingQueue.push({
+    const entry = {
         id: player.id,
         socketId: player.socketId,
         player: player,
         timestamp: Date.now()
-    });
+    };
+
+    matchmakingQueue.push(entry);
 
     console.log(`[Matchmaking] Player added. Queue size: ${matchmakingQueue.length}`);
 
-    return tryMatch(player);
+    return tryMatch(entry);
 }
 
-function removeFromQueue(playerId) {
-    const index = matchmakingQueue.findIndex(p => p.id === playerId);
+function removeFromQueue(identifier) {
+    // Accept either player id or socketId or full entry
+    const index = matchmakingQueue.findIndex(p => {
+        if (!identifier) return false;
+        if (typeof identifier === 'object') {
+            if (identifier.id && p.id === identifier.id) return true;
+            if (identifier.socketId && p.socketId === identifier.socketId) return true;
+            return false;
+        }
+        // string or number
+        return p.id === identifier || p.socketId === identifier;
+    });
+
     if (index !== -1) {
         matchmakingQueue.splice(index, 1);
         return true;
@@ -46,38 +60,46 @@ function removeFromQueue(playerId) {
     return false;
 }
 
-function tryMatch(player) {
-    console.log(`[Matchmaking] Trying to find match for player: ${player.id}`);
-    console.log(`[Matchmaking] Queue length: ${matchmakingQueue.length}`);
-    console.log(`[Matchmaking] Current queue:`, matchmakingQueue.map(p => ({ id: p.id, socketId: p.socketId })));
-    
-    // Find a match (first available player in queue that is NOT the current player)
-    // Need to check queue length after adding current player
-    if (matchmakingQueue.length >= 2) {
-        const matchIndex = matchmakingQueue.findIndex(entry => entry.id !== player.id);
-        console.log(`[Matchmaking] Found potential match at index: ${matchIndex}`);
-        
-        if (matchIndex !== -1) {
-            const matchedPlayer = matchmakingQueue[matchIndex];
-            console.log(`[Matchmaking] Matched with: ${matchedPlayer.id}`);
-            
-            // Remove both from queue
-            removeFromQueue(player.id);
-            removeFromQueue(matchedPlayer.id);
-            
-            return {
-                success: true,
-                matched: true,
-                opponent: matchedPlayer
-            };
+function tryMatch(entry) {
+    try {
+        console.log(`[Matchmaking] Trying to find match for player: ${entry.id}`);
+        console.log(`[Matchmaking] Queue length: ${matchmakingQueue.length}`);
+        console.log(`[Matchmaking] Current queue:`, matchmakingQueue.map(p => ({ id: p.id, socketId: p.socketId })));
+
+        if (matchmakingQueue.length >= 2) {
+            // find first other entry that is not the same socket and not the same player id
+            const matchIndex = matchmakingQueue.findIndex(p => p.socketId !== entry.socketId && p.id !== entry.id);
+            console.log(`[Matchmaking] Found potential match at index: ${matchIndex}`);
+
+            if (matchIndex !== -1) {
+                const matchedPlayer = matchmakingQueue[matchIndex];
+                console.log(`[Matchmaking] Matched with: ${matchedPlayer.id} (socket ${matchedPlayer.socketId})`);
+
+                // remove the two entries reliably by indices
+                // remove higher index first to avoid shifting
+                const indices = [matchIndex, matchmakingQueue.findIndex(p => p.socketId === entry.socketId && p.id === entry.id)];
+                const uniqueIndices = Array.from(new Set(indices)).sort((a,b) => b - a);
+                for (const i of uniqueIndices) {
+                    if (i !== -1) matchmakingQueue.splice(i, 1);
+                }
+
+                return {
+                    success: true,
+                    matched: true,
+                    opponent: matchedPlayer
+                };
+            }
         }
+
+        console.log(`[Matchmaking] No match found, player waiting in queue`);
+        return {
+            success: true,
+            matched: false
+        };
+    } catch (err) {
+        console.error('[Matchmaking] Error in tryMatch:', err);
+        return { success: false, message: '内部エラー' };
     }
-    
-    console.log(`[Matchmaking] No match found, player waiting in queue`);
-    return {
-        success: true,
-        matched: false
-    };
 }
 
 function getQueueSize() {
