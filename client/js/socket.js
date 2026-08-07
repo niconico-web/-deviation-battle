@@ -9,6 +9,8 @@ window.socket = io({
 
 window.socket.on("connect", () => {
     console.log("Socket.IO connected successfully with ID:", window.socket.id);
+    // Dispatch a custom event to notify other scripts that the socket is ready
+    document.dispatchEvent(new Event("socketConnected"));
 });
 
 window.socket.on("connect_error", (err) => {
