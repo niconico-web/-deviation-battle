@@ -223,7 +223,7 @@ module.exports = function(io){
             console.log("roomReady emitted to guest");
             
             // 両方のプレイヤーをルームに参加させる
-            const hostSocket = io.sockets.sockets.get(room.host);
+            const hostSocket = io.sockets.sockets.。get(room.host);
             const guestSocket = io.sockets.sockets.get(room.guest);
             
             if (hostSocket) {
@@ -245,7 +245,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // ポトル画面㝸㝮冝接�?
+        // バトル画面への再接続
         // -----------------------------
 
         socket.on("rejoinBattle",(data)=>{
@@ -328,15 +328,17 @@ module.exports = function(io){
 
             if(!battle){
 
-                socket.emit("actionError", { message: "ポトル㝌見㝤㝋り㝾㝛ん" });
+                socket.emit("actionError", { message: "バトルが見つかりません" });
 
                 return;
 
             }
 
+
+
             if(battle.finished){
 
-                socket.emit("actionError", { message: "ポトル㝯終�?㝗㝦�?㝾�?" });
+                socket.emit("actionError", { message: "バトルは終了しています" });
 
                 return;
 
@@ -344,7 +346,7 @@ module.exports = function(io){
 
             if(battle.turn !== socket.id){
 
-                socket.emit("actionError", { message: "㝂㝪㝟�?�ターン㝧㝯㝂り㝾㝛ん" });
+                socket.emit("actionError", { message: "あなたのターンではありません" });
 
                 return;
 
@@ -375,7 +377,7 @@ module.exports = function(io){
         });
 
         // -----------------------------
-        // �?断
+        // 切断
         // -----------------------------
 
         socket.on("disconnect", (reason) => {
