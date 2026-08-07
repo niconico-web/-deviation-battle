@@ -136,6 +136,7 @@ function setupOnlineEventHandlers() {
 
     if (window.socket) {
         window.socket.on("roomCreated", (roomId) => {
+            console.log("roomCreated event received:", roomId);
             localStorage.setItem("lastCreatedRoom", roomId);
             localStorage.setItem("lastCreatedRoomTime", Date.now().toString());
 
@@ -155,6 +156,7 @@ function setupOnlineEventHandlers() {
         });
 
         window.socket.on("joinFailed", () => {
+            console.log("joinFailed event received");
             const joinRoomBtn = document.getElementById("joinRoom");
             if (joinRoomBtn) {
                 joinRoomBtn.disabled = false;

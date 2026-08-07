@@ -26,7 +26,11 @@ module.exports = function(io){
     io.on("connection",(socket)=>{
 
         socket.on("requestRandomMatch", (player) => {
+            console.log(`[Matchmaking] requestRandomMatch received from socket: ${socket.id}`);
+            console.log(`[Matchmaking] Player data:`, player);
+            
             if(!player || !player.id){
+                console.error("[Matchmaking] Invalid player data");
                 socket.emit("errorMessage", "プレイヤーデータが必要です");
                 return;
             }
@@ -37,42 +41,57 @@ module.exports = function(io){
                 player: player
             });
 
+            console.log(`[Matchmaking] addToQueue result:`, result);
+
             if(!result.success){
+                console.error("[Matchmaking] Failed to add to queue:", result.message);
                 socket.emit("errorMessage", result.message);
                 return;
             }
 
             if(result.matched){
+                console.log("[Matchmaking] Match found! Processing...");
                 const opponent = result.opponent;
                 const roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
 
+                console.log(`[Matchmaking] Creating room ${roomId} for matched players`);
                 RoomManager.createRoom(roomId, socket.id, player);
                 RoomManager.joinRoom(roomId, opponent.socketId, opponent.player);
 
                 socket.join(roomId);
                 const opponentSocket = io.sockets.sockets.get(opponent.socketId);
-                if (opponentSocket) opponentSocket.join(roomId);
+                if (opponentSocket) {
+                    opponentSocket.join(roomId);
+                    console.log(`[Matchmaking] Opponent socket joined room ${roomId}`);
+                } else {
+                    console.warn(`[Matchmaking] Opponent socket not found: ${opponent.socketId}`);
+                }
 
                 const hostData = toBattlePlayer(player, socket.id);
                 const guestData = toBattlePlayer(opponent.player, opponent.socketId);
                 const battleData = BattleManager.createBattle(roomId, hostData, guestData);
 
                 if (!battleData) {
+                    console.error("[Matchmaking] Failed to create battle");
                     socket.emit("errorMessage", "バトルの作成に失敗しました");
                     return;
                 }
 
+                console.log(`[Matchmaking] Sending matchFound to host: ${socket.id}`);
                 socket.emit("matchFound", {
                     roomId,
                     me: battleData.players[player.id],
                     enemy: battleData.players[opponent.player.id]
                 });
 
+                console.log(`[Matchmaking] Sending matchFound to guest: ${opponent.socketId}`);
                 io.to(opponent.socketId).emit("matchFound", {
                     roomId,
                     me: battleData.players[opponent.player.id],
                     enemy: battleData.players[player.id]
                 });
+            } else {
+                console.log("[Matchmaking] No match found, player waiting in queue");
             }
         });
 

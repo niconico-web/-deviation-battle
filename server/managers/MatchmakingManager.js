@@ -38,8 +38,9 @@ function removeFromQueue(playerId) {
 function tryMatch(player) {
     console.log(`[Matchmaking] Trying to find match for player: ${player.id}`);
     console.log(`[Matchmaking] Queue length: ${matchmakingQueue.length}`);
+    console.log(`[Matchmaking] Current queue:`, matchmakingQueue.map(p => ({ id: p.id, socketId: p.socketId })));
     
-    // Find a match (first available player in queue)
+    // Find a match (first available player in queue that is NOT the current player)
     // Need to check queue length after adding current player
     if (matchmakingQueue.length >= 2) {
         const matchIndex = matchmakingQueue.findIndex(p => p.id !== player.id);
