@@ -223,7 +223,7 @@ module.exports = function(io){
             console.log("roomReady emitted to guest");
             
             // 両方のプレイヤーをルームに参加させる
-            const hostSocket = io.sockets.sockets.。get(room.host);
+            const hostSocket = io.sockets.sockets.get(room.host);
             const guestSocket = io.sockets.sockets.get(room.guest);
             
             if (hostSocket) {
