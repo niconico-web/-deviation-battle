@@ -14,6 +14,11 @@ const BASE_DAMAGE = 10;
 const SPEED_BONUS_MULTIPLIER = 0.5; // 速さによるダメージボーナス
 const TIME_PENALTY_PER_SECOND = 2; // 1秒あたりのダメージペナルティ
 
+// 必殺技システム
+const ULTIMATE_GAUGE_MAX = 100; // 必殺技ゲージ最大値
+const ULTIMATE_GAUGE_PER_CORRECT = 20; // 正解ごとのゲージ増加量
+const ULTIMATE_DAMAGE_MULTIPLIER = 1.5; // 必殺技発動時のダメージ倍率
+
 // -----------------------------
 // ランダム
 // -----------------------------
@@ -148,11 +153,32 @@ function processAnswer(battle, playerId, answer) {
         // 正解の場合
         player.correctAnswers++;
         
+        // 必殺技ゲージを初期化（存在しない場合）
+        if (!player.ultimateGauge) {
+            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        }
+        
+        // 必殺技ゲージを増加
+        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + ULTIMATE_GAUGE_PER_CORRECT);
+        result.ultimateGauge = player.ultimateGauge.current;
+        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+        
         // 先に正解した場合のみダメージを与える
         if (!enemy.answerTime) {
-            const damageResult = calculateDamage(player, answerTime);
-            const damage = damageResult.damage;
+            let damageResult = calculateDamage(player, answerTime);
+            let damage = damageResult.damage;
             const dodgeChance = damageResult.dodgeChance;
+            
+            // 必殺技発動判定（ゲージが満タンの場合）
+            if (player.ultimateGauge.current >= player.ultimateGauge.max) {
+                damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+                result.ultimateActivated = true;
+                result.ultimateDamage = damage;
+                // 必殺技発動後、ゲージをリセット
+                player.ultimateGauge.current = 0;
+                result.ultimateGauge = 0;
+                result.ultimateReady = false;
+            }
             
             // 回避判定
             const dodgeRoll = Math.random() * 100;

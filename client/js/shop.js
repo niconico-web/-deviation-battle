@@ -240,13 +240,24 @@ function renderOriginalWeapons() {
             abilityText = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
         }
 
+        // 必殺技名表示
+        const ultimateName = weapon.ultimateName || "未設定";
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
                 <span>倍率: ${weapon.multiplier.toFixed(3)}x (${progress}%)</span>
                 <span class="quest-progress">${bonusText || "補正なし"}</span>
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
+                <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
+
+        // 必殺技名設定ボタン
+        const setUltimateBtn = document.createElement("button");
+        setUltimateBtn.className = "btn btn-small";
+        setUltimateBtn.textContent = "必殺技名設定";
+        setUltimateBtn.onclick = () => setOriginalWeaponUltimateNameUI(weapon);
+        item.appendChild(setUltimateBtn);
 
         if (canUpgrade) {
             const upgradeBtn = document.createElement("button");
@@ -374,6 +385,18 @@ function showOriginalWeaponCreationDialog() {
         return;
     }
 
+    // 必殺技名の入力
+    const ultimateName = prompt("必殺技の名前を入力してください（オプション）:");
+    let validatedUltimateName = null;
+    if (ultimateName && ultimateName.trim() !== "") {
+        const ultimateValidation = validateName(ultimateName.trim());
+        if (!ultimateValidation.valid) {
+            alert("必殺技名: " + ultimateValidation.reason);
+            return;
+        }
+        validatedUltimateName = ultimateName.trim();
+    }
+
     // 武器種選択
     const weaponTypes = Object.keys(WEAPON_TYPES);
     let typeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
@@ -433,7 +456,7 @@ function showOriginalWeaponCreationDialog() {
     const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
 
     // 基本武器を作成（補正なし）
-    const baseWeapon = createOriginalWeapon(name.trim(), selectedType, {});
+    const baseWeapon = createOriginalWeapon(name.trim(), selectedType, {}, validatedUltimateName);
     
     // オーブを適用
     const weapon = applyOrbToWeapon(baseWeapon, selectedOrbs);
@@ -498,6 +521,52 @@ function claimUniqueWeapon(type) {
             updateStatus(updated);
         })
         .catch(() => alert("サーバーとの通信に失敗しました。"));
+}
+
+function setOriginalWeaponUltimateNameUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const currentUltimateName = weapon.ultimateName || "未設定";
+    const newUltimateName = prompt(`必殺技名を入力してください:\n現在: ${currentUltimateName}`, currentUltimateName === "未設定" ? "" : currentUltimateName);
+    
+    if (newUltimateName === null) return; // キャンセル
+    
+    const trimmedName = newUltimateName.trim();
+    
+    // 空文字の場合は未設定に戻す
+    if (trimmedName === "") {
+        const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+        if (weaponIndex !== -1) {
+            player.weapons[weaponIndex].ultimateName = null;
+            localStorage.setItem("player", JSON.stringify(player));
+            alert("必殺技名を未設定にしました");
+            renderOriginalWeapons();
+        }
+        return;
+    }
+
+    // バリデーション
+    const validation = validateName(trimmedName);
+    if (!validation.valid) {
+        alert("必殺技名: " + validation.reason);
+        return;
+    }
+
+    // 武器を更新
+    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+    if (weaponIndex !== -1) {
+        player.weapons[weaponIndex].ultimateName = trimmedName;
+        
+        // 装備中の武器も更新
+        if (player.equippedWeapon && player.equippedWeapon.id === weapon.id) {
+            player.equippedWeapon.ultimateName = trimmedName;
+        }
+        
+        localStorage.setItem("player", JSON.stringify(player));
+        alert(`必殺技名を「${trimmedName}」に設定しました`);
+        renderOriginalWeapons();
+    }
 }
 
 function claimDebugWeapon(type) {
