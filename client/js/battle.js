@@ -7,6 +7,9 @@ let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
 
+// 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
+// getWeaponUltimateName関数を使用するために必要
+
 // ソケットが存在しない場合の安全対策
 if (socket) {
     socket.connected = false;
@@ -19,6 +22,12 @@ const myHPBar = document.getElementById("myHPBar");
 const enemyHPBar = document.getElementById("enemyHPBar");
 const myHPText = document.getElementById("myHPText");
 const enemyHPText = document.getElementById("enemyHPText");
+const myUltimateBar = document.getElementById("myUltimateBar");
+const enemyUltimateBar = document.getElementById("enemyUltimateBar");
+const myUltimateText = document.getElementById("myUltimateText");
+const enemyUltimateText = document.getElementById("enemyUltimateText");
+const correctEffect = document.getElementById("correctEffect");
+const ultimateEffect = document.getElementById("ultimateEffect");
 const myAtk = document.getElementById("myAtk");
 const myDef = document.getElementById("myDef");
 const mySpeed = document.getElementById("mySpeed");
@@ -72,6 +81,7 @@ function initialize() {
     enemyName.textContent = enemy.name;
     updateStats();
     updateHP();
+    updateUltimateGauge();
     addLog(I18N.battleBegin);
 
     if (isBotBattle) {
@@ -152,6 +162,35 @@ function updateHP() {
     enemyHPBar.style.width = (enemy.hp / enemy.maxHp * 100) + "%";
 }
 
+function updateUltimateGauge() {
+    // 必殺技ゲージの初期化
+    if (!me.ultimateGauge) {
+        me.ultimateGauge = { current: 0, max: 100 };
+    }
+    if (!enemy.ultimateGauge) {
+        enemy.ultimateGauge = { current: 0, max: 100 };
+    }
+    
+    // 自分のゲージ更新
+    const myGaugePercent = (me.ultimateGauge.current / me.ultimateGauge.max) * 100;
+    myUltimateBar.style.width = myGaugePercent + "%";
+    myUltimateText.textContent = `${me.ultimateGauge.current} / ${me.ultimateGauge.max}`;
+    
+    // 敵のゲージ更新
+    const enemyGaugePercent = (enemy.ultimateGauge.current / enemy.ultimateGauge.max) * 100;
+    enemyUltimateBar.style.width = enemyGaugePercent + "%";
+    enemyUltimateText.textContent = `${enemy.ultimateGauge.current} / ${enemy.ultimateGauge.max}`;
+    
+    // ゲージが満タンの時は特別なスタイルを適用
+    if (me.ultimateGauge.current >= me.ultimateGauge.max) {
+        myUltimateBar.style.background = "linear-gradient(90deg, #ff5722, #ffeb3b)";
+        myUltimateBar.style.boxShadow = "0 0 10px #ffeb3b";
+    } else {
+        myUltimateBar.style.background = "linear-gradient(90deg, #ff9800, #ffeb3b)";
+        myUltimateBar.style.boxShadow = "none";
+    }
+}
+
 function addLog(text) {
     const div = document.createElement("div");
     div.textContent = text;
@@ -166,6 +205,26 @@ function showDamage(id, amount) {
     el.classList.remove("show");
     void el.offsetWidth;
     el.classList.add("show");
+}
+
+function showCorrectEffect() {
+    correctEffect.classList.remove("show");
+    void correctEffect.offsetWidth;
+    correctEffect.classList.add("show");
+    
+    setTimeout(() => {
+        correctEffect.classList.remove("show");
+    }, 1500);
+}
+
+function showUltimateEffect() {
+    ultimateEffect.classList.remove("show");
+    void ultimateEffect.offsetWidth;
+    ultimateEffect.classList.add("show");
+    
+    setTimeout(() => {
+        ultimateEffect.classList.remove("show");
+    }, 2000);
 }
 
 function updateTimer() {
@@ -1080,6 +1139,25 @@ function handleBotAnswer(userAnswer) {
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
+        showCorrectEffect();
+        
+        // 必殺技ゲージの初期化（存在しない場合）
+        if (!me.ultimateGauge) {
+            me.ultimateGauge = { current: 0, max: 100 };
+        }
+        if (!enemy.ultimateGauge) {
+            enemy.ultimateGauge = { current: 0, max: 100 };
+        }
+        
+        // 必殺技ゲージを増加
+        me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
+        updateUltimateGauge();
+        
+        // 必殺技名を取得
+        const ultimateName = getWeaponUltimateName(me.equippedWeapon);
+        if (me.ultimateGauge.current >= me.ultimateGauge.max) {
+            addLog("必殺技ゲージMAX！次の正解で「" + ultimateName + "」発動！");
+        }
         
         // ユニーク能力適用
         let enemyDef = enemy.def || 0;
@@ -1118,6 +1196,18 @@ function handleBotAnswer(userAnswer) {
             const excessSpeed = mySpeed - 7500;
             const attackBonus = Math.floor(excessSpeed * 0.001); // 超過分の0.1%を攻撃ボーナス
             damage += attackBonus;
+        }
+        
+        // 必殺技発動判定（ゲージが満タンの場合）
+        let ultimateActivated = false;
+        if (me.ultimateGauge.current >= me.ultimateGauge.max) {
+            damage = Math.floor(damage * 1.5);
+            ultimateActivated = true;
+            addLog("必殺技「" + ultimateName + "」発動！ダメージ1.5倍！");
+            showUltimateEffect();
+            // 必殺技発動後、ゲージをリセット
+            me.ultimateGauge.current = 0;
+            updateUltimateGauge();
         }
         
         // 必殺（20%の確率でダメージ1.5倍）
@@ -1594,6 +1684,28 @@ if (!isBotBattle && socket) {
         if (isMyAnswer) {
             if (data.isCorrect) {
                 addLog("正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+                showCorrectEffect();
+                
+                // 必殺技ゲージ更新
+                if (data.ultimateGauge !== undefined) {
+                    if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
+                    me.ultimateGauge.current = data.ultimateGauge;
+                    updateUltimateGauge();
+                    
+                    // 必殺技ゲージがMAXの時
+                    if (data.ultimateReady) {
+                        const ultimateName = getWeaponUltimateName(me.equippedWeapon);
+                        addLog("必殺技ゲージMAX！次の正解で「" + ultimateName + "」発動！");
+                    }
+                    
+                    // 必殺技発動時
+                    if (data.ultimateActivated) {
+                        const ultimateName = getWeaponUltimateName(me.equippedWeapon);
+                        addLog("必殺技「" + ultimateName + "」発動！ダメージ1.5倍！");
+                        showUltimateEffect();
+                    }
+                }
+                
                 if (data.dodged) {
                     addLog("相手が回避！ダメージなし");
                     showDamage("enemyDamage", 0);
@@ -1624,6 +1736,21 @@ if (!isBotBattle && socket) {
         } else {
             if (data.isCorrect) {
                 addLog(enemy.name + "が正解！回答時間: " + (data.answerTime / 1000).toFixed(2) + "秒");
+                
+                // 敵の必殺技ゲージ更新
+                if (data.ultimateGauge !== undefined) {
+                    if (!enemy.ultimateGauge) enemy.ultimateGauge = { current: 0, max: 100 };
+                    enemy.ultimateGauge.current = data.ultimateGauge;
+                    updateUltimateGauge();
+                    
+                    // 敵の必殺技発動時
+                    if (data.ultimateActivated) {
+                        const ultimateName = getWeaponUltimateName(enemy.equippedWeapon);
+                        addLog(enemy.name + "の必殺技「" + ultimateName + "」発動！");
+                        showUltimateEffect();
+                    }
+                }
+                
                 if (data.dodged) {
                     addLog("回避！ダメージなし");
                     showDamage("myDamage", 0);
@@ -1653,6 +1780,7 @@ if (!isBotBattle && socket) {
         
         // HP同期とUI更新
         updateHP();
+        updateUltimateGauge();
         localStorage.setItem("battlePlayer", JSON.stringify(me));
         localStorage.setItem("enemy", JSON.stringify(enemy));
         

@@ -385,6 +385,11 @@ const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
 const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
 const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
 
+// 必殺技システム
+const ULTIMATE_GAUGE_MAX = 100; // 必殺技ゲージ最大値
+const ULTIMATE_GAUGE_PER_CORRECT = 20; // 正解ごとのゲージ増加量
+const ULTIMATE_DAMAGE_MULTIPLIER = 1.5; // 必殺技発動時のダメージ倍率
+
 // ============================================
 // オーブシステム
 // ============================================
@@ -631,7 +636,8 @@ const WEAPON_TYPES = {
     dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
     scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 1.1 },
     pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
-    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} }
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} },
+    magic_wand:   { name: "魔法の杖",   primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -641,47 +647,53 @@ const TIER_PRICES = { tier1: 30, tier2: 50, tier3: 100 };
 
 const WEAPON_CATALOG = {
     sword_shield: {
-        tier1: { name: "鉄の盾剣" },
-        tier2: { name: "騎士の盾剣" },
-        tier3: { name: "聖騎士の盾剣" },
-        unique: { name: "神盾剣ゼウス・ヘカテー" }
+        tier1: { name: "鉄の盾剣", ultimate: "シールドバッシュ" },
+        tier2: { name: "騎士の盾剣", ultimate: "ホーリーガード" },
+        tier3: { name: "聖騎士の盾剣", ultimate: "ディバインプロテクション" },
+        unique: { name: "神盾剣ゼウス・ヘカテー", ultimate: "神々の裁き" }
     },
     spear: {
-        tier1: { name: "木の槍" },
-        tier2: { name: "鋼の長槍" },
-        tier3: { name: "ドラゴンスレイヤー" },
-        unique: { name: "神槍　天照" },
-        debug: { name: "デバッガーランス", isDebug: true }
+        tier1: { name: "木の槍", ultimate: "突撃" },
+        tier2: { name: "鋼の長槍", ultimate: "雷撃突き" },
+        tier3: { name: "ドラゴンスレイヤー", ultimate: "ドラゴンスレイヤー" },
+        unique: { name: "神槍　天照", ultimate: "天照の神光" },
+        debug: { name: "デバッガーランス", isDebug: true, ultimate: "デバッグ斬撃" }
     },
     greatsword: {
-        tier1: { name: "錆びた大剣" },
-        tier2: { name: "黒鉄の大剣" },
-        tier3: { name: "覇王の大剣" },
-        unique: { name: "ベルゼバブ" }
+        tier1: { name: "錆びた大剣", ultimate: "大切断" },
+        tier2: { name: "黒鉄の大剣", ultimate: "鉄斬り" },
+        tier3: { name: "覇王の大剣", ultimate: "覇王斬" },
+        unique: { name: "ベルゼバブ", ultimate: "地獄の業火" }
     },
     dual_swords: {
-        tier1: { name: "錆びた双剣" },
-        tier2: { name: "疾風の双剣" },
-        tier3: { name: "幻影の双剣" },
-        unique: { name: "巨狼　オルトロス" }
+        tier1: { name: "錆びた双剣", ultimate: "双斬" },
+        tier2: { name: "疾風の双剣", ultimate: "疾風双斬" },
+        tier3: { name: "幻影の双剣", ultimate: "幻影乱舞" },
+        unique: { name: "巨狼　オルトロス", ultimate: "双頭狼の連撃" }
     },
     scythe: {
-        tier1: { name: "農夫の鎌" },
-        tier2: { name: "死神の鎌" },
-        tier3: { name: "冥府の鎌" },
-        unique: { name: "グリム・リーパー" }
+        tier1: { name: "農夫の鎌", ultimate: "収穫" },
+        tier2: { name: "死神の鎌", ultimate: "死神の鎌" },
+        tier3: { name: "冥府の鎌", ultimate: "冥府への誘い" },
+        unique: { name: "グリム・リーパー", ultimate: "死神の最期" }
     },
     pistol: {
-        tier1: { name: "古式ピストル" },
-        tier2: { name: "連射ピストル" },
-        tier3: { name: "マグナム" },
-        unique: { name: "九頭蛇　ヒュドラ" }
+        tier1: { name: "古式ピストル", ultimate: "一発" },
+        tier2: { name: "連射ピストル", ultimate: "ラピッドファイア" },
+        tier3: { name: "マグナム", ultimate: "マグナムバースト" },
+        unique: { name: "九頭蛇　ヒュドラ", ultimate: "九頭の猛毒" }
     },
     katana: {
-        tier1: { name: "錆びた刀" },
-        tier2: { name: "業物" },
-        tier3: { name: "名刀「村正」" },
-        unique: { name: "天雲　スサノオ" }
+        tier1: { name: "錆びた刀", ultimate: "居合斬り" },
+        tier2: { name: "業物", ultimate: "一閃" },
+        tier3: { name: "名刀「村正」", ultimate: "妖刀の呪い" },
+        unique: { name: "天雲　スサノオ", ultimate: "天叢雲剣" }
+    },
+    magic_wand: {
+        tier1: { name: "木の杖", ultimate: "小魔法" },
+        tier2: { name: "魔術師の杖", ultimate: "ファイアボール" },
+        tier3: { name: "賢者の杖", ultimate: "メテオストライク" },
+        unique: { name: "魔導書　グリモワール", ultimate: "禁断の魔法" }
     }
 };
 
@@ -701,7 +713,7 @@ function getWeaponMultiplier(weapon) {
     return TIER_MULT[weapon.tier] || 1;
 }
 
-function createOriginalWeapon(name, type, statBonuses) {
+function createOriginalWeapon(name, type, statBonuses, ultimateName) {
     // 武器名のバリデーション
     const validation = validateName(name);
     if (!validation.valid) {
@@ -716,7 +728,8 @@ function createOriginalWeapon(name, type, statBonuses) {
         isOriginal: true,
         multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
         statBonuses: statBonuses || {}, // { atk: 0.5, def: -0.3, speed: 0.2 } etc.
-        upgradeCount: 0
+        upgradeCount: 0,
+        ultimateName: ultimateName || null // オリジナル武器の必殺技名
     };
 }
 
@@ -1003,4 +1016,71 @@ function getWeaponDisplayName(weapon) {
 
 function getWeaponTypeLabel(type) {
     return WEAPON_TYPES[type]?.name || type;
+}
+
+// 必殺技名を取得
+function getWeaponUltimateName(weapon) {
+    if (!weapon) return "なし";
+    
+    // オリジナル武器の場合
+    if (weapon.isOriginal) {
+        return weapon.ultimateName || "カスタム必殺技";
+    }
+    
+    // 通常武器の場合
+    const catalog = WEAPON_CATALOG[weapon.type];
+    if (!catalog) return "なし";
+    
+    const tierKey = weapon.isUnique ? "unique" : weapon.tier;
+    const weaponInfo = catalog[tierKey];
+    
+    return weaponInfo?.ultimate || "なし";
+}
+
+// 必殺技ゲージを初期化
+function initializeUltimateGauge() {
+    return {
+        current: 0,
+        max: ULTIMATE_GAUGE_MAX
+    };
+}
+
+// 必殺技ゲージを増加
+function increaseUltimateGauge(gauge, amount = ULTIMATE_GAUGE_PER_CORRECT) {
+    const newCurrent = Math.min(gauge.max, gauge.current + amount);
+    return {
+        ...gauge,
+        current: newCurrent
+    };
+}
+
+// 必殺技ゲージが最大かチェック
+function isUltimateReady(gauge) {
+    return gauge.current >= gauge.max;
+}
+
+// 必殺技ゲージを消費
+function consumeUltimateGauge(gauge) {
+    return {
+        ...gauge,
+        current: 0
+    };
+}
+
+// オリジナル武器の必殺技名を設定
+function setOriginalWeaponUltimateName(weapon, ultimateName) {
+    if (!weapon || !weapon.isOriginal) {
+        return { error: "オリジナル武器ではありません" };
+    }
+    
+    // 必殺技名のバリデーション
+    const validation = validateName(ultimateName);
+    if (!validation.valid) {
+        return { error: validation.reason };
+    }
+    
+    return {
+        ...weapon,
+        ultimateName: ultimateName || "カスタム必殺技"
+    };
 }
