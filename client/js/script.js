@@ -20,8 +20,7 @@ function initializeSocket() {
     // Connection logging
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
-        // updateOnlineButtons(true); // ボタンを有効化 - setIntervalが管理
-        // console.log("Socket connected property set to true"); // setIntervalが管理
+        updateOnlineButtons(true); // ボタンを有効化
         
         // Call setup for online features
         if (typeof setupOnlineEventHandlers === 'function') {
@@ -36,23 +35,15 @@ function initializeSocket() {
 
     window.socket.on("disconnect", () => {
         console.log("切断");
-        // updateOnlineButtons(false); // ボタンを無効化 - setIntervalが管理
-        // console.log("Socket connected property set to false"); // setIntervalが管理
+        updateOnlineButtons(false); // ボタンを無効化
     });
 
     window.socket.on("connect_error", (error) => {
         console.log("接続エラー:", error);
+        updateOnlineButtons(false); // ボタンを無効化
     });
     
-    // 接続状態を定期的にチェック
-    setInterval(() => {
-        const actualConnected = Boolean(window.socket.io && window.socket.io.engine && window.socket.io.engine.connected);
-        if (window.socket.connected !== actualConnected) {
-            console.log("Socket connection state changed:", window.socket.connected, "->", actualConnected);
-            window.socket.connected = actualConnected;
-            updateOnlineButtons(actualConnected);
-        }
-    }, 1000);
+    // 接続状態の管理は connect/disconnect/connect_error イベントに一本化
 
     // ユニーク武器獲得通知
     window.socket.on("uniqueWeaponClaimed", (data) => {
