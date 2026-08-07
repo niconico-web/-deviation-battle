@@ -105,9 +105,16 @@ module.exports = function(io){
 
             console.log("Room Create:", roomId, "by socket:", socket.id);
             console.log("Socket rooms:", Array.from(socket.rooms));
+            console.log("Socket connected:", socket.connected);
+            console.log("Emitting roomCreated to socket:", socket.id);
 
             socket.emit("roomCreated", roomId);
-            console.log("roomCreated emitted to socket:", socket.id);
+            console.log("roomCreated emitted successfully");
+            
+            // 送信確認のために遅延してログ
+            setTimeout(() => {
+                console.log("roomCreated emission check completed");
+            }, 100);
 
         });
 

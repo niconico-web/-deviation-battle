@@ -112,6 +112,8 @@ function setupOnlineEventHandlers() {
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);
             console.log("Emitting playerJoin and createRoom with player:", battlePlayer);
+            console.log("Socket ID:", window.socket.id);
+            console.log("Socket connected:", window.socket.connected);
             
             // ルーム作成イベントを受信する一時的なリスナー
             const onRoomCreated = (roomId) => {
@@ -134,12 +136,17 @@ function setupOnlineEventHandlers() {
             };
             
             window.socket.on("roomCreated", onRoomCreated);
+            console.log("roomCreated listener registered");
             
             window.socket.emit("playerJoin", battlePlayer);
+            console.log("playerJoin emitted");
+            
             window.socket.emit("createRoom", battlePlayer);
+            console.log("createRoom emitted");
             
             // タイムアウト処理
             setTimeout(() => {
+                console.log("createRoom timeout check");
                 window.socket.off("roomCreated", onRoomCreated);
                 if (createRoomBtn.disabled) {
                     createRoomBtn.disabled = false;
