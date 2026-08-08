@@ -1,10 +1,10 @@
 :root {
-    --primary-color: #3f51b5; /* Indigo */
-    --primary-dark-color: #303f9f; /* Darker Indigo */
-    --accent-color: #ffc107;
-    --background-color: #121212;
-    --surface-color: #1e1e1e;
-    --on-surface-color: #ffffff;
+    --primary-color: #007bff; /* 水色 */
+    --primary-dark-color: #0056b3; /* 濃い水色 */
+    --accent-color: #00aaff;
+    --background-color: #2C2F33; /* より濃い灰色 */
+    --surface-color: #23272A; /* 少し明るいグレー */
+    --on-surface-color: #FFFFFF; /* 白色 */
     --on-surface-variant-color: #cccccc;
     --error-color: #cf6679;
 }
@@ -85,9 +85,9 @@ select {
     padding: 12px 16px;
     margin-bottom: 12px;
     font-size: 1rem;
-    border: 2px solid transparent;
+    border: 2px solid #40444B;
     border-radius: 12px;
-    background: rgba(0, 0, 0, 0.2);
+    background: #23272A;
     color: var(--on-surface-color);
     display: inline-block;
     height: 48px;
@@ -99,7 +99,7 @@ input:focus,
 select:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: rgba(0, 0, 0, 0.3);
+    background: #1e1e1e;
 }
 
 .stat-allocation,
@@ -121,7 +121,7 @@ select:focus {
     margin: 0 0 16px;
     padding: 8px;
     border-radius: 8px;
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--surface-color);
 }
 
 .remaining-points.points-ok {
@@ -148,7 +148,7 @@ select:focus {
     margin-bottom: 0;
 }
 
-.btn {
+button, .btn {
     display: block;
     width: 100%;
     min-height: 52px;
@@ -159,39 +159,50 @@ select:focus {
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: linear-gradient(145deg, var(--primary-color), var(--primary-dark-color));
+    background: var(--primary-color);
     color: var(--on-surface-color);
     border: none;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.btn:hover:not(:disabled) {
+button:hover:not(:disabled), .btn:hover:not(:disabled) {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    background: var(--primary-dark-color);
 }
 
-.btn:active:not(:disabled) {
+button:active:not(:disabled), .btn:active:not(:disabled) {
     transform: translateY(1px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.btn:disabled {
+button:disabled, .btn:disabled {
     opacity: 0.5;
+    background: #555;
     cursor: not-allowed;
 }
 
 .btn-primary {
-    background: linear-gradient(145deg, var(--primary-color), var(--primary-dark-color));
+    background: var(--primary-color);
+}
+.btn-primary:hover:not(:disabled) {
+    background: var(--primary-dark-color);
 }
 
 .btn-secondary {
-    background: linear-gradient(145deg, #6c757d, #495057);
+    background: #6c757d;
+}
+.btn-secondary:hover:not(:disabled) {
+    background: #495057;
 }
 
 .btn-danger {
-    background: linear-gradient(145deg, #e53935, #b71c1c);
+    background: #e53935;
+}
+.btn-danger:hover:not(:disabled) {
+    background: #b71c1c;
 }
 
 .btn-danger-outline {
@@ -210,11 +221,11 @@ select:focus {
 .shop-section,
 .inventory-section,
 .quest-section {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--surface-color);
     padding: 20px;
     border-radius: 16px;
     margin-bottom: 24px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    border: 1px solid #40444B;
 }
 
 .status-box h2,
@@ -232,7 +243,7 @@ select:focus {
 
 .status-box hr {
     border: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid #40444B;
     margin: 16px 0;
 }
 
@@ -287,7 +298,7 @@ select:focus {
 .shop-item,
 .inventory-item,
 .quest-item {
-    background: rgba(0, 0, 0, 0.3);
+    background: #2f3136;
     padding: 16px;
     border-radius: 12px;
     display: flex;
@@ -306,7 +317,7 @@ select:focus {
 
 .shop-item.owned,
 .inventory-item.equipped {
-    background: rgba(0, 188, 212, 0.1);
+    background: #202225;
     border-left: 4px solid var(--primary-color);
 }
 
@@ -344,12 +355,12 @@ select:focus {
     border-radius: 16px 0 0 16px;
     padding: 24px 0;
     flex-shrink: 0;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid #40444B;
 }
 
 .sidebar-header {
     padding: 0 20px 24px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid #40444B;
     margin-bottom: 16px;
 }
 
@@ -387,12 +398,12 @@ select:focus {
 }
 
 .menu-btn:hover {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--background-color);
     color: var(--on-surface-color);
 }
 
 .menu-btn.active {
-    background: rgba(0, 188, 212, 0.1);
+    background: #202225;
     color: var(--primary-color);
     font-weight: 700;
     border-left-color: var(--primary-color);
@@ -425,7 +436,7 @@ select:focus {
     right: 16px;
     z-index: 1001;
     background: var(--surface-color);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid #40444B;
     padding: 0;
     border-radius: 50%;
     cursor: pointer;
@@ -436,6 +447,7 @@ select:focus {
     justify-content: center;
     align-items: center;
     gap: 4px;
+    pointer-events: auto; /* Ensure it's clickable */
 }
 
 .mobile-menu-toggle span {
