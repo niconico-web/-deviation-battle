@@ -202,29 +202,98 @@ function showDamage(id, amount) {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = amount > 0 ? "-" + amount : "MISS";
-    el.classList.remove("show");
-    void el.offsetWidth;
-    el.classList.add("show");
+
+    // Web Animations API を使用してリッチなアニメーションを実装
+    el.animate([
+        { transform: 'translateY(0) scale(1.2)', opacity: 1, color: '#ff4d4d' },
+        { transform: 'translateY(-30px) scale(1.5)', opacity: 1, offset: 0.2, color: '#ff1a1a' },
+        { transform: 'translateY(-120px) scale(1)', opacity: 0 }
+    ], {
+        duration: 1500,
+        easing: 'cubic-bezier(0.25, 1, 0.5, 1)' // 上に素早く消えるイージング
+    });
+
+    // ダメージを受けた時に画面を揺らす
+    if (amount > 0) {
+        const container = document.querySelector('.battle-container');
+        if (container) {
+            container.animate([
+                { transform: 'translateX(0)' },
+                { transform: 'translateX(-6px)' },
+                { transform: 'translateX(6px)' },
+                { transform: 'translateX(-6px)' },
+                { transform: 'translateX(6px)' },
+                { transform: 'translateX(0)' }
+            ], {
+                duration: 300,
+                easing: 'ease-in-out'
+            });
+        }
+    }
 }
 
 function showCorrectEffect() {
-    correctEffect.classList.remove("show");
-    void correctEffect.offsetWidth;
-    correctEffect.classList.add("show");
-    
-    setTimeout(() => {
-        correctEffect.classList.remove("show");
-    }, 1500);
+    // Web Animations API を使用
+    correctEffect.animate([
+        { opacity: 0, transform: 'scale(0.7)' },
+        { opacity: 1, transform: 'scale(1.1)', offset: 0.3 },
+        { opacity: 1, transform: 'scale(1)', offset: 0.6 },
+        { opacity: 0, transform: 'scale(1.5)' }
+    ], {
+        duration: 1500,
+        easing: 'ease-out'
+    });
 }
 
 function showUltimateEffect() {
-    ultimateEffect.classList.remove("show");
-    void ultimateEffect.offsetWidth;
-    ultimateEffect.classList.add("show");
-    
-    setTimeout(() => {
-        ultimateEffect.classList.remove("show");
-    }, 2000);
+    // 画面フラッシュ
+    const flash = document.createElement('div');
+    flash.style.position = 'fixed';
+    flash.style.top = '0';
+    flash.style.left = '0';
+    flash.style.width = '100%';
+    flash.style.height = '100%';
+    flash.style.backgroundColor = '#fff';
+    flash.style.zIndex = '9998';
+    flash.style.pointerEvents = 'none';
+    document.body.appendChild(flash);
+    flash.animate([
+        { opacity: 0.9 },
+        { opacity: 0 }
+    ], {
+        duration: 500,
+        easing: 'ease-in'
+    }).onfinish = () => flash.remove();
+
+    // 必殺技エフェクト本体
+    ultimateEffect.animate([
+        { opacity: 0, transform: 'scale(0.5) rotate(-45deg)' },
+        { opacity: 1, transform: 'scale(1.2) rotate(10deg)', offset: 0.2 },
+        { opacity: 1, transform: 'scale(1) rotate(0deg)', offset: 0.4 },
+        { opacity: 1, transform: 'scale(1) rotate(0deg)', offset: 0.8 },
+        { opacity: 0, transform: 'scale(2) rotate(45deg)' }
+    ], {
+        duration: 2000,
+        easing: 'ease-in-out'
+    });
+
+    // 画面揺れ（強め）
+    const container = document.querySelector('.battle-container');
+    if (container) {
+        setTimeout(() => { // フラッシュと少しずらす
+            container.animate([
+                { transform: 'translateX(0) rotate(0)' },
+                { transform: 'translateX(-10px) rotate(-1deg)' },
+                { transform: 'translateX(10px) rotate(1deg)' },
+                { transform: 'translateX(-10px) rotate(-1deg)' },
+                { transform: 'translateX(10px) rotate(1deg)' },
+                { transform: 'translateX(0) rotate(0)' }
+            ], {
+                duration: 500,
+                easing: 'ease-in-out'
+            });
+        }, 100);
+    }
 }
 
 function updateTimer() {
