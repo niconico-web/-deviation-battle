@@ -76,12 +76,35 @@ function getRandomQuestion(schoolLevel, grade, subject) {
 }
 
 // -----------------------------
+// 学年の正規化ヘルパー
+// - サーバーに渡される grade が文字列や範囲外の可能性を正規化する
+// -----------------------------
+function normalizeGrade(rawGrade) {
+    let g = Number(rawGrade);
+    if (!Number.isFinite(g) || Number.isNaN(g)) {
+        // Fall back to parseInt for strings like "1" or "01"
+        g = parseInt(rawGrade, 10);
+    }
+    if (!Number.isFinite(g) || Number.isNaN(g)) {
+        return 1; // default to 1
+    }
+    // Clamp between 1 and 12 (1-6: elementary, 7-9: junior high, 10-12: high school)
+    if (g < 1) g = 1;
+    if (g > 12) g = 12;
+    return Math.floor(g);
+}
+
+// -----------------------------
 // 二人のプレイヤーの学年に基づいて問題を決定
 // -----------------------------
 function determineQuestionLevel(player1Grade, player2Grade) {
+    // 正規化
+    const g1 = normalizeGrade(player1Grade);
+    const g2 = normalizeGrade(player2Grade);
+
     // 学年が違う場合は、学年が下のほうに合わせる
-    const minGrade = Math.min(player1Grade, player2Grade);
-    
+    const minGrade = Math.min(g1, g2);
+
     // 学年から学校レベルを判定
     if (minGrade <= 6) {
         return { schoolLevel: 'elementary', grade: minGrade };
@@ -94,13 +117,64 @@ function determineQuestionLevel(player1Grade, player2Grade) {
 
 // -----------------------------
 // バトル用の問題を取得
+// - もし期待した学年／教科に問題が無い場合、フォールバックで近い学年や相手側の学年を試す
 // -----------------------------
 function getBattleQuestion(player1Grade, player2Grade, subject) {
+    const questionsDb = loadQuestions();
     const { schoolLevel, grade } = determineQuestionLevel(player1Grade, player2Grade);
     console.log(`[QuestionManager] getBattleQuestion: player1Grade=${player1Grade}, player2Grade=${player2Grade}, subject=${subject}, schoolLevel=${schoolLevel}, grade=${grade}`);
-    const question = getRandomQuestion(schoolLevel, grade, subject);
-    console.log(`[QuestionManager] Question result:`, question ? 'Found' : 'Not found');
-    return question;
+
+    // まず通常経路で取得
+    let question = getRandomQuestion(schoolLevel, grade, subject);
+    if (question) {
+        console.log('[QuestionManager] getBattleQuestion: selected question from determined level');
+        return question;
+    }
+
+    // フォールバック1: 同じ schoolLevel の近い grade を試す（上下1〜2年分）
+    try {
+        const availableGrades = Object.keys((questionsDb && questionsDb[schoolLevel]) || {}).map(k => Number(k)).filter(n => Number.isFinite(n));
+        console.log(`[QuestionManager] getBattleQuestion: availableGrades for ${schoolLevel}:`, availableGrades);
+
+        const deltas = [1, -1, 2, -2];
+        for (const d of deltas) {
+            const tryGrade = grade + d;
+            if (availableGrades.includes(tryGrade)) {
+                question = getRandomQuestion(schoolLevel, tryGrade, subject);
+                if (question) {
+                    console.log(`[QuestionManager] getBattleQuestion: fallback found at grade=${tryGrade} (same school level)`);
+                    return question;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[QuestionManager] getBattleQuestion fallback same-level failed', e);
+    }
+
+    // フォールバック2: 相手の学年を使って取得（player1 若しくは player2 のどちらかの schoolLevel）
+    try {
+        const g1 = normalizeGrade(player1Grade);
+        const g2 = normalizeGrade(player2Grade);
+        const candidates = [ { schoolLevel: '', grade: 1 } ];
+
+        const cand1 = (g1 <= 6) ? { schoolLevel: 'elementary', grade: g1 } : (g1 <= 9) ? { schoolLevel: 'junior_high', grade: g1 - 6 } : { schoolLevel: 'high_school', grade: g1 - 9 };
+        const cand2 = (g2 <= 6) ? { schoolLevel: 'elementary', grade: g2 } : (g2 <= 9) ? { schoolLevel: 'junior_high', grade: g2 - 6 } : { schoolLevel: 'high_school', grade: g2 - 9 };
+        candidates.push(cand1, cand2);
+
+        for (const c of candidates) {
+            if (!c || !c.schoolLevel) continue;
+            question = getRandomQuestion(c.schoolLevel, c.grade, subject);
+            if (question) {
+                console.log(`[QuestionManager] getBattleQuestion: fallback found using candidate schoolLevel=${c.schoolLevel}, grade=${c.grade}`);
+                return question;
+            }
+        }
+    } catch (e) {
+        console.warn('[QuestionManager] getBattleQuestion fallback candidate failed', e);
+    }
+
+    console.warn('[QuestionManager] getBattleQuestion: 問題が見つかりませんでした');
+    return null;
 }
 
 // -----------------------------
@@ -249,7 +323,7 @@ function generateLiteraryTechniqueWrongAnswers(correct) {
         '対句': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
         '擬人法': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '山と川、天と地'],
         '係り結び': ['美しい、この花は', 'ライオンのように強い', '走った、走った、走った', '風がささやく'],
-        '受動態': ['彼を行かせた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
+        '受動態': ['彼を行かせた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれ��も、～ので'],
         '使役態': ['彼に褒められた', 'いらっしゃる、おっしゃる', '参る、申す', '～けれども、～ので'],
         '尊敬語': ['彼を行かせた', '彼に褒められた', '参る、申す', '～けれども、～ので'],
         '謙譲語': ['彼を行かせた', '彼に褒められた', 'いらっしゃる、おっしゃる', '～けれども、～ので']
