@@ -5,7 +5,7 @@ const battlePlayerData = localStorage.getItem("battlePlayer");
 const enemyData = localStorage.getItem("enemy");
 let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
-let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null;
+let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -244,7 +244,7 @@ function startTimer() {
 
 function startBotBattle() {
     // ボットの難易度を計算（バトル開始時に1回だけ）
-    calculateBotDifficulty();
+    botDifficulty = calculateBotDifficulty();
     // ステータス更新を反映
     updateStats();
     updateHP();
@@ -1292,7 +1292,7 @@ function handleBotAnswer(userAnswer) {
         // ボットが回答するチャンス
         setTimeout(() => {
             const botAnswerTime = Math.random() * 2000 + 500; // 0.5-2.5秒に短縮
-            const botIsCorrect = Math.random() < botDifficulty.accuracy; // 計算された正解率を使用
+            const botIsCorrect = Math.random() < (botDifficulty ? botDifficulty.accuracy : 0.85); // 計算された正解率を使用
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
@@ -1426,39 +1426,19 @@ function stopTimer() {
 function syncBattleState(players) {
     console.log("syncBattleState called with players:", players);
     const playerIds = Object.keys(players);
-    console.log("Player IDs:", playerIds, "My ID:", me.id, "My Name:", me.name);
-    
-    // 名前でマッチングを試みる（IDが変わっている可能性があるため）
-    let myData = null;
-    let enemyData = null;
-    
-    // まずIDで完全一致を探す
-    myData = players[me.id];
-    if (myData) {
-        const enemyId = playerIds.find(id => id !== me.id);
-        enemyData = players[enemyId];
-        console.log("Found by ID match");
-    } else {
-        // IDで見つからない場合、名前でマッチング
-        console.log("ID match failed, trying name match");
-        for (const pid of playerIds) {
-            const player = players[pid];
-            if (player && player.name === me.name) {
-                myData = player;
-                const enemyId = playerIds.find(id => id !== pid);
-                enemyData = players[enemyId];
-                console.log("Found by name match, updating my ID from", me.id, "to", pid);
-                me.id = pid; // IDを更新
-                break;
-            }
-        }
-    }
+    console.log("Player IDs:", playerIds, "My ID:", me.id);
+
+    const myData = players[me.id];
     
     // データが見つからない場合の警告
     if (!myData) {
-        console.warn("Could not find my data in syncBattleState");
+        console.error("Could not find my data in syncBattleState. My ID:", me.id, "Server players:", players);
         return;
     }
+
+    const enemyId = playerIds.find(id => id !== me.id);
+    const enemyData = enemyId ? players[enemyId] : null;
+
     if (!enemyData) {
         console.warn("Could not find enemy data in syncBattleState");
         return;
@@ -1625,46 +1605,25 @@ if (!isBotBattle && socket) {
             console.log("My current ID:", me.id, "My Name:", me.name);
             console.log("Enemy current ID:", enemy.id, "Enemy Name:", enemy.name);
             console.log("Received players data:", JSON.stringify(data.players));
-            
-            // 名前でマッチングを試みる
-            let myData = null;
-            let enemyData = null;
-            
-            // まずIDで完全一致を探す
-            myData = data.players[me.id];
-            if (myData) {
-                const enemyId = playerIds.find(id => id !== me.id);
-                enemyData = data.players[enemyId];
-                console.log("Found by ID match - myData:", myData, "enemyData:", enemyData);
-            } else {
-                // IDで見つからない場合、名前でマッチング
-                console.log("ID match failed, trying name match");
-                for (const pid of playerIds) {
-                    const player = data.players[pid];
-                    console.log("Checking player:", pid, "name:", player.name, "against my name:", me.name);
-                    if (player && player.name === me.name) {
-                        myData = player;
-                        const enemyId = playerIds.find(id => id !== pid);
-                        enemyData = data.players[enemyId];
-                        console.log("Found by name match, updating my ID from", me.id, "to", pid);
-                        me.id = pid; // IDを更新
-                        break;
-                    }
-                }
-            }
-            
+
+            const myData = data.players[me.id];
+
             // データが見つからない場合のエラーハンドリング
             if (!myData) {
-                console.error("Could not find my data in battleStarted!");
-                addLog("エラー: プレーデータの同期に失敗しました");
+                console.error("Could not find my data in battleStarted! My ID:", me.id, "Server players:", data.players);
+                addLog("エラー: プレイヤーデータの同期に失敗しました");
                 return;
             }
+
+            const enemyId = playerIds.find(id => id !== me.id);
+            const enemyData = enemyId ? data.players[enemyId] : null;
+
             if (!enemyData) {
                 console.error("Could not find enemy data in battleStarted!");
                 addLog("エラー: 敵データの同期に失敗しました");
                 return;
             }
-            
+
             // データを更新
             me = { ...me, ...myData };
             enemy = { ...enemy, ...enemyData };
