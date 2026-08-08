@@ -1672,53 +1672,69 @@ if (!isBotBattle && socket) {
 
     socket.on("answerResult", data => {
         console.log("answerResult received:", data);
-        const isMyAnswer = data.playerId === me.id || (data.playerName && data.playerName === me.name);
+        const answererIsMe = data.playerId === me.id;
+
+        // 誰かが先に正解した場合、即座に選択肢を無効化
+        if (data.firstCorrect) {
+            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => btn.disabled = true);
+        }
 
         // Display logs and effects based on the immediate result
         if (data.isCorrect) {
             addLog(`${data.playerName}が正解！`);
-            if (isMyAnswer) showCorrectEffect();
+            if (answererIsMe) showCorrectEffect();
             if (data.ultimateActivated) {
-                const ultimateName = getWeaponUltimateName(isMyAnswer ? me.equippedWeapon : enemy.equippedWeapon);
+                const ultimateName = getWeaponUltimateName(answererIsMe ? me.equippedWeapon : enemy.equippedWeapon);
                 addLog(`${data.playerName}の必殺技「${ultimateName}」発動！`);
                 showUltimateEffect();
             }
         } else {
             addLog(`${data.playerName}は不正解...`);
         }
-        
+
         // Display damage/dodge info
+        let animationDelay = 0;
         if (data.damage !== undefined) {
-            const target = isMyAnswer ? "enemy" : "my";
+            // ダメージを受ける側が自分かどうかを判定
+            // 1. 回答者が自分で、不正解だった場合
+            // 2. 回答者が相手で、正解だった場合
+            const targetIsMe = (answererIsMe && !data.isCorrect) || (!answererIsMe && data.isCorrect);
+            const targetId = targetIsMe ? "my" : "enemy";
+            const targetName = targetIsMe ? "自分" : "相手";
+
+            // 自分がダメージを受ける場合、アニメーションのための遅延を設定
+            if (targetIsMe) {
+                animationDelay = 1500; // 1.5秒
+            }
+
             if(data.dodged) {
-                addLog(`${target === "my" ? "自分" : "相手"}が回避！`);
-                showDamage(`${target}Damage`, 0);
+                addLog(`${targetName}が回避！`);
+                showDamage(`${targetId}Damage`, 0);
             } else {
-                addLog(`${target === "my" ? "自分" : "相手"}に${data.damage}のダメージ！`);
-                showDamage(`${target}Damage`, data.damage);
+                addLog(`${targetName}に${data.damage}のダメージ！`);
+                showDamage(`${targetId}Damage`, data.damage);
             }
         }
 
         // Authoritative state update from the server
         if (data.battleState) {
-            console.log("Syncing battle state from answerResult:", data.battleState.players);
             syncBattleState(data.battleState.players);
         }
-        
+
         // Handle next question
         if (data.nextQuestion) {
-            currentQuestion = data.nextQuestion;
-            showCountdown(() => {
-                questionDisplay.textContent = currentQuestion.question;
-                generateChoices(currentQuestion);
-                startTimer();
-                const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-                addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
-            });
-        } else if (isMyAnswer && data.isCorrect && data.firstCorrect) {
-            // Disable buttons if I was the first to answer correctly, until next question arrives
-            const buttons = choicesContainer.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = true);
+            // ダメージアニメーションが終わるのを待ってから次の問題のカウントダウンを開始
+            setTimeout(() => {
+                currentQuestion = data.nextQuestion;
+                showCountdown(() => {
+                    questionDisplay.textContent = currentQuestion.question;
+                    generateChoices(currentQuestion);
+                    startTimer();
+                    const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+                    addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+                });
+            }, animationDelay);
         }
 
         // Check for a winner from the result payload
