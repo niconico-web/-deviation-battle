@@ -6,7 +6,106 @@ let pendingRandomMatchPlayer = null;
 // Initialize socket after DOM is ready
 window.socket = null;
 
-
+/**
+ * UIデザインを適用するためのスタイルを動的に注入します。
+ * これにより、CSSファイルを直接編集することなく、サイト全体の見た目を変更します。
+ * 濃い灰色の背景、白いテキスト、水色のボタンを基調としたデザインを適用します。
+ */
+function applyOrthodoxDesign() {
+    const styles = `
+        :root {
+            --dark-bg: #2C2F33; /* 濃い灰色 */
+            --medium-bg: #3A3E44;
+            --light-bg: #4F545C;
+            --text-color: #F0F0F0;
+            --button-blue: #007BFF;
+            --button-hover-blue: #0056B3;
+            --border-color: #555a63;
+        }
+        body {
+            background-color: var(--dark-bg);
+            color: var(--text-color);
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        .header, .sidebar, .content-section, .modal-content, #log {
+            background-color: var(--medium-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: none;
+        }
+        .container, .battle-container {
+            background-color: transparent;
+        }
+        /* モバイル用メニューボタンが他の要素に隠れないようにする */
+        #mobileMenuToggle {
+            position: fixed; /* 画面に固定 */
+            top: 15px;
+            right: 15px;
+            z-index: 1001; /* 他の要素より手前に表示 */
+            width: 40px;
+            height: 40px;
+            background: var(--button-blue);
+            border-radius: 5px;
+        }
+        /* サイドバー自体のスタイル */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: -260px; /* 初期状態では画面外に隠す */
+            width: 250px;
+            height: 100%;
+            z-index: 1000;
+            transition: right 0.3s ease-in-out; /* スライドアニメーション */
+            padding-top: 60px; /* メニューボタンと重ならないように調整 */
+        }
+        /* メニューが開いたときのスタイル */
+        .sidebar.active {
+            right: 0; /* 画面内に表示 */
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 5px;
+        }
+        button, .btn {
+            background-color: var(--button-blue);
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-shadow: none;
+        }
+        button:hover, .btn:hover {
+            background-color: var(--button-hover-blue);
+        }
+        button:disabled, .btn:disabled {
+            background-color: #5f6a7d;
+            color: #a9b1bf;
+            cursor: not-allowed;
+        }
+        input, textarea, select {
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .shop-item, .inventory-item, .quest-item, .orb-item {
+            background-color: var(--medium-bg);
+            border: 1px solid var(--border-color);
+            margin-bottom: 5px;
+        }
+        .shop-item.owned, .inventory-item.equipped {
+            background-color: var(--dark-bg);
+        }
+        a { color: #3498db; }
+    `;
+    const styleSheet = document.createElement("style");
+    styleSheet.type = "text/css";
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+}
 
 function initializeSocket() {
     console.log("Initializing socket...");
@@ -45,8 +144,6 @@ function initializeSocket() {
         updateOnlineButtons(false); // ボタンを無効化
     });
     
-    // 接続状態の管理は connect/disconnect/connect_error イベントに一本化
-
     // ユニーク武器獲得通知
     window.socket.on("uniqueWeaponClaimed", (data) => {
         const message = `${data.weaponName}が${data.playerName}によって入手されました！`;
@@ -67,9 +164,6 @@ function initializeSocket() {
         }
     });
 
-    // Initialize connection state
-    // window.socket.connected = false; // setIntervalが管理
-    
     console.log("Socket initialized, waiting for connection...");
     console.log("Initial socket.connected state:", window.socket.connected);
     
@@ -381,77 +475,63 @@ function updateOnlineButtons(isConnected) {
 }
 
 function setupDOMEventHandlers() {
+    // --- Menu Handling ---
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
     const menuButtons = document.querySelectorAll('.menu-btn');
 
-    // クリックイベントの信頼性を高めるため、'click'を主としてイベント委譲モデルを使用します。
+    // A single, delegated event listener for all menu-related clicks
     document.addEventListener('click', (e) => {
         const target = e.target;
 
-        // メニュートグルボタンの処理
+        // Case 1: The mobile menu toggle button (or its children) was clicked
         if (mobileMenuToggle && mobileMenuToggle.contains(target)) {
-            e.preventDefault();
-            
-            // --- デバッグコード START ---
-            // 画面を一瞬赤くして、イベントが発火したことを視覚的に確認します。
-            const originalColor = document.body.style.backgroundColor;
-            document.body.style.backgroundColor = 'red';
-            setTimeout(() => {
-                document.body.style.backgroundColor = originalColor;
-            }, 200);
-            // --- デバッグコード END ---
-
+            e.preventDefault(); // Prevent any default action
             sidebar.classList.toggle('active');
-            // ハンバーガーメニューのアイコンをトグル
-            mobileMenuToggle.classList.toggle('active');
-            return;
+            return; // Stop further processing
         }
 
-        // サイドバー内のメニュー項目の処理
+        // Case 2: A menu button inside the sidebar was clicked
         const clickedMenuButton = Array.from(menuButtons).find(btn => btn.contains(target));
         if (clickedMenuButton) {
-            // e.preventDefault() はデフォルトのアンカータグ挙動などを防ぐ場合に有効
             const section = clickedMenuButton.dataset.section;
             if (section) {
-                menuButtons.forEach(btn => btn.classList.remove('active'));
+                // Deactivate all sections and menu buttons
                 document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+                menuButtons.forEach(btn => btn.classList.remove('active'));
                 
+                // Activate the target section and button
+                document.getElementById(`section-${section}`)?.classList.add('active');
                 clickedMenuButton.classList.add('active');
-                const targetSection = document.getElementById(`section-${section}`);
-                if (targetSection) targetSection.classList.add('active');
                 
-                // モバイル表示でメニューが開いていれば閉じる
+                // If on mobile, close the sidebar after selection
                 if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
                     sidebar.classList.remove('active');
-                    mobileMenuToggle.classList.remove('active');
                 }
             }
-            return;
+            return; // Stop further processing
         }
 
-        // サイドバー外側のクリック処理
+        // Case 3: The click was outside the sidebar and the sidebar is open
         if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(target)) {
             sidebar.classList.remove('active');
-            mobileMenuToggle.classList.remove('active');
         }
     });
 
+    // --- Other Event Handlers ---
     const deleteBtn = document.getElementById("deletePlayerBtn");
     if (deleteBtn) {
         deleteBtn.onclick = () => {
             if (!confirm(I18N.deleteConfirm)) return;
             if (studyStartTime !== null) stopStudy();
-            localStorage.removeItem("player");
-            localStorage.removeItem("battlePlayer");
-            localStorage.removeItem("enemy");
-            localStorage.removeItem("roomId");
-            localStorage.removeItem("isBotBattle");
+            localStorage.clear(); // Clear all data for a fresh start
             document.getElementById("playerName").value = "";
             setStatsToInputs(DEFAULT_STATS);
             document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";
             updateXpDisplay({ xp: 0, level: 1 });
+            lockStatInputs(false); // Unlock inputs for new character
             alert(I18N.deleted);
+            location.reload(); // Reload to apply changes cleanly
         };
     }
 
@@ -538,6 +618,9 @@ function initializeI18nTexts() {
 
 window.onload = () => {
     console.log("window.onload triggered.");
+
+    // UIデザインを適用
+    applyOrthodoxDesign();
     
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }

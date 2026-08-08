@@ -181,12 +181,12 @@ function updateUltimateGauge() {
     enemyUltimateBar.style.width = enemyGaugePercent + "%";
     enemyUltimateText.textContent = `${enemy.ultimateGauge.current} / ${enemy.ultimateGauge.max}`;
     
-    // ゲージが満タンの時は特別なスタイルを適用
+    // ゲージが満タンの時は特別なスタイルを適用（新しいUIデザインに準拠）
     if (me.ultimateGauge.current >= me.ultimateGauge.max) {
-        myUltimateBar.style.background = "linear-gradient(90deg, #00aaff, #007bff)";
-        myUltimateBar.style.boxShadow = "0 0 10px #00aaff";
+        myUltimateBar.style.background = "linear-gradient(90deg, #007bff, #00c6ff)"; // 水色系のグラデーション
+        myUltimateBar.style.boxShadow = "0 0 10px #00c6ff";
     } else {
-        myUltimateBar.style.background = "#007bff";
+        myUltimateBar.style.background = "#007bff"; // 単色の水色
         myUltimateBar.style.boxShadow = "none";
     }
 
