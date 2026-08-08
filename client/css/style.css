@@ -9,6 +9,7 @@
     --error-color: #e74c3c;
 }
 
+
 *,
 *::before,
 *::after {
@@ -499,6 +500,7 @@ button:disabled, .btn:disabled {
 
 @media (max-width: 767px) {
     .sidebar {
+        display: block;
         position: fixed;
         top: 0;
         right: -250px;
