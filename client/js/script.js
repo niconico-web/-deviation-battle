@@ -430,6 +430,7 @@ function setupDOMEventHandlers() {
             localStorage.removeItem("battlePlayer");
             localStorage.removeItem("enemy");
             localStorage.removeItem("roomId");
+            localStorage.removeItem("isBotBattle");
             document.getElementById("playerName").value = "";
             setStatsToInputs(DEFAULT_STATS);
             document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";

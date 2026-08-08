@@ -61,6 +61,7 @@ function setupOnlineEventHandlers() {
                 randomMatchBtn.textContent = "ランダムマッチ";
                 randomMatchBtn.disabled = false;
 
+                localStorage.removeItem("isBotBattle");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -182,6 +183,7 @@ function setupOnlineEventHandlers() {
 
             const handleRoomReadyForHost = (data) => {
                 console.log("Room is ready for host!", data);
+                localStorage.removeItem("isBotBattle");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -266,6 +268,7 @@ function setupOnlineEventHandlers() {
                 joinRoomBtn.disabled = false;
                 joinRoomBtn.textContent = "ルーム参加";
 
+                localStorage.removeItem("isBotBattle");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -305,5 +308,3 @@ function setupOnlineEventHandlers() {
         };
     }
 }
-
-
