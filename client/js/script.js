@@ -392,6 +392,16 @@ function setupDOMEventHandlers() {
         // メニュートグルボタンの処理
         if (mobileMenuToggle && mobileMenuToggle.contains(target)) {
             e.preventDefault();
+            
+            // --- デバッグコード START ---
+            // 画面を一瞬赤くして、イベントが発火したことを視覚的に確認します。
+            const originalColor = document.body.style.backgroundColor;
+            document.body.style.backgroundColor = 'red';
+            setTimeout(() => {
+                document.body.style.backgroundColor = originalColor;
+            }, 200);
+            // --- デバッグコード END ---
+
             sidebar.classList.toggle('active');
             // ハンバーガーメニューのアイコンをトグル
             mobileMenuToggle.classList.toggle('active');
