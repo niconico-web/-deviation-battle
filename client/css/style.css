@@ -1,12 +1,12 @@
 :root {
-    --primary-color: #007bff; /* 水色 */
-    --primary-dark-color: #0056b3; /* 濃い水色 */
-    --accent-color: #00aaff;
-    --background-color: #2C2F33; /* より濃い灰色 */
-    --surface-color: #23272A; /* 少し明るいグレー */
-    --on-surface-color: #FFFFFF; /* 白色 */
-    --on-surface-variant-color: #cccccc;
-    --error-color: #cf6679;
+    --primary-color: #3498db; /* 落ち着いた水色 */
+    --primary-dark-color: #2980b9; /* 濃い水色 */
+    --accent-color: #3498db; /* 水色に統一 */
+    --background-color: #1c1e22; /* さらに濃い灰色 */
+    --surface-color: #2a2d32; /* 少し明るいグレー */
+    --on-surface-color: #f0f0f0; /* 白色に近い灰色 */
+    --on-surface-variant-color: #a0a0a0;
+    --error-color: #e74c3c;
 }
 
 *,
