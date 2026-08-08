@@ -183,10 +183,10 @@ function updateUltimateGauge() {
     
     // ゲージが満タンの時は特別なスタイルを適用
     if (me.ultimateGauge.current >= me.ultimateGauge.max) {
-        myUltimateBar.style.background = "linear-gradient(90deg, #ff5722, #ffeb3b)";
-        myUltimateBar.style.boxShadow = "0 0 10px #ffeb3b";
+        myUltimateBar.style.background = "linear-gradient(90deg, #007bff, #00c6ff)";
+        myUltimateBar.style.boxShadow = "0 0 10px #00c6ff";
     } else {
-        myUltimateBar.style.background = "linear-gradient(90deg, #ff9800, #ffeb3b)";
+        myUltimateBar.style.background = "linear-gradient(90deg, #0056b3, #007bff)";
         myUltimateBar.style.boxShadow = "none";
     }
 }
