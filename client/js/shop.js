@@ -632,7 +632,120 @@ function initShop() {
     if (createBtn) {
         createBtn.onclick = showOriginalWeaponCreationDialog;
     }
+    
+    // オーブ合成モーダルのイベントリスナー
+    const openModalBtn = document.getElementById("openOrbSynthesisBtn");
+    const closeModalBtn = document.getElementById("closeOrbSynthesisBtn");
+    const modal = document.getElementById("orbSynthesisModal");
+
+    if (openModalBtn && modal) {
+        openModalBtn.addEventListener('click', openOrbSynthesisModal);
+    }
+    if (closeModalBtn && modal) {
+        closeModalBtn.addEventListener('click', () => modal.style.display = 'none');
+    }
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    }
+
+    document.getElementById('synthesizeTier2Btn').addEventListener('click', () => synthesizeOrb('tier2'));
+    document.getElementById('synthesizeTier3Btn').addEventListener('click', () => synthesizeOrb('tier3'));
+    document.getElementById('synthesizeTier4Btn').addEventListener('click', () => synthesizeOrb('tier4'));
 }
+
+function openOrbSynthesisModal() {
+    const modal = document.getElementById("orbSynthesisModal");
+    if (!modal) return;
+
+    const player = getPlayerData();
+    if (!player) return;
+
+    const orbs = player.orbs || [];
+    const tier1Count = orbs.filter(o => o.tier === 'tier1').length;
+    const tier2Count = orbs.filter(o => o.tier === 'tier2').length;
+    const tier3Count = orbs.filter(o => o.tier === 'tier3').length;
+
+    document.getElementById('tier1OrbCount').textContent = tier1Count;
+    document.getElementById('tier2OrbCount').textContent = tier2Count;
+    document.getElementById('tier3OrbCount').textContent = tier3Count;
+
+    document.getElementById('synthesizeTier2Btn').disabled = tier1Count < 5;
+    document.getElementById('synthesizeTier3Btn').disabled = tier2Count < 5;
+    document.getElementById('synthesizeTier4Btn').disabled = tier3Count < 20;
+
+    modal.style.display = 'flex';
+}
+
+function synthesizeOrb(targetTier) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    let requiredTier, requiredCount, newOrbTier;
+    switch (targetTier) {
+        case 'tier2':
+            requiredTier = 'tier1';
+            requiredCount = 5;
+            newOrbTier = 'tier2';
+            break;
+        case 'tier3':
+            requiredTier = 'tier2';
+            requiredCount = 5;
+            newOrbTier = 'tier3';
+            break;
+        case 'tier4':
+            requiredTier = 'tier3';
+            requiredCount = 20;
+            newOrbTier = 'tier4';
+            break;
+        default:
+            alert("無効な合成です。");
+            return;
+    }
+
+    const materialOrbs = (player.orbs || []).filter(o => o.tier === requiredTier);
+    if (materialOrbs.length < requiredCount) {
+        alert(`${ORB_TIERS[requiredTier].name}オーブが足りません。`);
+        return;
+    }
+
+    if (!confirm(`${ORB_TIERS[requiredTier].name}オーブを${requiredCount}個使用して、${ORB_TIERS[newOrbTier].name}オーブを1つ合成しますか？`)) {
+        return;
+    }
+    
+    // 素材オーブを消費
+    let countToRemove = requiredCount;
+    const remainingOrbs = (player.orbs || []).filter(orb => {
+        if (orb.tier === requiredTier && countToRemove > 0) {
+            countToRemove--;
+            return false;
+        }
+        return true;
+    });
+
+    // 新しいオーブを生成
+    const newOrb = createOrb(newOrbTier);
+    if (!newOrb) {
+        alert("オーブの生成に失敗しました。");
+        return;
+    }
+
+    remainingOrbs.push(newOrb);
+    player.orbs = remainingOrbs;
+
+    localStorage.setItem("player", JSON.stringify(player));
+    
+    alert(`${getOrbDisplayName(newOrb)} を合成しました！`);
+
+    // UIを更新
+    renderOrbInventory();
+    openOrbSynthesisModal(); // モーダル内の表示を更新
+    updateStatus(player);
+}
+
 
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
