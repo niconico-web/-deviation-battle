@@ -1765,17 +1765,15 @@ if (!isBotBattle && socket) {
         // Display damage/dodge info
         let animationDelay = 0;
         if (data.damage !== undefined) {
+            // ダメージアニメーションが発生する場合、両プレイヤーに遅延を設定して同期
+            animationDelay = 1500; // 1.5秒
+
             // ダメージを受ける側が自分かどうかを判定
             // 1. 回答者が自分で、不正解だった場合
             // 2. 回答者が相手で、正解だった場合
             const targetIsMe = (answererIsMe && !data.isCorrect) || (!answererIsMe && data.isCorrect);
             const targetId = targetIsMe ? "my" : "enemy";
             const targetName = targetIsMe ? "自分" : "相手";
-
-            // 自分がダメージを受ける場合、アニメーションのための遅延を設定
-            if (targetIsMe) {
-                animationDelay = 1500; // 1.5秒
-            }
 
             if(data.dodged) {
                 addLog(`${targetName}が回避！`);
