@@ -6,66 +6,7 @@ let pendingRandomMatchPlayer = null;
 // Initialize socket after DOM is ready
 window.socket = null;
 
-function applyOrthodoxDesign() {
-    const styles = `
-        body {
-            background-color: #2C2F33; /* より濃い灰色 */
-            color: #FFFFFF; /* 白色 */
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-        }
-        .header, .sidebar, .content-section, .modal-content, #log, .shop-item, .inventory-item, .quest-item, .orb-item {
-            background-color: #23272A; /* bodyより少し明るいグレー */
-            border: 1px solid #40444B;
-            box-shadow: none;
-        }
-        .container, .battle-container {
-            background-color: transparent;
-        }
-        h1, h2, h3, h4, h5, h6 {
-            color: #FFFFFF;
-            border-bottom: 1px solid #40444B;
-            padding-bottom: 5px;
-        }
-        button, .btn {
-            background-color: #007bff; /* 水色 */
-            color: #FFFFFF;
-            border: none;
-            border-radius: 4px;
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            text-shadow: none;
-        }
-        button:hover, .btn:hover {
-            background-color: #0056b3; /* 濃い水色 */
-        }
-        button:disabled, .btn:disabled {
-            background-color: #555;
-            color: #aaa;
-            cursor: not-allowed;
-        }
-        input, textarea, select {
-            background-color: #40444B; /* テキストボックスの背景 */
-            color: #FFFFFF; /* テキストボックスの文字色 */
-            border: 1px solid #555a63;
-            border-radius: 4px;
-            padding: 8px;
-        }
-        .shop-item.owned, .inventory-item.equipped {
-            background-color: #3a404a;
-        }
-        a { color: #00aaff; } /* リンク色を明るい水色に */
 
-        #mobileMenuToggle {
-            z-index: 1001; /* サイドバー(通常1000)より手前に表示 */
-            position: relative; /* z-indexを有効にするため */
-        }
-    `;
-    const styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
-    styleSheet.innerText = styles;
-    document.head.appendChild(styleSheet);
-}
 
 function initializeSocket() {
     console.log("Initializing socket...");
@@ -452,13 +393,15 @@ function setupDOMEventHandlers() {
         if (mobileMenuToggle && mobileMenuToggle.contains(target)) {
             e.preventDefault();
             sidebar.classList.toggle('active');
+            // ハンバーガーメニューのアイコンをトグル
+            mobileMenuToggle.classList.toggle('active');
             return;
         }
 
         // サイドバー内のメニュー項目の処理
         const clickedMenuButton = Array.from(menuButtons).find(btn => btn.contains(target));
         if (clickedMenuButton) {
-            e.preventDefault();
+            // e.preventDefault() はデフォルトのアンカータグ挙動などを防ぐ場合に有効
             const section = clickedMenuButton.dataset.section;
             if (section) {
                 menuButtons.forEach(btn => btn.classList.remove('active'));
@@ -468,8 +411,10 @@ function setupDOMEventHandlers() {
                 const targetSection = document.getElementById(`section-${section}`);
                 if (targetSection) targetSection.classList.add('active');
                 
+                // モバイル表示でメニューが開いていれば閉じる
                 if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
                     sidebar.classList.remove('active');
+                    mobileMenuToggle.classList.remove('active');
                 }
             }
             return;
@@ -477,12 +422,10 @@ function setupDOMEventHandlers() {
 
         // サイドバー外側のクリック処理
         if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(target)) {
-            // メニューボタン自身がクリックされた場合は、最初のifブロックで処理されるため、ここでは除外不要
             sidebar.classList.remove('active');
+            mobileMenuToggle.classList.remove('active');
         }
     });
-
-    // 既存のサイドバーメニューのハンドラーは上記のロジックに統合されたため、こちらは不要です。
 
     const deleteBtn = document.getElementById("deletePlayerBtn");
     if (deleteBtn) {
@@ -585,9 +528,7 @@ function initializeI18nTexts() {
 
 window.onload = () => {
     console.log("window.onload triggered.");
-    // UIデザインを適用
-    applyOrthodoxDesign();
-
+    
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
