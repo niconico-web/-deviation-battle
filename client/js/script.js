@@ -379,25 +379,28 @@ function updateOnlineButtons(isConnected) {
 }
 
 function setupDOMEventHandlers() {
+    // モバイルでは 'touchend' を、PCでは 'click' を使用してイベントの信頼性を向上
+    const eventType = 'ontouchend' in document ? 'touchend' : 'click';
+
     // モバイルメニュートグル
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
     
     if (mobileMenuToggle && sidebar) {
-        mobileMenuToggle.addEventListener('click', (e) => {
-            e.stopPropagation(); // イベントの伝播を停止
-            console.log("Toggle button clicked");
+        mobileMenuToggle.addEventListener(eventType, (e) => {
+            e.preventDefault(); // モバイルでの意図しないズームやスクロールを防ぐ
             sidebar.classList.toggle('active');
-            console.log("Sidebar active toggled:", sidebar.classList.contains('active'));
         });
         
-        // メニュー外をクリックしたら閉じる
-        document.addEventListener('click', (e) => {
-            if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
-                if (sidebar.classList.contains('active')) {
-                    console.log("Clicked outside, closing menu.");
-                    sidebar.classList.remove('active');
-                }
+        // メニュー外をタップ/クリックしたら閉じる
+        document.addEventListener(eventType, (e) => {
+            // メニューボタン自身や、サイドバー内部がターゲットの場合は何もしない
+            if (mobileMenuToggle.contains(e.target) || sidebar.contains(e.target)) {
+                return;
+            }
+            // メニューが開いている場合のみ閉じる
+            if (sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
             }
         });
     }
@@ -405,26 +408,19 @@ function setupDOMEventHandlers() {
     // サイドバーメニューのイベントハンドラー
     const menuButtons = document.querySelectorAll('.menu-btn');
     menuButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            console.log("Menu button clicked:", button.dataset.section);
+        button.addEventListener(eventType, () => {
             const section = button.dataset.section;
             if (section) {
                 // 全てのメニューボタンとセクションのactiveクラスを削除
                 menuButtons.forEach(btn => btn.classList.remove('active'));
                 document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
-                
                 // クリックされたボタンと対応するセクションにactiveクラスを追加
                 button.classList.add('active');
                 const targetSection = document.getElementById(`section-${section}`);
-                if (targetSection) {
-                    targetSection.classList.add('active');
-                }
-                
+                if (targetSection) targetSection.classList.add('active');
                 // モバイルの場合はメニューを閉じる
                 if (window.innerWidth < 768) {
-                    console.log("Closing sidebar on mobile.");
                     sidebar.classList.remove('active');
-                    console.log("Sidebar active removed");
                 }
             }
         });
