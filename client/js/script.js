@@ -6,6 +6,67 @@ let pendingRandomMatchPlayer = null;
 // Initialize socket after DOM is ready
 window.socket = null;
 
+function applyOrthodoxDesign() {
+    const styles = `
+        body {
+            background-color: #333740; /* ダークグレー */
+            color: #f0f0f0; /* 明るい灰色（白に近い） */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        .header, .sidebar, .content-section, .modal-content, #log {
+            background-color: #444953; /* 少し明るいグレー */
+            border: 1px solid #555a63;
+            box-shadow: none;
+        }
+        .container, .battle-container {
+            background-color: transparent;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #ffffff;
+            border-bottom: 1px solid #555a63;
+            padding-bottom: 5px;
+        }
+        button, .btn {
+            background-color: #007bff; /* 水色 */
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            text-shadow: none;
+        }
+        button:hover, .btn:hover {
+            background-color: #0056b3; /* 濃い水色 */
+        }
+        button:disabled, .btn:disabled {
+            background-color: #5f6a7d;
+            color: #a9b1bf;
+            cursor: not-allowed;
+        }
+        input, textarea, select {
+            background-color: #555a63;
+            color: #f0f0f0;
+            border: 1px solid #666c75;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .shop-item, .inventory-item, .quest-item, .orb-item {
+            background-color: #4a505a;
+            border: 1px solid #555a63;
+            margin-bottom: 5px;
+        }
+        .shop-item.owned, .inventory-item.equipped {
+            background-color: #3a404a;
+        }
+        a { color: #3498db; }
+    `;
+    const styleSheet = document.createElement("style");
+    styleSheet.type = "text/css";
+    styleSheet.innerText = styles;
+    document.head.appendChild(styleSheet);
+}
+
 function initializeSocket() {
     console.log("Initializing socket...");
     window.socket = io({
@@ -379,49 +440,48 @@ function updateOnlineButtons(isConnected) {
 }
 
 function setupDOMEventHandlers() {
-    // モバイルでは 'touchend' を、PCでは 'click' を使用してイベントの信頼性を向上
-    const eventType = 'ontouchend' in document ? 'touchend' : 'click';
+    // モバイルでは 'touchstart' を、PCでは 'click' を使用してイベントの信頼性を向上
+    const eventType = 'ontouchstart' in document.documentElement ? 'touchstart' : 'click';
 
     // モバイルメニュートグル
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
     
     if (mobileMenuToggle && sidebar) {
-        mobileMenuToggle.addEventListener(eventType, (e) => {
-            e.preventDefault(); // モバイルでの意図しないズームやスクロールを防ぐ
+        mobileMenuToggle.addEventListener(eventType, e => {
+            if (eventType === 'touchstart') e.preventDefault();
             sidebar.classList.toggle('active');
         });
         
         // メニュー外をタップ/クリックしたら閉じる
-        document.addEventListener(eventType, (e) => {
+        document.addEventListener(eventType, e => {
             // メニューボタン自身や、サイドバー内部がターゲットの場合は何もしない
             if (mobileMenuToggle.contains(e.target) || sidebar.contains(e.target)) {
                 return;
             }
             // メニューが開いている場合のみ閉じる
-            if (sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-            }
+            if (sidebar.classList.contains('active')) sidebar.classList.remove('active');
         });
     }
 
     // サイドバーメニューのイベントハンドラー
     const menuButtons = document.querySelectorAll('.menu-btn');
     menuButtons.forEach(button => {
-        button.addEventListener(eventType, () => {
+        button.addEventListener(eventType, e => {
+            if (eventType === 'touchstart') e.preventDefault();
             const section = button.dataset.section;
             if (section) {
                 // 全てのメニューボタンとセクションのactiveクラスを削除
                 menuButtons.forEach(btn => btn.classList.remove('active'));
                 document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+
                 // クリックされたボタンと対応するセクションにactiveクラスを追加
                 button.classList.add('active');
                 const targetSection = document.getElementById(`section-${section}`);
                 if (targetSection) targetSection.classList.add('active');
+
                 // モバイルの場合はメニューを閉じる
-                if (window.innerWidth < 768) {
-                    sidebar.classList.remove('active');
-                }
+                if (window.innerWidth < 768) sidebar.classList.remove('active');
             }
         });
     });
@@ -527,6 +587,9 @@ function initializeI18nTexts() {
 
 window.onload = () => {
     console.log("window.onload triggered.");
+    // UIデザインを適用
+    applyOrthodoxDesign();
+
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
