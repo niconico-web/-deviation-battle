@@ -386,12 +386,14 @@ function setupDOMEventHandlers() {
     if (mobileMenuToggle && sidebar) {
         mobileMenuToggle.addEventListener('click', () => {
             sidebar.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
         });
         
         // メニュー外をクリックしたら閉じる
         document.addEventListener('click', (e) => {
             if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
                 sidebar.classList.remove('active');
+                mobileMenuToggle.classList.remove('active');
             }
         });
     }
