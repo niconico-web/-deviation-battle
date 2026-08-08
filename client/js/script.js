@@ -385,6 +385,7 @@ function setupDOMEventHandlers() {
     
     if (mobileMenuToggle && sidebar) {
         mobileMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // イベントの伝播を停止
             console.log("Toggle button clicked");
             sidebar.classList.toggle('active');
             console.log("Sidebar active toggled:", sidebar.classList.contains('active'));
