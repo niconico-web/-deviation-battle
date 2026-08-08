@@ -183,11 +183,20 @@ function updateUltimateGauge() {
     
     // ゲージが満タンの時は特別なスタイルを適用
     if (me.ultimateGauge.current >= me.ultimateGauge.max) {
-        myUltimateBar.style.background = "linear-gradient(90deg, #00c6ff, #007bff)";
-        myUltimateBar.style.boxShadow = "0 0 10px #00c6ff";
+        myUltimateBar.style.background = "linear-gradient(90deg, #00aaff, #007bff)";
+        myUltimateBar.style.boxShadow = "0 0 10px #00aaff";
     } else {
         myUltimateBar.style.background = "#007bff";
         myUltimateBar.style.boxShadow = "none";
+    }
+
+    // 敵のゲージスタイルも同様に更新（色は変えても良い）
+    if (enemy.ultimateGauge.current >= enemy.ultimateGauge.max) {
+        enemyUltimateBar.style.background = "linear-gradient(90deg, #ff8c00, #ff4500)";
+        enemyUltimateBar.style.boxShadow = "0 0 10px #ff8c00";
+    } else {
+        enemyUltimateBar.style.background = "#ff4500";
+        enemyUltimateBar.style.boxShadow = "none";
     }
 }
 
