@@ -6,107 +6,6 @@ let pendingRandomMatchPlayer = null;
 // Initialize socket after DOM is ready
 window.socket = null;
 
-/**
- * UIデザインを適用するためのスタイルを動的に注入します。
- * これにより、CSSファイルを直接編集することなく、サイト全体の見た目を変更します。
- * 濃い灰色の背景、白いテキスト、水色のボタンを基調としたデザインを適用します。
- */
-function applyOrthodoxDesign() {
-    const styles = `
-        :root {
-            --dark-bg: #2C2F33; /* 濃い灰色 */
-            --medium-bg: #3A3E44;
-            --light-bg: #4F545C;
-            --text-color: #F0F0F0;
-            --button-blue: #007BFF;
-            --button-hover-blue: #0056B3;
-            --border-color: #555a63;
-        }
-        body {
-            background-color: var(--dark-bg);
-            color: var(--text-color);
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-        }
-        .header, .sidebar, .content-section, .modal-content, #log {
-            background-color: var(--medium-bg);
-            border: 1px solid var(--border-color);
-            box-shadow: none;
-        }
-        .container, .battle-container {
-            background-color: transparent;
-        }
-        /* モバイル用メニューボタンが他の要素に隠れないようにする */
-        #mobileMenuToggle {
-            position: fixed; /* 画面に固定 */
-            top: 15px;
-            right: 15px;
-            z-index: 1001; /* 他の要素より手前に表示 */
-            width: 40px;
-            height: 40px;
-            background: var(--button-blue);
-            border-radius: 5px;
-        }
-        /* サイドバー自体のスタイル */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            right: -260px; /* 初期状態では画面外に隠す */
-            width: 250px;
-            height: 100%;
-            z-index: 1000;
-            transition: right 0.3s ease-in-out; /* スライドアニメーション */
-            padding-top: 60px; /* メニューボタンと重ならないように調整 */
-        }
-        /* メニューが開いたときのスタイル */
-        .sidebar.active {
-            right: 0; /* 画面内に表示 */
-        }
-        h1, h2, h3, h4, h5, h6 {
-            color: #ffffff;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 5px;
-        }
-        button, .btn {
-            background-color: var(--button-blue);
-            color: #ffffff;
-            border: none;
-            border-radius: 4px;
-            padding: 10px 15px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            text-shadow: none;
-        }
-        button:hover, .btn:hover {
-            background-color: var(--button-hover-blue);
-        }
-        button:disabled, .btn:disabled {
-            background-color: #5f6a7d;
-            color: #a9b1bf;
-            cursor: not-allowed;
-        }
-        input, textarea, select {
-            background-color: var(--light-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 8px;
-        }
-        .shop-item, .inventory-item, .quest-item, .orb-item {
-            background-color: var(--medium-bg);
-            border: 1px solid var(--border-color);
-            margin-bottom: 5px;
-        }
-        .shop-item.owned, .inventory-item.equipped {
-            background-color: var(--dark-bg);
-        }
-        a { color: #3498db; }
-    `;
-    const styleSheet = document.createElement("style");
-    styleSheet.type = "text/css";
-    styleSheet.innerText = styles;
-    document.head.appendChild(styleSheet);
-}
-
 function initializeSocket() {
     console.log("Initializing socket...");
     window.socket = io({
@@ -619,9 +518,6 @@ function initializeI18nTexts() {
 window.onload = () => {
     console.log("window.onload triggered.");
 
-    // UIデザインを適用
-    applyOrthodoxDesign();
-    
     // Check file protocol
     if (location.protocol === "file:") { alert(I18N.fileWarn); }
 
