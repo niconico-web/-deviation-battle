@@ -384,16 +384,19 @@ function setupDOMEventHandlers() {
     const sidebar = document.querySelector('.sidebar');
     
     if (mobileMenuToggle && sidebar) {
-        mobileMenuToggle.addEventListener('click', () => {
+        mobileMenuToggle.addEventListener('click', (e) => {
+            console.log("Toggle button clicked");
             sidebar.classList.toggle('active');
-            mobileMenuToggle.classList.toggle('active');
+            console.log("Sidebar active toggled:", sidebar.classList.contains('active'));
         });
         
         // メニュー外をクリックしたら閉じる
         document.addEventListener('click', (e) => {
             if (!sidebar.contains(e.target) && !mobileMenuToggle.contains(e.target)) {
-                sidebar.classList.remove('active');
-                mobileMenuToggle.classList.remove('active');
+                if (sidebar.classList.contains('active')) {
+                    console.log("Clicked outside, closing menu.");
+                    sidebar.classList.remove('active');
+                }
             }
         });
     }
@@ -402,6 +405,7 @@ function setupDOMEventHandlers() {
     const menuButtons = document.querySelectorAll('.menu-btn');
     menuButtons.forEach(button => {
         button.addEventListener('click', () => {
+            console.log("Menu button clicked:", button.dataset.section);
             const section = button.dataset.section;
             if (section) {
                 // 全てのメニューボタンとセクションのactiveクラスを削除
@@ -417,8 +421,9 @@ function setupDOMEventHandlers() {
                 
                 // モバイルの場合はメニューを閉じる
                 if (window.innerWidth < 768) {
+                    console.log("Closing sidebar on mobile.");
                     sidebar.classList.remove('active');
-                    mobileMenuToggle.classList.remove('active'); // 追加
+                    console.log("Sidebar active removed");
                 }
             }
         });
