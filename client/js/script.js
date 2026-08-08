@@ -379,41 +379,50 @@ function setupDOMEventHandlers() {
     const sidebar = document.querySelector('.sidebar');
     const menuButtons = document.querySelectorAll('.menu-btn');
 
-    // A single, delegated event listener for all menu-related clicks
-    document.addEventListener('click', (e) => {
-        const target = e.target;
-
-        // Case 1: The mobile menu toggle button (or its children) was clicked
-        if (mobileMenuToggle && mobileMenuToggle.contains(target)) {
-            e.preventDefault(); // Prevent any default action
+    if (mobileMenuToggle && sidebar) {
+        // Listener for the main toggle button
+        mobileMenuToggle.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent click from immediately closing the menu via the document listener
             sidebar.classList.toggle('active');
-            return; // Stop further processing
-        }
+            mobileMenuToggle.classList.toggle('active');
+        });
+    }
 
-        // Case 2: A menu button inside the sidebar was clicked
-        const clickedMenuButton = Array.from(menuButtons).find(btn => btn.contains(target));
-        if (clickedMenuButton) {
-            const section = clickedMenuButton.dataset.section;
+    // Listener for menu item clicks (to switch sections and close the sidebar)
+    menuButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const section = button.dataset.section;
             if (section) {
-                // Deactivate all sections and menu buttons
+                // Deactivate all sections and other menu buttons
                 document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
                 menuButtons.forEach(btn => btn.classList.remove('active'));
-                
-                // Activate the target section and button
-                document.getElementById(`section-${section}`)?.classList.add('active');
-                clickedMenuButton.classList.add('active');
-                
-                // If on mobile, close the sidebar after selection
+
+                // Activate the target section and the clicked button
+                const activeSection = document.getElementById(`section-${section}`);
+                if (activeSection) {
+                    activeSection.classList.add('active');
+                }
+                button.classList.add('active');
+
+                // On mobile, close the sidebar after making a selection
                 if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
                     sidebar.classList.remove('active');
+                    if (mobileMenuToggle) {
+                        mobileMenuToggle.classList.remove('active');
+                    }
                 }
             }
-            return; // Stop further processing
-        }
+        });
+    });
 
-        // Case 3: The click was outside the sidebar and the sidebar is open
-        if (sidebar && sidebar.classList.contains('active') && !sidebar.contains(target)) {
-            sidebar.classList.remove('active');
+    // Listener to close the sidebar when clicking anywhere outside of it
+    document.addEventListener('click', (e) => {
+        if (sidebar && sidebar.classList.contains('active')) {
+            // Check if the click was outside the sidebar AND outside the toggle button
+            if (!sidebar.contains(e.target) && mobileMenuToggle && !mobileMenuToggle.contains(e.target)) {
+                sidebar.classList.remove('active');
+                mobileMenuToggle.classList.remove('active');
+            }
         }
     });
 
