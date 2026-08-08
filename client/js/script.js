@@ -418,6 +418,7 @@ function setupDOMEventHandlers() {
                 // モバイルの場合はメニューを閉じる
                 if (window.innerWidth < 768) {
                     sidebar.classList.remove('active');
+                    mobileMenuToggle.classList.remove('active'); // 追加
                 }
             }
         });
