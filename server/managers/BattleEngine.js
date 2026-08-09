@@ -124,37 +124,42 @@ function generateQuestion(battle) {
 // ダメージ計算
 // -----------------------------
 
-function calculateDamage(attacker, answerTimeMs, isAttackerSureHit = false) {
+function calculateDamage(attacker, defender, answerTimeMs, isSureHit = false) {
     // 基本ダメージ
     let damage = BASE_DAMAGE + Math.floor(attacker.atk * 0.3);
-    
+
     // 回答時間によるペナルティ（1秒あたりTIME_PENALTY_PER_SECOND）
     const answerTimeSeconds = answerTimeMs / 1000;
     const timePenalty = Math.floor(answerTimeSeconds * TIME_PENALTY_PER_SECOND);
     damage = Math.max(1, damage - timePenalty);
-    
-    // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
+
+    // 素早さが90を超える場合、超過分を攻撃ボーナスに変換
     const speed = attacker.speed || 0;
-    let dodgeChance = Math.min(45, speed * 0.5); // 最大45%回避
-    
-    // 必中: 回避率を0にする
-    if (isAttackerSureHit) {
-        dodgeChance = 0;
-    }
-    
-    // 45%を超える分は攻撃ボーナスに変換
     if (speed > 90) {
         const excessSpeed = speed - 90;
         const attackBonus = Math.floor(excessSpeed * 0.1); // 超過分の10%を攻撃ボーナス
         damage += attackBonus;
     }
-    
+
     // ランダム要素（±5）
     damage += randomRange(-5, 5);
-    
+
     // 最小ダメージ保証
     damage = Math.max(1, damage);
-    
+
+    // 回避率の計算
+    let dodgeChance = 0;
+    if (!isSureHit && defender) {
+        const defenderSpeed = defender.speed || 0;
+        // 素早さ7500で最大回避率45%に到達する、二次関数的な上昇カーブ
+        const maxSpeed = 7500;
+        const maxDodge = 45; // 45%
+        if (defenderSpeed > 0) {
+            const calculatedDodge = maxDodge * Math.pow(defenderSpeed / maxSpeed, 2);
+            dodgeChance = Math.min(calculatedDodge, maxDodge); // 上限を45%に設定
+        }
+    }
+
     return {
         damage,
         dodgeChance
@@ -256,7 +261,7 @@ function processAnswer(battle, playerId, answer) {
             // 攻撃者が必中能力を持っているかチェック
             const isAttackerSureHit = hasUniqueAbility(player, "ignore_evasion");
             
-            let damageResult = calculateDamage(player, answerTime, isAttackerSureHit);
+            let damageResult = calculateDamage(player, enemy, answerTime, isAttackerSureHit);
             let damage = damageResult.damage;
             const dodgeChance = damageResult.dodgeChance;
             
@@ -313,7 +318,7 @@ function processAnswer(battle, playerId, answer) {
         // 敵が必中能力を持っているかチェック
         const isEnemySureHit = hasUniqueAbility(enemy, "ignore_evasion");
         
-        const damageResult = calculateDamage(enemy, 0, isEnemySureHit);
+        const damageResult = calculateDamage(enemy, player, 0, isEnemySureHit);
         let damage = damageResult.damage;
         const dodgeChance = damageResult.dodgeChance;
         

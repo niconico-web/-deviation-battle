@@ -850,6 +850,18 @@
         { "question": "行列 [[3,1],[2,4]] の行列式は？", "answer": "10" },
         { "question": "ベクトル (2,2) と (3,3) の内積は？", "answer": "12" }
       ],
+      "math_hard": [
+        { "question": "複素数 (3+2i) * (1-4i) の結果は？", "answer": "11-10i" },
+        { "question": "∫(x^2 + 2x) dx を不定積分せよ", "answer": "(1/3)x^3 + x^2 + C" },
+        { "question": "d/dx (sin(x^2)) を微分せよ", "answer": "2x*cos(x^2)" },
+        { "question": "行列A=[[1,2],[3,4]]の逆行列は？", "answer": "[[-2, 1], [1.5, -0.5]]" },
+        { "question": "lim(x→∞) (1 + 1/x)^x の極限値は？", "answer": "e" },
+        { "question": "オイラーの公式 e^(iπ) + 1 = ?", "answer": "0" },
+        { "question": "2階微分方程式 y'' + y = 0 の一般解は？", "answer": "A*sin(x) + B*cos(x)" },
+        { "question": "テイラー展開 f(x) = e^x のx=0周りでの3次までの近似は？", "answer": "1 + x + x^2/2 + x^3/6" },
+        { "question": "ベクトル(1, 2, -1)と(3, 1, 5)の外積は？", "answer": "(11, -8, -5)" },
+        { "question": "∫[0 to π] sin(x) dx の定積分は？", "answer": "2" }
+      ],
       "eng": [
         { "question": "強調構文の形は？", "answer": "It is...that" },
         { "question": "倒置が起きるのは？", "answer": "否定副詞" },

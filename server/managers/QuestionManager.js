@@ -119,13 +119,26 @@ function determineQuestionLevel(player1Grade, player2Grade) {
 // バトル用の問題を取得
 // - もし期待した学年／教科に問題が無い場合、フォールバックで近い学年や相手側の学年を試す
 // -----------------------------
-function getBattleQuestion(player1Grade, player2Grade, subject) {
+function getBattleQuestion(player1Grade, player2Grade, subject, isHardMode = false) {
     const questionsDb = loadQuestions();
     const { schoolLevel, grade } = determineQuestionLevel(player1Grade, player2Grade);
-    console.log(`[QuestionManager] getBattleQuestion: player1Grade=${player1Grade}, player2Grade=${player2Grade}, subject=${subject}, schoolLevel=${schoolLevel}, grade=${grade}`);
+    console.log(`[QuestionManager] getBattleQuestion: player1Grade=${player1Grade}, player2Grade=${player2Grade}, subject=${subject}, schoolLevel=${schoolLevel}, grade=${grade}, isHardMode=${isHardMode}`);
+
+    let question = null;
+
+    // ハードモードの場合、まずハード用の問題を探す
+    if (isHardMode) {
+        const hardSubject = subject + '_hard';
+        question = getRandomQuestion(schoolLevel, grade, hardSubject);
+        if (question) {
+            console.log('[QuestionManager] getBattleQuestion: selected hard question from determined level');
+            return question;
+        }
+        console.log(`[QuestionManager] getBattleQuestion: hard question not found for ${hardSubject}, falling back to normal.`);
+    }
 
     // まず通常経路で取得
-    let question = getRandomQuestion(schoolLevel, grade, subject);
+    question = getRandomQuestion(schoolLevel, grade, subject);
     if (question) {
         console.log('[QuestionManager] getBattleQuestion: selected question from determined level');
         return question;
@@ -140,6 +153,14 @@ function getBattleQuestion(player1Grade, player2Grade, subject) {
         for (const d of deltas) {
             const tryGrade = grade + d;
             if (availableGrades.includes(tryGrade)) {
+                if (isHardMode) {
+                    const hardSubject = subject + '_hard';
+                    question = getRandomQuestion(schoolLevel, tryGrade, hardSubject);
+                    if (question) {
+                        console.log(`[QuestionManager] getBattleQuestion: fallback hard found at grade=${tryGrade} (same school level)`);
+                        return question;
+                    }
+                }
                 question = getRandomQuestion(schoolLevel, tryGrade, subject);
                 if (question) {
                     console.log(`[QuestionManager] getBattleQuestion: fallback found at grade=${tryGrade} (same school level)`);
@@ -163,6 +184,14 @@ function getBattleQuestion(player1Grade, player2Grade, subject) {
 
         for (const c of candidates) {
             if (!c || !c.schoolLevel) continue;
+            if (isHardMode) {
+                const hardSubject = subject + '_hard';
+                question = getRandomQuestion(c.schoolLevel, c.grade, hardSubject);
+                if (question) {
+                    console.log(`[QuestionManager] getBattleQuestion: fallback hard found using candidate schoolLevel=${c.schoolLevel}, grade=${c.grade}`);
+                    return question;
+                }
+            }
             question = getRandomQuestion(c.schoolLevel, c.grade, subject);
             if (question) {
                 console.log(`[QuestionManager] getBattleQuestion: fallback found using candidate schoolLevel=${c.schoolLevel}, grade=${c.grade}`);
