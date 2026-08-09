@@ -18,7 +18,7 @@ function addToQueue(player) {
             ...existingEntry,
             id: player.id,
             socketId: player.socketId,
-            player: player,
+            player: player.player,
             timestamp: Date.now()
         };
 
@@ -29,7 +29,7 @@ function addToQueue(player) {
     const entry = {
         id: player.id,
         socketId: player.socketId,
-        player: player,
+        player: player.player,
         timestamp: Date.now()
     };
 
