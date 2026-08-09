@@ -475,7 +475,7 @@
         { "question": "-6 × -3 = ?", "answer": "18" },
         { "question": "30 ÷ -5 = ?", "answer": "-6" }
       ],
-      "english": [
+      "eng": [
         { "question": "犬の英語は？", "answer": "dog" },
         { "question": "猫の英語は？", "answer": "cat" },
         { "question": "本の英語は？", "answer": "book" },
@@ -542,7 +542,7 @@
         { "question": "20x - 15 = 65 の解は？", "answer": "4" },
         { "question": "21x + 12 = 75 の解は？", "answer": "3" }
       ],
-      "english": [
+      "eng": [
         { "question": "走るの現在形は？", "answer": "run" },
         { "question": "食べるの過去形は？", "answer": "ate" },
         { "question": "行くの過去形は？", "answer": "went" },
@@ -609,7 +609,7 @@
         { "question": "tan 30° = ?", "answer": "0.577" },
         { "question": "√225 = ?", "answer": "15" }
       ],
-      "english": [
+      "eng": [
         { "question": "もし～ならを表す接続詞は？", "answer": "if" },
         { "question": "～のでを表す接続詞は？", "answer": "because" },
         { "question": "～の時を表す接続詞は？", "answer": "when" },
@@ -695,7 +695,7 @@
         { "question": "「いらっしゃる、おっしゃる」で使われている技法は？", "answer": "尊敬語" },
         { "question": "「参る、申す」で使われている技法は？", "answer": "謙譲語" }
       ],
-      "english": [
+      "eng": [
         { "question": "関係代名詞で使われる単語は？", "answer": "which,that,who" },
         { "question": "現在完了形の継続を表すのは？", "answer": "have+pp" },
         { "question": "仮定法で使われる動詞の形は？", "answer": "過去形" },
@@ -778,7 +778,7 @@
         { "question": "sin 0° = ?", "answer": "0" },
         { "question": "cos 0° = ?", "answer": "1" }
       ],
-      "english": [
+      "eng": [
         { "question": "話法の種類は？", "answer": "直接,間接" },
         { "question": "比較の最上級の作り方は？", "answer": "最+est" },
         { "question": "分詞の現在分詞は？", "answer": "ing" },
@@ -850,7 +850,7 @@
         { "question": "行列 [[3,1],[2,4]] の行列式は？", "answer": "10" },
         { "question": "ベクトル (2,2) と (3,3) の内積は？", "answer": "12" }
       ],
-      "english": [
+      "eng": [
         { "question": "強調構文の形は？", "answer": "It is...that" },
         { "question": "倒置が起きるのは？", "answer": "否定副詞" },
         { "question": "仮定法過去完了の時制は？", "answer": "過去完了" },

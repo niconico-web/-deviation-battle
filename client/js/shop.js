@@ -61,17 +61,7 @@ function renderShop() {
 
     container.querySelectorAll(".buy-btn").forEach(btn => {
         btn.onclick = () => {
-            const p = getPlayerData();
-            const result = buyWeapon(p, btn.dataset.type, btn.dataset.tier);
-            if (!result.ok) {
-                alert(result.message);
-                return;
-            }
-            localStorage.setItem("player", JSON.stringify(result.player));
-            alert(`${result.weapon.name} を購入しました！`);
-            renderShop();
-            renderInventory();
-            updateStatus(result.player);
+            showBuyWeaponDialog(btn.dataset.type, btn.dataset.tier);
         };
     });
 }
@@ -265,6 +255,12 @@ function renderOriginalWeapons() {
             upgradeBtn.textContent = `強化 (${upgradeCost}コイン)`;
             upgradeBtn.onclick = () => upgradeOriginalWeaponUI(weapon);
             item.appendChild(upgradeBtn);
+
+            const upgradeWithMaterialBtn = document.createElement("button");
+            upgradeWithMaterialBtn.className = "btn btn-small btn-info";
+            upgradeWithMaterialBtn.textContent = "素材で強化";
+            upgradeWithMaterialBtn.onclick = () => upgradeOriginalWeaponWithMaterialUI(weapon);
+            item.appendChild(upgradeWithMaterialBtn);
         } else {
             const maxLabel = document.createElement("span");
             maxLabel.className = "owned-label";
@@ -358,6 +354,61 @@ function upgradeOriginalWeaponUI(weapon) {
     renderOriginalWeapons();
     renderInventory();
     updateStatus(player);
+}
+
+function upgradeOriginalWeaponWithMaterialUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const materialWeapons = (player.weapons || []).filter(w => {
+        // 強化対象の武器、装備中の武器、オリジナル武器は素材にできない
+        if (w.id === weapon.id) return false;
+        if (player.equippedWeapon && player.equippedWeapon.id === w.id) return false;
+        if (w.isOriginal) return false;
+        return true;
+    });
+
+    if (materialWeapons.length === 0) {
+        alert("強化に使用できる素材武器がありません。\n装備中やオリジナル武器でない、不要な武器を素材として使用できます。");
+        return;
+    }
+
+    let promptText = "強化の素材にする武器を選択してください:\n";
+    const weaponOptions = materialWeapons.map((w, index) => {
+        return `${index + 1}: ${getWeaponDisplayName(w)}`;
+    });
+    promptText += weaponOptions.join("\n");
+
+    const choice = prompt(promptText);
+    if (choice === null) return; // キャンセル
+
+    const choiceIndex = parseInt(choice) - 1;
+    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= materialWeapons.length) {
+        alert("無効な選択です。");
+        return;
+    }
+
+    const materialWeapon = materialWeapons[choiceIndex];
+
+    if (!confirm(`${getWeaponDisplayName(materialWeapon)} を素材にして ${weapon.name} を強化しますか？\n（${getWeaponDisplayName(materialWeapon)} は失われます）`)) {
+        return;
+    }
+
+    // 武器を強化
+    const upgraded = upgradeOriginalWeapon(weapon);
+    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+    if (weaponIndex === -1) return;
+
+    player.weapons[weaponIndex] = upgraded;
+
+    // 素材武器を削除
+    const updatedPlayer = removeWeaponFromPlayer(player, materialWeapon.id);
+
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+    alert(`${weapon.name} を強化しました！倍率: ${upgraded.multiplier.toFixed(3)}x`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(updatedPlayer);
 }
 
 function showOriginalWeaponCreationDialog() {
@@ -475,6 +526,137 @@ function showOriginalWeaponCreationDialog() {
     renderInventory();
     renderOrbInventory(); // オーブインベントリを更新
     updateStatus(updated);
+}
+
+function showBuyWeaponDialog(type, tier) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const baseWeapon = createWeapon(type, tier, false);
+    if (!baseWeapon) return;
+
+    const price = TIER_PRICES[tier];
+
+    const choice = prompt(
+        `${baseWeapon.name} (${price}コイン) の購入方法を選択してください:\n\n` +
+        "1. そのまま購入する\n" +
+        "2. オーブを付与してオリジナル武器として購入する\n\n" +
+        "番号を入力してください:", "1"
+    );
+
+    if (choice === "1") {
+        const result = buyWeapon(player, type, tier);
+        if (!result.ok) {
+            alert(result.message);
+            return;
+        }
+        localStorage.setItem("player", JSON.stringify(result.player));
+        alert(`${result.weapon.name} を購入しました！`);
+        renderShop();
+        renderInventory();
+        updateStatus(result.player);
+    } else if (choice === "2") {
+        if (!player.orbs || player.orbs.length === 0) {
+            alert("オーブを所持していません。オーブを付与するには、まずオーブを入手してください。");
+            return;
+        }
+
+        // オーブ選択ロジック
+        const availableOrbs = player.orbs;
+        const selectedOrbIndices = [];
+        const maxOrbs = Math.min(3, availableOrbs.length);
+
+        for (let i = 0; i < maxOrbs; i++) {
+            const remainingOptions = availableOrbs
+                .map((orb, index) => {
+                    if (selectedOrbIndices.includes(index)) return null;
+                    const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
+                    return `${index + 1}. ${orbName}`;
+                })
+                .filter(opt => opt !== null)
+                .join('\n');
+            
+            if (remainingOptions.length === 0 && i > 0) {
+                alert("選択できるオーブがもうありません。");
+                break;
+            }
+
+            const promptText = i === 0 
+                ? `使用するオーブを選択してください（1〜${maxOrbs}個）:\n${remainingOptions}\n番号を入力（キャンセルまたは空欄で終了）:`
+                : `追加のオーブを選択してください（残り${maxOrbs - i}個まで）:\n${remainingOptions}\n番号を入力（キャンセルまたは空欄で終了）:`;
+
+            const orbInput = prompt(promptText);
+            if (orbInput === null || orbInput.trim() === "") break;
+
+            const orbIndex = parseInt(orbInput) - 1;
+            if (isNaN(orbIndex) || orbIndex < 0 || orbIndex >= availableOrbs.length || selectedOrbIndices.includes(orbIndex)) {
+                alert("無効な番号です。");
+                i--;
+                continue;
+            }
+            selectedOrbIndices.push(orbIndex);
+        }
+
+        if (selectedOrbIndices.length === 0) {
+            if (confirm("オーブを選択しませんでした。通常通り購入しますか？")) {
+                const result = buyWeapon(player, type, tier);
+                if (!result.ok) {
+                    alert(result.message);
+                    return;
+                }
+                localStorage.setItem("player", JSON.stringify(result.player));
+                alert(`${result.weapon.name} を購入しました！`);
+                renderShop();
+                renderInventory();
+                updateStatus(result.player);
+            }
+            return;
+        }
+
+        const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
+        buyWeaponWithOrbs(player, type, tier, selectedOrbs, selectedOrbIndices);
+    }
+}
+
+function buyWeaponWithOrbs(player, type, tier, selectedOrbs, selectedOrbIndices) {
+    const price = TIER_PRICES[tier];
+    if (!price) return;
+
+    const coins = player.coins || 0;
+    if (coins < price) {
+        alert(`コインが足りません（必要: ${price}、所持: ${coins}）`);
+        return;
+    }
+
+    const baseWeaponInfo = WEAPON_CATALOG[type][tier];
+    const customName = `(改) ${baseWeaponInfo.name}`;
+
+    // 基本武器を作成（補正なし）
+    const tempOriginal = createOriginalWeapon(customName, type, {}, baseWeaponInfo.ultimate);
+    
+    // オーブを適用
+    const finalWeapon = applyOrbToWeapon(tempOriginal, selectedOrbs);
+
+    // 使用したオーブを削除
+    const remainingOrbs = player.orbs.filter((_, index) => !selectedOrbIndices.includes(index));
+    
+    const updatedPlayer = addWeaponToPlayer({ ...player, coins: player.coins - price, orbs: remainingOrbs }, finalWeapon);
+    
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+    
+    let orbInfo = selectedOrbs.map(orb => (typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "Orb")).join(", ");
+    alert(
+        `オリジナル武器「${finalWeapon.name}」を作成しました！\n` +
+        `使用オーブ: ${orbInfo}\n` +
+        `倍率: ${finalWeapon.multiplier.toFixed(3)}x\n` +
+        `価格: ${price}コイン`
+    );
+    
+    renderShop();
+    renderOriginalWeapons();
+    renderInventory();
+    renderOrbInventory();
+    updateStatus(updatedPlayer);
 }
 
 function claimUniqueWeapon(type) {
