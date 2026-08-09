@@ -124,6 +124,24 @@ function createBattle(roomId, host, guest){
         return null;
     }
 
+    // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
+    const applyReMiserable = (attacker, defender) => {
+        if (attacker.equippedWeapon && attacker.equippedWeapon.uniqueAbilities) {
+            const hasReMiserable = attacker.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+            if (hasReMiserable) {
+                console.log(`[BattleManager] ${attacker.name}'s "Re Miserable" activated on ${defender.name}`);
+                defender.atk = Math.floor(defender.atk * 0.8);
+                defender.def = Math.floor(defender.def * 0.8);
+                defender.speed = Math.floor(defender.speed * 0.8);
+                defender.maxHp = Math.floor(defender.maxHp * 0.8);
+            }
+        }
+    };
+
+    // お互いに適用チェック
+    applyReMiserable(host, guest);
+    applyReMiserable(guest, host);
+
     // Normalize and log grades
     const hostGrade = Number(host.grade) || 1;
     const guestGrade = Number(guest.grade) || 1;

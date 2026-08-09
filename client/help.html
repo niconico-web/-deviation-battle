@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ヘルプ - School Battle</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/help.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>ヘルプ</h1>
+            <nav>
+                <a href="index.html">トップに戻る</a>
+            </nav>
+        </header>
+
+        <main class="help-content">
+            <section id="toc">
+                <h2>目次</h2>
+                <ul>
+                    <li><a href="#help-orbs">オーブについて</a></li>
+                    <li><a href="#help-weapons">武器システムについて</a></li>
+                    <li><a href="#help-unique-abilities">Tier 4オーブの固有能力</a></li>
+                </ul>
+            </section>
+
+            <section id="help-orbs">
+                <h2>オーブについて</h2>
+                <p>オーブは、戦闘に勝利したり、特定の条件を達成することで入手できるアイテムです。</p>
+                <p>オーブは武器と合成することで、武器を強化したり、特殊な能力を付与したりできます。</p>
+                <p>オーブにはTier（ティア）があり、高Tierのオーブほど強力な効果を持ちます。</p>
+            </section>
+
+            <section id="help-weapons">
+                <h2>武器システムについて</h2>
+                <p>武器は、勉強タイマーや戦闘で手に入れたステータスに、さらに補正をかける重要な装備です。</p>
+                <p>武器には様々な種類があり、それぞれ得意なステータスが異なります。</p>
+                <h3>武器の強化</h3>
+                <p>同じ種類の武器同士を合成することで、武器の基本性能を強化できます。</p>
+                <h3>オーブ合成</h3>
+                <p>武器にオーブを合成することで、オーブの持つ力が武器に加算されます。Tier 4のオーブを合成すると、武器に強力な固有能力が付与されることがあります。</p>
+            </section>
+
+            <section id="help-unique-abilities">
+                <h2>Tier 4オーブの固有能力一覧</h2>
+                <p>Tier 4オーブを武器に合成した際に付与される、特殊で強力な能力の一覧です。</p>
+                <div id="unique-abilities-list">
+                    <!-- ここにJavaScriptで能力のリストを生成します -->
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 School Battle</p>
+        </footer>
+    </div>
+    <script src="js/i18n.js"></script>
+    <script src="js/weapons.js"></script>
+    <script src="js/help.js"></script>
+</body>
+</html>
