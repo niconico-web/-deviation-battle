@@ -27,6 +27,44 @@ function randomRange(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+// ===================================
+// ユニーク能力関連ヘルパー関数
+// ===================================
+
+/**
+ * プレイヤーが特定のユニーク能力を持っているかチェック
+ */
+function hasUniqueAbility(player, effectKey) {
+    if (!player.equippedWeapon || !player.equippedWeapon.uniqueAbilities) {
+        return false;
+    }
+    return player.equippedWeapon.uniqueAbilities.some(ability => ability.effect === effectKey);
+}
+
+/**
+ * ステータスにオーブの固有能力（リ・ミゼラブル）を適用
+ */
+function applyOrbDebuffs(stats, player) {
+    if (!player) return stats;
+    
+    const result = { ...stats };
+    
+    // リ・ミゼラブル: 相手の全ステータスを0.8倍
+    if (hasUniqueAbility(player, "enemy_stat_debuff")) {
+        result.atk = Math.floor(result.atk * 0.8);
+        result.def = Math.floor(result.def * 0.8);
+        result.speed = Math.floor(result.speed * 0.8);
+        result.maxHp = Math.floor(result.maxHp * 0.8);
+    }
+    
+    // 貫通: 防御を50%減らす
+    if (hasUniqueAbility(player, "ignore_def_half")) {
+        result.def = Math.floor(result.def * 0.5);
+    }
+    
+    return result;
+}
+
 // -----------------------------
 // 新しい問題を生成
 // -----------------------------
@@ -86,7 +124,7 @@ function generateQuestion(battle) {
 // ダメージ計算
 // -----------------------------
 
-function calculateDamage(attacker, answerTimeMs) {
+function calculateDamage(attacker, answerTimeMs, isAttackerSureHit = false) {
     // 基本ダメージ
     let damage = BASE_DAMAGE + Math.floor(attacker.atk * 0.3);
     
@@ -97,7 +135,12 @@ function calculateDamage(attacker, answerTimeMs) {
     
     // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
     const speed = attacker.speed || 0;
-    const dodgeChance = Math.min(45, speed * 0.5); // 最大45%回避
+    let dodgeChance = Math.min(45, speed * 0.5); // 最大45%回避
+    
+    // 必中: 回避率を0にする
+    if (isAttackerSureHit) {
+        dodgeChance = 0;
+    }
     
     // 45%を超える分は攻撃ボーナスに変換
     if (speed > 90) {
@@ -116,6 +159,51 @@ function calculateDamage(attacker, answerTimeMs) {
         damage,
         dodgeChance
     };
+}
+
+// ===================================
+// 必殺技とダメージボーナス計算
+// ===================================
+
+/**
+ * ユニーク能力によるダメージボーナスを適用
+ */
+function applyUniqueAbilityDamageBonus(damage, attacker) {
+    let finalDamage = damage;
+    
+    // 必殺: 20%の確率でダメージ1.5倍
+    if (hasUniqueAbility(attacker, "critical_damage")) {
+        if (Math.random() < 0.20) {
+            finalDamage = Math.floor(finalDamage * 1.5);
+        }
+    }
+    
+    return finalDamage;
+}
+
+/**
+ * ユニーク能力によるダメージ軽減を適用
+ */
+function applyUniqueAbilityDefense(damage, defender) {
+    let finalDamage = damage;
+    
+    // 鉄壁: ダメージ50%カット
+    if (hasUniqueAbility(defender, "damage_cut_half")) {
+        finalDamage = Math.floor(finalDamage * 0.5);
+    }
+    
+    return finalDamage;
+}
+
+/**
+ * ライフドレイン: 与えたダメージの20%をHP回復
+ */
+function applyLifeDrain(attacker, damageDealt) {
+    if (!hasUniqueAbility(attacker, "life_drain")) {
+        return 0;
+    }
+    const healAmount = Math.floor(damageDealt * 0.2);
+    return healAmount;
 }
 
 // -----------------------------
@@ -165,13 +253,18 @@ function processAnswer(battle, playerId, answer) {
         
         // 先に正解した場合のみダメージを与える
         if (!enemy.answerTime) {
-            let damageResult = calculateDamage(player, answerTime);
+            // 攻撃者が必中能力を持っているかチェック
+            const isAttackerSureHit = hasUniqueAbility(player, "ignore_evasion");
+            
+            let damageResult = calculateDamage(player, answerTime, isAttackerSureHit);
             let damage = damageResult.damage;
             const dodgeChance = damageResult.dodgeChance;
             
             // 必殺技発動判定（ゲージが満タンの場合）
+            let ultimateActivated = false;
             if (player.ultimateGauge.current >= player.ultimateGauge.max) {
                 damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+                ultimateActivated = true;
                 result.ultimateActivated = true;
                 result.ultimateDamage = damage;
                 // 必殺技発動後、ゲージをリセット
@@ -180,6 +273,9 @@ function processAnswer(battle, playerId, answer) {
                 result.ultimateReady = false;
             }
             
+            // ユニーク能力によるダメージボーナスを適用
+            damage = applyUniqueAbilityDamageBonus(damage, player);
+            
             // 回避判定
             const dodgeRoll = Math.random() * 100;
             if (dodgeRoll < dodgeChance) {
@@ -187,10 +283,20 @@ function processAnswer(battle, playerId, answer) {
                 result.dodged = true;
                 result.dodgeChance = dodgeChance;
             } else {
-                enemy.hp = Math.max(0, enemy.hp - damage);
-                result.damage = damage;
+                // ユニーク能力によるダメージ軽減を適用（防御側）
+                let finalDamage = applyUniqueAbilityDefense(damage, enemy);
+                
+                enemy.hp = Math.max(0, enemy.hp - finalDamage);
+                result.damage = finalDamage;
                 result.enemyHp = enemy.hp;
                 result.firstCorrect = true;
+                
+                // ライフドレイン: ダメージの20%をHP回復
+                const healAmount = applyLifeDrain(player, finalDamage);
+                if (healAmount > 0) {
+                    player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                    result.lifedrainHealed = healAmount;
+                }
             }
             
             // 勝利判定
@@ -204,9 +310,15 @@ function processAnswer(battle, playerId, answer) {
         }
     } else {
         // 不正解の場合 - 間違えた方がダメージを受ける
-        const damageResult = calculateDamage(enemy, 0);
-        const damage = damageResult.damage;
+        // 敵が必中能力を持っているかチェック
+        const isEnemySureHit = hasUniqueAbility(enemy, "ignore_evasion");
+        
+        const damageResult = calculateDamage(enemy, 0, isEnemySureHit);
+        let damage = damageResult.damage;
         const dodgeChance = damageResult.dodgeChance;
+        
+        // ユニーク能力によるダメージボーナスを適用
+        damage = applyUniqueAbilityDamageBonus(damage, enemy);
         
         // 回避判定
         const dodgeRoll = Math.random() * 100;
@@ -215,11 +327,21 @@ function processAnswer(battle, playerId, answer) {
             result.dodged = true;
             result.dodgeChance = dodgeChance;
         } else {
-            player.hp = Math.max(0, player.hp - damage);
-            result.damage = damage;
+            // ユニーク能力によるダメージ軽減を適用（防御側）
+            let finalDamage = applyUniqueAbilityDefense(damage, player);
+            
+            player.hp = Math.max(0, player.hp - finalDamage);
+            result.damage = finalDamage;
             result.playerHp = player.hp;
             result.firstCorrect = false;
             result.wrongAnswer = true;
+            
+            // ライフドレイン: ダメージの20%をHP回復
+            const healAmount = applyLifeDrain(enemy, finalDamage);
+            if (healAmount > 0) {
+                enemy.hp = Math.min(enemy.maxHp, enemy.hp + healAmount);
+                result.enemyLifedrainHealed = healAmount;
+            }
         }
         
         // 勝利判定
@@ -250,11 +372,48 @@ function processAnswer(battle, playerId, answer) {
     };
 }
 
+// ===================================
+// バトル初期化時の処理
+// ===================================
+
+/**
+ * バトル開始時のステータス調整
+ * リ・ミゼラブルなどの能力を適用
+ */
+function applyBattleStartEffects(battle) {
+    const playerIds = Object.keys(battle.players);
+    
+    for (const playerId of playerIds) {
+        const player = battle.players[playerId];
+        
+        // リ・ミゼラブル: 相手のステータスを0.8倍にする処理
+        // (各プレイヤーのステータスは既に武器補正が適用されているため、
+        //  敵のステータスを直接変更する必要がある)
+        if (hasUniqueAbility(player, "enemy_stat_debuff")) {
+            const enemyId = playerIds.find(id => id !== playerId);
+            if (enemyId) {
+                const enemy = battle.players[enemyId];
+                console.log(`[BattleEngine] Applying リ・ミゼラブル debuff to ${enemy.name}`);
+                enemy.atk = Math.floor(enemy.atk * 0.8);
+                enemy.def = Math.floor(enemy.def * 0.8);
+                enemy.speed = Math.floor(enemy.speed * 0.8);
+                enemy.maxHp = Math.floor(enemy.maxHp * 0.8);
+                
+                // 現在のHPも比率を保って調整
+                enemy.hp = Math.floor(enemy.hp * 0.8);
+            }
+        }
+    }
+}
+
 // -----------------------------
 // バトル開始時の初期化
 // -----------------------------
 
 function initializeBattle(battle) {
+    // バトル開始時のエフェクトを適用（リ・ミゼラブルなど）
+    applyBattleStartEffects(battle);
+    
     // 最初の問題を生成
     generateQuestion(battle);
     

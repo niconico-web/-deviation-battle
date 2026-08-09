@@ -1,0 +1,186 @@
+/* Tier4オーブの固有能力ポップアップスタイル */
+
+.ability-popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.ability-popup {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    animation: slideUp 0.3s ease-in-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.ability-popup-header {
+    text-align: center;
+    margin-bottom: 25px;
+    border-bottom: 3px solid #667eea;
+    padding-bottom: 15px;
+}
+
+.ability-popup-icon {
+    font-size: 3em;
+    margin-bottom: 10px;
+    display: inline-block;
+    animation: bounce 0.5s ease-in-out;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+.ability-popup-title {
+    color: #667eea;
+    font-size: 1.8em;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.ability-popup-tier {
+    color: #999;
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.ability-popup-content {
+    margin: 20px 0;
+}
+
+.ability-popup-label {
+    color: #764ba2;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.ability-popup-effect {
+    background: linear-gradient(135deg, #667eea15, #764ba215);
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 15px;
+    color: #333;
+    line-height: 1.6;
+    font-size: 1em;
+}
+
+.ability-popup-tactic {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 15px;
+    border-radius: 5px;
+    color: #856404;
+    line-height: 1.6;
+    font-size: 0.95em;
+}
+
+.ability-popup-tactic-label {
+    font-weight: bold;
+    color: #856404;
+    margin-bottom: 8px;
+}
+
+.ability-popup-footer {
+    text-align: center;
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
+.ability-popup-close {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 5px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+}
+
+.ability-popup-close:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+}
+
+.ability-popup-close:active {
+    transform: translateY(0);
+}
+
+/* 新規取得通知 */
+.tier4-popup-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+    max-width: 300px;
+    z-index: 9998;
+    animation: slideInRight 0.5s ease-in-out;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(350px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.tier4-notification-title {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+}
+
+.tier4-notification-text {
+    font-size: 0.9em;
+    line-height: 1.4;
+}
