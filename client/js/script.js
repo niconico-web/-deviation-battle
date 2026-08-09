@@ -403,13 +403,13 @@ function setupDOMEventHandlers() {
                     activeSection.classList.add('active');
                 }
                 button.classList.add('active');
+            }
 
-                // On mobile, close the sidebar after making a selection
-                if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
-                    sidebar.classList.remove('active');
-                    if (mobileMenuToggle) {
-                        mobileMenuToggle.classList.remove('active');
-                    }
+            // On mobile, close the sidebar after any menu item is clicked
+            if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                if (mobileMenuToggle) {
+                    mobileMenuToggle.classList.remove('active');
                 }
             }
         });
