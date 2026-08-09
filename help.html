@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>偏差値でバトる - ゲームヘルプ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .toc {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .toc h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            font-size: 1.8em;
+        }
+
+        .section h3 {
+            color: #764ba2;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .subsection {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+
+        .subsection h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .ability-box {
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 12px 0;
+            display: flex;
+            gap: 15px;
+        }
+
+        .ability-icon {
+            min-width: 60px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.5em;
+        }
+
+        .ability-content h4 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .ability-content p {
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .stat-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-card h4 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .stat-card .description {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .tier-info {
+            background: linear-gradient(to right, #667eea15, #764ba215);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .tier-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tier-item {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .tier-name {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .tier-stats {
+            font-size: 0.9em;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .example-battle {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .example-battle h4 {
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .example-battle p {
+            color: #856404;
+            margin: 8px 0;
+        }
+
+        .turn-item {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .important {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .important h4 {
+            color: #721c24;
+            margin-bottom: 10px;
+        }
+
+        .important p {
+            color: #721c24;
+        }
+
+        .tip {
+            background: #d1ecf1;
+            border: 2px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .tip h4 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+
+        .tip p {
+            color: #0c5460;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            margin-top: 40px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .back-to-top {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+
+        .back-to-top:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 偏差値でバトる</h1>
+            <p>ゲームヘルプ - ゲームシステム完全ガイド</p>
+        </header>
+
+        <div class="toc">
+            <h2>📑 目次</h2>
+            <ul>
+                <li><a href="#game-overview">ゲーム概要</a></li>
+                <li><a href="#orb-system">オーブシステム</a></li>
+                <li><a href="#weapon-system">武器システム</a></li>
+                <li><a href="#battle-system">バトルシステム</a></li>
+                <li><a href="#tier4-abilities">Tier4オーブの固有能力一覧</a></li>
+                <li><a href="#tips">ゲームのコツ</a></li>
+            </ul>
+        </div>
+
+        <!-- ゲーム概要 -->
+        <div class="section">
+            <h2 id="game-overview">🎯 ゲーム概要</h2>
+            <p>「偏差値でバトる」は、学力をテーマにしたバトルゲームです。勉強して自分のステータスを強化し、他のプレイヤーとの戦いに勝利することで、様々な武器やオーブを集めることができます。</p>
+            
+            <div class="subsection">
+                <h4>主な要素</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>勉強タイマー</strong>：30分勉強すると、攻撃力・防御力・速さ・HPなどのステータスが上昇します</li>
+                    <li><strong>バトルシステム</strong>：クイズを早く正解して相手にダメージを与え、勝利を目指します</li>
+                    <li><strong>武器システム</strong>：様々な武器を入手し、装備して戦闘力を強化できます</li>
+                    <li><strong>オーブシステム</strong>：バトルで入手したオーブをカスタマイズして、自分好みの武器を作成できます</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- オーブシステム -->
+        <div class="section">
+            <h2 id="orb-system">💎 オーブシステム</h2>
+            <p>オーブは、バトルで勝利した際に確率で入手できるアイテムです。オーブはステータスアップ効果を持ち、複数のオーブを組み合わせることで、自分だけのオリジナル武器を作成できます。</p>
+
+            <h3>オーブの入手方法</h3>
+            <div class="subsection">
+                <h4>ドロップ条件</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>バトルに勝利することが必要です</li>
+                    <li>勝利後に<strong>50%の確率</strong>でオーブがドロップされます</li>
+                    <li>一度に複数のオーブを入手することもあります</li>
+                </ul>
+            </div>
+
+            <h3>オーブのティア（レア度）</h3>
+            <div class="tier-list">
+                <div class="tier-item">
+                    <div class="tier-name">⭐ Tier1</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 50%</p>
+                        <p><strong>ステータス上昇：</strong> +5%～+10%</p>
+                        <p>最も一般的なオーブです。初心者向けです。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐ Tier2</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 30%</p>
+                        <p><strong>ステータス上昇：</strong> +10%～+15%</p>
+                        <p>より強力な効果を持つオーブです。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐⭐ Tier3</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 15%</p>
+                        <p><strong>ステータス上昇：</strong> +15%～+20%</p>
+                        <p>レアなオーブです。戦力を大きく強化できます。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐⭐⭐ Tier4</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 5%</p>
+                        <p><strong>ステータス上昇：</strong> +15%～+20%</p>
+                        <p><strong>固有能力付き！</strong></p>
+                        <p>最高レアリティ。強力な特殊能力が付属します。</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>オーブのステータスタイプ</h3>
+            <p>各オーブは以下の4つのステータスのいずれかにボーナスを与えます。ランダムに決定されます。</p>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>⚔️ 攻撃 (ATK)</h4>
+                    <div class="description">与えるダメージが増加します。相手を素早く倒せます。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🛡️ 防御 (DEF)</h4>
+                    <div class="description">受けるダメージが減少します。耐久力が上がります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡ 速さ (SPEED)</h4>
+                    <div class="description">行動順序が前後します。先制攻撃がしやすくなります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>❤️ HP (MAXHP)</h4>
+                    <div class="description">最大HPが増加します。より多くのダメージに耐えられます。</div>
+                </div>
+            </div>
+
+            <h3>オーブの使い方</h3>
+            <div class="subsection">
+                <h4>オリジナル武器の作成</h4>
+                <p>オーブを1～3個選択し、オリジナル武器を作成できます。</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>作成コスト：30コイン</li>
+                    <li>使用できるオーブ：1～3個</li>
+                    <li>選んだオーブの効果が武器に付与されます</li>
+                    <li>Tier4のオーブを使用した場合、<strong>固有能力も付与されます</strong></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 武器システム -->
+        <div class="section">
+            <h2 id="weapon-system">⚔️ 武器システム</h2>
+            <p>武器はバトルでの戦闘力を大きく左右するアイテムです。ショップで購入する標準武器と、オーブを使用して作成するオリジナル武器があります。</p>
+
+            <h3>武器の種類</h3>
+            <div class="subsection">
+                <h4>標準武器</h4>
+                <table>
+                    <tr>
+                        <th>武器種</th>
+                        <th>主なステータス</th>
+                        <th>特徴</th>
+                    </tr>
+                    <tr>
+                        <td>片手剣＋盾</td>
+                        <td>防御、攻撃</td>
+                        <td>バランス型。堅牢です</td>
+                    </tr>
+                    <tr>
+                        <td>長槍</td>
+                        <td>攻撃、速さ</td>
+                        <td>攻撃重視型</td>
+                    </tr>
+                    <tr>
+                        <td>大剣</td>
+                        <td>攻撃</td>
+                        <td>高火力。速さがやや低下</td>
+                    </tr>
+                    <tr>
+                        <td>双剣</td>
+                        <td>速さ、攻撃</td>
+                        <td>速攻型</td>
+                    </tr>
+                    <tr>
+                        <td>鎌</td>
+                        <td>全ステータス</td>
+                        <td>万能型。全てが上昇します</td>
+                    </tr>
+                    <tr>
+                        <td>ピストル</td>
+                        <td>速さ、HP</td>
+                        <td>耐久型</td>
+                    </tr>
+                    <tr>
+                        <td>刀</td>
+                        <td>防御、速さ</td>
+                        <td>防御と速さを両立</td>
+                    </tr>
+                    <tr>
+                        <td>魔法の杖</td>
+                        <td>攻撃、HP</td>
+                        <td>火力と体力の両立型</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>武器のティア</h3>
+            <div class="tier-info">
+                <h4>購入可能な標準武器</h4>
+                <ul style="margin-left: 20px;">
+                    <li><strong>Tier1</strong>：30コイン（倍率1.05倍）</li>
+                    <li><strong>Tier2</strong>：50コイン（倍率1.12倍）</li>
+                    <li><strong>Tier3</strong>：100コイン（倍率1.20倍）</li>
+                    <li><strong>ユニーク</strong>：クエスト報酬（倍率1.65倍）- 高い勝利数が必要</li>
+                </ul>
+            </div>
+
+            <h3>オリジナル武器</h3>
+            <div class="subsection">
+                <h4>特徴</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>自分好みにカスタマイズ可能</li>
+                    <li>武器名と必殺技名を自由に設定できます</li>
+                    <li>Tier4のオーブで強力な固有能力を付与できます</li>
+                    <li>コインで強化することで、倍率を最大2.0倍まで上げられます</li>
+                </ul>
+
+                <h4 style="margin-top: 20px;">強化システム</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>強化コスト：3コイン/回</li>
+                    <li>倍率増加量：0.2%/回</li>
+                    <li>最大倍率：2.0倍</li>
+                    <li>基礎倍率：1.05倍（Tier1相当）</li>
+                </ul>
+            </div>
+
+            <div class="tip">
+                <h4>💡 武器選択のコツ</h4>
+                <p>自分のプレイスタイルに合わせて武器を選びましょう。攻撃重視なら「大剣」「長槍」、防御重視なら「片手剣＋盾」「刀」、そしてオーブを組み合わせてオリジナル武器を作れば、自分だけの最強武器が完成します！</p>
+            </div>
+        </div>
+
+        <!-- バトルシステム -->
+        <div class="section">
+            <h2 id="battle-system">⚔️ バトルシステム</h2>
+            <p>バトルは2人のプレイヤーが早答えクイズで競い合うシステムです。正解してダメージを相手に与え、相手のHPを0にすれば勝利です。</p>
+
+            <h3>バトルの流れ</h3>
+            <div class="example-battle">
+                <h4>バトルの進行例</h4>
+                <div class="turn-item">
+                    <strong>ターン1</strong><br>
+                    AさんとBさんにクイズが出題されます。どちらが早く正解するかで攻撃順が決まります。
+                </div>
+                <div class="turn-item">
+                    <strong>ターン2</strong><br>
+                    正解者（例：Aさん）が攻撃を選択。ダメージ計算が行われます。
+                </div>
+                <div class="turn-item">
+                    <strong>ターン3</strong><br>
+                    次のクイズが出題されます。ターンは交互に進みます。
+                </div>
+                <div class="turn-item">
+                    <strong>バトル終了</strong><br>
+                    どちらかのHPが0になった時点で、相手が勝利します。
+                </div>
+            </div>
+
+            <h3>ダメージ計算</h3>
+            <div class="subsection">
+                <h4>基本的なダメージ計算式</h4>
+                <p>ダメージ = <strong>攻撃力</strong> + <strong>速さボーナス</strong> - <strong>相手の防御力</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>速さボーナス = 速さ × 0.5</li>
+                    <li>相手の防御力が高いほど、ダメージが減少します</li>
+                </ul>
+            </div>
+
+            <h3>攻撃アクション</h3>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>⚔️ 通常攻撃</h4>
+                    <div class="description">基本的な攻撃。攻撃力をベースにダメージを与えます。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>✨ 必殺技</h4>
+                    <div class="description">必殺技ゲージが満タン時に発動可能。ダメージが1.5倍になります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🌟 スペシャル攻撃</h4>
+                    <div class="description">特殊攻撃。速さを活用した攻撃です。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🛡️ 防御</h4>
+                    <div class="description">防御姿勢を取ります。受けるダメージが軽減されます。</div>
+                </div>
+            </div>
+
+            <h3>必殺技ゲージシステム</h3>
+            <div class="subsection">
+                <h4>仕組み</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>ゲージ最大値：100</li>
+                    <li>正解1回につき：+20増加</li>
+                    <li>満タン時にダメージが1.5倍になる必殺技を発動できます</li>
+                    <li>必殺技を使用するとゲージは0にリセットされます</li>
+                </ul>
+            </div>
+
+            <h3>バトル報酬</h3>
+            <div class="subsection">
+                <h4>勝利時の報酬</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>コイン：15枚</li>
+                    <li>オーブ：50%の確率でドロップ</li>
+                    <li>相手の武器を奪える場合があります（デバッグ武器は除外）</li>
+                </ul>
+
+                <h4 style="margin-top: 20px;">負け時</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>自分が装備中の武器を奪われます（デバッグ武器は除外）</li>
+                    <li>コインやオーブは失われません</li>
+                </ul>
+            </div>
+
+            <div class="important">
+                <h4>⚠️ 重要：バトルのポイント</h4>
+                <p>バトルでは<strong>正解速度</strong>が非常に重要です。遅い正解より、早い間違いの方が有利な場合もあります。また、相手のステータスに応じた戦術を心がけましょう。攻撃力が高い相手には防御を心がけ、防御力が高い相手には速攻を仕掛けるなど、柔軟な対応が勝利への鍵です。</p>
+            </div>
+        </div>
+
+        <!-- Tier4オーブの固有能力 -->
+        <div class="section">
+            <h2 id="tier4-abilities">🌟 Tier4オーブの固有能力一覧</h2>
+            <p>Tier4のオーブにのみ付与される強力な固有能力です。これらの能力はオリジナル武器に付与され、バトルで大きなアドバンテージを得られます。</p>
+
+            <div class="ability-box">
+                <div class="ability-icon">💉</div>
+                <div class="ability-content">
+                    <h4>ライフドレイン</h4>
+                    <p><strong>効果：</strong> 相手に攻撃したとき、その時与えたダメージの20%分自分のHPを回復できます。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：持久戦に強くなります。長期戦で有利です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">📈</div>
+                <div class="ability-content">
+                    <h4>圧倒的成長性</h4>
+                    <p><strong>効果：</strong> 勉強タイマー使用時のステータスの上り幅が2倍になります。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：勉強することで急速に強くなれます。長期的な成長を望むなら最高のオーブです。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">⬇️</div>
+                <div class="ability-content">
+                    <h4>リ・ミゼラブル</h4>
+                    <p><strong>効果：</strong> 戦闘時相手の全ステータスを0.8倍にします。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：相手の能力を大幅に低下させます。強い相手との対戦時に活躍します。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🎯</div>
+                <div class="ability-content">
+                    <h4>貫通</h4>
+                    <p><strong>効果：</strong> 相手の防御ステータスを50%減らします。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：防御が高い相手に非常に有効。盾武器を使う相手に対して強力です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🛡️</div>
+                <div class="ability-content">
+                    <h4>鉄壁</h4>
+                    <p><strong>効果：</strong> 相手からの攻撃のダメージ50%カットします。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：受けるダメージが半減します。防御運用で最強です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🎲</div>
+                <div class="ability-content">
+                    <h4>必中</h4>
+                    <p><strong>効果：</strong> 相手の回避率を無視して相手に絶対攻撃をあてられます。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：確実に相手にダメージを与えられます。安定した火力を求めるなら最適です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">⚡</div>
+                <div class="ability-content">
+                    <h4>必殺</h4>
+                    <p><strong>効果：</strong> 20%の確率で相手への攻撃のダメージが1.5倍になります。</p>
+                    <p style="margin-top: 8px; color: #667eea; font-weight: bold;">💡 戦術：運次第で大ダメージ。一発逆転の可能性があります。ハイリスク・ハイリターン型。</p>
+                </div>
+            </div>
+
+            <div class="tip">
+                <h4>💡 Tier4オーブの組み合わせ</h4>
+                <p>複数のTier4オーブを組み合わせることで、複数の固有能力を同時に保有できます。例えば、「ライフドレイン」と「鉄壁」を組み合わせれば、攻撃で回復しながら防御が堅牢な最強の武器になります！</p>
+            </div>
+        </div>
+
+        <!-- ゲームのコツ -->
+        <div class="section">
+            <h2 id="tips">💡 ゲームのコツ</h2>
+
+            <div class="subsection">
+                <h4>1. 勉強を効率よく進める</h4>
+                <p>勉強タイマーで30分以上勉強すると、ステータスがアップします。特に「圧倒的成長性」のオーブを手に入れたら、積極的に勉強してステータスを伸ばしましょう。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>2. オーブの効果を理解する</h4>
+                <p>オーブの種類とステータスタイプを理解することで、より効果的な武器を作成できます。攻撃特化にしたい時は「攻撃」ボーナスのオーブを集め、防御特化なら「防御」オーブを集めましょう。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>3. 武器の使い分け</h4>
+                <p>相手のプレイスタイルに応じて武器を変えましょう。強い攻撃力の相手には防御力の高い武器、防御力の高い相手には攻撃力重視の武器を選ぶことで、勝率が上がります。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>4. 必殺技ゲージを管理する</h4>
+                <p>正解を重ねてゲージを溜めて、ここぞという時に必殺技を発動させましょう。序盤の無駄な必殺技発動は避け、勝負の決め手として使うと効果的です。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>5. コイン管理を大切に</h4>
+                <p>コインは武器購入や強化に必要です。不要な武器は早めに整理し、コインを効率よく使いましょう。バトル勝利で15枚のコインが入手できます。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>6. Tier4オーブを狙う</h4>
+                <p>ドロップ率は5%と低いですが、Tier4オーブは最高の価値があります。長期的に見て、Tier4オーブを複数集めることで、最強のオリジナル武器を作成できます。</p>
+            </div>
+
+            <div class="tip">
+                <h4>🎯 最終的な目標</h4>
+                <p>勉強でステータスを上げ、オーブを集めて最強のオリジナル武器を作成し、バトルで無敗のプレイヤーを目指しましょう！偏差値でバトるは、学力とゲーム戦略の両方が試されるユニークなゲームです。</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2024 偏差値でバトる - ゲームヘルプ</p>
+            <p>最終更新：2024年</p>
+        </footer>
+    </div>
+</body>
+</html>
