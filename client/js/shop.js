@@ -857,7 +857,7 @@ function openOrbSynthesisModal() {
 
     document.getElementById('synthesizeTier2Btn').disabled = tier1Count < 5;
     document.getElementById('synthesizeTier3Btn').disabled = tier2Count < 5;
-    document.getElementById('synthesizeTier4Btn').disabled = tier3Count < 20;
+    document.getElementById('synthesizeTier4Btn').disabled = tier3Count < 10;
 
     modal.style.display = 'flex';
 }
@@ -880,7 +880,7 @@ function synthesizeOrb(targetTier) {
             break;
         case 'tier4':
             requiredTier = 'tier3';
-            requiredCount = 20;
+            requiredCount = 10;
             newOrbTier = 'tier4';
             break;
         default:
