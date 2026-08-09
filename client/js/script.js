@@ -388,11 +388,11 @@ function setupDOMEventHandlers() {
         });
     }
 
-    // Listener for menu item clicks (to switch sections and close the sidebar)
+    // Listener for menu item clicks
     menuButtons.forEach(button => {
-        // Only add click listener for buttons that switch sections
-        if (button.dataset.section) {
-            button.addEventListener('click', () => {
+        button.addEventListener('click', () => {
+            // If it's a section-switching button
+            if (button.dataset.section) {
                 const section = button.dataset.section;
                 // Deactivate all sections and other menu buttons
                 document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
@@ -404,16 +404,16 @@ function setupDOMEventHandlers() {
                     activeSection.classList.add('active');
                 }
                 button.classList.add('active');
+            }
 
-                // On mobile, close the sidebar after any menu item is clicked
-                if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
-                    sidebar.classList.remove('active');
-                    if (mobileMenuToggle) {
-                        mobileMenuToggle.classList.remove('active');
-                    }
+            // On mobile, close the sidebar after ANY menu item is clicked
+            if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+                if (mobileMenuToggle) {
+                    mobileMenuToggle.classList.remove('active');
                 }
-            });
-        }
+            }
+        });
     });
 
     // Listener to close the sidebar when clicking anywhere outside of it
