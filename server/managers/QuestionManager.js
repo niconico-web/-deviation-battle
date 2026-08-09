@@ -102,16 +102,19 @@ function determineQuestionLevel(player1Grade, player2Grade) {
     const g1 = normalizeGrade(player1Grade);
     const g2 = normalizeGrade(player2Grade);
 
-    // 学年が違う場合は、学年が下のほうに合わせる
+    // 学年が違う場合は、二人の学年の間のランダムな学年を選択する
     const minGrade = Math.min(g1, g2);
+    const maxGrade = Math.max(g1, g2);
+
+    const targetGrade = Math.floor(Math.random() * (maxGrade - minGrade + 1)) + minGrade;
 
     // 学年から学校レベルを判定
-    if (minGrade <= 6) {
-        return { schoolLevel: 'elementary', grade: minGrade };
-    } else if (minGrade <= 9) {
-        return { schoolLevel: 'junior_high', grade: minGrade - 6 };
+    if (targetGrade <= 6) {
+        return { schoolLevel: 'elementary', grade: targetGrade };
+    } else if (targetGrade <= 9) {
+        return { schoolLevel: 'junior_high', grade: targetGrade - 6 };
     } else {
-        return { schoolLevel: 'high_school', grade: minGrade - 9 };
+        return { schoolLevel: 'high_school', grade: targetGrade - 9 };
     }
 }
 
