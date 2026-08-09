@@ -2,21 +2,21 @@
 
 .help-content {
     padding: 20px;
-    background-color: #f9f9f9;
+    background-color: var(--surface-color); /* Use dark theme surface color */
     border-radius: 8px;
     margin-top: 20px;
 }
 
 .help-content h2 {
-    color: #333;
-    border-bottom: 2px solid #007bff;
+    color: var(--primary-color); /* Use theme primary color for titles */
+    border-bottom: 2px solid var(--primary-dark-color);
     padding-bottom: 10px;
     margin-top: 30px;
     margin-bottom: 20px;
 }
 
 .help-content h3 {
-    color: #555;
+    color: var(--primary-color); /* Use theme primary color for subtitles */
     margin-top: 20px;
     margin-bottom: 10px;
 }
@@ -24,6 +24,7 @@
 .help-content p {
     line-height: 1.6;
     margin-bottom: 10px;
+    color: var(--on-surface-color); /* Use theme text color */
 }
 
 #toc ul {
@@ -37,7 +38,7 @@
 
 #toc a {
     text-decoration: none;
-    color: #007bff;
+    color: var(--accent-color); /* Use theme accent color for links */
 }
 
 #toc a:hover {
@@ -45,20 +46,20 @@
 }
 
 #unique-abilities-list .ability {
-    border: 1px solid #ddd;
+    border: 1px solid #40444B; /* Dark theme border color */
     border-radius: 5px;
     padding: 15px;
     margin-bottom: 15px;
-    background-color: #fff;
+    background-color: var(--background-color); /* Use a slightly darker background */
 }
 
 #unique-abilities-list .ability-name {
     font-weight: bold;
     font-size: 1.2em;
-    color: #0056b3;
+    color: var(--primary-color);
 }
 
 #unique-abilities-list .ability-description {
     margin-top: 5px;
-    color: #666;
+    color: var(--on-surface-variant-color); /* Use theme variant text color */
 }
