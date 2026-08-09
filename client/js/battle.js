@@ -79,6 +79,30 @@ function initialize() {
 
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
+
+    // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
+    const applyReMiserable = (player, target) => {
+        if (player.equippedWeapon && player.equippedWeapon.uniqueAbilities) {
+            const hasReMiserable = player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+            if (hasReMiserable) {
+                addLog(`${player.name}の「リ・ミゼラブル」発動！ ${target.name}の全ステータスがダウン！`);
+                target.atk = Math.floor(target.atk * 0.8);
+                target.def = Math.floor(target.def * 0.8);
+                target.speed = Math.floor(target.speed * 0.8);
+                target.maxHp = Math.floor(target.maxHp * 0.8);
+                // maxHpが減ったことに伴い、現在のHPも調整
+                if (target.hp > target.maxHp) {
+                    target.hp = target.maxHp;
+                }
+            }
+        }
+    };
+
+    // 自分から相手へ
+    applyReMiserable(me, enemy);
+    // 相手から自分へ
+    applyReMiserable(enemy, me);
+
     updateStats();
     updateHP();
     updateUltimateGauge();
@@ -1239,20 +1263,6 @@ function handleBotAnswer(userAnswer) {
         
         // ユニーク能力適用
         let enemyDef = enemy.def || 0;
-        let enemyAtk = enemy.atk || 0;
-        let enemySpeed = enemy.speed || 0;
-        let enemyMaxHp = enemy.maxHp || 0;
-        
-        // リ・ミゼラブル（相手の全ステータスを0.8倍）
-        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-            const hasReMiserable = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
-            if (hasReMiserable) {
-                enemyDef = Math.floor(enemyDef * 0.8);
-                enemyAtk = Math.floor(enemyAtk * 0.8);
-                enemySpeed = Math.floor(enemySpeed * 0.8);
-                enemyMaxHp = Math.floor(enemyMaxHp * 0.8);
-            }
-        }
         
         // 貫通（相手の防御ステータスを50%減らす）
         if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {

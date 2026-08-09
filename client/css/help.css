@@ -1,0 +1,64 @@
+/* help.css */
+
+.help-content {
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.help-content h2 {
+    color: #333;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 10px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+}
+
+.help-content h3 {
+    color: #555;
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+.help-content p {
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+#toc ul {
+    list-style: none;
+    padding: 0;
+}
+
+#toc li {
+    margin-bottom: 10px;
+}
+
+#toc a {
+    text-decoration: none;
+    color: #007bff;
+}
+
+#toc a:hover {
+    text-decoration: underline;
+}
+
+#unique-abilities-list .ability {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fff;
+}
+
+#unique-abilities-list .ability-name {
+    font-weight: bold;
+    font-size: 1.2em;
+    color: #0056b3;
+}
+
+#unique-abilities-list .ability-description {
+    margin-top: 5px;
+    color: #666;
+}
