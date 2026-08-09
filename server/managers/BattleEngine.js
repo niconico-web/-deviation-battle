@@ -73,40 +73,54 @@ function generateQuestion(battle) {
     const playerIds = Object.keys(battle.players);
     const player1 = battle.players[playerIds[0]];
     const player2 = battle.players[playerIds[1]];
-    
+
     console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}`);
-    
+
     // 教科をランダムに選択
-    const subjects = ['math', 'jp', 'english'];
-    const subject = subjects[Math.floor(Math.random() * subjects.length)];
-    
+    let subject = ['math', 'jp', 'english'][Math.floor(Math.random() * 3)];
     console.log(`[BattleEngine] Selected subject: ${subject}`);
-    
+
     // 二人のプレイヤーの学年に基づいて問題を取得（選択肢付き）
-    const question = QuestionManager.getBattleQuestionWithOptions(player1.grade, player2.grade, subject);
-    
+    let question = QuestionManager.getBattleQuestionWithOptions(player1.grade, player2.grade, subject);
+
+    // もし最初の教科で問題が見つからなかった場合、他の教科を試す
+    if (!question) {
+        console.warn(`[BattleEngine] No question found for subject ${subject}. Trying other subjects.`);
+        const otherSubjects = ['math', 'jp', 'english'].filter(s => s !== subject);
+        for (const nextSubject of otherSubjects) {
+            question = QuestionManager.getBattleQuestionWithOptions(player1.grade, player2.grade, nextSubject);
+            if (question) {
+                subject = nextSubject; // Update subject to the one that had a question
+                console.log(`[BattleEngine] Found question in fallback subject: ${subject}`);
+                break;
+            }
+        }
+    }
+
     console.log(`[BattleEngine] Question result:`, question);
-    
+
     // プレイヤーの回答時間をリセット（新しい問題の前にリセット）
     playerIds.forEach(id => {
         battle.players[id].answerTime = null;
     });
-    
+
     if (!question) {
-        // 問題が見つからない場合のフォールバック
-        console.warn(`問題が見つかりません: player1Grade=${player1.grade}, player2Grade=${player2.grade}, subject=${subject}`);
+        // 問題が見つからない場合の最終フォールバック
+        console.error(`[BattleEngine] ULTIMATE FALLBACK: No questions found in any subject for grades ${player1.grade}-${player2.grade}.`);
         // デフォルトの問題を返す
         battle.currentQuestion = {
             question: "1 + 1 = ?",
             answer: "2",
-            subject: subject,
-            subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
+            subject: 'math', // Default to math
+            subjectDisplayName: QuestionManager.getSubjectDisplayName('math'),
             startTime: Date.now()
         };
-        
+        // generate options for the fallback
+        battle.currentQuestion.options = QuestionManager.generateOptions(battle.currentQuestion.answer);
+
         return battle.currentQuestion;
     }
-    
+
     // バトルに問題情報を追加
     battle.currentQuestion = {
         ...question,
@@ -114,9 +128,9 @@ function generateQuestion(battle) {
         subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
         startTime: Date.now()
     };
-    
+
     console.log(`[BattleEngine] Generated question:`, battle.currentQuestion);
-    
+
     return battle.currentQuestion;
 }
 
