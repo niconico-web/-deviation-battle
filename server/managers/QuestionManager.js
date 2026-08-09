@@ -124,88 +124,61 @@ function determineQuestionLevel(player1Grade, player2Grade) {
 // -----------------------------
 function getBattleQuestion(player1Grade, player2Grade, subject, isHardMode = false) {
     const questionsDb = loadQuestions();
-    const { schoolLevel, grade } = determineQuestionLevel(player1Grade, player2Grade);
-    console.log(`[QuestionManager] getBattleQuestion: player1Grade=${player1Grade}, player2Grade=${player2Grade}, subject=${subject}, schoolLevel=${schoolLevel}, grade=${grade}, isHardMode=${isHardMode}`);
+
+    // 1. 学年を正規化し、範囲を決定
+    const g1 = normalizeGrade(player1Grade);
+    const g2 = normalizeGrade(player2Grade);
+    const minGrade = Math.min(g1, g2);
+    const maxGrade = Math.max(g1, g2);
+
+    // 2. 検索対象の学年リストを作成し、シャッフル
+    const gradeRange = [];
+    for (let g = minGrade; g <= maxGrade; g++) {
+        gradeRange.push(g);
+    }
+    // `shuffleArray` はこのファイルの下部で定義されている既存の関数
+    const shuffledGrades = shuffleArray(gradeRange);
 
     let question = null;
 
-    // ハードモードの場合、まずハード用の問題を探す
-    if (isHardMode) {
-        const hardSubject = subject + '_hard';
-        question = getRandomQuestion(schoolLevel, grade, hardSubject);
-        if (question) {
-            console.log('[QuestionManager] getBattleQuestion: selected hard question from determined level');
-            return question;
+    // 3. シャッフルされた学年リストを順番に試し、最初に見つかった問題を採用する
+    for (const grade of shuffledGrades) {
+        // 学年から schoolLevel と school-specific grade を計算
+        let schoolLevel, schoolGrade;
+        if (grade <= 6) {
+            schoolLevel = 'elementary';
+            schoolGrade = grade;
+        } else if (grade <= 9) {
+            schoolLevel = 'junior_high';
+            schoolGrade = grade - 6;
+        } else {
+            schoolLevel = 'high_school';
+            schoolGrade = grade - 9;
         }
-        console.log(`[QuestionManager] getBattleQuestion: hard question not found for ${hardSubject}, falling back to normal.`);
-    }
 
-    // まず通常経路で取得
-    question = getRandomQuestion(schoolLevel, grade, subject);
-    if (question) {
-        console.log('[QuestionManager] getBattleQuestion: selected question from determined level');
-        return question;
-    }
+        console.log(`[QuestionManager] Trying to get question for grade ${grade} (schoolLevel: ${schoolLevel}, schoolGrade: ${schoolGrade})`);
 
-    // フォールバック1: 同じ schoolLevel の近い grade を試す（上下1〜2年分）
-    try {
-        const availableGrades = Object.keys((questionsDb && questionsDb[schoolLevel]) || {}).map(k => Number(k)).filter(n => Number.isFinite(n));
-        console.log(`[QuestionManager] getBattleQuestion: availableGrades for ${schoolLevel}:`, availableGrades);
-
-        const deltas = [1, -1, 2, -2];
-        for (const d of deltas) {
-            const tryGrade = grade + d;
-            if (availableGrades.includes(tryGrade)) {
-                if (isHardMode) {
-                    const hardSubject = subject + '_hard';
-                    question = getRandomQuestion(schoolLevel, tryGrade, hardSubject);
-                    if (question) {
-                        console.log(`[QuestionManager] getBattleQuestion: fallback hard found at grade=${tryGrade} (same school level)`);
-                        return question;
-                    }
-                }
-                question = getRandomQuestion(schoolLevel, tryGrade, subject);
-                if (question) {
-                    console.log(`[QuestionManager] getBattleQuestion: fallback found at grade=${tryGrade} (same school level)`);
-                    return question;
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('[QuestionManager] getBattleQuestion fallback same-level failed', e);
-    }
-
-    // フォールバック2: 相手の学年を使って取得（player1 若しくは player2 のどちらかの schoolLevel）
-    try {
-        const g1 = normalizeGrade(player1Grade);
-        const g2 = normalizeGrade(player2Grade);
-        const candidates = [ { schoolLevel: '', grade: 1 } ];
-
-        const cand1 = (g1 <= 6) ? { schoolLevel: 'elementary', grade: g1 } : (g1 <= 9) ? { schoolLevel: 'junior_high', grade: g1 - 6 } : { schoolLevel: 'high_school', grade: g1 - 9 };
-        const cand2 = (g2 <= 6) ? { schoolLevel: 'elementary', grade: g2 } : (g2 <= 9) ? { schoolLevel: 'junior_high', grade: g2 - 6 } : { schoolLevel: 'high_school', grade: g2 - 9 };
-        candidates.push(cand1, cand2);
-
-        for (const c of candidates) {
-            if (!c || !c.schoolLevel) continue;
-            if (isHardMode) {
-                const hardSubject = subject + '_hard';
-                question = getRandomQuestion(c.schoolLevel, c.grade, hardSubject);
-                if (question) {
-                    console.log(`[QuestionManager] getBattleQuestion: fallback hard found using candidate schoolLevel=${c.schoolLevel}, grade=${c.grade}`);
-                    return question;
-                }
-            }
-            question = getRandomQuestion(c.schoolLevel, c.grade, subject);
+        // ハードモードの問題を試す
+        if (isHardMode) {
+            const hardSubject = subject + '_hard';
+            question = getRandomQuestion(schoolLevel, schoolGrade, hardSubject);
             if (question) {
-                console.log(`[QuestionManager] getBattleQuestion: fallback found using candidate schoolLevel=${c.schoolLevel}, grade=${c.grade}`);
-                return question;
+                console.log(`[QuestionManager] Found hard question at grade ${grade}.`);
+                return question; // 見つかったら即座に返す
             }
         }
-    } catch (e) {
-        console.warn('[QuestionManager] getBattleQuestion fallback candidate failed', e);
+
+        // 通常の問題を取得
+        question = getRandomQuestion(schoolLevel, schoolGrade, subject);
+        if (question) {
+            console.log(`[QuestionManager] Found question at grade ${grade}.`);
+            return question; // 見つかったら即座に返す
+        }
     }
 
-    console.warn('[QuestionManager] getBattleQuestion: 問題が見つかりませんでした');
+    // 4. 範囲内のどの学年にも問題が見つからなかった場合
+    console.warn(`[QuestionManager] No questions found for grades ${minGrade}-${maxGrade} in subject ${subject}.`);
+    // 安全のため、ここでは null を返す (意図しないフォールバックを防ぐ)
     return null;
 }
 
