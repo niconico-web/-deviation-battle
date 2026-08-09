@@ -123,6 +123,9 @@ function determineQuestionLevel(player1Grade, player2Grade) {
 // - もし期待した学年／教科に問題が無い場合、フォールバックで近い学年や相手側の学年を試す
 // -----------------------------
 function getBattleQuestion(player1Grade, player2Grade, subject, isHardMode = false) {
+    // デバッグログ: 渡された学年情報を確認
+    console.log(`[DEBUG] getBattleQuestion received: player1Grade=${player1Grade} (type: ${typeof player1Grade}), player2Grade=${player2Grade} (type: ${typeof player2Grade})`);
+
     const questionsDb = loadQuestions();
 
     // 1. 学年を正規化し、範囲を決定
