@@ -439,6 +439,16 @@ const ORB_UNIQUE_ABILITIES = {
         name: "必殺",
         description: "20%の確率で相手への攻撃のダメージ1.5倍",
         effect: "critical_damage"
+    },
+    guts: {
+        name: '根性',
+        description: '即死のダメージを食らってもHPを1残して耐えることができる。HPが１の状態では攻撃力が3倍になる。',
+        effect: 'guts'
+    },
+    dual_weapon: {
+        name: 'デュアルウェポン',
+        description: 'これを使って武器を作るとき、もう一つ武器の種類を選択できる。その選んだ武器の種類のバフ、デバフの倍率がその武器に乗るようになる。（例：大剣を作成し、デュアルウェポンで双剣を選択すると、大剣に双剣のバフ・デバフ効果も付与される）',
+        effect: 'dual_weapon'
     }
 };
 
