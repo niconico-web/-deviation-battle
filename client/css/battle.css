@@ -467,3 +467,61 @@ body {
         opacity: 0;
     }
 }
+
+/* スキルセクションのスタイル */
+.skills-section {
+    text-align: center;
+    margin: 16px 0;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+}
+
+.skills-section h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: #eee;
+}
+
+.skill-slots {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.skill-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+    border: 2px solid #888;
+    background-color: #555;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.2s;
+    min-width: 80px;
+    min-height: 40px;
+}
+
+.skill-btn:disabled:not(.used) {
+    background-color: #444;
+    border-color: #666;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.skill-btn.selected {
+    border-color: #3498db;
+    background-color: #2980b9;
+    box-shadow: 0 0 8px #3498db;
+    transform: scale(1.05);
+}
+
+.skill-btn.used {
+    background-color: #333;
+    border-color: #555;
+    color: #777;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}

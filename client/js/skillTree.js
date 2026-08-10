@@ -309,58 +309,56 @@ function validateCustomSkill(skillDescription, playerStats) {
 
 // スキル説明文からeffectオブジェクトを簡易的に生成
 function parseEffectFromDescription(description) {
-    const finalEffect = { type: "active" };
+    const finalEffect = { type: "active" }; // 必ず active タイプを付与
     const desc = description.toLowerCase();
+    let effectFound = false;
 
-    // 条件のパース (例: "hpが50%以下の時")
+    // --- 効果のパース ---
+    // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍")
+    const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃)[をが]?([\d.]+)倍/);
+    if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
+
+    // ダメージ軽減 (例: "ダメージを30%軽減")
+    const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
+    if (damageReductionMatch) { finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0; effectFound = true; }
+
+    // ライフスティール (例: "与えたダメージの30%を吸収")
+    const lifeStealMatch = desc.match(/与えたダメージの([\d.]+)%を吸収/);
+    if (lifeStealMatch) { finalEffect.lifeSteal = parseFloat(lifeStealMatch[1]) / 100.0; effectFound = true; }
+
+    // 必中 (例: "攻撃を必中にする")
+    if (desc.includes("必中")) { finalEffect.sureHit = true; effectFound = true; }
+
+    // 防御無視 (例: "敵の防御を無視")
+    if (desc.includes("防御無視")) { finalEffect.ignoreDef = true; effectFound = true; }
+
+    // クリティカル確定 (例: "次の攻撃は必ずクリティカル")
+    if (desc.includes("必ずクリティカル")) { finalEffect.nextAttackCrit = true; effectFound = true; }
+
+    // 火傷付与 (例: "敵に火傷付与")
+    if (desc.includes("火傷付与")) { finalEffect.burn = true; effectFound = true; }
+
+    // 速度低下 (例: "敵の速さを20%低下")
+    const speedDebuffMatch = desc.match(/速さを([\d.]+)%低下/);
+    if (speedDebuffMatch) { finalEffect.speedDebuff = parseFloat(speedDebuffMatch[1]) / 100.0; effectFound = true; }
+
+    // --- デメリット/コストのパース ---
+    // 自身の防御デバフ (例: "自身の防御-10")
+    const selfDefDebuffMatch = desc.match(/自身の防御-([\d.]+)/);
+    if (selfDefDebuffMatch) { finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]); }
+
+    // 次のターンスキップ (例: "次のターン行動できない")
+    if (desc.includes("行動できない")) { finalEffect.skipNextTurn = true; }
+
+    // --- 条件のパース ---
+    // HP条件 (例: "hpが50%以下の時")
     const hpConditionMatch = desc.match(/hpが([\d.]+)%以下/);
     if (hpConditionMatch) {
         finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
     }
 
-    // 例: "次の攻撃のダメージ1.2倍" -> { damageMultiplier: 1.2 }
-    const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃)[をが]?([\d.]+)倍/);
-    if (damageMultiplierMatch && damageMultiplierMatch[1]) {
-        finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]);
-    }
-
-    // 例: "自身の防御-10"
-    const selfDefDebuffMatch = desc.match(/自身の防御-([\d.]+)/);
-    if (selfDefDebuffMatch && selfDefDebuffMatch[1]) {
-        finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]);
-    }
-
-    // 例: "敵防御無視"
-    const ignoreDefMatch = desc.match(/敵防御無視/);
-    if (ignoreDefMatch) {
-        finalEffect.ignoreDef = true;
-    }
-
-    // 例: "受けるダメージを30%軽減" -> { damageReduction: 0.3 }
-    const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
-    if (damageReductionMatch && damageReductionMatch[1]) {
-        finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0;
-    }
-
-    // 例: "敵に火傷付与"
-    const burnMatch = desc.match(/火傷付与/);
-    if (burnMatch) {
-        finalEffect.burn = true;
-    }
-
-    // 例: "次の攻撃を必中にする" -> { sureHit: true }
-    const sureHitMatch = desc.match(/必中/);
-    if (sureHitMatch) {
-        finalEffect.sureHit = true;
-    }
-
-    // 何かしらの効果がパースできたかチェック (新しい効果も追加)
-    const hasAction = finalEffect.damageMultiplier || finalEffect.damageReduction || finalEffect.sureHit || finalEffect.selfDefDebuff || finalEffect.ignoreDef || finalEffect.burn;
-    if (!hasAction) {
-        return null; // 解釈できる効果がなかった
-    }
-
-    return finalEffect;
+    // 何かしらの効果がパースできた場合のみ effect オブジェクトを返す
+    return effectFound ? finalEffect : null;
 }
 
 // カスタムスキルの作成
@@ -531,7 +529,7 @@ function renderSkillTreeUI() {
                     <p>作成には ${CUSTOM_SKILL_COST} コインが必要です。</p>
                     <div class="custom-skill-form">
                         <input type="text" id="customSkillName" placeholder="スキル名">
-                        <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージを1.2倍にする"></textarea>
+                        <textarea id="customSkillDescription" placeholder="例: HPが50%以下の時、次の攻撃ダメージを1.5倍にし、必中にする"></textarea>
                         <button id="createCustomSkillBtn">作成する</button>
                     </div>
                     <h4>作成済みオリジナルスキル</h4>
