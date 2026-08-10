@@ -366,7 +366,188 @@ function createCustomSkill(player, skillName, skillDescription) {
 // UI描画関連
 // ============================================
 
+function injectSkillTreeCSS() {
+    // スタイルが既に存在する場合は注入しない
+    if (document.getElementById('skill-tree-styles')) return;
+
+    const css = `
+/* --- スキルツリー --- */
+.skill-tree-ui {
+    display: flex;
+    flex-direction: column;
+    height: 600px; /* 高さを少し増やす */
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+    background-color: #222; /* 背景を暗くしてノードを目立たせる */
+    color: #eee;
+}
+
+.skill-tree-header {
+    padding: 10px 15px;
+    font-size: 1.4em; /* ヘッダーを大きく */
+    font-weight: bold;
+    text-align: center;
+    background-color: #333; /* ヘッダーも暗く */
+    border-bottom: 1px solid #555;
+    flex-shrink: 0;
+    color: #fff;
+}
+
+.skill-tree-content-wrapper {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.skill-points-display {
+    padding: 10px;
+    background-color: #444; /* ポイント表示部分も暗く */
+    border-bottom: 1px solid #555;
+    text-align: center;
+    font-weight: bold;
+    color: #fff;
+}
+
+.skill-tree-content {
+    position: relative;
+    flex-grow: 1;
+    overflow: auto;
+    background-color: #2a2a2a; /* 背景をさらに暗く */
+    background-image: radial-gradient(#444 1px, transparent 1px); /* グリッド線を少し濃く */
+    background-size: 20px 20px;
+}
+
+.skill-tree-content svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+}
+
+.skill-node {
+    position: absolute;
+    width: 80px; /* ノードの幅を広げる */
+    height: 60px; /* ノードの高さを広げる */
+    border-radius: 8px; /* 角を丸くする */
+    border: 2px solid #777; /* 枠線を少し明るく */
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75em; /* テキストサイズを調整 */
+    color: #eee; /* テキスト色を明るく */
+    background-color: #555; /* デフォルトの背景色 */
+    box-sizing: border-box;
+    padding: 5px; /* パディングを追加 */
+    text-align: center; /* テキストを中央揃え */
+    line-height: 1.2; /* 行の高さを調整 */
+    overflow: hidden; /* はみ出るテキストを隠す */
+    white-space: normal; /* テキストを折り返す */
+    text-overflow: ellipsis; /* はみ出たテキストを省略 */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5); /* 影を追加 */
+    z-index: 1; /* 線の上に表示 */
+}
+
+.skill-node span {
+    display: block; /* spanをブロック要素にしてwidth/heightを適用しやすく */
+    max-width: 100%; /* 親要素の幅に合わせる */
+    white-space: normal; /* 折り返しを許可 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.skill-node.stat { background-color: #3a6b8a; border-color: #5a9bd3; } /* 青系 */
+.skill-node.active { background-color: #8a3a3a; border-color: #d35a5a; } /* 赤系 */
+.skill-node.passive { background-color: #3a8a6b; border-color: #5ad39b; } /* 緑系 */
+
+.skill-node.unlocked {
+    border-color: #28a745;
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.7);
+    background-color: #3a9a5a; /* アンロック済みの背景色 */
+}
+
+.skill-node.unlockable {
+    border-color: #ffc107;
+    cursor: pointer;
+    background-color: #a78a3a; /* アンロック可能な背景色 */
+}
+.skill-node.unlockable:hover {
+    transform: scale(1.05); /* ホバーで少し拡大 */
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.9);
+}
+
+.skill-node.locked {
+    border-color: #666;
+    cursor: not-allowed;
+    opacity: 0.4; /* ロック済みは暗く */
+    background-color: #444;
+}
+
+/* スキルノード間の接続線 */
+.skill-tree-content line {
+    stroke-linecap: round; /* 線の端を丸く */
+    transition: stroke 0.2s; /* 色の変化を滑らかに */
+}
+
+/* --- スキル管理セクション --- */
+.skill-management-section {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-top: 20px;
+    padding: 20px; /* パディングを追加 */
+    border-top: 1px solid #ccc;
+    background-color: #f8f8f8; /* 背景色を少し明るく */
+    border-radius: 0 0 8px 8px; /* 下部の角を丸く */
+}
+
+.skill-slot-wrapper, .custom-skill-wrapper {
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px; /* パディングを追加 */
+    border: 1px solid #ddd; /* 枠線を追加 */
+    border-radius: 8px; /* 角を丸く */
+    background-color: #fff; /* 背景色を白に */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
+}
+
+.skill-slot-wrapper h3, .custom-skill-wrapper h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+/* --- スキルスロット --- */
+.skill-slots-container { display: flex; justify-content: center; gap: 15px; margin: 10px 0; padding: 15px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; }
+.skill-slot { width: 100px; height: 60px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.9em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.skill-slot.filled { background-color: #007bff; color: #fff; font-weight: bold; cursor: pointer; }
+.skill-slot.filled .unequip-skill-btn { position: absolute; top: 2px; right: 2px; background: rgba(255, 255, 255, 0.3); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7em; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
+.skill-slot.filled .unequip-skill-btn:hover { background: rgba(255, 255, 255, 0.5); }
+.available-skills-list { margin-top: 15px; max-height: 250px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
+.available-skill-item { padding: 8px; margin-bottom: 5px; background-color: #f0f8ff; border: 1px solid #d0e9ff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+.available-skill-item:hover { background-color: #cce5ff; }
+
+/* --- オリジナルスキル作成 --- */
+.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 20px; }
+.custom-skill-form input, .custom-skill-form textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+.custom-skill-form textarea { height: 60px; resize: vertical; }
+    `;
+    const style = document.createElement('style');
+    style.id = 'skill-tree-styles';
+    style.textContent = css;
+    document.head.appendChild(style);
+}
+
 function renderSkillTreeUI() {
+    injectSkillTreeCSS(); // CSSを注入
+
     const container = document.getElementById('skillTreeContainer');
     if (!container) return;
 
@@ -480,7 +661,7 @@ function renderTree() {
                     const reqNodeX = requiredNode.x * 80 + 400;
                     const reqNodeY = requiredNode.y * 80 + 50;
                     // ノードの中心に線を引く
-                    drawConnection(svg, reqNodeX + 20, reqNodeY + 20, nodeX + 20, nodeY + 20, playerData.unlockedNodes.includes(node.id));
+                    drawConnection(svg, reqNodeX + 40, reqNodeY + 30, nodeX + 40, nodeY + 30, playerData.unlockedNodes.includes(node.id));
                 }
             });
         }
