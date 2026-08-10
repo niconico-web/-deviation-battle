@@ -939,15 +939,6 @@ function applyWeaponStats(baseStats, weapon) {
     return result;
 }
 
-function getEffectiveStats(player) {
-    const base = getStatsFromPlayer(player);
-    return applyWeaponStats(base, player.equippedWeapon);
-}
-
-function getBattleStats(player) {
-    return getEffectiveStats(player);
-}
-
 function playerOwnsWeapon(player, weaponId) {
     return (player.weapons || []).some(w => w.id === weaponId);
 }
