@@ -138,11 +138,11 @@ function generateQuestion(battle) {
 // ダメージ計算
 // -----------------------------
 
-function calculateDamage(attacker, defender, answerTimeMs, isSureHit = false, attackerAtk = null) {
+function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
     // attackerAtkが渡されなかった場合は、元のステータスを使用
-    const baseAtk = attackerAtk !== null ? attackerAtk : attacker.atk;
+    const baseAtk = options.attackerAtk !== null ? options.attackerAtk : attacker.atk;
     // 基本ダメージ
-    let damage = BASE_DAMAGE + Math.floor(baseAtk * 0.3);
+    let damage = BASE_DAMAGE + Math.floor(baseAtk * 0.5); // ダメージ計算式を少し強化
 
     // 回答時間によるペナルティ（1秒あたりTIME_PENALTY_PER_SECOND）
     const answerTimeSeconds = answerTimeMs / 1000;
@@ -160,12 +160,19 @@ function calculateDamage(attacker, defender, answerTimeMs, isSureHit = false, at
     // ランダム要素（±5）
     damage += randomRange(-5, 5);
 
+    // 防御によるダメージ軽減
+    let defenderDef = options.defenderDef !== undefined ? options.defenderDef : (defender.def || 0);
+    if (options.ignoreDef) {
+        defenderDef = 0;
+    }
+    damage -= Math.floor(defenderDef * 0.2); // 防御の効果を少し上げる
+
     // 最小ダメージ保証
     damage = Math.max(1, damage);
 
     // 回避率の計算
     let dodgeChance = 0;
-    if (!isSureHit && defender) {
+    if (!options.isSureHit && defender) {
         const defenderSpeed = defender.speed || 0;
         // 素早さ7500で最大回避率45%に到達する、二次関数的な上昇カーブ
         const maxSpeed = 7500;
@@ -227,6 +234,29 @@ function applyLifeDrain(attacker, damageDealt) {
     return healAmount;
 }
 
+/**
+ * ターン終了時にデバフのターンを減らす
+ */
+function tickDebuffs(player) {
+    if (!player.debuffs || player.debuffs.length === 0) return;
+    player.debuffs.forEach(d => d.remainingTurns--);
+    player.debuffs = player.debuffs.filter(d => d.remainingTurns > 0);
+}
+
+/**
+ * デバフを考慮したステータスを取得
+ */
+function getStatWithDebuffs(player, statName) {
+    let value = player[statName] || 0;
+    if (player.debuffs) {
+        player.debuffs.forEach(debuff => {
+            if (debuff.stat === statName) {
+                value = debuff.isFlat ? value - debuff.reduction : value * (1 - debuff.reduction);
+            }
+        });
+    }
+    return Math.max(0, value);
+}
 // -----------------------------
 // 回答を処理
 // -----------------------------
@@ -279,6 +309,7 @@ function processAnswer(battle, playerId, answer, skill) {
         if (!defender.answerTime) {
             let skillIsActive = false;
             let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion"); // 必中能力
+            let isAttackerIgnoreDef = false;
 
             // スキル効果を適用
             if (skill && skill.effect && skill.effect.type === 'active') {
@@ -298,6 +329,16 @@ function processAnswer(battle, playerId, answer, skill) {
                     result.skillUsed = skill; // 条件を満たした場合のみスキルを使用したとみなす
                     skillIsActive = true;
                     // 必中効果
+                    if (skill.effect.ignoreDef) isAttackerIgnoreDef = true;
+                    if (skill.effect.selfDefDebuff) {
+                        if (!attacker.debuffs) attacker.debuffs = [];
+                        attacker.debuffs.push({
+                            stat: 'def',
+                            reduction: skill.effect.selfDefDebuff,
+                            isFlat: true,
+                            remainingTurns: 2 // このターンと次の相手のターンまで持続
+                        });
+                    }
                     if (skill.effect.sureHit) isAttackerSureHit = true;
                 }
             }
@@ -310,7 +351,13 @@ function processAnswer(battle, playerId, answer, skill) {
                 result.gutsAtkBoostPlayerName = attacker.name;
             }
 
-            let damageResult = calculateDamage(attacker, defender, answerTime, isAttackerSureHit, attackerAtk);
+            const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+            let damageResult = calculateDamage(attacker, defender, answerTime, {
+                isSureHit: isAttackerSureHit,
+                attackerAtk: attackerAtk,
+                ignoreDef: isAttackerIgnoreDef,
+                defenderDef: defenderEffectiveDef
+            });
             let damage = damageResult.damage;
             
             // スキルによるダメージ倍率を適用
@@ -436,6 +483,10 @@ function processAnswer(battle, playerId, answer, skill) {
     // 一方が正解した場合、または両方のプレイヤーが回答した場合、次の問題へ
     if ((isCorrect || bothAnswered) && !battle.finished) {
         generateQuestion(battle);
+        // デバフのターンを経過させる
+        tickDebuffs(player);
+        tickDebuffs(enemy);
+
         result.nextQuestion = battle.currentQuestion;
     }
     
