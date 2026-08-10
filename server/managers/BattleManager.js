@@ -53,7 +53,25 @@ function applyWeaponStats(player) {
         magic_wand: { primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } }
     };
 
-    const typeConf = weaponTypes[weapon.type];
+    let typeConf = weaponTypes[weapon.type];
+
+    // デュアルウェポン能力による武器種情報のマージ
+    if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.dualWeaponType) {
+        const dualWeaponInfo = weaponTypes[weapon.dualWeaponType];
+        if (typeConf && dualWeaponInfo) {
+            // primary, secondary, debuffをマージする
+            const mergedPrimary = [...new Set([...typeConf.primary, ...dualWeaponInfo.primary])];
+            const mergedSecondary = [...new Set([...typeConf.secondary, ...dualWeaponInfo.secondary])];
+            const mergedDebuff = {...typeConf.debuff, ...dualWeaponInfo.debuff};
+            
+            typeConf = {
+                ...typeConf,
+                primary: mergedPrimary,
+                secondary: mergedSecondary,
+                debuff: mergedDebuff
+            };
+        }
+    }
     
     // カスタム補正を考慮した倍率計算
     const statMultipliers = { atk: multiplier, def: multiplier, speed: multiplier, maxHp: multiplier };
