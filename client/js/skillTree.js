@@ -458,6 +458,7 @@ function injectSkillTreeCSS() {
     background-color: #2a2a2a; /* 背景をさらに暗く */
     background-image: radial-gradient(#444 1px, transparent 1px); /* グリッド線を少し濃く */
     background-size: 20px 20px;
+    -webkit-overflow-scrolling: touch; /* Add this for smooth scrolling on iOS */
 }
 
 .skill-tree-content svg {
@@ -706,9 +707,9 @@ function renderTree() {
     const maxY = Math.max(...allY);
 
     // 2. Calculate offsets and total size with padding
-    const PADDING = 200; // Add more padding for better scrolling experience
-    const NODE_H_SPACING = 100; // Increase spacing
-    const NODE_V_SPACING = 100; // Increase spacing
+    const PADDING = 150; // パディングを調整
+    const NODE_H_SPACING = 90; // スペースを調整
+    const NODE_V_SPACING = 90; // スペースを調整
     const NODE_WIDTH = 80;
     const NODE_HEIGHT = 60;
 
@@ -811,10 +812,10 @@ function renderTree() {
         const nodeX = startNode.x * NODE_H_SPACING + offsetX;
         const nodeY = startNode.y * NODE_V_SPACING + offsetY;
         // Use setTimeout to ensure the browser has rendered the content before scrolling
-        setTimeout(() => {
+        setTimeout(() => { // Give a slight delay for rendering
             content.scrollTop = nodeY - (content.clientHeight / 2) + (NODE_HEIGHT / 2);
             content.scrollLeft = nodeX - (content.clientWidth / 2) + (NODE_WIDTH / 2);
-        }, 0);
+        }, 10);
     }
 }
 
