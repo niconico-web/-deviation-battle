@@ -1414,8 +1414,8 @@ function handleBotAnswer(userAnswer) {
                 const enemyDodgeChance = calculateDodgeChance(enemy.speed);
                 
                 // 45%を超える分は攻撃ボーナスに変換
-                if (enemySpeed > 7500) {
-                    const excessSpeed = enemySpeed - 7500;
+                if (enemy.speed > 7500) {
+                    const excessSpeed = enemy.speed - 7500;
                     const attackBonus = Math.floor(excessSpeed * 0.001);
                     damage += attackBonus;
                 }
