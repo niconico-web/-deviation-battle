@@ -20,7 +20,9 @@ function toBattlePlayer(player, socketId) {
         def: battleStats.def ?? player.def ?? 10,
         speed: battleStats.speed ?? player.speed ?? 10,
         grade,
-        equippedWeapon: player.equippedWeapon || null
+        equippedWeapon: player.equippedWeapon || null,
+        skillTrees: player.skillTrees || {},
+        customSkills: player.customSkills || []
     };
 }
 

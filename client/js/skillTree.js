@@ -302,24 +302,40 @@ function validateCustomSkill(skillDescription, playerStats) {
 
 // スキル説明文からeffectオブジェクトを簡易的に生成
 function parseEffectFromDescription(description) {
-    const effect = { type: "active" };
+    const finalEffect = { type: "active" };
     const desc = description.toLowerCase();
+
+    // 条件のパース (例: "hpが50%以下の時、")
+    const hpConditionMatch = desc.match(/hpが([\d.]+)%以下/);
+    if (hpConditionMatch) {
+        finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
+    }
 
     // 例: "次の攻撃のダメージ1.2倍" -> { damageMultiplier: 1.2 }
     const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃)[をが]?([\d.]+)倍/);
     if (damageMultiplierMatch && damageMultiplierMatch[1]) {
-        effect.damageMultiplier = parseFloat(damageMultiplierMatch[1]);
-        return effect;
+        finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]);
     }
 
     // 例: "受けるダメージを30%軽減" -> { damageReduction: 0.3 }
     const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
     if (damageReductionMatch && damageReductionMatch[1]) {
-        effect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0;
-        return effect;
+        finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0;
     }
 
-    return null; // 解釈できなかった
+    // 例: "次の攻撃を必中にする" -> { sureHit: true }
+    const sureHitMatch = desc.match(/必中/);
+    if (sureHitMatch) {
+        finalEffect.sureHit = true;
+    }
+
+    // 何かしらの効果がパースできたかチェック
+    const hasAction = finalEffect.damageMultiplier || finalEffect.damageReduction || finalEffect.sureHit;
+    if (!hasAction) {
+        return null; // 解釈できる効果がなかった
+    }
+
+    return finalEffect;
 }
 
 // カスタムスキルの作成
@@ -466,15 +482,16 @@ function renderTree(weaponType) {
         nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
 
         const isUnlocked = playerData.unlockedNodes.includes(node.id);
-        let isUnlockable = !isUnlocked && playerData.availablePoints >= node.cost;
-        if (node.requires) {
-            const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
-            if (!requirements.every(reqId => playerData.unlockedNodes.includes(reqId))) {
-                isUnlockable = false;
+        let isUnlockable = false;
+        if (!isUnlocked && playerData.availablePoints >= node.cost) {
+            if (!node.requires) { // 開始ノード
+                isUnlockable = true;
+            } else { // 前提条件があるノード
+                const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
+                if (requirements.every(reqId => playerData.unlockedNodes.includes(reqId))) {
+                    isUnlockable = true;
+                }
             }
-        } else if (treeData.nodes.filter(n => !n.requires).length > 1) {
-             // 複数の開始ノードがある場合、一つもアンロックしてなければアンロック可能
-             if (playerData.unlockedNodes.length === 0) isUnlockable = true;
         }
 
         if (isUnlocked) nodeEl.classList.add('unlocked');
