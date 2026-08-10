@@ -138,9 +138,11 @@ function generateQuestion(battle) {
 // ダメージ計算
 // -----------------------------
 
-function calculateDamage(attacker, defender, answerTimeMs, isSureHit = false) {
+function calculateDamage(attacker, defender, answerTimeMs, isSureHit = false, attackerAtk = null) {
+    // attackerAtkが渡されなかった場合は、元のステータスを使用
+    const baseAtk = attackerAtk !== null ? attackerAtk : attacker.atk;
     // 基本ダメージ
-    let damage = BASE_DAMAGE + Math.floor(attacker.atk * 0.3);
+    let damage = BASE_DAMAGE + Math.floor(baseAtk * 0.3);
 
     // 回答時間によるペナルティ（1秒あたりTIME_PENALTY_PER_SECOND）
     const answerTimeSeconds = answerTimeMs / 1000;
@@ -272,10 +274,18 @@ function processAnswer(battle, playerId, answer) {
         
         // 先に正解した場合のみダメージを与える
         if (!enemy.answerTime) {
+            // 「根性」の攻撃力アップ効果
+            let attackerAtk = player.atk;
+            if (player.hp === 1 && hasUniqueAbility(player, 'guts')) {
+                attackerAtk = Math.floor(attackerAtk * 3);
+                result.gutsAtkBoost = true;
+                result.gutsAtkBoostPlayerName = player.name;
+            }
+
             // 攻撃者が必中能力を持っているかチェック
             const isAttackerSureHit = hasUniqueAbility(player, "ignore_evasion");
             
-            let damageResult = calculateDamage(player, enemy, answerTime, isAttackerSureHit);
+            let damageResult = calculateDamage(player, enemy, answerTime, isAttackerSureHit, attackerAtk);
             let damage = damageResult.damage;
             const dodgeChance = damageResult.dodgeChance;
             
@@ -305,12 +315,12 @@ function processAnswer(battle, playerId, answer) {
                 // ユニーク能力によるダメージ軽減を適用（防御側）
                 let finalDamage = applyUniqueAbilityDefense(damage, enemy);
 
-                if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
-                    defender.hp = 1;
+                if (enemy.hp - finalDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+                    enemy.hp = 1;
                     result.gutsSurvive = true;
-                    result.gutsSurvivePlayerName = defender.name;
+                    result.gutsSurvivePlayerName = enemy.name;
                 } else {
-                    defender.hp = Math.max(0, defender.hp - finalDamage);
+                    enemy.hp = Math.max(0, enemy.hp - finalDamage);
                 }
                 result.damage = finalDamage;
                 result.enemyHp = enemy.hp;
@@ -335,10 +345,18 @@ function processAnswer(battle, playerId, answer) {
         }
     } else {
         // 不正解の場合 - 間違えた方がダメージを受ける
+        // 「根性」の攻撃力アップ効果
+        let attackerAtk = enemy.atk;
+        if (enemy.hp === 1 && hasUniqueAbility(enemy, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = enemy.name;
+        }
+
         // 敵が必中能力を持っているかチェック
         const isEnemySureHit = hasUniqueAbility(enemy, "ignore_evasion");
         
-        const damageResult = calculateDamage(enemy, player, 0, isEnemySureHit);
+        const damageResult = calculateDamage(enemy, player, 0, isEnemySureHit, attackerAtk);
         let damage = damageResult.damage;
         const dodgeChance = damageResult.dodgeChance;
         
@@ -355,12 +373,12 @@ function processAnswer(battle, playerId, answer) {
             // ユニーク能力によるダメージ軽減を適用（防御側）
             let finalDamage = applyUniqueAbilityDefense(damage, player);
 
-            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
-                defender.hp = 1;
+            if (player.hp - finalDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
+                player.hp = 1;
                 result.gutsSurvive = true;
-                result.gutsSurvivePlayerName = defender.name;
+                result.gutsSurvivePlayerName = player.name;
             } else {
-                defender.hp = Math.max(0, defender.hp - finalDamage);
+                player.hp = Math.max(0, player.hp - finalDamage);
             }
             result.damage = finalDamage;
             result.playerHp = player.hp;
