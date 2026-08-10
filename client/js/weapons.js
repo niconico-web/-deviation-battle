@@ -800,10 +800,28 @@ function applyWeaponStats(baseStats, weapon) {
     // オリジナル武器の場合
     if (weapon.isOriginal) {
         const result = { ...baseStats };
-        const typeConf = WEAPON_TYPES[weapon.type];
+        let typeConf = WEAPON_TYPES[weapon.type];
         
         // 基本倍率を取得（武器種のbonusMultは適用しない）
         let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+
+        // デュアルウェポン能力による武器種情報のマージ
+        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.dualWeaponType) {
+            const dualWeaponInfo = WEAPON_TYPES[weapon.dualWeaponType];
+            if (typeConf && dualWeaponInfo) {
+                // primary, secondary, debuffをマージする
+                const mergedPrimary = [...new Set([...typeConf.primary, ...dualWeaponInfo.primary])];
+                const mergedSecondary = [...new Set([...typeConf.secondary, ...dualWeaponInfo.secondary])];
+                const mergedDebuff = {...typeConf.debuff, ...dualWeaponInfo.debuff};
+                
+                typeConf = {
+                    ...typeConf, // bonusMultなどは元の武器種のものを維持
+                    primary: mergedPrimary,
+                    secondary: mergedSecondary,
+                    debuff: mergedDebuff
+                };
+            }
+        }
         
         // カスタム補正を考慮した倍率計算
         const statMultipliers = { atk: mult, def: mult, speed: mult, maxHp: mult };
