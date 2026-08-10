@@ -144,6 +144,11 @@ function initializeSkillData(player) {
     if (player.totalSkillPoints == null) {
         player.totalSkillPoints = 0;
     }
+
+    // スキルスロットを初期化
+    if (!player.skillSlots || !Array.isArray(player.skillSlots) || player.skillSlots.length !== 3) {
+        player.skillSlots = [null, null, null]; // 3つのスキルスロット
+    }
     
     return player;
 }
@@ -242,6 +247,10 @@ function getSkillNodeEffects(player, weaponType) {
                 effect: node.effect
             });
         }
+    }
+    // カスタムスキルもアクティブスキルとして含める
+    if (player.customSkills && Array.isArray(player.customSkills)) {
+        effects.active = effects.active.concat(player.customSkills);
     }
     
     return effects;
@@ -435,7 +444,10 @@ function renderSkillTreeUI() {
     });
 
     // 初期表示
-    renderTree(Object.keys(SKILL_TREES)[0]);
+    const initialWeaponType = player.equippedWeapon ? player.equippedWeapon.type : Object.keys(SKILL_TREES)[0];
+    renderTree(initialWeaponType);
+    renderSkillSlots(player);
+    renderAvailableSkills(player);
     renderCustomSkillList(player);
 
     // イベントリスナー
@@ -462,14 +474,26 @@ function renderSkillTreeUI() {
     };
 }
 
+// ノード間の接続線を描画するためのヘルパー関数
+function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', isUnlocked ? '#28a745' : '#ccc');
+    line.setAttribute('stroke-width', '2');
+    svg.appendChild(line);
+}
+
 function renderTree(weaponType) {
     const content = document.querySelector('.skill-tree-content');
     const pointsDisplay = document.querySelector('.skill-points-display');
     if (!content || !pointsDisplay) return;
 
     const player = getPlayerData();
-    const treeData = SKILL_TREES[weaponType];
-    const playerData = player.skillTrees[weaponType];
+    const treeData = SKILL_TREES[weaponType]; // 選択された武器種のスキルツリー
+    const playerData = player.skillTrees[weaponType]; // プレイヤーのその武器種のスキルデータ
 
     pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints}`;
     content.innerHTML = '';
@@ -477,11 +501,19 @@ function renderTree(weaponType) {
     treeData.nodes.forEach(node => {
         const nodeEl = document.createElement('div');
         nodeEl.className = `skill-node ${node.type}`;
-        nodeEl.style.left = `${node.x * 80 + 400}px`;
-        nodeEl.style.top = `${node.y * 80 + 50}px`;
+        // ノードの位置を調整 (中央寄せを考慮)
+        const nodeX = node.x * 80 + 400;
+        const nodeY = node.y * 80 + 50;
+        nodeEl.style.left = `${nodeX}px`;
+        nodeEl.style.top = `${nodeY}px`;
         nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
 
         const isUnlocked = playerData.unlockedNodes.includes(node.id);
+        
+        // ノードのテキスト表示
+        const nodeText = document.createElement('span');
+        nodeText.textContent = node.name.substring(0, 1); // 最初の1文字を表示
+        nodeEl.appendChild(nodeText);
         let isUnlockable = false;
         if (!isUnlocked && playerData.availablePoints >= node.cost) {
             if (!node.requires) { // 開始ノード
@@ -512,7 +544,49 @@ function renderTree(weaponType) {
             }
         };
 
+        // ノードの接続線を描画
+        if (node.requires) {
+            const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
+            requirements.forEach(reqId => {
+                const requiredNode = treeData.nodes.find(n => n.id === reqId);
+                if (requiredNode) {
+                    const reqNodeX = requiredNode.x * 80 + 400;
+                    const reqNodeY = requiredNode.y * 80 + 50;
+                    drawConnection(content, reqNodeX + 20, reqNodeY + 20, nodeX + 20, nodeY + 20, isUnlocked);
+                }
+            });
+        }
+
         content.appendChild(nodeEl);
+    });
+}
+
+function renderSkillSlots(player) {
+    const slotsContainer = document.getElementById('skillSlotsContainer');
+    if (!slotsContainer) return;
+
+    slotsContainer.innerHTML = '';
+    player.skillSlots.forEach((skill, index) => {
+        const slotEl = document.createElement('div');
+        slotEl.className = 'skill-slot';
+        slotEl.dataset.slotIndex = index;
+        if (skill) {
+            slotEl.classList.add('filled');
+            slotEl.innerHTML = `<span>${skill.name}</span><button class="unequip-skill-btn" data-skill-id="${skill.id}">X</button>`;
+            slotEl.title = skill.description;
+        } else {
+            slotEl.textContent = `スロット ${index + 1}`;
+        }
+        slotsContainer.appendChild(slotEl);
+    });
+
+    slotsContainer.querySelectorAll('.unequip-skill-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation(); // 親要素のクリックイベントが発火しないように
+            const slotIndex = parseInt(btn.closest('.skill-slot').dataset.slotIndex);
+            const result = unequipSkillFromSlot(getPlayerData(), slotIndex);
+            if (result.success) { localStorage.setItem("player", JSON.stringify(result.player)); renderSkillTreeUI(); } else { alert(result.error); }
+        };
     });
 }
 
@@ -537,6 +611,68 @@ function renderCustomSkillList(player) {
     listContainer.appendChild(ul);
 }
 
+function renderAvailableSkills(player) {
+    const availableSkillsList = document.getElementById('availableSkillsList');
+    if (!availableSkillsList) return;
+
+    availableSkillsList.innerHTML = '';
+    const allActiveSkills = getSkillNodeEffects(player, player.equippedWeapon ? player.equippedWeapon.type : Object.keys(SKILL_TREES)[0]).active;
+
+    if (player.customSkills && Array.isArray(player.customSkills)) {
+        allActiveSkills.push(...player.customSkills);
+    }
+
+    if (allActiveSkills.length === 0) {
+        availableSkillsList.innerHTML = '<p>利用可能なアクティブスキルがありません。</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    allActiveSkills.forEach(skill => {
+        // 既にスキルスロットに装備されているスキルは表示しない
+        if (player.skillSlots.some(s => s && s.id === skill.id)) {
+            return;
+        }
+
+        const li = document.createElement('li');
+        li.className = 'available-skill-item';
+        li.textContent = skill.name;
+        li.title = skill.description;
+        li.onclick = () => {
+            const slotIndex = prompt(`「${skill.name}」をどのスロットに装備しますか？ (1, 2, 3)`, "1");
+            if (slotIndex === null) return;
+            const index = parseInt(slotIndex) - 1;
+            if (isNaN(index) || index < 0 || index >= 3) {
+                alert("無効なスロット番号です。1, 2, 3のいずれかを入力してください。");
+                return;
+            }
+            const result = equipSkillToSlot(getPlayerData(), skill.id, index);
+            if (result.success) {
+                localStorage.setItem("player", JSON.stringify(result.player));
+                renderSkillTreeUI(); // UI全体を再描画
+            } else {
+                alert(result.error);
+            }
+        };
+        ul.appendChild(li);
+    });
+    availableSkillsList.appendChild(ul);
+}
+
+function equipSkillToSlot(player, skillId, slotIndex) {
+    const allActiveSkills = getSkillNodeEffects(player, player.equippedWeapon ? player.equippedWeapon.type : Object.keys(SKILL_TREES)[0]).active;
+    const skillToEquip = allActiveSkills.find(s => s.id === skillId);
+    if (!skillToEquip) return { success: false, error: "不明なスキルです。" };
+    if (player.skillSlots.includes(skillToEquip)) return { success: false, error: "そのスキルは既に装備されています。" };
+    player.skillSlots[slotIndex] = skillToEquip;
+    return { success: true, player };
+}
+
+function unequipSkillFromSlot(player, slotIndex) {
+    player.skillSlots[slotIndex] = null;
+    return { success: true, player };
+}
+
 // グローバル関数としてエクスポート
 if (typeof window !== 'undefined') {
     window.SKILL_TREES = SKILL_TREES;
@@ -549,5 +685,7 @@ if (typeof window !== 'undefined') {
     window.applySkillEffectsToStats = applySkillEffectsToStats;
     window.validateCustomSkill = validateCustomSkill;
     window.createCustomSkill = createCustomSkill;
+    window.equipSkillToSlot = equipSkillToSlot;
+    window.unequipSkillFromSlot = unequipSkillFromSlot;
     window.renderSkillTreeUI = renderSkillTreeUI;
 }
