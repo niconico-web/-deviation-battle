@@ -415,7 +415,7 @@ function injectSkillTreeCSS() {
 /* --- Skill Tree Layout --- */
 .skill-tree-wrapper {
     display: flex;
-    height: 65vh; /* Viewport height based */
+    height: 70vh; /* Adjust overall height */
     border: 1px solid #ccc;
     border-radius: 8px;
     overflow: hidden;
@@ -434,7 +434,7 @@ function injectSkillTreeCSS() {
 
 .skill-management-panel {
     flex: 2; /* Make it a bit wider */
-    padding: 15px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -446,17 +446,17 @@ function injectSkillTreeCSS() {
 @media (max-width: 768px) {
     .skill-tree-wrapper {
         flex-direction: column;
-        height: auto;
-        max-height: 85vh;
+        height: 85vh; /* Use a fixed viewport height for scrolling */
     }
     .skill-tree-panel {
         border-right: none;
         border-bottom: 1px solid #555;
-        height: 45vh; /* Give the tree a fixed height on mobile */
+        height: 50vh; /* Adjust height for mobile */
         flex-shrink: 0;
     }
     .skill-management-panel {
-        flex: 1; /* Allow it to take remaining space and scroll */
+        flex: 1; /* This will now take the remaining space and scroll */
+        min-height: 0; /* Add this for safety in flex-column */
     }
 }
 
@@ -467,7 +467,7 @@ function injectSkillTreeCSS() {
 .skill-points-display { padding: 10px; background-color: #444; border-bottom: 1px solid #555; text-align: center; font-weight: bold; color: #fff; flex-shrink: 0; }
 .skill-tree-content { position: relative; flex-grow: 1; overflow: auto; background-color: #2a2a2a; background-image: radial-gradient(#444 1px, transparent 1px); background-size: 20px 20px; -webkit-overflow-scrolling: touch; }
 .skill-tree-content svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.skill-node { position: absolute; width: 70px; height: 50px; border-radius: 8px; border: 2px solid #777; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: #eee; background-color: #555; box-sizing: border-box; padding: 4px; text-align: center; line-height: 1.2; overflow: hidden; white-space: normal; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 1; }
+.skill-node { position: absolute; width: 60px; height: 40px; border-radius: 8px; border: 2px solid #777; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.65em; color: #eee; background-color: #555; box-sizing: border-box; padding: 4px; text-align: center; line-height: 1.2; overflow: hidden; white-space: normal; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 1; }
 .skill-node span { display: block; max-width: 100%; white-space: normal; overflow: hidden; text-overflow: ellipsis; }
 .skill-node.stat { background-color: #3a6b8a; border-color: #5a9bd3; }
 .skill-node.active { background-color: #8a3a3a; border-color: #d35a5a; }
@@ -478,16 +478,16 @@ function injectSkillTreeCSS() {
 .skill-node.locked { border-color: #666; cursor: not-allowed; opacity: 0.4; background-color: #444; }
 .skill-tree-content line { stroke-linecap: round; transition: stroke 0.2s; }
 .skill-slot-wrapper, .custom-skill-wrapper { flex: 0; min-width: auto; display: flex; flex-direction: column; gap: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.skill-slot-wrapper h3, .custom-skill-wrapper h3 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
-.skill-slots-container { display: flex; justify-content: center; gap: 10px; margin: 10px 0; padding: 10px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; flex-wrap: wrap; }
-.skill-slot { width: 90px; height: 50px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.skill-slot-wrapper h3, .custom-skill-wrapper h3 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; font-size: 1.1em; }
+.skill-slots-container { display: flex; justify-content: center; gap: 8px; margin: 8px 0; padding: 8px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; flex-wrap: wrap; }
+.skill-slot { width: 80px; height: 45px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.75em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .skill-slot.filled { background-color: #007bff; color: #fff; font-weight: bold; cursor: pointer; }
 .skill-slot.filled .unequip-skill-btn { position: absolute; top: 2px; right: 2px; background: rgba(255, 255, 255, 0.3); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7em; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
 .skill-slot.filled .unequip-skill-btn:hover { background: rgba(255, 255, 255, 0.5); }
-.available-skills-list { margin-top: 10px; max-height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
-.available-skill-item { padding: 8px; margin-bottom: 5px; background-color: #f0f8ff; border: 1px solid #d0e9ff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
+.available-skills-list { margin-top: 8px; max-height: 120px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
+.available-skill-item { padding: 6px; margin-bottom: 5px; background-color: #f0f8ff; border: 1px solid #d0e9ff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
 .available-skill-item:hover { background-color: #cce5ff; }
-.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 15px; }
+.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 10px; }
 .custom-skill-form input, .custom-skill-form textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 .custom-skill-form textarea { height: 60px; resize: vertical; }
     `;
@@ -604,11 +604,11 @@ function renderTree() {
     const maxY = Math.max(...allY);
 
     // 2. Calculate offsets and total size with padding
-    const PADDING = 100;
-    const NODE_H_SPACING = 85;
-    const NODE_V_SPACING = 85;
-    const NODE_WIDTH = 70;
-    const NODE_HEIGHT = 50;
+    const PADDING = 80;
+    const NODE_H_SPACING = 80;
+    const NODE_V_SPACING = 70;
+    const NODE_WIDTH = 60;
+    const NODE_HEIGHT = 40;
 
     const offsetX = -minX * NODE_H_SPACING + PADDING;
     const offsetY = -minY * NODE_V_SPACING + PADDING;
@@ -712,7 +712,7 @@ function renderTree() {
         setTimeout(() => { // Give a slight delay for rendering
             content.scrollTop = nodeY - (content.clientHeight / 2) + (NODE_HEIGHT / 2);
             content.scrollLeft = nodeX - (content.clientWidth / 2) + (NODE_WIDTH / 2);
-        }, 10);
+        }, 50);
     }
 }
 
