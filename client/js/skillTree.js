@@ -23,7 +23,7 @@ const SKILL_TREE = {
             { id: "atk_path_1", name: "攻撃II", description: "攻撃+10", cost: 2, x: -3, y: -1, requires: "core_atk_1", type: "stat", effect: { atk: 10 } },
             { id: "atk_path_2", name: "攻撃III", description: "攻撃+15", cost: 2, x: -5, y: -2, requires: "atk_path_1", type: "stat", effect: { atk: 15 } },
             { id: "gs_power_1", name: "剛力", description: "攻撃+10, HP+5", cost: 3, x: -7, y: -3, requires: "atk_path_2", type: "stat", effect: { atk: 10, maxHp: 5 } },
-            { id: "gs_cleave", name: "クリーブ", description: "次の攻撃のダメージ1.4倍、ただし自身の防御-10", cost: 4, x: -9, y: -4, requires: "gs_power_1", type: "active", effect: { damageMultiplier: 1.4, selfDefDebuff: 10 } },
+            { id: "gs_cleave", name: "クリーブ", description: "次の攻撃のダメージ1.4倍、ただし自身の防御-10", cost: 4, x: -9, y: -4, requires: "gs_power_1", type: "active", effect: { type: "active", damageMultiplier: 1.4, selfDefDebuff: 10 } },
             { id: "atk_mastery", name: "攻撃の極意", description: "常時攻撃+10%", cost: 5, x: -7, y: -5, requires: "gs_power_1", type: "passive", effect: { atkPercent: 0.1 } },
             { id: "atk_path_3", name: "速さ+", description: "速さ+5", cost: 1, x: -4, y: 0, requires: "atk_path_1", type: "stat", effect: { speed: 5 } },
 
@@ -31,7 +31,7 @@ const SKILL_TREE = {
             { id: "def_path_1", name: "防御II", description: "防御+10", cost: 2, x: 3, y: -1, requires: "core_def_1", type: "stat", effect: { def: 10 } },
             { id: "def_path_2", name: "防御III", description: "防御+15", cost: 2, x: 5, y: -2, requires: "def_path_1", type: "stat", effect: { def: 15 } },
             { id: "ss_tough_1", name: "不屈", description: "防御+10, HP+10", cost: 3, x: 7, y: -3, requires: "def_path_2", type: "stat", effect: { def: 10, maxHp: 10 } },
-            { id: "ss_guard_stance", name: "ガードスタンス", description: "次に受けるダメージを30%軽減", cost: 4, x: 9, y: -4, requires: "ss_tough_1", type: "active", effect: { damageReduction: 0.3 } },
+            { id: "ss_guard_stance", name: "ガードスタンス", description: "次に受けるダメージを30%軽減", cost: 4, x: 9, y: -4, requires: "ss_tough_1", type: "active", effect: { type: "active", damageReduction: 0.3 } },
             { id: "def_mastery", name: "防御の極意", description: "常時防御+10%", cost: 5, x: 7, y: -5, requires: "ss_tough_1", type: "passive", effect: { defPercent: 0.1 } },
             { id: "def_path_3", name: "HP+", description: "HP+10", cost: 1, x: 4, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 10 } },
 
@@ -39,7 +39,7 @@ const SKILL_TREE = {
             { id: "speed_path_1", name: "速さII", description: "速さ+10", cost: 2, x: -3, y: 2, requires: "core_speed_1", type: "stat", effect: { speed: 10 } },
             { id: "speed_path_2", name: "速さIII", description: "速さ+15", cost: 2, x: -5, y: 3, requires: "speed_path_1", type: "stat", effect: { speed: 15 } },
             { id: "ds_agile_1", name: "俊敏", description: "速さ+10, 攻撃+5", cost: 3, x: -7, y: 4, requires: "speed_path_2", type: "stat", effect: { speed: 10, atk: 5 } },
-            { id: "ds_twin_strike", name: "ツインスラッシュ", description: "次の攻撃が2回攻撃になる(1回のダメージは0.6倍)", cost: 4, x: -9, y: 5, requires: "ds_agile_1", type: "active", effect: { multiStrike: 2, multiStrikeMultiplier: 0.6 } },
+            { id: "ds_twin_strike", name: "ツインスラッシュ", description: "次の攻撃が2回攻撃になる(1回のダメージは0.6倍)", cost: 4, x: -9, y: 5, requires: "ds_agile_1", type: "active", effect: { type: "active", multiStrike: 2, multiStrikeMultiplier: 0.6 } },
             { id: "speed_mastery", name: "速さの極意", description: "常時速さ+10%", cost: 5, x: -7, y: 6, requires: "ds_agile_1", type: "passive", effect: { speedPercent: 0.1 } },
             { id: "speed_path_3", name: "攻撃+", description: "攻撃+5", cost: 1, x: -4, y: 1, requires: "speed_path_1", type: "stat", effect: { atk: 5 } },
 
@@ -47,33 +47,33 @@ const SKILL_TREE = {
             { id: "hp_path_1", name: "体力II", description: "HP+15", cost: 2, x: 3, y: 2, requires: "core_hp_1", type: "stat", effect: { maxHp: 15 } },
             { id: "hp_path_2", name: "体力III", description: "HP+20", cost: 2, x: 5, y: 3, requires: "hp_path_1", type: "stat", effect: { maxHp: 20 } },
             { id: "sc_vitality_1", name: "生命力", description: "HP+20, 防御+5", cost: 3, x: 7, y: 4, requires: "hp_path_2", type: "stat", effect: { maxHp: 20, def: 5 } },
-            { id: "sc_life_hunt", name: "ライフハント", description: "次の攻撃で与えたダメージの30%を吸収する", cost: 4, x: 9, y: 5, requires: "sc_vitality_1", type: "active", effect: { lifeSteal: 0.3 } },
+            { id: "sc_life_hunt", name: "ライフハント", description: "次の攻撃で与えたダメージの30%を吸収する", cost: 4, x: 9, y: 5, requires: "sc_vitality_1", type: "active", effect: { type: "active", lifeSteal: 0.3 } },
             { id: "hp_mastery", name: "体力の極意", description: "常時HP+10%", cost: 5, x: 7, y: 6, requires: "sc_vitality_1", type: "passive", effect: { maxHpPercent: 0.1 } },
             { id: "hp_path_3", name: "防御+", description: "防御+5", cost: 1, x: 4, y: 1, requires: "hp_path_1", type: "stat", effect: { def: 5 } },
 
             // --- 遠距離・魔法ルート (上部) ---
             { id: "magic_path_1", name: "魔力", description: "攻撃+5, 速さ+5", cost: 2, x: 0, y: -3, requires: "core_hp_1", type: "stat", effect: { atk: 5, speed: 5 } },
             { id: "magic_path_2", name: "魔力II", description: "攻撃+10", cost: 2, x: 0, y: -5, requires: "magic_path_1", type: "stat", effect: { atk: 10 } },
-            { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", cost: 3, x: 2, y: -6, requires: "magic_path_2", type: "active", effect: { damageMultiplier: 1.2, burn: true } },
-            { id: "mw_ice_lance", name: "アイスランス", description: "次の攻撃のダメージ1.1倍、敵の速さを低下", cost: 3, x: -2, y: -6, requires: "magic_path_2", type: "active", effect: { damageMultiplier: 1.1, speedDebuff: 0.2 } },
+            { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", cost: 3, x: 2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.2, burn: true } },
+            { id: "mw_ice_lance", name: "アイスランス", description: "次の攻撃のダメージ1.1倍、敵の速さを低下", cost: 3, x: -2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.1, speedDebuff: 0.2 } },
             { id: "magic_mastery", name: "魔力の極意", description: "常時 攻撃+5%, 速さ+5%", cost: 5, x: 0, y: -8, requires: ["mw_fireball", "mw_ice_lance"], type: "passive", effect: { atkPercent: 0.05, speedPercent: 0.05 } },
 
             // --- 特殊・クリティカルルート (左側) ---
             { id: "crit_path_1", name: "精密", description: "クリティカル率+2%", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
             { id: "crit_path_2", name: "痛撃", description: "クリティカルダメージ+10%", cost: 2, x: -10, y: 0, requires: "crit_path_1", type: "passive", effect: { critMultiplier: 0.1 } },
             { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
-            { id: "active_crit", name: "狙い澄まし", description: "次の攻撃は必ずクリティカルになる", cost: 4, x: -14, y: 0, requires: "crit_mastery", type: "active", effect: { nextAttackCrit: true } },
+            { id: "active_crit", name: "狙い澄まし", description: "次の攻撃は必ずクリティカルになる", cost: 4, x: -14, y: 0, requires: "crit_mastery", type: "active", effect: { type: "active", nextAttackCrit: true } },
 
             // --- タンク・防御ルート (右側) ---
             { id: "tank_path_1", name: "頑健", description: "HP+20", cost: 2, x: 8, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 20 } },
             { id: "tank_path_2", name: "鉄壁", description: "防御+15", cost: 2, x: 10, y: 0, requires: "tank_path_1", type: "stat", effect: { def: 15 } },
             { id: "tank_mastery", name: "不落の要塞", description: "常時 HP+5%, 防御+5%", cost: 5, x: 12, y: 0, requires: "tank_path_2", type: "passive", effect: { maxHpPercent: 0.05, defPercent: 0.05 } },
-            { id: "active_unbreakable", name: "不動", description: "次のターン、受けるダメージを80%軽減するが、行動できない", cost: 4, x: 14, y: 0, requires: "tank_mastery", type: "active", effect: { damageReduction: 0.8, skipNextTurn: true } },
+            { id: "active_unbreakable", name: "不動", description: "次のターン、受けるダメージを80%軽減するが、行動できない", cost: 4, x: 14, y: 0, requires: "tank_mastery", type: "active", effect: { type: "active", damageReduction: 0.8, skipNextTurn: true } },
 
             // --- 下部中央: ユーティリティ ---
             { id: "util_path_1", name: "熟練", description: "スキルコスト-1", cost: 3, x: 0, y: 4, requires: "core_speed_1", type: "passive", effect: { skillCostReduction: 1 } },
             { id: "util_path_2", name: "資源管理", description: "スキルポイントを3獲得", cost: 4, x: 0, y: 6, requires: "util_path_1", type: "passive", effect: { grantSkillPoints: 3 } },
-            { id: "active_reset", name: "リセット", description: "使用済みのスキルを1つだけ再度使用可能にする", cost: 5, x: 0, y: 8, requires: "util_path_2", type: "active", effect: { resetUsedSkill: 1 } },
+            { id: "active_reset", name: "リセット", description: "使用済みのスキルを1つだけ再度使用可能にする", cost: 5, x: 0, y: 8, requires: "util_path_2", type: "active", effect: { type: "active", resetUsedSkill: 1 } },
             
             // --- 接続ノード ---
             { id: "connector_1", name: "道", cost: 1, x: -6, y: 1, requires: ["speed_path_2", "atk_path_3"], type: "stat", effect: {} },
@@ -232,7 +232,8 @@ function getSkillNodeEffects(player) {
                 id: node.id,
                 name: node.name,
                 description: node.description,
-                effect: node.effect
+                effect: node.effect,
+                type: "active" // 明示的に型を追加
             });
         }
     }
