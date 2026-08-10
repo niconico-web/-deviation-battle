@@ -99,7 +99,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     const raw = localStorage.getItem("player"); if (!raw) return null;
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
-    const gainedXp = 0;
+    const gainedXp = calcBattleXp(won, turns, damage);
     let gainedCoins = 0;
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
