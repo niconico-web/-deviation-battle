@@ -671,6 +671,9 @@ window.onload = () => {
     };
     document.body.appendChild(skillTreeScript);
 
+    const saveDataSection = document.getElementById('saveDataSection');
+    const loadDataHelpText = document.getElementById('loadDataHelpText');
+
     const player = getPlayerData();
     if (player) {
         console.log("既存のプレイヤーデータ found:", player);
@@ -687,6 +690,9 @@ window.onload = () => {
         if (playerIdEl) playerIdEl.textContent = player.id;
         const saveDataBtn = document.getElementById("saveDataBtn");
         if (saveDataBtn) saveDataBtn.disabled = false;
+
+        if (saveDataSection) saveDataSection.style.display = 'block';
+        if (loadDataHelpText) loadDataHelpText.innerHTML = '入力したIDのデータをサーバーから読み込みます。<strong>現在のキャラクターデータは上書きされます。</strong>';
 
         // Auto-join room if pending
         if (window.pendingRoomJoin) {
