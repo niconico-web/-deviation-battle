@@ -36,7 +36,7 @@ module.exports = function(io){
         });
 
         socket.on("submitAnswer", (data) => {
-            const { roomId, answer } = data;
+            const { roomId, answer, skill } = data;
             const battle = BattleManager.getBattle(roomId);
             
             console.log(`[Battle] submitAnswer: roomId=${roomId}, socketId=${socket.id}, answer=${answer}`);
@@ -56,7 +56,7 @@ module.exports = function(io){
             
             console.log(`[Battle] Processing answer for player: ${playerId}`);
             
-            const result = BattleEngine.processAnswer(battle, playerId, answer);
+            const result = BattleEngine.processAnswer(battle, playerId, answer, skill);
             
             console.log(`[Battle] Answer result:`, result);
             

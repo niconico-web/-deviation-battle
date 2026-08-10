@@ -231,7 +231,7 @@ function applyLifeDrain(attacker, damageDealt) {
 // 回答を処理
 // -----------------------------
 
-function processAnswer(battle, playerId, answer) {
+function processAnswer(battle, playerId, answer, skill) {
     const player = battle.players[playerId];
     const enemyId = Object.keys(battle.players).find(id => id !== playerId);
     const enemy = battle.players[enemyId];
@@ -252,7 +252,8 @@ function processAnswer(battle, playerId, answer) {
         playerName: player.name,
         isCorrect,
         answerTime,
-        question: battle.currentQuestion.question
+        question: battle.currentQuestion.question,
+        skillUsed: null
     };
     
     // 両方のプレイヤーが回答したかチェック
@@ -276,6 +277,12 @@ function processAnswer(battle, playerId, answer) {
         
         // 先に正解した場合のみダメージを与える
         if (!defender.answerTime) {
+            // スキル効果を適用
+            if (skill && skill.effect && skill.effect.type === 'active') {
+                result.skillUsed = skill; // 使用したスキル情報を結果に含める
+                console.log(`[BattleEngine] Applying skill "${skill.name}" for player ${player.name}`);
+            }
+
             // 「根性」の攻撃力アップ効果
             let attackerAtk = attacker.atk;
             if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
@@ -289,6 +296,11 @@ function processAnswer(battle, playerId, answer) {
             
             let damageResult = calculateDamage(attacker, defender, answerTime, isAttackerSureHit, attackerAtk);
             let damage = damageResult.damage;
+            
+            // スキルによるダメージ倍率を適用
+            if (result.skillUsed && result.skillUsed.effect.damageMultiplier) {
+                damage = Math.floor(damage * result.skillUsed.effect.damageMultiplier);
+            }
             const dodgeChance = damageResult.dodgeChance;
             
             // 必殺技発動判定（ゲージが満タンの場合）
