@@ -505,7 +505,7 @@ function setupDOMEventHandlers() {
     }
 
     // --- Data Management UI Injection and Handlers ---
-    const characterSection = document.getElementById('section-character');
+    const characterSection = document.getElementById('section-stats');
     const deleteBtnEl = document.getElementById("deletePlayerBtn");
 
     if (characterSection) {
