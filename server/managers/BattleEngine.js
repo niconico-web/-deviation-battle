@@ -261,7 +261,7 @@ function getStatWithDebuffs(player, statName) {
 // 回答を処理
 // -----------------------------
 
-function processAnswer(battle, playerId, answer, skill) {
+function processAnswer(battle, playerId, answer, usedSkill) {
     const player = battle.players[playerId];
     const enemyId = Object.keys(battle.players).find(id => id !== playerId);
     const enemy = battle.players[enemyId];
@@ -283,7 +283,7 @@ function processAnswer(battle, playerId, answer, skill) {
         isCorrect,
         answerTime,
         question: battle.currentQuestion.question,
-        skillUsed: null
+        skillUsed: null,
     };
     
     // 両方のプレイヤーが回答したかチェック
@@ -309,28 +309,28 @@ function processAnswer(battle, playerId, answer, skill) {
         if (!defender.answerTime) {
             let skillIsActive = false;
             let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion"); // 必中能力
-            let isAttackerIgnoreDef = false;
+            let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half"); // 貫通能力
 
             // スキル効果を適用
-            if (skill && skill.effect && skill.effect.type === 'active') {
-                console.log(`[BattleEngine] Applying skill "${skill.name}" for player ${player.name}`);
+            if (usedSkill && usedSkill.effect && usedSkill.effect.type === 'active') {
+                console.log(`[BattleEngine] Applying skill "${usedSkill.name}" for player ${player.name}`);
                 let canApply = true;
                 // 条件チェック
-                if (skill.effect.condition) {
-                    const cond = skill.effect.condition;
+                if (usedSkill.effect.condition) {
+                    const cond = usedSkill.effect.condition;
                     if (cond.type === 'hp_below') {
                         if (attacker.hp / attacker.maxHp > cond.value) {
                             canApply = false;
                         }
                     }
                 }
-
+                
                 if (canApply) {
-                    result.skillUsed = skill; // 条件を満たした場合のみスキルを使用したとみなす
+                    result.skillUsed = usedSkill; // 条件を満たした場合のみスキルを使用したとみなす
                     skillIsActive = true;
                     // 必中効果
-                    if (skill.effect.ignoreDef) isAttackerIgnoreDef = true;
-                    if (skill.effect.selfDefDebuff) {
+                    if (usedSkill.effect.ignoreDef) isAttackerIgnoreDef = true;
+                    if (usedSkill.effect.selfDefDebuff) {
                         if (!attacker.debuffs) attacker.debuffs = [];
                         attacker.debuffs.push({
                             stat: 'def',
@@ -339,7 +339,7 @@ function processAnswer(battle, playerId, answer, skill) {
                             remainingTurns: 2 // このターンと次の相手のターンまで持続
                         });
                     }
-                    if (skill.effect.sureHit) isAttackerSureHit = true;
+                    if (usedSkill.effect.sureHit) isAttackerSureHit = true;
                 }
             }
 
@@ -361,8 +361,8 @@ function processAnswer(battle, playerId, answer, skill) {
             let damage = damageResult.damage;
             
             // スキルによるダメージ倍率を適用
-            if (skillIsActive && skill.effect.damageMultiplier) {
-                damage = Math.floor(damage * skill.effect.damageMultiplier);
+            if (skillIsActive && usedSkill.effect.damageMultiplier) {
+                damage = Math.floor(damage * usedSkill.effect.damageMultiplier);
             }
             const dodgeChance = damageResult.dodgeChance;
             
