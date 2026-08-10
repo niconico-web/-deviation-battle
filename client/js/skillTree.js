@@ -13,6 +13,7 @@ const SKILL_TREE = {
         nodes: [
             // 基礎ステータスノード
             { id: "ss_hp_1", name: "体力強化", description: "HP+5", effect: { maxHp: 5 }, cost: 1, x: 0, y: 0, type: "stat" },
+            { id: "ss_hp_0", name: "生命の源", description: "HP+10", effect: { maxHp: 10 }, cost: 0, x: 0, y: -1, type: "stat" }, // 開始ノード例
             { id: "ss_hp_2", name: "体力強化II", description: "HP+10", effect: { maxHp: 10 }, cost: 2, x: 0, y: 1, requires: "ss_hp_1", type: "stat" },
             { id: "ss_hp_3", name: "体力強化III", description: "HP+15", effect: { maxHp: 15 }, cost: 3, x: 0, y: 2, requires: "ss_hp_2", type: "stat" },
             
@@ -35,8 +36,24 @@ const SKILL_TREE = {
             // パッシブスキルノード
             { id: "ss_iron_skin", name: "アイアンスキン", description: "常時防御+10", effect: { type: "passive", def: 10 }, cost: 4, x: 0, y: 3, requires: ["ss_hp_3", "ss_def_3"], type: "passive" },
             { id: "ss_weapon_mastery", name: "ウェポンマスタリー", description: "常時攻撃+10", effect: { type: "passive", atk: 10 }, cost: 4, x: -1, y: 3, requires: "ss_atk_3", type: "passive" },
-            { id: "ss_fortress", name: "要塞", description: "常時HP+20、防御+5", effect: { type: "passive", maxHp: 20, def: 5 }, cost: 5, x: 1, y: 3, requires: "ss_iron_skin", type: "passive" },
-            // 今後、他の武器種のスキルもここに統合していきます
+            { id: "ss_fortress", name: "要塞", description: "常時HP+20、防御+5", effect: { type: "passive", maxHp: 20, def: 5 }, cost: 5, x: 1, y: 3, requires: "ss_iron_skin", type: "passive" }, // ss_iron_skinから分岐
+
+            // 長槍系ノードの例 (x座標をずらして配置)
+            { id: "sp_speed_1", name: "俊敏", description: "速さ+5", effect: { speed: 5 }, cost: 1, x: -2, y: 0, requires: "ss_atk_1", type: "stat" },
+            { id: "sp_speed_2", name: "俊敏II", description: "速さ+10", effect: { speed: 10 }, cost: 2, x: -3, y: 0, requires: "sp_speed_1", type: "stat" },
+            { id: "sp_pierce", name: "ピアース", description: "次の攻撃のダメージ1.1倍、敵防御無視", effect: { type: "active", damageMultiplier: 1.1, ignoreDef: true }, cost: 3, x: -4, y: 0, requires: "sp_speed_2", type: "active" },
+
+            // 大剣系ノードの例
+            { id: "gs_power_1", name: "剛力", description: "攻撃+10", effect: { atk: 10 }, cost: 1, x: -2, y: -1, requires: "ss_atk_1", type: "stat" },
+            { id: "gs_power_2", name: "剛力II", description: "攻撃+15", effect: { atk: 15 }, cost: 2, x: -3, y: -1, requires: "gs_power_1", type: "stat" },
+            { id: "gs_cleave", name: "クリーブ", description: "次の攻撃のダメージ1.4倍、ただし自身の防御-10", effect: { type: "active", damageMultiplier: 1.4, selfDefDebuff: 10 }, cost: 4, x: -4, y: -1, requires: "gs_power_2", type: "active" },
+
+            // 魔法の杖系ノードの例
+            { id: "mw_mana_1", name: "魔力", description: "スキルコスト-1", effect: { skillCostReduction: 1 }, cost: 1, x: 2, y: -1, requires: "ss_def_1", type: "stat" },
+            { id: "mw_mana_2", name: "魔力II", description: "スキルコスト-2", effect: { skillCostReduction: 2 }, cost: 2, x: 3, y: -1, requires: "mw_mana_1", type: "stat" },
+            { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", effect: { type: "active", damageMultiplier: 1.2, burn: true }, cost: 3, x: 4, y: -1, requires: "mw_mana_2", type: "active" },
+
+            // ここにさらにノードを追加して、ツリーを広げてください！
         ]
     }
 
@@ -253,7 +270,7 @@ function parseEffectFromDescription(description) {
     const finalEffect = { type: "active" };
     const desc = description.toLowerCase();
 
-    // 条件のパース (例: "hpが50%以下の時、")
+    // 条件のパース (例: "hpが50%以下の時")
     const hpConditionMatch = desc.match(/hpが([\d.]+)%以下/);
     if (hpConditionMatch) {
         finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
@@ -265,10 +282,28 @@ function parseEffectFromDescription(description) {
         finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]);
     }
 
+    // 例: "自身の防御-10"
+    const selfDefDebuffMatch = desc.match(/自身の防御-([\d.]+)/);
+    if (selfDefDebuffMatch && selfDefDebuffMatch[1]) {
+        finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]);
+    }
+
+    // 例: "敵防御無視"
+    const ignoreDefMatch = desc.match(/敵防御無視/);
+    if (ignoreDefMatch) {
+        finalEffect.ignoreDef = true;
+    }
+
     // 例: "受けるダメージを30%軽減" -> { damageReduction: 0.3 }
     const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
     if (damageReductionMatch && damageReductionMatch[1]) {
         finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0;
+    }
+
+    // 例: "敵に火傷付与"
+    const burnMatch = desc.match(/火傷付与/);
+    if (burnMatch) {
+        finalEffect.burn = true;
     }
 
     // 例: "次の攻撃を必中にする" -> { sureHit: true }
@@ -277,8 +312,8 @@ function parseEffectFromDescription(description) {
         finalEffect.sureHit = true;
     }
 
-    // 何かしらの効果がパースできたかチェック
-    const hasAction = finalEffect.damageMultiplier || finalEffect.damageReduction || finalEffect.sureHit;
+    // 何かしらの効果がパースできたかチェック (新しい効果も追加)
+    const hasAction = finalEffect.damageMultiplier || finalEffect.damageReduction || finalEffect.sureHit || finalEffect.selfDefDebuff || finalEffect.ignoreDef || finalEffect.burn;
     if (!hasAction) {
         return null; // 解釈できる効果がなかった
     }
@@ -464,7 +499,7 @@ function renderTree() {
         const isUnlocked = playerData.unlockedNodes.includes(node.id);
         
         const nodeText = document.createElement('span');
-        nodeText.textContent = node.name.substring(0, 1);
+        nodeText.textContent = node.name; // フルネームを表示
         nodeEl.appendChild(nodeText);
 
         let isUnlockable = false;
