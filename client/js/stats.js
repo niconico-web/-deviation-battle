@@ -39,10 +39,13 @@ function validateStatAllocation(stats) {
 }
 
 function generatePlayerId() {
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
-        return "p_" + crypto.randomUUID();
+    // 6桁の英大文字と数字で構成されるIDを生成
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return "p_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+    return result;
 }
 
 function migratePlayer(player) {
