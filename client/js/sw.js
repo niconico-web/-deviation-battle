@@ -36,6 +36,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // APIリクエストとsocket.io関連のリクエストはキャッシュしない
+  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
+    return;
+  }
+
   // URLクエリパラメータを無視してキャッシュを検索
   event.respondWith(
     caches.match(event.request, { ignoreSearch: true })

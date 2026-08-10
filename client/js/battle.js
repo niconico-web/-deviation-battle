@@ -13,11 +13,6 @@ let usedSkills = [];
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
 
-// ソケットが存在しない場合の安全対策
-if (socket) {
-    socket.connected = false;
-}
-
 const turnText = document.getElementById("turnText");
 const myName = document.getElementById("myName");
 const enemyName = document.getElementById("enemyName");
@@ -1254,6 +1249,15 @@ function generateBotQuestion() {
         generateChoices(currentQuestion);
         startTimer();
         addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+
+        // 3秒間のスキル選択タイム
+        setTimeout(() => {
+            addLog("3秒以内にスキルを選択してください！");
+            enableSkillButtons(true);
+            setTimeout(() => {
+                enableSkillButtons(false);
+            }, 3000);
+        }, 500);
     });
 }
 
@@ -1773,12 +1777,19 @@ if (!isBotBattle && socket) {
         
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
-            // 選択肢を生成
-            enableSkillButtons(true); // スキルボタンを有効化
             generateChoices(currentQuestion);
             startTimer();
             const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
             addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+
+            // 3秒間のスキル選択タイム
+            setTimeout(() => {
+                addLog("3秒以内にスキルを選択してください！");
+                enableSkillButtons(true);
+                setTimeout(() => {
+                    enableSkillButtons(false);
+                }, 3000);
+            }, 500);
         });
     });
 
@@ -1848,12 +1859,18 @@ if (!isBotBattle && socket) {
             setTimeout(() => {
                 currentQuestion = data.nextQuestion;
                 showCountdown(() => {
-                    enableSkillButtons(true); // スキルボタンを有効化
-                    questionDisplay.textContent = currentQuestion.question;
-                    generateChoices(currentQuestion);
-                    startTimer();
-                    const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-                    addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+                    questionDisplay.textContent = "スキルを選択してください (3秒)";
+                    choicesContainer.innerHTML = '';
+                    enableSkillButtons(true);
+
+                    setTimeout(() => {
+                        enableSkillButtons(false);
+                        questionDisplay.textContent = currentQuestion.question;
+                        generateChoices(currentQuestion);
+                        startTimer();
+                        const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+                        addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+                    }, 3000);
                 });
             }, animationDelay);
         }
@@ -1894,6 +1911,61 @@ if (!isBotBattle && socket) {
             }
         }, 15000); // 15秒待つ
     });
+}
+
+function renderSkills() {
+    if (!skillsContainer || !activeSkills || activeSkills.length === 0) {
+        if(skillsContainer) skillsContainer.innerHTML = "<p>アクティブスキル未装備</p>";
+        return;
+    }
+
+    skillsContainer.innerHTML = '';
+    activeSkills.forEach((skill) => {
+        if (!skill) return;
+        const isUsed = usedSkills.includes(skill.id);
+        const skillButton = document.createElement('button');
+        skillButton.className = 'skill-btn';
+        skillButton.dataset.skillId = skill.id;
+        skillButton.textContent = skill.name;
+        skillButton.title = skill.description;
+        skillButton.disabled = true; // 初期状態は無効
+
+        if (isUsed) {
+            skillButton.disabled = true;
+            skillButton.classList.add('used');
+        }
+
+        skillButton.onclick = () => selectSkill(skill, skillButton);
+        skillsContainer.appendChild(skillButton);
+    });
+}
+
+function selectSkill(skill, button) {
+    document.querySelectorAll('.skill-btn.selected').forEach(btn => {
+        if (btn !== button) btn.classList.remove('selected');
+    });
+
+    button.classList.toggle('selected');
+
+    if (button.classList.contains('selected')) {
+        selectedSkill = skill;
+        addLog(`スキル「${skill.name}」を選択しました。`);
+    } else {
+        selectedSkill = null;
+        addLog(`スキル「${skill.name}」の選択を解除しました。`);
+    }
+}
+
+function enableSkillButtons(enable) {
+    document.querySelectorAll('.skill-btn').forEach(btn => {
+        if (!btn.classList.contains('used')) {
+            btn.disabled = !enable;
+        }
+    });
+    if (!enable) {
+        selectedSkill = null;
+        document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
+    }
 }
 
 function getSavedPlayer() {
