@@ -263,6 +263,7 @@ function applyStudyRewards(seconds) {
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
     let statGain = calcStatGain(seconds);
+    const oldLevel = player.level || calcLevel(player.xp || 0);
     
     // 圧倒的成長性をチェック
     let hasOverwhelmingGrowth = false;
@@ -286,7 +287,7 @@ function applyStudyRewards(seconds) {
 
     let gainedCoins = 0;
     if (seconds >= STUDY_COIN_THRESHOLD) {
-        gainedCoins = 20; // 30分以上の勉強で20コイン獲得
+        gainedCoins = COIN_STUDY_30MIN;
     }
 
     // オーブドロップ判定（25分以上で確定）
@@ -295,7 +296,15 @@ function applyStudyRewards(seconds) {
         droppedOrb = rollOrbDrop(1.0); // 100%ドロップ
     }
 
-    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
+    const newXp = (player.xp || 0) + gainedXp;
+    const newLevel = calcLevel(newXp);
+
+    if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
+        player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
+        alert(`レベルアップ！ Lv${newLevel}\nスキルポイントを ${ (newLevel - oldLevel) * SKILL_POINTS_PER_LEVEL } 獲得しました！`);
+    }
+
+    const updated = buildPlayer(player.name, stats, newXp, {
         hp,
         totalStudySeconds: (player.totalStudySeconds || 0) + seconds,
         grade: player.grade,
@@ -304,7 +313,9 @@ function applyStudyRewards(seconds) {
         weapons: player.weapons,
         equippedWeapon: player.equippedWeapon,
         weaponWins: player.weaponWins,
-        orbs: player.orbs || []
+        orbs: player.orbs || [],
+        skillTrees: player.skillTrees,
+        totalSkillPoints: player.totalSkillPoints
     });
 
     // オーブを追加
@@ -320,14 +331,13 @@ function applyStudyRewards(seconds) {
     const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engDefSpeed, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
     let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
     if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
-    if (gainedCoins > 0) {
-        msg += `\n30分以上の勉強ボーナス +${gainedCoins}コイン`;
-    }
+    if (gainedCoins > 0) msg += `\n30分以上の勉強ボーナス +${gainedCoins}コイン`;
     if (droppedOrb && typeof getOrbDisplayName === "function") {
         msg += "\n\n★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
     }
     alert(msg);
     if (typeof renderShop === "function") {
+        renderOriginalWeapons();
         renderShop();
         renderInventory();
     }
@@ -381,6 +391,20 @@ function setupDOMEventHandlers() {
     const sidebar = document.querySelector('.sidebar');
     const menuButtons = document.querySelectorAll('.menu-btn');
 
+    // スキルツリーのメニュー項目を動的に追加
+    const skillTreeBtn = document.createElement('button');
+    skillTreeBtn.className = 'menu-btn';
+    skillTreeBtn.dataset.section = 'skill-tree';
+    skillTreeBtn.innerHTML = '<span>🔧</span> スキルツリー';
+    sidebar.insertBefore(skillTreeBtn, document.querySelector('.menu-btn[data-section="help"]'));
+
+    // スキルツリーのセクションを動的に追加
+    const skillTreeSection = document.createElement('section');
+    skillTreeSection.id = 'section-skill-tree';
+    skillTreeSection.className = 'content-section';
+    skillTreeSection.innerHTML = `<h2>スキルツリー</h2><div id="skillTreeContainer"></div>`;
+    document.querySelector('main').appendChild(skillTreeSection);
+
     if (mobileMenuToggle && sidebar) {
         // Listener for the main toggle button
         mobileMenuToggle.addEventListener('click', (e) => {
@@ -390,23 +414,11 @@ function setupDOMEventHandlers() {
         });
     }
 
-    // Listener for menu item clicks
-    menuButtons.forEach(button => {
+    // 更新されたメニューボタンリストでリスナーを再設定
+    document.querySelectorAll('.menu-btn').forEach(button => {
         button.addEventListener('click', () => {
-            // If it's a section-switching button
-            if (button.dataset.section) {
-                const section = button.dataset.section;
-                // Deactivate all sections and other menu buttons
-                document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
-                menuButtons.forEach(btn => btn.classList.remove('active'));
-
-                // Activate the target section and the clicked button
-                const activeSection = document.getElementById(`section-${section}`);
-                if (activeSection) {
-                    activeSection.classList.add('active');
-                }
-                button.classList.add('active');
-            }
+            const section = button.dataset.section;
+            switchSection(section);
 
             // On mobile, close the sidebar after ANY menu item is clicked
             if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('active')) {
@@ -460,6 +472,22 @@ function setupDOMEventHandlers() {
     if (studyFocusSelect) {
         studyFocusSelect.onchange = updateStatGrowthInfo;
     }
+}
+
+function switchSection(section) {
+    if (!section) return;
+
+    // Deactivate all sections and other menu buttons
+    document.querySelectorAll('.content-section').forEach(sec => sec.classList.remove('active'));
+    document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
+
+    // Activate the target section and the clicked button
+    const activeSection = document.getElementById(`section-${section}`);
+    if (activeSection) {
+        activeSection.classList.add('active');
+    }
+    const activeButton = document.querySelector(`.menu-btn[data-section="${section}"]`);
+    if (activeButton) activeButton.classList.add('active');
 }
 
 STAT_KEYS.forEach(key => {
@@ -554,6 +582,14 @@ window.onload = () => {
 
     // Setup DOM event handlers
     setupDOMEventHandlers();
+
+    // skillTree.jsを読み込み、完了後UIを初期化
+    const skillTreeScript = document.createElement('script');
+    skillTreeScript.src = 'js/skillTree.js';
+    skillTreeScript.onload = () => {
+        if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+    };
+    document.body.appendChild(skillTreeScript);
 
     const player = getPlayerData();
     if (player) {

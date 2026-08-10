@@ -6,7 +6,10 @@ const enemyData = localStorage.getItem("enemy");
 let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
-
+let activeSkills = []; // プレイヤーが使用可能なアクティブスキル
+let selectedSkill = null; // プレイヤーが選択したスキル
+let usedSkills = []; // このバトルで使用済みのスキルID
+ 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
 
@@ -40,6 +43,7 @@ const questionDisplay = document.getElementById("questionDisplay");
 const choicesContainer = document.getElementById("choicesContainer");
 const timerDisplay = document.getElementById("timer");
 const log = document.getElementById("log");
+const skillsContainer = document.getElementById("skillsContainer");
 
 function statLabel(k, v) {
     return I18N[k] + I18N.colon + v;
@@ -117,6 +121,13 @@ function initialize() {
     updateHP();
     updateUltimateGauge();
     addLog(I18N.battleBegin);
+
+    // スキルツリーからアクティブスキルを取得してUIに表示
+    if (typeof getSkillNodeEffects === 'function' && me.equippedWeapon) {
+        const skillEffects = getSkillNodeEffects(me, me.equippedWeapon.type);
+        activeSkills = skillEffects.active;
+        renderSkills();
+    }
 
     if (isBotBattle) {
         startBotBattle();
@@ -827,17 +838,60 @@ function shuffleArray(array) {
     return newArray;
 }
 
+function renderSkills() {
+    if (!skillsContainer || !activeSkills || activeSkills.length === 0) return;
+
+    skillsContainer.innerHTML = '';
+    activeSkills.forEach(skill => {
+        const isUsed = usedSkills.includes(skill.id);
+        const skillButton = document.createElement('button');
+        skillButton.className = 'skill-btn';
+        skillButton.dataset.skillId = skill.id;
+        skillButton.textContent = skill.name;
+        skillButton.title = skill.description;
+        skillButton.disabled = isUsed;
+
+        skillButton.onclick = () => {
+            if (selectedSkill && selectedSkill.id === skill.id) {
+                // スキル選択を解除
+                selectedSkill = null;
+                skillButton.classList.remove('selected');
+                addLog(`スキル「${skill.name}」の選択を解除しました。`);
+            } else {
+                // 他のスキルが選択されていれば解除
+                document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
+                // 新しいスキルを選択
+                selectedSkill = skill;
+                skillButton.classList.add('selected');
+                addLog(`スキル「${skill.name}」を選択しました。次の問題で正解すると発動します。`);
+            }
+        };
+
+        skillsContainer.appendChild(skillButton);
+    });
+}
+
+function enableSkillButtons(enable) {
+    document.querySelectorAll('.skill-btn').forEach(btn => {
+        if (!usedSkills.includes(btn.dataset.skillId)) {
+            btn.disabled = !enable;
+        }
+    });
+}
+
 function handleChoiceClick(selectedOption) {
     // ボタンを無効化
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
     buttons.forEach(btn => btn.disabled = true);
+    enableSkillButtons(false); // スキルボタンを無効化
     
     if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
         socket.emit("submitAnswer", {
             roomId,
-            answer: selectedOption
+            answer: selectedOption,
+            skill: selectedSkill // 選択したスキル情報を送信
         });
     }
 }
@@ -1762,6 +1816,7 @@ if (!isBotBattle && socket) {
         showCountdown(() => {
             questionDisplay.textContent = currentQuestion.question;
             // 選択肢を生成
+            enableSkillButtons(true); // スキルボタンを有効化
             generateChoices(currentQuestion);
             startTimer();
             const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
@@ -1770,6 +1825,16 @@ if (!isBotBattle && socket) {
     });
 
     socket.on("answerResult", data => {
+        // スキルが使用されたら使用済みリストに追加し、ボタンを無効化
+        if (data.skillUsed) {
+            usedSkills.push(data.skillUsed.id);
+            const usedButton = document.querySelector(`.skill-btn[data-skill-id="${data.skillUsed.id}"]`);
+            if (usedButton) {
+                usedButton.disabled = true;
+            }
+        }
+        selectedSkill = null; // スキル選択をリセット
+        document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
         console.log("answerResult received:", data);
         const answererIsMe = data.playerId === me.id;
 
@@ -1825,6 +1890,7 @@ if (!isBotBattle && socket) {
             setTimeout(() => {
                 currentQuestion = data.nextQuestion;
                 showCountdown(() => {
+                    enableSkillButtons(true); // スキルボタンを有効化
                     questionDisplay.textContent = currentQuestion.question;
                     generateChoices(currentQuestion);
                     startTimer();

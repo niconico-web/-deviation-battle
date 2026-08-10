@@ -52,6 +52,10 @@ function migratePlayer(player) {
     if (!player.weapons) player.weapons = [];
     if (!player.weaponWins) player.weaponWins = {};
     if (!player.orbs) player.orbs = [];
+    if (typeof initializeSkillData === 'function') {
+        player = initializeSkillData(player);
+    }
+
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
         return {
@@ -120,7 +124,16 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         player = removeWeaponFromPlayer(player, options.lostWeapon.id);
     }
 
-    const updated = buildPlayer(player.name, stats, (player.xp || 0) + gainedXp, {
+    const oldLevel = player.level || calcLevel(player.xp || 0);
+    const newXp = (player.xp || 0) + gainedXp;
+    const newLevel = calcLevel(newXp);
+
+    if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
+        player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
+        alert(`レベルアップ！ Lv${newLevel}\nスキルポイントを ${ (newLevel - oldLevel) * SKILL_POINTS_PER_LEVEL } 獲得しました！`);
+    }
+
+    const updated = buildPlayer(player.name, stats, newXp, {
         hp: player.hp,
         totalStudySeconds: player.totalStudySeconds || 0,
         id: player.id,
@@ -128,7 +141,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         weapons: player.weapons,
         equippedWeapon: player.equippedWeapon,
         weaponWins: player.weaponWins,
-        orbs: player.orbs || []
+        orbs: player.orbs || [],
+        skillTrees: player.skillTrees,
+        totalSkillPoints: player.totalSkillPoints
     });
 
     // オーブを追加
@@ -184,7 +199,9 @@ function buildPlayer(name, stats, xp, options = {}) {
         weapons: options.weapons || [],
         equippedWeapon: options.equippedWeapon || null,
         weaponWins: options.weaponWins || {},
-        orbs: options.orbs || []
+        orbs: options.orbs || [],
+        skillTrees: options.skillTrees || {},
+        totalSkillPoints: options.totalSkillPoints || 0
     };
 }
 
