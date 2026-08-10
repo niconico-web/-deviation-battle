@@ -6,10 +6,9 @@
 // スキルポイント獲得量（レベルアップごと）
 const SKILL_POINTS_PER_LEVEL = 2;
 
-// 武器種別ごとのスキルツリー定義
-const SKILL_TREES = {
-    sword_shield: {
-        name: "片手剣＋盾",
+// 統合された単一のスキルツリー定義
+const SKILL_TREE = {
+        name: "総合スキルツリー",
         description: "防御と攻撃のバランスを重視したスキルツリー",
         nodes: [
             // 基礎ステータスノード
@@ -37,65 +36,9 @@ const SKILL_TREES = {
             { id: "ss_iron_skin", name: "アイアンスキン", description: "常時防御+10", effect: { type: "passive", def: 10 }, cost: 4, x: 0, y: 3, requires: ["ss_hp_3", "ss_def_3"], type: "passive" },
             { id: "ss_weapon_mastery", name: "ウェポンマスタリー", description: "常時攻撃+10", effect: { type: "passive", atk: 10 }, cost: 4, x: -1, y: 3, requires: "ss_atk_3", type: "passive" },
             { id: "ss_fortress", name: "要塞", description: "常時HP+20、防御+5", effect: { type: "passive", maxHp: 20, def: 5 }, cost: 5, x: 1, y: 3, requires: "ss_iron_skin", type: "passive" },
-        ]
-    },
-    
-    spear: {
-        name: "長槍",
-        description: "攻撃と速さを重視したスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    greatsword: {
-        name: "大剣",
-        description: "攻撃力特化のスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    dual_swords: {
-        name: "双剣",
-        description: "速さと連続攻撃を重視したスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    scythe: {
-        name: "鎌",
-        description: "全ステータスバランス型のスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    pistol: {
-        name: "ピストル",
-        description: "速さとHPを重視したスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    katana: {
-        name: "刀",
-        description: "防御と速さを重視したスキルツリー",
-        nodes: [
-            // ... more nodes
-        ]
-    },
-    
-    magic_wand: {
-        name: "魔法の杖",
-        description: "攻撃とHPを重視したスキルツリー",
-        nodes: [
-            // ... more nodes
+            // 今後、他の武器種のスキルもここに統合していきます
         ]
     }
-};
 
 // カスタムスキル作成コスト
 const CUSTOM_SKILL_COST = 100;
@@ -126,23 +69,15 @@ const CUSTOM_SKILL_VALIDATION = {
 
 // プレイヤーのスキルデータ初期化
 function initializeSkillData(player) {
-    if (!player.skillTrees) {
-        player.skillTrees = {};
+    if (!player.skillTree) {
+        player.skillTree = {
+            unlockedNodes: [],
+            availablePoints: 0
+        };
     }
     
-    // 全武器種のスキルツリーを初期化
-    for (const weaponType in SKILL_TREES) {
-        if (!player.skillTrees[weaponType]) {
-            player.skillTrees[weaponType] = {
-                unlockedNodes: [], // アンロックしたノードIDのリスト
-                availablePoints: 0 // その武器種で使用可能なスキルポイント
-            };
-        }
-    }
-    
-    // 総スキルポイントを初期化
-    if (player.totalSkillPoints == null) {
-        player.totalSkillPoints = 0;
+    if (player.skillTree.availablePoints == null) {
+        player.skillTree.availablePoints = 0;
     }
 
     // スキルスロットを初期化
@@ -158,23 +93,18 @@ function addSkillPointsOnLevelUp(player, oldLevel, newLevel) {
     const levelsGained = newLevel - oldLevel;
     const pointsGained = levelsGained * SKILL_POINTS_PER_LEVEL;
     
-    player.totalSkillPoints = (player.totalSkillPoints || 0) + pointsGained;
-    
-    // 全武器種の使用可能ポイントを増加
     player = initializeSkillData(player);
-    for (const weaponType in player.skillTrees) {
-        player.skillTrees[weaponType].availablePoints += pointsGained;
-    }
+    player.skillTree.availablePoints += pointsGained;
     
     return player;
 }
 
 // スキルノードのアンロック
-function unlockSkillNode(player, weaponType, nodeId) {
+function unlockSkillNode(player, nodeId) {
     player = initializeSkillData(player);
     
-    const skillTree = SKILL_TREES[weaponType];
-    if (!skillTree) {
+    const skillTree = SKILL_TREE;
+    if (!skillTree || !skillTree.nodes) {
         return { success: false, error: "不明な武器種です" };
     }
     
@@ -183,7 +113,7 @@ function unlockSkillNode(player, weaponType, nodeId) {
         return { success: false, error: "不明なスキルノードです" };
     }
     
-    const playerTreeData = player.skillTrees[weaponType];
+    const playerTreeData = player.skillTree;
     
     // 既にアンロック済み
     if (playerTreeData.unlockedNodes.includes(nodeId)) {
@@ -213,21 +143,21 @@ function unlockSkillNode(player, weaponType, nodeId) {
 }
 
 // スキルノードの効果を取得
-function getSkillNodeEffects(player, weaponType) {
+function getSkillNodeEffects(player) {
     player = initializeSkillData(player);
     
     const effects = {
         passive: { maxHp: 0, atk: 0, def: 0, speed: 0 },
         active: []
     };
-    
-    const playerTreeData = player.skillTrees[weaponType];
+
+    const playerTreeData = player.skillTree;
     if (!playerTreeData) return effects;
     
-    const skillTree = SKILL_TREES[weaponType];
+    const skillTree = SKILL_TREE;
     if (!skillTree) return effects;
     
-    for (const nodeId of playerTreeData.unlockedNodes) {
+    for (const nodeId of playerTreeData.unlockedNodes || []) {
         const node = skillTree.nodes.find(n => n.id === nodeId);
         if (!node) continue;
         
@@ -267,7 +197,7 @@ function getSkillNodeEffects(player, weaponType) {
 
 // スキル効果をステータスに適用
 function applySkillEffectsToStats(baseStats, player, weaponType) {
-    const effects = getSkillNodeEffects(player, weaponType);
+    const effects = getSkillNodeEffects(player);
     
     const stats = { ...baseStats };
     stats.maxHp += effects.passive.maxHp;
@@ -413,7 +343,7 @@ function renderSkillTreeUI() {
 
     container.innerHTML = `
         <div class="skill-tree-ui">
-            <div class="skill-tree-tabs"></div>
+            <div class="skill-tree-header">${SKILL_TREE.name}</div>
             <div class="skill-tree-content-wrapper">
                 <div class="skill-points-display"></div>
                 <div class="skill-tree-content"></div>
@@ -444,29 +374,8 @@ function renderSkillTreeUI() {
         </div>
     `;
 
-    const tabsContainer = container.querySelector('.skill-tree-tabs');
-    Object.keys(SKILL_TREES).forEach((type, index) => {
-        const tab = document.createElement('button');
-        tab.className = 'skill-tree-tab';
-        tab.textContent = SKILL_TREES[type].name;
-        tab.dataset.type = type;
-        tab.onclick = () => {
-            if (tabsContainer.querySelector('.active')) {
-                tabsContainer.querySelector('.active').classList.remove('active');
-            }
-            tab.classList.add('active');
-            renderTree(type);
-        };
-        tabsContainer.appendChild(tab);
-    });
-
     // 初期表示
-    const initialWeaponType = player.equippedWeapon ? player.equippedWeapon.type : Object.keys(SKILL_TREES)[0];
-    const initialTab = tabsContainer.querySelector(`[data-type="${initialWeaponType}"]`) || tabsContainer.firstChild;
-    if (initialTab) {
-        initialTab.classList.add('active');
-        renderTree(initialWeaponType);
-    }
+    renderTree();
 
     renderSkillSlots(player);
     renderAvailableSkills(player);
@@ -508,21 +417,16 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
     svg.appendChild(line);
 }
 
-function renderTree(weaponType) {
+function renderTree() {
     const content = document.querySelector('.skill-tree-content');
     const pointsDisplay = document.querySelector('.skill-points-display');
     if (!content || !pointsDisplay) return;
 
     const player = getPlayerData();
-    const treeData = SKILL_TREES[weaponType];
-    if (!treeData || !treeData.nodes || treeData.nodes.length === 0) {
-        content.innerHTML = `<p>「${SKILL_TREES[weaponType]?.name || weaponType}」のスキルツリーはまだ実装されていません。</p>`;
-        pointsDisplay.textContent = `利用可能スキルポイント: 0`;
-        return;
-    }
-    const playerData = player.skillTrees[weaponType]; // プレイヤーのその武器種のスキルデータ
+    const treeData = SKILL_TREE;
+    const playerData = player.skillTree;
 
-    pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints}`;
+    pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
 
     // SVGコンテナを作成して線を描画
@@ -582,10 +486,10 @@ function renderTree(weaponType) {
         nodeEl.onclick = () => {
             if (isUnlockable) {
                 if (confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) {
-                    const result = unlockSkillNode(getPlayerData(), weaponType, node.id);
+                    const result = unlockSkillNode(getPlayerData(), node.id);
                     if (result.success) {
                         localStorage.setItem("player", JSON.stringify(result.player));
-                        renderTree(weaponType); // ツリーを再描画
+                        renderTree(); // ツリーを再描画
                         renderAvailableSkills(result.player); // 利用可能スキルリストも更新
                     } else {
                         alert(result.error);
@@ -653,12 +557,8 @@ function renderAvailableSkills(player) {
     if (!availableSkillsList) return;
 
     availableSkillsList.innerHTML = '';
-    // 全武器種のアンロック済みアクティブスキルとカスタムスキルを取得
-    let allAvailableSkills = [];
-    for (const weaponType in SKILL_TREES) {
-        const effects = getSkillNodeEffects(player, weaponType);
-        allAvailableSkills.push(...effects.active);
-    }
+    const effects = getSkillNodeEffects(player);
+    let allAvailableSkills = effects.active;
     // 重複を削除
     allAvailableSkills = allAvailableSkills.filter((skill, index, self) =>
         index === self.findIndex((s) => s.id === skill.id)
@@ -703,15 +603,13 @@ function renderAvailableSkills(player) {
 }
 
 function equipSkillToSlot(player, skillId, slotIndex) {
-    // 全武器種のアンロック済みアクティブスキルとカスタムスキルを取得
-    let allAvailableSkills = [];
-    for (const weaponType in SKILL_TREES) {
-        const effects = getSkillNodeEffects(player, weaponType);
-        allAvailableSkills.push(...effects.active);
-    }
+    const effects = getSkillNodeEffects(player);
+    let allAvailableSkills = effects.active;
+
     allAvailableSkills = allAvailableSkills.filter((skill, index, self) =>
         index === self.findIndex((s) => s.id === skill.id)
     );
+
     const skillToEquip = allAvailableSkills.find(s => s.id === skillId);
     if (!skillToEquip) return { success: false, error: "不明なスキルです。" };
     if (player.skillSlots.includes(skillToEquip)) return { success: false, error: "そのスキルは既に装備されています。" };
@@ -726,7 +624,7 @@ function unequipSkillFromSlot(player, slotIndex) {
 
 // グローバル関数としてエクスポート
 if (typeof window !== 'undefined') {
-    window.SKILL_TREES = SKILL_TREES;
+    window.SKILL_TREE = SKILL_TREE;
     window.SKILL_POINTS_PER_LEVEL = SKILL_POINTS_PER_LEVEL;
     window.CUSTOM_SKILL_COST = CUSTOM_SKILL_COST;
     window.initializeSkillData = initializeSkillData;

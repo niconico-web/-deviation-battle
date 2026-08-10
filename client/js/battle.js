@@ -122,16 +122,10 @@ function initialize() {
     updateUltimateGauge();
     addLog(I18N.battleBegin);
 
-    // スキルツリーからアクティブスキルを取得してUIに表示
-    if (typeof getSkillNodeEffects === 'function' && me.equippedWeapon) {
-        const skillEffects = getSkillNodeEffects(me, me.equippedWeapon.type);
-        activeSkills = skillEffects.active;
-
-        // オリジナルスキルを追加
-        if (me.customSkills && Array.isArray(me.customSkills)) {
-            activeSkills = activeSkills.concat(me.customSkills);
-        }
-
+    // スキルスロットに登録されたスキルを読み込む
+    if (me.skillSlots && Array.isArray(me.skillSlots)) {
+        activeSkills = me.skillSlots.filter(skill => skill !== null); // nullでないスキルのみを抽出
+        addLog(`スキルスロットに ${activeSkills.length} 個のスキルが装備されています。`);
         renderSkills();
     }
 
