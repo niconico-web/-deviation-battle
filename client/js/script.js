@@ -485,6 +485,10 @@ function switchSection(section) {
     const activeSection = document.getElementById(`section-${section}`);
     if (activeSection) {
         activeSection.classList.add('active');
+        // スキルツリーセクションが表示されるときに再描画
+        if (section === 'skill-tree' && typeof renderSkillTreeUI === 'function') {
+            renderSkillTreeUI();
+        }
     }
     const activeButton = document.querySelector(`.menu-btn[data-section="${section}"]`);
     if (activeButton) activeButton.classList.add('active');

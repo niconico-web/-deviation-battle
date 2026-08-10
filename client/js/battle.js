@@ -126,6 +126,12 @@ function initialize() {
     if (typeof getSkillNodeEffects === 'function' && me.equippedWeapon) {
         const skillEffects = getSkillNodeEffects(me, me.equippedWeapon.type);
         activeSkills = skillEffects.active;
+
+        // オリジナルスキルを追加
+        if (me.customSkills && Array.isArray(me.customSkills)) {
+            activeSkills = activeSkills.concat(me.customSkills);
+        }
+
         renderSkills();
     }
 

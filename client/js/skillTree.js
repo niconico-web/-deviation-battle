@@ -300,8 +300,30 @@ function validateCustomSkill(skillDescription, playerStats) {
     return { valid: true, strength: estimatedStrength };
 }
 
+// スキル説明文からeffectオブジェクトを簡易的に生成
+function parseEffectFromDescription(description) {
+    const effect = { type: "active" };
+    const desc = description.toLowerCase();
+
+    // 例: "次の攻撃のダメージ1.2倍" -> { damageMultiplier: 1.2 }
+    const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃)[をが]?([\d.]+)倍/);
+    if (damageMultiplierMatch && damageMultiplierMatch[1]) {
+        effect.damageMultiplier = parseFloat(damageMultiplierMatch[1]);
+        return effect;
+    }
+
+    // 例: "受けるダメージを30%軽減" -> { damageReduction: 0.3 }
+    const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
+    if (damageReductionMatch && damageReductionMatch[1]) {
+        effect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0;
+        return effect;
+    }
+
+    return null; // 解釈できなかった
+}
+
 // カスタムスキルの作成
-function createCustomSkill(player, skillName, skillDescription, effect) {
+function createCustomSkill(player, skillName, skillDescription) {
     // コインチェック
     if ((player.coins || 0) < CUSTOM_SKILL_COST) {
         return { success: false, error: `コインが不足しています（必要: ${CUSTOM_SKILL_COST}）` };
@@ -309,6 +331,12 @@ function createCustomSkill(player, skillName, skillDescription, effect) {
     
     // ステータスチェック
     const stats = getStatsFromPlayer(player);
+
+    // effectをパース
+    const effect = parseEffectFromDescription(skillDescription);
+    if (!effect) {
+        return { success: false, error: "スキルの効果を解釈できませんでした。指定された形式で入力してください。（例：次の攻撃のダメージ1.2倍）" };
+    }
     const validation = validateCustomSkill(skillDescription, stats);
     
     if (!validation.valid) {
@@ -335,6 +363,163 @@ function createCustomSkill(player, skillName, skillDescription, effect) {
     return { success: true, player, skill: customSkill };
 }
 
+// ============================================
+// UI描画関連
+// ============================================
+
+function renderSkillTreeUI() {
+    const container = document.getElementById('skillTreeContainer');
+    if (!container) return;
+
+    const player = getPlayerData();
+    if (!player) {
+        container.innerHTML = '<p>プレイヤーデータが見つかりません。</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="skill-tree-ui">
+            <div class="skill-tree-tabs"></div>
+            <div class="skill-tree-content-wrapper">
+                <div class="skill-points-display"></div>
+                <div class="skill-tree-content"></div>
+            </div>
+        </div>
+        <div class="custom-skill-section">
+            <h3>オリジナルスキル作成</h3>
+            <p>AIにスキルの名前と内容を伝えると、あなた専用のスキルが作成されます。<br>（例：次の攻撃のダメージを1.5倍にする）</p>
+            <p>作成には ${CUSTOM_SKILL_COST} コインが必要です。</p>
+            <div class="custom-skill-form">
+                <input type="text" id="customSkillName" placeholder="スキル名">
+                <textarea id="customSkillDescription" placeholder="スキルの内容"></textarea>
+                <button id="createCustomSkillBtn">作成する</button>
+            </div>
+            <h4>作成済みオリジナルスキル</h4>
+            <div id="customSkillList"></div>
+        </div>
+    `;
+
+    const tabsContainer = container.querySelector('.skill-tree-tabs');
+    Object.keys(SKILL_TREES).forEach((type, index) => {
+        const tab = document.createElement('button');
+        tab.className = 'skill-tree-tab';
+        tab.textContent = SKILL_TREES[type].name;
+        tab.dataset.type = type;
+        if (index === 0) {
+            tab.classList.add('active');
+        }
+        tab.onclick = () => {
+            if (tabsContainer.querySelector('.active')) {
+                tabsContainer.querySelector('.active').classList.remove('active');
+            }
+            tab.classList.add('active');
+            renderTree(type);
+        };
+        tabsContainer.appendChild(tab);
+    });
+
+    // 初期表示
+    renderTree(Object.keys(SKILL_TREES)[0]);
+    renderCustomSkillList(player);
+
+    // イベントリスナー
+    document.getElementById('createCustomSkillBtn').onclick = () => {
+        const player = getPlayerData();
+        const skillName = document.getElementById('customSkillName').value.trim();
+        const skillDescription = document.getElementById('customSkillDescription').value.trim();
+
+        if (!skillName || !skillDescription) {
+            alert('スキル名と内容を入力してください。');
+            return;
+        }
+
+        const result = createCustomSkill(player, skillName, skillDescription);
+
+        if (result.success) {
+            localStorage.setItem("player", JSON.stringify(result.player));
+            alert(`オリジナルスキル「${result.skill.name}」を作成しました！`);
+            renderSkillTreeUI(); // UI全体を再描画
+            if (typeof updateStatus === 'function') updateStatus(result.player);
+        } else {
+            alert(`作成に失敗しました:\n${result.error}`);
+        }
+    };
+}
+
+function renderTree(weaponType) {
+    const content = document.querySelector('.skill-tree-content');
+    const pointsDisplay = document.querySelector('.skill-points-display');
+    if (!content || !pointsDisplay) return;
+
+    const player = getPlayerData();
+    const treeData = SKILL_TREES[weaponType];
+    const playerData = player.skillTrees[weaponType];
+
+    pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints}`;
+    content.innerHTML = '';
+
+    treeData.nodes.forEach(node => {
+        const nodeEl = document.createElement('div');
+        nodeEl.className = `skill-node ${node.type}`;
+        nodeEl.style.left = `${node.x * 80 + 400}px`;
+        nodeEl.style.top = `${node.y * 80 + 50}px`;
+        nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
+
+        const isUnlocked = playerData.unlockedNodes.includes(node.id);
+        let isUnlockable = !isUnlocked && playerData.availablePoints >= node.cost;
+        if (node.requires) {
+            const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
+            if (!requirements.every(reqId => playerData.unlockedNodes.includes(reqId))) {
+                isUnlockable = false;
+            }
+        } else if (treeData.nodes.filter(n => !n.requires).length > 1) {
+             // 複数の開始ノードがある場合、一つもアンロックしてなければアンロック可能
+             if (playerData.unlockedNodes.length === 0) isUnlockable = true;
+        }
+
+        if (isUnlocked) nodeEl.classList.add('unlocked');
+        else if (isUnlockable) nodeEl.classList.add('unlockable');
+        else nodeEl.classList.add('locked');
+
+        nodeEl.onclick = () => {
+            if (isUnlockable) {
+                if (confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) {
+                    const result = unlockSkillNode(getPlayerData(), weaponType, node.id);
+                    if (result.success) {
+                        localStorage.setItem("player", JSON.stringify(result.player));
+                        renderTree(weaponType); // ツリーを再描画
+                    } else {
+                        alert(result.error);
+                    }
+                }
+            }
+        };
+
+        content.appendChild(nodeEl);
+    });
+}
+
+function renderCustomSkillList(player) {
+    const listContainer = document.getElementById('customSkillList');
+    if (!listContainer) return;
+
+    listContainer.innerHTML = '';
+    const customSkills = player.customSkills || [];
+
+    if (customSkills.length === 0) {
+        listContainer.innerHTML = '<p>まだありません。</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    customSkills.forEach(skill => {
+        const li = document.createElement('li');
+        li.innerHTML = `<strong>${skill.name}</strong>: ${skill.description}`;
+        ul.appendChild(li);
+    });
+    listContainer.appendChild(ul);
+}
+
 // グローバル関数としてエクスポート
 if (typeof window !== 'undefined') {
     window.SKILL_TREES = SKILL_TREES;
@@ -347,4 +532,5 @@ if (typeof window !== 'undefined') {
     window.applySkillEffectsToStats = applySkillEffectsToStats;
     window.validateCustomSkill = validateCustomSkill;
     window.createCustomSkill = createCustomSkill;
+    window.renderSkillTreeUI = renderSkillTreeUI;
 }
