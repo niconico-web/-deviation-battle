@@ -260,50 +260,52 @@ function processAnswer(battle, playerId, answer) {
     
     if (isCorrect) {
         // 正解の場合
+        const attacker = player;
+        const defender = enemy;
         player.correctAnswers++;
         
         // 必殺技ゲージを初期化（存在しない場合）
-        if (!player.ultimateGauge) {
-            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        if (!attacker.ultimateGauge) {
+            attacker.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
         }
         
         // 必殺技ゲージを増加
-        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + ULTIMATE_GAUGE_PER_CORRECT);
-        result.ultimateGauge = player.ultimateGauge.current;
-        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+        attacker.ultimateGauge.current = Math.min(attacker.ultimateGauge.max, attacker.ultimateGauge.current + ULTIMATE_GAUGE_PER_CORRECT);
+        result.ultimateGauge = attacker.ultimateGauge.current;
+        result.ultimateReady = attacker.ultimateGauge.current >= attacker.ultimateGauge.max;
         
         // 先に正解した場合のみダメージを与える
-        if (!enemy.answerTime) {
+        if (!defender.answerTime) {
             // 「根性」の攻撃力アップ効果
-            let attackerAtk = player.atk;
-            if (player.hp === 1 && hasUniqueAbility(player, 'guts')) {
+            let attackerAtk = attacker.atk;
+            if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
                 attackerAtk = Math.floor(attackerAtk * 3);
                 result.gutsAtkBoost = true;
-                result.gutsAtkBoostPlayerName = player.name;
+                result.gutsAtkBoostPlayerName = attacker.name;
             }
 
             // 攻撃者が必中能力を持っているかチェック
-            const isAttackerSureHit = hasUniqueAbility(player, "ignore_evasion");
+            const isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
             
-            let damageResult = calculateDamage(player, enemy, answerTime, isAttackerSureHit, attackerAtk);
+            let damageResult = calculateDamage(attacker, defender, answerTime, isAttackerSureHit, attackerAtk);
             let damage = damageResult.damage;
             const dodgeChance = damageResult.dodgeChance;
             
             // 必殺技発動判定（ゲージが満タンの場合）
             let ultimateActivated = false;
-            if (player.ultimateGauge.current >= player.ultimateGauge.max) {
+            if (attacker.ultimateGauge.current >= attacker.ultimateGauge.max) {
                 damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
                 ultimateActivated = true;
                 result.ultimateActivated = true;
                 result.ultimateDamage = damage;
                 // 必殺技発動後、ゲージをリセット
-                player.ultimateGauge.current = 0;
+                attacker.ultimateGauge.current = 0;
                 result.ultimateGauge = 0;
                 result.ultimateReady = false;
             }
             
             // ユニーク能力によるダメージボーナスを適用
-            damage = applyUniqueAbilityDamageBonus(damage, player);
+            damage = applyUniqueAbilityDamageBonus(damage, attacker);
             
             // 回避判定
             const dodgeRoll = Math.random() * 100;
@@ -313,29 +315,29 @@ function processAnswer(battle, playerId, answer) {
                 result.dodgeChance = dodgeChance;
             } else {
                 // ユニーク能力によるダメージ軽減を適用（防御側）
-                let finalDamage = applyUniqueAbilityDefense(damage, enemy);
+                let finalDamage = applyUniqueAbilityDefense(damage, defender);
 
-                if (enemy.hp - finalDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
-                    enemy.hp = 1;
+                if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                    defender.hp = 1;
                     result.gutsSurvive = true;
-                    result.gutsSurvivePlayerName = enemy.name;
+                    result.gutsSurvivePlayerName = defender.name;
                 } else {
-                    enemy.hp = Math.max(0, enemy.hp - finalDamage);
+                    defender.hp = Math.max(0, defender.hp - finalDamage);
                 }
                 result.damage = finalDamage;
-                result.enemyHp = enemy.hp;
+                result.enemyHp = defender.hp;
                 result.firstCorrect = true;
                 
                 // ライフドレイン: ダメージの20%をHP回復
-                const healAmount = applyLifeDrain(player, finalDamage);
+                const healAmount = applyLifeDrain(attacker, finalDamage);
                 if (healAmount > 0) {
-                    player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                    attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                     result.lifedrainHealed = healAmount;
                 }
             }
             
             // 勝利判定
-            if (enemy.hp <= 0) {
+            if (defender.hp <= 0) {
                 battle.finished = true;
                 result.winner = playerId;
             }
@@ -345,23 +347,25 @@ function processAnswer(battle, playerId, answer) {
         }
     } else {
         // 不正解の場合 - 間違えた方がダメージを受ける
+        const attacker = enemy;
+        const defender = player;
         // 「根性」の攻撃力アップ効果
-        let attackerAtk = enemy.atk;
-        if (enemy.hp === 1 && hasUniqueAbility(enemy, 'guts')) {
+        let attackerAtk = attacker.atk;
+        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
             attackerAtk = Math.floor(attackerAtk * 3);
             result.gutsAtkBoost = true;
-            result.gutsAtkBoostPlayerName = enemy.name;
+            result.gutsAtkBoostPlayerName = attacker.name;
         }
 
         // 敵が必中能力を持っているかチェック
-        const isEnemySureHit = hasUniqueAbility(enemy, "ignore_evasion");
+        const isEnemySureHit = hasUniqueAbility(attacker, "ignore_evasion");
         
-        const damageResult = calculateDamage(enemy, player, 0, isEnemySureHit, attackerAtk);
+        const damageResult = calculateDamage(attacker, defender, 0, isEnemySureHit, attackerAtk);
         let damage = damageResult.damage;
         const dodgeChance = damageResult.dodgeChance;
         
         // ユニーク能力によるダメージボーナスを適用
-        damage = applyUniqueAbilityDamageBonus(damage, enemy);
+        damage = applyUniqueAbilityDamageBonus(damage, attacker);
         
         // 回避判定
         const dodgeRoll = Math.random() * 100;
@@ -371,30 +375,30 @@ function processAnswer(battle, playerId, answer) {
             result.dodgeChance = dodgeChance;
         } else {
             // ユニーク能力によるダメージ軽減を適用（防御側）
-            let finalDamage = applyUniqueAbilityDefense(damage, player);
+            let finalDamage = applyUniqueAbilityDefense(damage, defender);
 
-            if (player.hp - finalDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
-                player.hp = 1;
+            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                defender.hp = 1;
                 result.gutsSurvive = true;
-                result.gutsSurvivePlayerName = player.name;
+                result.gutsSurvivePlayerName = defender.name;
             } else {
-                player.hp = Math.max(0, player.hp - finalDamage);
+                defender.hp = Math.max(0, defender.hp - finalDamage);
             }
             result.damage = finalDamage;
-            result.playerHp = player.hp;
+            result.playerHp = defender.hp;
             result.firstCorrect = false;
             result.wrongAnswer = true;
             
             // ライフドレイン: ダメージの20%をHP回復
-            const healAmount = applyLifeDrain(enemy, finalDamage);
+            const healAmount = applyLifeDrain(attacker, finalDamage);
             if (healAmount > 0) {
-                enemy.hp = Math.min(enemy.maxHp, enemy.hp + healAmount);
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.enemyLifedrainHealed = healAmount;
             }
         }
         
         // 勝利判定
-        if (player.hp <= 0) {
+        if (defender.hp <= 0) {
             battle.finished = true;
             result.winner = enemyId;
             console.log(`[BattleEngine] Player ${playerId} HP reached 0, winner: ${enemyId}`);
