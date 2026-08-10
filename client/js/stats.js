@@ -168,8 +168,31 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     return updated;
 }
 
-function getStatsFromPlayer(player) {
-    const p = player || {}; // Ensure player is not null/undefined
+function getStatsFromPlayer(player, withPassives = false) {
+    const p = player || {};
+
+    if (withPassives && typeof getSkillNodeEffects === 'function') {
+        const baseStats = {
+            maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
+            atk: Number(p.atk) || DEFAULT_STATS.atk,
+            def: Number(p.def) || DEFAULT_STATS.def,
+            speed: Number(p.speed) || DEFAULT_STATS.speed,
+            grade: Number(p.grade) || 1
+        };
+
+        const skillEffects = getSkillNodeEffects(p);
+        const passive = skillEffects.passive;
+
+        // Apply flat bonuses first, then percentage bonuses
+        baseStats.maxHp = Math.floor((baseStats.maxHp + (passive.maxHp || 0)) * (1 + (passive.maxHpPercent || 0)));
+        baseStats.atk = Math.floor((baseStats.atk + (passive.atk || 0)) * (1 + (passive.atkPercent || 0)));
+        baseStats.def = Math.floor((baseStats.def + (passive.def || 0)) * (1 + (passive.defPercent || 0)));
+        baseStats.speed = Math.floor((baseStats.speed + (passive.speed || 0)) * (1 + (passive.speedPercent || 0)));
+
+        return baseStats;
+    }
+
+    // Return raw stats without passives
     return {
         maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
         atk: Number(p.atk) || DEFAULT_STATS.atk,
@@ -177,6 +200,17 @@ function getStatsFromPlayer(player) {
         speed: Number(p.speed) || DEFAULT_STATS.speed,
         grade: Number(p.grade) || 1
     };
+}
+
+function getEffectiveStats(player) {
+    // Get base stats with passive skills applied
+    const statsWithSkills = getStatsFromPlayer(player, true);
+    // Apply weapon bonuses
+    return applyWeaponStats(statsWithSkills, player.equippedWeapon);
+}
+
+function getBattleStats(player) {
+    return getEffectiveStats(player);
 }
 
 function buildPlayer(name, stats, xp, options = {}) {

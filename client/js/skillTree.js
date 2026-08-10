@@ -195,7 +195,11 @@ function getSkillNodeEffects(player) {
     player = initializeSkillData(player);
     
     const effects = {
-        passive: { maxHp: 0, atk: 0, def: 0, speed: 0 },
+        passive: {
+            maxHp: 0, atk: 0, def: 0, speed: 0,
+            maxHpPercent: 0, atkPercent: 0, defPercent: 0, speedPercent: 0,
+            critChance: 0, critMultiplier: 0, skillCostReduction: 0
+        },
         active: []
     };
 
@@ -216,10 +220,6 @@ function getSkillNodeEffects(player) {
                 // この効果はアンロック時に一度だけ適用されるべき
                 // ここでは何もしない
             }
-            // パーセンテージ増加
-            ['atkPercent', 'defPercent', 'speedPercent', 'maxHpPercent'].forEach(pStat => {
-                // これはステータス計算時に適用する必要があるため、ここでは何もしない
-            });
 
             for (const stat in effect) {
                 if (stat !== "type" && effects.passive[stat] !== undefined) {
@@ -697,17 +697,43 @@ function renderTree() {
     pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
 
-    // SVGコンテナを作成して線を描画
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    content.appendChild(svg);
-    // SVGのサイズをコンテンツ全体を覆うように設定
+    // 1. Find bounds of the tree
     const allX = treeData.nodes.map(n => n.x);
     const allY = treeData.nodes.map(n => n.y);
-    const minX = Math.min(...allX), maxX = Math.max(...allX);
-    const minY = Math.min(...allY), maxY = Math.max(...allY);
-    const contentWidth = (maxX - minX + 5) * 80 + 400;
-    const contentHeight = (maxY - minY + 5) * 80 + 50;
-    svg.setAttribute('viewBox', `0 0 ${contentWidth} ${contentHeight}`);
+    const minX = Math.min(...allX);
+    const minY = Math.min(...allY);
+    const maxX = Math.max(...allX);
+    const maxY = Math.max(...allY);
+
+    // 2. Calculate offsets and total size with padding
+    const PADDING = 200; // Add more padding for better scrolling experience
+    const NODE_H_SPACING = 100; // Increase spacing
+    const NODE_V_SPACING = 100; // Increase spacing
+    const NODE_WIDTH = 80;
+    const NODE_HEIGHT = 60;
+
+    const offsetX = -minX * NODE_H_SPACING + PADDING;
+    const offsetY = -minY * NODE_V_SPACING + PADDING;
+
+    const totalWidth = (maxX - minX) * NODE_H_SPACING + NODE_WIDTH + PADDING * 2;
+    const totalHeight = (maxY - minY) * NODE_V_SPACING + NODE_HEIGHT + PADDING * 2;
+
+    // Create an inner container that will be the actual scrollable content
+    const innerContent = document.createElement('div');
+    innerContent.style.position = 'relative';
+    innerContent.style.width = `${totalWidth}px`;
+    innerContent.style.height = `${totalHeight}px`;
+    content.appendChild(innerContent);
+
+    // Create SVG container for connection lines
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.style.position = 'absolute';
+    svg.style.top = '0';
+    svg.style.left = '0';
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+    svg.style.pointerEvents = 'none'; // Crucial for touch scrolling
+    innerContent.appendChild(svg);
 
     // 最初に接続線を描画
     treeData.nodes.forEach(node => {
@@ -716,12 +742,13 @@ function renderTree() {
             requirements.forEach(reqId => {
                 const requiredNode = treeData.nodes.find(n => n.id === reqId);
                 if (requiredNode) {
-                    const nodeX = node.x * 80 + 400;
-                    const nodeY = node.y * 80 + 50;
-                    const reqNodeX = requiredNode.x * 80 + 400;
-                    const reqNodeY = requiredNode.y * 80 + 50;
+                    // 3. Apply offsets to coordinates
+                    const nodeX = node.x * NODE_H_SPACING + offsetX;
+                    const nodeY = node.y * NODE_V_SPACING + offsetY;
+                    const reqNodeX = requiredNode.x * NODE_H_SPACING + offsetX;
+                    const reqNodeY = requiredNode.y * NODE_V_SPACING + offsetY;
                     // ノードの中心に線を引く
-                    drawConnection(svg, reqNodeX + 40, reqNodeY + 30, nodeX + 40, nodeY + 30, playerData.unlockedNodes.includes(node.id));
+                    drawConnection(svg, reqNodeX + NODE_WIDTH / 2, reqNodeY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, playerData.unlockedNodes.includes(node.id));
                 }
             });
         }
@@ -731,8 +758,9 @@ function renderTree() {
     treeData.nodes.forEach(node => {
         const nodeEl = document.createElement('div');
         nodeEl.className = `skill-node ${node.type}`;
-        const nodeX = node.x * 80 + 400;
-        const nodeY = node.y * 80 + 50;
+        // 3. Apply offsets to coordinates
+        const nodeX = node.x * NODE_H_SPACING + offsetX;
+        const nodeY = node.y * NODE_V_SPACING + offsetY;
         nodeEl.style.left = `${nodeX}px`;
         nodeEl.style.top = `${nodeY}px`;
         nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
@@ -774,16 +802,19 @@ function renderTree() {
             }
         };
 
-        content.appendChild(nodeEl);
+        innerContent.appendChild(nodeEl);
     });
 
-    // 初期スクロール位置を設定
+    // 5. Set initial scroll position to the start node
     const startNode = treeData.nodes.find(n => n.id === 'start_node');
     if (startNode) {
-        const nodeX = startNode.x * 80 + 400;
-        const nodeY = startNode.y * 80 + 50;
-        content.scrollTop = nodeY - (content.clientHeight / 2) + 30; // 30 is half node height
-        content.scrollLeft = nodeX - (content.clientWidth / 2) + 40; // 40 is half node width
+        const nodeX = startNode.x * NODE_H_SPACING + offsetX;
+        const nodeY = startNode.y * NODE_V_SPACING + offsetY;
+        // Use setTimeout to ensure the browser has rendered the content before scrolling
+        setTimeout(() => {
+            content.scrollTop = nodeY - (content.clientHeight / 2) + (NODE_HEIGHT / 2);
+            content.scrollLeft = nodeX - (content.clientWidth / 2) + (NODE_WIDTH / 2);
+        }, 0);
     }
 }
 
