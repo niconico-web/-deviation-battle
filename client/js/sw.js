@@ -5,8 +5,11 @@ const urlsToCache = [
   '/manifest.json',
   '/battle.html',
   '/result.html',
+  '/help.html',
   '/css/style.css',
   '/css/battle.css',
+  '/css/help.css',
+  '/css/result.css',
   '/css/ability-popup.css',
   '/js/script.js',
   '/js/stats.js',
@@ -18,7 +21,6 @@ const urlsToCache = [
   '/js/ability-popup.js',
   '/js/result.js',
   '/js/help.js',
-  // Add your icon paths here
   '/icons/icon-192x192.png',
   '/icons/icon-512x512.png'
 ];
@@ -34,8 +36,11 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // URLクエリパラメータを無視してキャッシュを検索
   event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+    caches.match(event.request, { ignoreSearch: true })
+      .then(response => {
+        return response || fetch(event.request);
+      })
   );
 });
