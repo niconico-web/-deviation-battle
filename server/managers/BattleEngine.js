@@ -304,8 +304,14 @@ function processAnswer(battle, playerId, answer) {
             } else {
                 // ユニーク能力によるダメージ軽減を適用（防御側）
                 let finalDamage = applyUniqueAbilityDefense(damage, enemy);
-                
-                enemy.hp = Math.max(0, enemy.hp - finalDamage);
+
+                if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                    defender.hp = 1;
+                    result.gutsSurvive = true;
+                    result.gutsSurvivePlayerName = defender.name;
+                } else {
+                    defender.hp = Math.max(0, defender.hp - finalDamage);
+                }
                 result.damage = finalDamage;
                 result.enemyHp = enemy.hp;
                 result.firstCorrect = true;
@@ -348,8 +354,14 @@ function processAnswer(battle, playerId, answer) {
         } else {
             // ユニーク能力によるダメージ軽減を適用（防御側）
             let finalDamage = applyUniqueAbilityDefense(damage, player);
-            
-            player.hp = Math.max(0, player.hp - finalDamage);
+
+            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                defender.hp = 1;
+                result.gutsSurvive = true;
+                result.gutsSurvivePlayerName = defender.name;
+            } else {
+                defender.hp = Math.max(0, defender.hp - finalDamage);
+            }
             result.damage = finalDamage;
             result.playerHp = player.hp;
             result.firstCorrect = false;
