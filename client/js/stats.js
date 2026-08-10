@@ -142,8 +142,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         equippedWeapon: player.equippedWeapon,
         weaponWins: player.weaponWins,
         orbs: player.orbs || [],
-        skillTrees: player.skillTrees,
-        totalSkillPoints: player.totalSkillPoints
+        skillTree: player.skillTree,
+        skillSlots: player.skillSlots
     });
 
     // オーブを追加
@@ -200,8 +200,8 @@ function buildPlayer(name, stats, xp, options = {}) {
         equippedWeapon: options.equippedWeapon || null,
         weaponWins: options.weaponWins || {},
         orbs: options.orbs || [],
-        skillTrees: options.skillTrees || {},
-        totalSkillPoints: options.totalSkillPoints || 0
+        skillTree: options.skillTree || { unlockedNodes: [], availablePoints: 0 },
+        skillSlots: options.skillSlots || [null, null, null]
     };
 }
 
