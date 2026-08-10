@@ -151,6 +151,12 @@ function createCharacter() {
     lockStatInputs(true);
     document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
     
+    // Update data management UI
+    const playerIdEl = document.getElementById("currentPlayerId");
+    if (playerIdEl) playerIdEl.textContent = player.id;
+    const saveDataBtn = document.getElementById("saveDataBtn");
+    if (saveDataBtn) saveDataBtn.disabled = false;
+
     alert(I18N.charCreated);
 }
 
@@ -165,6 +171,7 @@ function updateStatus(player) {
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
         "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
+        "<p><strong>プレイヤーID" + I18N.colon + "</strong>" + player.id + "</p>" +
         "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p>" +
         "<p><strong>コイン" + I18N.colon + "</strong>" + (player.coins || 0) + "</p>" +
         "<p><strong>装備武器" + I18N.colon + "</strong>" + weaponText + "</p><hr>" +
@@ -359,6 +366,26 @@ function setupSocketEventHandlers() {
     
     console.log("Setting up socket event handlers...");
 
+    // データ保存・読み込み関連のイベント
+    window.socket.on("dataSaved", () => {
+        alert("データをサーバーに保存しました。");
+    });
+
+    window.socket.on("dataLoaded", (loadedPlayer) => {
+        if (loadedPlayer) {
+            if (studyStartTime !== null) stopStudy(); // 勉強中なら停止
+            localStorage.setItem("player", JSON.stringify(loadedPlayer));
+            alert(`プレイヤー「${loadedPlayer.name}」のデータを引き継ぎました。`);
+            location.reload(); // ページをリロードしてUIを完全に更新
+        } else {
+            alert("指定されたIDのプレイヤーデータが見つかりませんでした。");
+        }
+    });
+
+    window.socket.on("dataError", (message) => {
+        alert(`エラー: ${message}`);
+    });
+
     console.log("Socket event handlers setup complete");
 }
 
@@ -453,6 +480,10 @@ function setupDOMEventHandlers() {
             document.getElementById("status").innerHTML = "<h2>" + I18N.status + "</h2><p>" + I18N.noChar + "</p>";
             updateXpDisplay({ xp: 0, level: 1 });
             lockStatInputs(false); // Unlock inputs for new character
+            const playerIdEl = document.getElementById("currentPlayerId");
+            if (playerIdEl) playerIdEl.textContent = "なし";
+            const saveDataBtn = document.getElementById("saveDataBtn");
+            if (saveDataBtn) saveDataBtn.disabled = true;
             alert(I18N.deleted);
             location.reload(); // Reload to apply changes cleanly
         };
@@ -471,6 +502,51 @@ function setupDOMEventHandlers() {
     const studyFocusSelect = document.getElementById("studyFocus");
     if (studyFocusSelect) {
         studyFocusSelect.onchange = updateStatGrowthInfo;
+    }
+
+    // --- Data Management UI Injection and Handlers ---
+    const characterSection = document.getElementById('section-character');
+    const deleteBtnEl = document.getElementById("deletePlayerBtn");
+
+    if (characterSection) {
+        const dataManagementContainer = document.createElement('div');
+        dataManagementContainer.id = 'dataManagement';
+        dataManagementContainer.className = 'setting-box';
+        dataManagementContainer.innerHTML = `
+            <h3>データ管理</h3>
+            <p>現在のプレイヤーID: <strong id="currentPlayerId">なし</strong></p>
+            <button id="saveDataBtn" class="btn">データをサーバーに保存</button>
+            <p class="help-text">このデバイスのキャラクターデータをサーバーに保存し、他のデバイスで同じIDを使って引き継げるようにします。</p>
+            <hr>
+            <h4>データ引き継ぎ</h4>
+            <div class="input-group">
+                <input type="text" id="loadPlayerIdInput" placeholder="プレイヤーIDを入力" style="text-transform: uppercase;">
+                <button id="loadDataBtn" class="btn">このIDのデータを引き継ぐ</button>
+            </div>
+            <p class="help-text">入力したIDのデータをサーバーから読み込みます。<strong>現在のキャラクターデータは上書きされます。</strong></p>
+        `;
+        
+        if (deleteBtnEl && deleteBtnEl.parentElement) {
+            characterSection.insertBefore(dataManagementContainer, deleteBtnEl.parentElement);
+        } else {
+            characterSection.appendChild(dataManagementContainer);
+        }
+
+        document.getElementById("saveDataBtn").onclick = () => {
+            const player = getPlayerData();
+            if (!player) { alert("保存するキャラクターデータがありません。"); return; }
+            if (confirm("現在のキャラクターデータをサーバーに保存しますか？\n同じIDのデータは上書きされます。")) {
+                if (window.socket && window.socket.connected) { window.socket.emit("saveData", player); } else { alert("サーバーに接続されていません。"); }
+            }
+        };
+
+        document.getElementById("loadDataBtn").onclick = () => {
+            const playerIdToLoad = document.getElementById("loadPlayerIdInput").value.trim().toUpperCase();
+            if (!playerIdToLoad) { alert("引き継ぎたいプレイヤーIDを入力してください。"); return; }
+            if (confirm(`プレイヤーID「${playerIdToLoad}」のデータを引き継ぎますか？\n現在のキャラクターデータは失われます。`)) {
+                if (window.socket && window.socket.connected) { window.socket.emit("loadData", playerIdToLoad); } else { alert("サーバーに接続されていません。"); }
+            }
+        };
     }
 }
 
@@ -607,6 +683,11 @@ window.onload = () => {
         // Update stat allocation description for existing players
         document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
 
+        const playerIdEl = document.getElementById("currentPlayerId");
+        if (playerIdEl) playerIdEl.textContent = player.id;
+        const saveDataBtn = document.getElementById("saveDataBtn");
+        if (saveDataBtn) saveDataBtn.disabled = false;
+
         // Auto-join room if pending
         if (window.pendingRoomJoin) {
             setTimeout(() => {
@@ -618,6 +699,10 @@ window.onload = () => {
         setStatsToInputs(DEFAULT_STATS);
         updateXpDisplay({ xp: 0, level: 1 });
         lockStatInputs(false);
+        const playerIdEl = document.getElementById("currentPlayerId");
+        if (playerIdEl) playerIdEl.textContent = "なし";
+        const saveDataBtn = document.getElementById("saveDataBtn");
+        if (saveDataBtn) saveDataBtn.disabled = true;
     }
 
     // Register Service Worker for PWA

@@ -7,6 +7,7 @@ const PlayerManager = require("../managers/PlayerManager");
 const RoomManager = require("../managers/RoomManager");
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
+const PlayerDataManager = require("../managers/PlayerDataManager");
 
 // BattleManagerのタイマー管理を使用
 const disconnectTimers = BattleManager.disconnectTimers;
@@ -404,6 +405,33 @@ module.exports = function(io){
 
         });
 
+        // -----------------------------
+        // データ管理
+        // -----------------------------
+
+        socket.on("saveData", (player) => {
+            if (player && player.id) {
+                console.log(`[Data] Saving data for player ID: ${player.id}`);
+                const success = PlayerDataManager.savePlayer(player);
+                if (success) {
+                    socket.emit("dataSaved");
+                } else {
+                    socket.emit("dataError", "データの保存に失敗しました。");
+                }
+            } else {
+                socket.emit("dataError", "無効なプレイヤーデータです。");
+            }
+        });
+
+        socket.on("loadData", (playerId) => {
+            if (playerId) {
+                console.log(`[Data] Loading data for player ID: ${playerId}`);
+                const player = PlayerDataManager.getPlayer(playerId);
+                socket.emit("dataLoaded", player); // データが見つからない場合は null が返る
+            } else {
+                socket.emit("dataError", "無効なプレイヤーIDです。");
+            }
+        });
     });
 
 };
