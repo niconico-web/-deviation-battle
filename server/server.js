@@ -24,6 +24,11 @@ const path = require("path");
 
 app.use(express.static(path.join(__dirname, "../client"), {
     setHeaders(res, filePath) {
+        // Add Service-Worker-Allowed header for sw.js to allow root scope
+        if (filePath.endsWith('sw.js')) {
+            res.setHeader('Service-Worker-Allowed', '/');
+        }
+
         if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
             res.setHeader("Content-Type", `${getContentType(filePath)}; charset=utf-8`);
             // Avoid stale CDN/browser assets after redeploys.
