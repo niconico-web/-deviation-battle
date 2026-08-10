@@ -2,6 +2,7 @@ const CACHE_NAME = 'school-battle-cache-v1';
 const urlsToCache = [
   '/',
   '/index.html',
+  '/manifest.json',
   '/battle.html',
   '/result.html',
   '/css/style.css',
