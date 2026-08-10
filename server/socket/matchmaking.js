@@ -21,8 +21,9 @@ function toBattlePlayer(player, socketId) {
         speed: battleStats.speed ?? player.speed ?? 10,
         grade,
         equippedWeapon: player.equippedWeapon || null,
-        skillTrees: player.skillTrees || {},
-        customSkills: player.customSkills || []
+        skillTrees: player.skillTrees || {}, // スキルツリー情報
+        customSkills: player.customSkills || [], // カスタムスキル情報
+        skillSlots: player.skillSlots || [null, null, null] // スキルスロット情報
     };
 }
 

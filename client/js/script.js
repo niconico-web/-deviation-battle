@@ -488,6 +488,10 @@ function switchSection(section) {
         // スキルツリーセクションが表示されるときに再描画
         if (section === 'skill-tree' && typeof renderSkillTreeUI === 'function') {
             renderSkillTreeUI();
+            // 装備中の武器タイプに基づいてスキルツリーを初期表示
+            const player = getPlayerData();
+            const initialWeaponType = player.equippedWeapon ? player.equippedWeapon.type : Object.keys(SKILL_TREES)[0];
+            renderTree(initialWeaponType);
         }
     }
     const activeButton = document.querySelector(`.menu-btn[data-section="${section}"]`);

@@ -27,8 +27,9 @@ function resolveBattlePlayer(socketId, storedData){
             speed: stats.speed ?? live.speed,
             equippedWeapon: live.equippedWeapon || null,
             battleStats: stats, // battleStatsを明示的に保持
-            skillTrees: live.skillTrees || {},
-            customSkills: live.customSkills || []
+            skillTrees: live.skillTrees || {}, // スキルツリー情報
+            customSkills: live.customSkills || [], // カスタムスキル情報
+            skillSlots: live.skillSlots || [null, null, null] // スキルスロット情報
         };
     }
 
@@ -44,8 +45,9 @@ function resolveBattlePlayer(socketId, storedData){
             speed: stats.speed ?? storedData.speed,
             equippedWeapon: storedData.equippedWeapon || null,
             battleStats: stats, // battleStatsを明示的に保持
-            skillTrees: storedData.skillTrees || {},
-            customSkills: storedData.customSkills || []
+            skillTrees: storedData.skillTrees || {}, // スキルツリー情報
+            customSkills: storedData.customSkills || [], // カスタムスキル情報
+            skillSlots: storedData.skillSlots || [null, null, null] // スキルスロット情報
         };
     }
 
