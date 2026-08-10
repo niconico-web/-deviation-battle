@@ -412,183 +412,82 @@ function injectSkillTreeCSS() {
     if (document.getElementById('skill-tree-styles')) return;
 
     const css = `
-/* --- スキルツリー --- */
-.skill-tree-ui {
+/* --- Skill Tree Layout --- */
+.skill-tree-wrapper {
     display: flex;
-    flex-direction: column;
-    height: 600px; /* 高さを少し増やす */
+    height: 65vh; /* Viewport height based */
     border: 1px solid #ccc;
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 20px;
-    background-color: #222; /* 背景を暗くしてノードを目立たせる */
+    background-color: #222;
     color: #eee;
 }
 
-.skill-tree-header {
-    padding: 10px 15px;
-    font-size: 1.4em; /* ヘッダーを大きく */
-    font-weight: bold;
-    text-align: center;
-    background-color: #333; /* ヘッダーも暗く */
-    border-bottom: 1px solid #555;
-    flex-shrink: 0;
-    color: #fff;
-}
-
-.skill-tree-content-wrapper {
-    flex-grow: 1;
+.skill-tree-panel {
+    flex: 3; /* Give more space to the tree */
     display: flex;
     flex-direction: column;
+    border-right: 1px solid #555;
+    min-width: 0;
 }
 
-.skill-points-display {
-    padding: 10px;
-    background-color: #444; /* ポイント表示部分も暗く */
-    border-bottom: 1px solid #555;
-    text-align: center;
-    font-weight: bold;
-    color: #fff;
-}
-
-.skill-tree-content {
-    position: relative;
-    flex-grow: 1;
-    overflow: auto;
-    background-color: #2a2a2a; /* 背景をさらに暗く */
-    background-image: radial-gradient(#444 1px, transparent 1px); /* グリッド線を少し濃く */
-    background-size: 20px 20px;
-    -webkit-overflow-scrolling: touch; /* Add this for smooth scrolling on iOS */
-}
-
-.skill-tree-content svg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 0;
-    pointer-events: none; /* Allow touch events to pass through to the container for scrolling */
-}
-
-.skill-node {
-    position: absolute;
-    width: 80px; /* ノードの幅を広げる */
-    height: 60px; /* ノードの高さを広げる */
-    border-radius: 8px; /* 角を丸くする */
-    border: 2px solid #777; /* 枠線を少し明るく */
-    cursor: pointer;
-    transition: all 0.2s;
+.skill-management-panel {
+    flex: 2; /* Make it a bit wider */
+    padding: 15px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75em; /* テキストサイズを調整 */
-    color: #eee; /* テキスト色を明るく */
-    background-color: #555; /* デフォルトの背景色 */
-    box-sizing: border-box;
-    padding: 5px; /* パディングを追加 */
-    text-align: center; /* テキストを中央揃え */
-    line-height: 1.2; /* 行の高さを調整 */
-    overflow: hidden; /* はみ出るテキストを隠す */
-    white-space: normal; /* テキストを折り返す */
-    text-overflow: ellipsis; /* はみ出たテキストを省略 */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.5); /* 影を追加 */
-    z-index: 1; /* 線の上に表示 */
+    flex-direction: column;
+    gap: 20px;
+    overflow-y: auto;
+    background-color: #f8f8f8;
+    color: #333;
 }
 
-.skill-node span {
-    display: block; /* spanをブロック要素にしてwidth/heightを適用しやすく */
-    max-width: 100%; /* 親要素の幅に合わせる */
-    white-space: normal; /* 折り返しを許可 */
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.skill-node.stat { background-color: #3a6b8a; border-color: #5a9bd3; } /* 青系 */
-.skill-node.active { background-color: #8a3a3a; border-color: #d35a5a; } /* 赤系 */
-.skill-node.passive { background-color: #3a8a6b; border-color: #5ad39b; } /* 緑系 */
-
-.skill-node.unlocked {
-    border-color: #28a745;
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.7);
-    background-color: #3a9a5a; /* アンロック済みの背景色 */
-}
-
-.skill-node.unlockable {
-    border-color: #ffc107;
-    cursor: pointer;
-    background-color: #a78a3a; /* アンロック可能な背景色 */
-}
-.skill-node.unlockable:hover {
-    transform: scale(1.05); /* ホバーで少し拡大 */
-    box-shadow: 0 0 15px rgba(255, 193, 7, 0.9);
-}
-
-.skill-node.locked {
-    border-color: #666;
-    cursor: not-allowed;
-    opacity: 0.4; /* ロック済みは暗く */
-    background-color: #444;
-}
-
-/* スキルノード間の接続線 */
-.skill-tree-content line {
-    stroke-linecap: round; /* 線の端を丸く */
-    transition: stroke 0.2s; /* 色の変化を滑らかに */
-}
-
-/* --- スキル管理セクション --- */
-.skill-management-section {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 30px;
-    margin-top: 20px;
-    padding: 20px; /* パディングを追加 */
-    border-top: 1px solid #ccc;
-    background-color: #f8f8f8; /* 背景色を少し明るく */
-    border-radius: 0 0 8px 8px; /* 下部の角を丸く */
-}
 @media (max-width: 768px) {
-    .skill-management-section {
+    .skill-tree-wrapper {
         flex-direction: column;
-        padding: 10px;
-        gap: 15px;
+        height: auto;
+        max-height: 85vh;
+    }
+    .skill-tree-panel {
+        border-right: none;
+        border-bottom: 1px solid #555;
+        height: 45vh; /* Give the tree a fixed height on mobile */
+        flex-shrink: 0;
+    }
+    .skill-management-panel {
+        flex: 1; /* Allow it to take remaining space and scroll */
     }
 }
 
-.skill-slot-wrapper, .custom-skill-wrapper {
-    flex: 1;
-    min-width: 300px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    padding: 15px; /* パディングを追加 */
-    border: 1px solid #ddd; /* 枠線を追加 */
-    border-radius: 8px; /* 角を丸く */
-    background-color: #fff; /* 背景色を白に */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
-    color: #333; /* テキスト色を明示的に指定 */
-}
-
-.skill-slot-wrapper h3, .custom-skill-wrapper h3 {
-    margin-top: 0;
-    color: #333;
-    border-bottom: 2px solid #007bff;
-    padding-bottom: 5px;
-}
-
-/* --- スキルスロット --- */
-.skill-slots-container { display: flex; justify-content: center; gap: 15px; margin: 10px 0; padding: 15px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; }
-.skill-slot { width: 100px; height: 60px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.9em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+/* ... (rest of the styles from previous response) ... */
+/* The following styles are mostly the same, just ensure they are present */
+.skill-tree-header { padding: 10px 15px; font-size: 1.2em; font-weight: bold; text-align: center; background-color: #333; border-bottom: 1px solid #555; flex-shrink: 0; color: #fff; }
+.skill-tree-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+.skill-points-display { padding: 10px; background-color: #444; border-bottom: 1px solid #555; text-align: center; font-weight: bold; color: #fff; flex-shrink: 0; }
+.skill-tree-content { position: relative; flex-grow: 1; overflow: auto; background-color: #2a2a2a; background-image: radial-gradient(#444 1px, transparent 1px); background-size: 20px 20px; -webkit-overflow-scrolling: touch; }
+.skill-tree-content svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+.skill-node { position: absolute; width: 70px; height: 50px; border-radius: 8px; border: 2px solid #777; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: #eee; background-color: #555; box-sizing: border-box; padding: 4px; text-align: center; line-height: 1.2; overflow: hidden; white-space: normal; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 1; }
+.skill-node span { display: block; max-width: 100%; white-space: normal; overflow: hidden; text-overflow: ellipsis; }
+.skill-node.stat { background-color: #3a6b8a; border-color: #5a9bd3; }
+.skill-node.active { background-color: #8a3a3a; border-color: #d35a5a; }
+.skill-node.passive { background-color: #3a8a6b; border-color: #5ad39b; }
+.skill-node.unlocked { border-color: #28a745; box-shadow: 0 0 10px rgba(40, 167, 69, 0.7); background-color: #3a9a5a; }
+.skill-node.unlockable { border-color: #ffc107; cursor: pointer; background-color: #a78a3a; }
+.skill-node.unlockable:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 193, 7, 0.9); }
+.skill-node.locked { border-color: #666; cursor: not-allowed; opacity: 0.4; background-color: #444; }
+.skill-tree-content line { stroke-linecap: round; transition: stroke 0.2s; }
+.skill-slot-wrapper, .custom-skill-wrapper { flex: 0; min-width: auto; display: flex; flex-direction: column; gap: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+.skill-slot-wrapper h3, .custom-skill-wrapper h3 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+.skill-slots-container { display: flex; justify-content: center; gap: 10px; margin: 10px 0; padding: 10px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; flex-wrap: wrap; }
+.skill-slot { width: 90px; height: 50px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.8em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
 .skill-slot.filled { background-color: #007bff; color: #fff; font-weight: bold; cursor: pointer; }
-.skill-slot.filled .unequip-skill-btn { position: absolute; top: 2px; right: 2px; background: rgba(255, 255, 255, 0.3); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 0.7em; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
+.skill-slot.filled .unequip-skill-btn { position: absolute; top: 2px; right: 2px; background: rgba(255, 255, 255, 0.3); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7em; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
 .skill-slot.filled .unequip-skill-btn:hover { background: rgba(255, 255, 255, 0.5); }
-.available-skills-list { margin-top: 15px; max-height: 250px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
+.available-skills-list { margin-top: 10px; max-height: 150px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
 .available-skill-item { padding: 8px; margin-bottom: 5px; background-color: #f0f8ff; border: 1px solid #d0e9ff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
 .available-skill-item:hover { background-color: #cce5ff; }
-
-/* --- オリジナルスキル作成 --- */
-.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 20px; }
+.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 15px; }
 .custom-skill-form input, .custom-skill-form textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 .custom-skill-form textarea { height: 60px; resize: vertical; }
     `;
@@ -611,34 +510,32 @@ function renderSkillTreeUI() {
     }
 
     container.innerHTML = `
-        <div class="skill-tree-ui">
-            <div class="skill-tree-header">${SKILL_TREE.name}</div>
-            <div class="skill-tree-content-wrapper">
-                <div class="skill-points-display"></div>
-                <div class="skill-tree-content"></div>
-            </div>
-        </div>
-        <div class="skill-management-section">
-            <div class="skill-slot-wrapper">
-                <h3>スキルスロット</h3>
-                <p>バトルで使用するスキルを3つまでセットできます。</p>
-                <div id="skillSlotsContainer" class="skill-slots-container">
-                    <!-- スロットはJSで生成 -->
+        <div class="skill-tree-wrapper">
+            <div class="skill-tree-panel">
+                <div class="skill-tree-header">${SKILL_TREE.name}</div>
+                <div class="skill-tree-content-wrapper">
+                    <div class="skill-points-display"></div>
+                    <div class="skill-tree-content"></div>
                 </div>
-                <h4>利用可能なアクティブスキル</h4>
-                <div id="availableSkillsList" class="available-skills-list"></div>
             </div>
-            <div class="custom-skill-wrapper">
-                <h3>オリジナルスキル作成</h3>
-                <p>AIにスキルの名前と内容を伝えると、あなた専用のスキルが作成されます。<br>（例：次の攻撃のダメージを1.5倍にする）</p>
-                <p>作成には ${CUSTOM_SKILL_COST} コインが必要です。</p>
-                <div class="custom-skill-form">
-                    <input type="text" id="customSkillName" placeholder="スキル名">
-                    <textarea id="customSkillDescription" placeholder="スキルの内容">次の攻撃のダメージを1.2倍にする</textarea>
-                    <button id="createCustomSkillBtn">作成する</button>
+            <div class="skill-management-panel">
+                <div class="skill-slot-wrapper">
+                    <h3>スキルスロット</h3>
+                    <div id="skillSlotsContainer" class="skill-slots-container"></div>
+                    <h4>利用可能なアクティブスキル</h4>
+                    <div id="availableSkillsList" class="available-skills-list"></div>
                 </div>
-                <h4>作成済みオリジナルスキル</h4>
-                <div id="customSkillList"></div>
+                <div class="custom-skill-wrapper">
+                    <h3>オリジナルスキル作成</h3>
+                    <p>作成には ${CUSTOM_SKILL_COST} コインが必要です。</p>
+                    <div class="custom-skill-form">
+                        <input type="text" id="customSkillName" placeholder="スキル名">
+                        <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージを1.2倍にする"></textarea>
+                        <button id="createCustomSkillBtn">作成する</button>
+                    </div>
+                    <h4>作成済みオリジナルスキル</h4>
+                    <div id="customSkillList"></div>
+                </div>
             </div>
         </div>
     `;
@@ -707,11 +604,11 @@ function renderTree() {
     const maxY = Math.max(...allY);
 
     // 2. Calculate offsets and total size with padding
-    const PADDING = 150; // パディングを調整
-    const NODE_H_SPACING = 90; // スペースを調整
-    const NODE_V_SPACING = 90; // スペースを調整
-    const NODE_WIDTH = 80;
-    const NODE_HEIGHT = 60;
+    const PADDING = 100;
+    const NODE_H_SPACING = 85;
+    const NODE_V_SPACING = 85;
+    const NODE_WIDTH = 70;
+    const NODE_HEIGHT = 50;
 
     const offsetX = -minX * NODE_H_SPACING + PADDING;
     const offsetY = -minY * NODE_V_SPACING + PADDING;
