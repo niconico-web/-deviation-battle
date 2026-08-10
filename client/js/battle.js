@@ -45,6 +45,16 @@ function statLabel(k, v) {
     return I18N[k] + I18N.colon + v;
 }
 
+/**
+ * プレイヤーが特定のユニーク能力を持っているかチェック
+ * @param {object} player - プレイヤーオブジェクト
+ * @param {string} effectKey - チェックする能力のエフェクトキー
+ * @returns {boolean}
+ */
+function hasUniqueAbility(player, effectKey) {
+    return player?.equippedWeapon?.uniqueAbilities?.some(ability => ability.effect === effectKey) || false;
+}
+
 function getSubjectDisplayName(subject) {
     const subjectNames = {
         'math': '算数・数学',
@@ -1254,6 +1264,12 @@ function handleBotAnswer(userAnswer) {
         // 必殺技ゲージを増加
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
         updateUltimateGauge();
+
+        let attackerAtk = me.atk;
+        if (me.hp === 1 && hasUniqueAbility(me, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            addLog(`${me.name}の攻撃力が根性で3倍に！`);
+        }
         
         // 必殺技名を取得
         const ultimateName = getWeaponUltimateName(me.equippedWeapon);
@@ -1264,16 +1280,13 @@ function handleBotAnswer(userAnswer) {
         // ユニーク能力適用
         let enemyDef = enemy.def || 0;
         
-        // 貫通（相手の防御ステータスを50%減らす）
-        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-            const hasPenetration = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "ignore_def_half");
-            if (hasPenetration) {
-                enemyDef = Math.floor(enemyDef * 0.5);
-            }
+        // 貫通
+        if (hasUniqueAbility(me, 'ignore_def_half')) {
+            enemyDef = Math.floor(enemyDef * 0.5);
         }
         
-        const defReduction = Math.floor(enemyDef * 0.1);
-        let damage = Math.max(1, Math.floor(me.atk * 0.5) - defReduction);
+        const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
+        let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         const mySpeed = me.speed || 0;
@@ -1299,34 +1312,33 @@ function handleBotAnswer(userAnswer) {
         }
         
         // 必殺（20%の確率でダメージ1.5倍）
-        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-            const hasCritical = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "critical_damage");
-            if (hasCritical && Math.random() < 0.20) {
-                damage = Math.floor(damage * 1.5);
-                addLog("必殺発動！ダメージ1.5倍！");
-            }
+        if (hasUniqueAbility(me, 'critical_damage') && Math.random() < 0.20) {
+            damage = Math.floor(damage * 1.5);
+            addLog("必殺発動！ダメージ1.5倍！");
         }
         
         // 回避判定（敵の回避率）
-        const enemyDodgeChance = calculateDodgeChance(enemySpeed);
+        const enemyDodgeChance = calculateDodgeChance(enemy.speed);
         const dodgeRoll = Math.random() * 100;
         if (dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
             addLog("回避！ダメージなし");
         } else {
-            enemy.hp = Math.max(0, enemy.hp - damage);
+            if (enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+                enemy.hp = 1;
+                addLog(`${enemy.name}は根性で持ちこたえた！`);
+            } else {
+                enemy.hp = Math.max(0, enemy.hp - damage);
+            }
             showDamage("enemyDamage", damage);
             addLog("ボットにダメージ: " + damage);
         }
         
         // ライフドレイン（与えたダメージの20%分回復）
-        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-            const hasLifeDrain = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "life_drain");
-            if (hasLifeDrain && damage > 0) {
-                const healAmount = Math.floor(damage * 0.2);
-                me.hp = Math.min(me.maxHp, me.hp + healAmount);
-                addLog("ライフドレイン発動！" + healAmount + "回復");
-            }
+        if (hasUniqueAbility(me, 'life_drain') && damage > 0) {
+            const healAmount = Math.floor(damage * 0.2);
+            me.hp = Math.min(me.maxHp, me.hp + healAmount);
+            addLog("ライフドレイン発動！" + healAmount + "回復");
         }
         
         updateHP();
@@ -1348,23 +1360,24 @@ function handleBotAnswer(userAnswer) {
         let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
         
         // 鉄壁（相手からの攻撃のダメージ50%カット）
-        if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-            const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
-            if (hasIronWall) {
-                damage = Math.floor(damage * 0.5);
-                addLog("鉄壁発動！ダメージ50%カット");
-            }
+        if (hasUniqueAbility(me, 'damage_cut_half')) {
+            damage = Math.floor(damage * 0.5);
+            addLog("鉄壁発動！ダメージ50%カット");
         }
         
         // 回避判定（プレイヤーの回避率）
-        const mySpeed = me.speed || 0;
-        const myDodgeChance = calculateDodgeChance(mySpeed);
+        const myDodgeChance = calculateDodgeChance(me.speed);
         const dodgeRoll = Math.random() * 100;
         if (dodgeRoll < myDodgeChance) {
             showDamage("myDamage", 0);
             addLog("回避！ダメージなし");
         } else {
-            me.hp = Math.max(0, me.hp - damage);
+            if (me.hp - damage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
+                me.hp = 1;
+                addLog(`${me.name}は根性で持ちこたえた！`);
+            } else {
+                me.hp = Math.max(0, me.hp - damage);
+            }
             showDamage("myDamage", damage);
             addLog("ダメージを受けた: " + damage);
         }
@@ -1387,21 +1400,18 @@ function handleBotAnswer(userAnswer) {
                 
                 // ユニーク能力適用（防御側）
                 let myDef = me.def || 0;
-                
-                // 鉄壁（相手からの攻撃のダメージ50%カット）
-                if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-                    const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
-                    if (hasIronWall) {
-                        // ダメージ計算後に50%カットを適用
-                    }
+
+                let botAtk = enemy.atk;
+                if (enemy.hp === 1 && hasUniqueAbility(enemy, 'guts')) {
+                    botAtk = Math.floor(botAtk * 3);
+                    addLog(`${enemy.name}の攻撃力が根性で3倍に！`);
                 }
                 
                 const defReduction = Math.floor(myDef * 0.1);
-                let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
+                let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
                 
                 // 素早さによる補正（ボット側）
-                const enemySpeed = enemy.speed || 0;
-                const enemyDodgeChance = calculateDodgeChance(enemySpeed);
+                const enemyDodgeChance = calculateDodgeChance(enemy.speed);
                 
                 // 45%を超える分は攻撃ボーナスに変換
                 if (enemySpeed > 7500) {
@@ -1411,23 +1421,24 @@ function handleBotAnswer(userAnswer) {
                 }
                 
                 // 鉄壁適用
-                if (me.equippedWeapon && me.equippedWeapon.uniqueAbilities) {
-                    const hasIronWall = me.equippedWeapon.uniqueAbilities.some(a => a.effect === "damage_cut_half");
-                    if (hasIronWall) {
-                        damage = Math.floor(damage * 0.5);
-                        addLog("鉄壁発動！ダメージ50%カット");
-                    }
+                if (hasUniqueAbility(me, 'damage_cut_half')) {
+                    damage = Math.floor(damage * 0.5);
+                    addLog("鉄壁発動！ダメージ50%カット");
                 }
                 
                 // 回避判定（プレイヤーの回避率）
-                const mySpeed = me.speed || 0;
-                const myDodgeChance = Math.min(45, mySpeed * 0.5);
+                const myDodgeChance = calculateDodgeChance(me.speed);
                 const dodgeRoll = Math.random() * 100;
                 if (dodgeRoll < myDodgeChance) {
                     showDamage("myDamage", 0);
                     addLog("回避！ダメージなし");
                 } else {
-                    me.hp = Math.max(0, me.hp - damage);
+                    if (me.hp - damage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
+                        me.hp = 1;
+                        addLog(`${me.name}は根性で持ちこたえた！`);
+                    } else {
+                        me.hp = Math.max(0, me.hp - damage);
+                    }
                     showDamage("myDamage", damage);
                     addLog("ボットからのダメージ: " + damage);
                 }
