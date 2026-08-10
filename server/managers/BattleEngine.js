@@ -277,10 +277,29 @@ function processAnswer(battle, playerId, answer, skill) {
         
         // 先に正解した場合のみダメージを与える
         if (!defender.answerTime) {
+            let skillIsActive = false;
+            let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion"); // 必中能力
+
             // スキル効果を適用
             if (skill && skill.effect && skill.effect.type === 'active') {
-                result.skillUsed = skill; // 使用したスキル情報を結果に含める
                 console.log(`[BattleEngine] Applying skill "${skill.name}" for player ${player.name}`);
+                let canApply = true;
+                // 条件チェック
+                if (skill.effect.condition) {
+                    const cond = skill.effect.condition;
+                    if (cond.type === 'hp_below') {
+                        if (attacker.hp / attacker.maxHp > cond.value) {
+                            canApply = false;
+                        }
+                    }
+                }
+
+                if (canApply) {
+                    result.skillUsed = skill; // 条件を満たした場合のみスキルを使用したとみなす
+                    skillIsActive = true;
+                    // 必中効果
+                    if (skill.effect.sureHit) isAttackerSureHit = true;
+                }
             }
 
             // 「根性」の攻撃力アップ効果
@@ -291,15 +310,12 @@ function processAnswer(battle, playerId, answer, skill) {
                 result.gutsAtkBoostPlayerName = attacker.name;
             }
 
-            // 攻撃者が必中能力を持っているかチェック
-            const isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
-            
             let damageResult = calculateDamage(attacker, defender, answerTime, isAttackerSureHit, attackerAtk);
             let damage = damageResult.damage;
             
             // スキルによるダメージ倍率を適用
-            if (result.skillUsed && result.skillUsed.effect.damageMultiplier) {
-                damage = Math.floor(damage * result.skillUsed.effect.damageMultiplier);
+            if (skillIsActive && skill.effect.damageMultiplier) {
+                damage = Math.floor(damage * skill.effect.damageMultiplier);
             }
             const dodgeChance = damageResult.dodgeChance;
             

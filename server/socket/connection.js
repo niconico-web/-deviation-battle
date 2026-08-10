@@ -26,7 +26,9 @@ function resolveBattlePlayer(socketId, storedData){
             def: stats.def ?? live.def,
             speed: stats.speed ?? live.speed,
             equippedWeapon: live.equippedWeapon || null,
-            battleStats: stats // battleStatsを明示的に保持
+            battleStats: stats, // battleStatsを明示的に保持
+            skillTrees: live.skillTrees || {},
+            customSkills: live.customSkills || []
         };
     }
 
@@ -41,7 +43,9 @@ function resolveBattlePlayer(socketId, storedData){
             def: stats.def ?? storedData.def,
             speed: stats.speed ?? storedData.speed,
             equippedWeapon: storedData.equippedWeapon || null,
-            battleStats: stats // battleStatsを明示的に保持
+            battleStats: stats, // battleStatsを明示的に保持
+            skillTrees: storedData.skillTrees || {},
+            customSkills: storedData.customSkills || []
         };
     }
 
