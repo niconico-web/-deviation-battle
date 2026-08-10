@@ -520,7 +520,7 @@ function setupDOMEventHandlers() {
             <hr>
             <h4>データ引き継ぎ</h4>
             <div class="input-group">
-                <input type="text" id="loadPlayerIdInput" placeholder="プレイヤーIDを入力" style="text-transform: uppercase;">
+                <input type="text" id="loadPlayerIdInput" placeholder="プレイヤーIDを入力">
                 <button id="loadDataBtn" class="btn">このIDのデータを引き継ぐ</button>
             </div>
             <p class="help-text">入力したIDのデータをサーバーから読み込みます。<strong>現在のキャラクターデータは上書きされます。</strong></p>
