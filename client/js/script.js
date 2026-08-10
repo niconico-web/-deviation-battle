@@ -284,11 +284,9 @@ function applyStudyRewards(seconds) {
         ? (player.hp || player.maxHp) + statGain
         : (player.hp || player.maxHp);
 
-    const minutes = Math.floor(seconds / 60);
-    let gainedCoins = minutes;
-    let bonusCoins = 0;
+    let gainedCoins = 0;
     if (seconds >= STUDY_COIN_THRESHOLD) {
-        bonusCoins = 30;
+        gainedCoins = 20; // 30分以上の勉強で20コイン獲得
     }
 
     // オーブドロップ判定（25分以上で確定）
@@ -302,7 +300,7 @@ function applyStudyRewards(seconds) {
         totalStudySeconds: (player.totalStudySeconds || 0) + seconds,
         grade: player.grade,
         id: player.id,
-        coins: (player.coins || 0) + gainedCoins + bonusCoins,
+        coins: (player.coins || 0) + gainedCoins,
         weapons: player.weapons,
         equippedWeapon: player.equippedWeapon,
         weaponWins: player.weaponWins,
@@ -323,10 +321,7 @@ function applyStudyRewards(seconds) {
     let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
     if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
     if (gainedCoins > 0) {
-        msg += `\nコイン +${gainedCoins} (${minutes}分)`;
-    }
-    if (bonusCoins > 0) {
-        msg += `\n30分以上の勉強ボーナス +${bonusCoins}コイン`;
+        msg += `\n30分以上の勉強ボーナス +${gainedCoins}コイン`;
     }
     if (droppedOrb && typeof getOrbDisplayName === "function") {
         msg += "\n\n★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
