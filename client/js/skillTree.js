@@ -106,14 +106,14 @@ const CUSTOM_SKILL_VALIDATION = {
         "forever", // 永遠に
     ],
     
-    // 効果の強度に基づく必要ステータス合計値（さらに厳しめの設定）
+    // 効果の強度に基づく必要ステータス合計値（さらに厳しめの設定 - 10倍）
     statRequirements: {
-        weak: { totalStats: 500, maxMultiplier: 1.1, description: "微弱" },
-        medium: { totalStats: 800, maxMultiplier: 1.2, description: "中程度" },
-        strong: { totalStats: 1200, maxMultiplier: 1.3, description: "強力" },
-        veryStrong: { totalStats: 1800, maxMultiplier: 1.5, description: "非常に強力" },
-        extreme: { totalStats: 2500, maxMultiplier: 1.8, description: "極めて強力" },
-        gameBreaking: { totalStats: 3500, maxMultiplier: 2.0, description: "ゲームバランス崩壊レベル" }
+        weak: { totalStats: 5000, maxMultiplier: 1.1, description: "微弱" },
+        medium: { totalStats: 8000, maxMultiplier: 1.2, description: "中程度" },
+        strong: { totalStats: 12000, maxMultiplier: 1.3, description: "強力" },
+        veryStrong: { totalStats: 18000, maxMultiplier: 1.5, description: "非常に強力" },
+        extreme: { totalStats: 25000, maxMultiplier: 1.8, description: "極めて強力" },
+        gameBreaking: { totalStats: 35000, maxMultiplier: 2.0, description: "ゲームバランス崩壊レベル" }
     }
 };
 
@@ -198,7 +198,7 @@ function unlockSkillNode(player, nodeId) {
 }
 
 // スキルノードの効果を取得
-function getSkillNodeEffects(player) {
+function getSkillNodeEffects(player, weaponType = 'sword_shield') {
     player = initializeSkillData(player);
     
     const effects = {
@@ -219,6 +219,11 @@ function getSkillNodeEffects(player) {
     for (const nodeId of playerTreeData.unlockedNodes || []) {
         const node = skillTree.nodes.find(n => n.id === nodeId);
         if (!node) continue;
+        
+        // 武器タイプが一致するスキルのみを対象にする
+        if (node.weaponType && node.weaponType !== weaponType && node.weaponType !== 'all') {
+            continue;
+        }
         
         if (node.type === "stat" || node.type === "passive") {
             // パッシブ効果を適用

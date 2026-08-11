@@ -9,6 +9,15 @@
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
 <link rel="stylesheet" href="css/battle.css?v=1783932440567">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => console.log('ServiceWorker registered'))
+      .catch(error => console.log('ServiceWorker registration failed'));
+  });
+}
+</script>
 </head>
 <body>
 <div class="battle-container">

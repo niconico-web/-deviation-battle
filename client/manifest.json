@@ -1,11 +1,11 @@
 {
-  "name": "??????",
-  "short_name": "??????",
+  "name": "SchoolBattle",
+  "short_name": "SchoolBattle",
   "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#007bff",
-  "description": "?????????????????????",
+  "background_color": "#1e3c72",
+  "theme_color": "#1e3c72",
+  "description": "学問を通じて戦うバトルゲーム",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
