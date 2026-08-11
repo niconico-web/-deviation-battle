@@ -25,6 +25,7 @@
         <ul class="sidebar-menu">
             <li><button class="menu-btn active" data-section="stats">📊 ステータス</button></li>
             <li><button class="menu-btn" data-section="weapons">⚔️ 武器</button></li>
+            <li><button class="menu-btn" data-section="skills">🌳 スキルツリー</button></li>
             <li><button class="menu-btn" data-section="timer">⏱️ タイマー</button></li>
             <li><button class="menu-btn" data-section="battle">⚔️ バトル</button></li>
             <li><a href="help.html" class="menu-btn">❓ ヘルプ</a></li>
@@ -139,6 +140,61 @@
             </section>
         </div>
 
+        <!-- スキルツリーセクション -->
+        <div id="section-skills" class="content-section">
+            <section class="skill-section section">
+                <h2>スキルツリー</h2>
+                <p class="skill-desc">レベルアップでスキルポイントを獲得し、スキルツリーを解放できます。</p>
+                <p id="totalSkillPointsDisplay" class="skill-points-display">総スキルポイント: 0</p>
+                
+                <div class="weapon-type-selector">
+                    <label for="skillWeaponType">武器種を選択:</label>
+                    <select id="skillWeaponType">
+                        <option value="sword_shield">片手剣＋盾</option>
+                        <option value="spear">長槍</option>
+                        <option value="greatsword">大剣</option>
+                        <option value="dual_swords">双剣</option>
+                        <option value="scythe">鎌</option>
+                        <option value="pistol">ピストル</option>
+                        <option value="katana">刀</option>
+                        <option value="magic_wand">魔法の杖</option>
+                    </select>
+                </div>
+                
+                <p id="weaponSkillPointsDisplay" class="skill-points-display">武器種スキルポイント: 0</p>
+                
+                <div id="skillTreeContainer" class="skill-tree-container">
+                    <div id="skillTreeCanvas" class="skill-tree-canvas"></div>
+                </div>
+                
+                <div id="skillNodeDetails" class="skill-node-details">
+                    <h3>スキル詳細</h3>
+                    <p id="skillNodeName">-</p>
+                    <p id="skillNodeDescription">-</p>
+                    <p id="skillNodeCost">-</p>
+                    <button type="button" class="btn" id="unlockSkillBtn" disabled>スキル解放</button>
+                </div>
+            </section>
+
+            <section class="custom-skill-section section">
+                <h2>オリジナルスキル作成</h2>
+                <p class="skill-desc">AIがあなた専用のオリジナルスキルを作成します。効果が強いほど多くのステータスが必要です。</p>
+                <p class="skill-desc">コスト: 100コイン</p>
+                
+                <div class="custom-skill-form">
+                    <label for="customSkillName">スキル名:</label>
+                    <input id="customSkillName" type="text" placeholder="スキル名を入力" maxlength="30">
+                    
+                    <label for="customSkillDescription">スキルの説明と効果:</label>
+                    <textarea id="customSkillDescription" placeholder="スキルの効果を詳細に説明してください（例: 次の攻撃のダメージを1.2倍にする）" maxlength="200"></textarea>
+                    
+                    <button type="button" class="btn" id="createCustomSkillBtn">オリジナルスキル作成 (100コイン)</button>
+                </div>
+                
+                <div id="customSkillList" class="custom-skill-list"></div>
+            </section>
+        </div>
+
         <!-- タイマー系セクション -->
         <div id="section-timer" class="content-section">
             <section class="study-section section">
@@ -220,9 +276,9 @@
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/i18n.js?v=1783932440590"></script>
 <script src="js/weapons.js?v=1783932440590"></script>
-<script src="js/skillAnalyzer.js?v=1783932440590"></script>
-<script src="js/skillTree.js?v=1783932440590"></script>
 <script src="js/stats.js?v=1783932440590"></script>
+<script src="js/skillTree.js?v=1783932440590"></script>
+<script src="js/skillTreeUI.js?v=1783932440590"></script>
 <script src="js/script.js?v=1783932440590"></script>
 <script src="js/online.js?v=1783932440590"></script>
 <script src="js/shop.js?v=1783932440590"></script>

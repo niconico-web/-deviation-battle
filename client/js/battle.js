@@ -9,13 +9,15 @@ let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTi
 let activeSkills = [];
 let selectedSkill = null;
 let usedSkills = [];
+let skillActivationWindow = false;
+let skillActivationTimer = null;
 // スキルによる一時的な効果（ボット戦で使用）
 let myPendingDamageReduction = 0; // 次に受けるダメージの軽減率
 let myDefDebuff = 0;              // 自身の防御低下量
 let myDefDebuffTurns = 0;         // 防御低下の残りターン
 let mySkipThisTurn = false;       // このターン攻撃できない
 let enemyBurnTurns = 0;           // 敵の火傷残りターン
- 
+
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
 
@@ -122,20 +124,9 @@ function initialize() {
     updateHP();
     updateUltimateGauge();
     addLog(I18N.battleBegin);
-
-    // スキルスロットに登録されたスキルを読み込む
-    // サーバー経由のデータに skillSlots が含まれていない場合は
-    // ローカルに保存されたプレイヤーデータからフォールバックする
-    let slots = Array.isArray(me.skillSlots) ? me.skillSlots : null;
-    if (!slots || slots.every(s => !s)) {
-        const saved = getSavedPlayer();
-        if (saved && Array.isArray(saved.skillSlots) && saved.skillSlots.some(s => s)) {
-            slots = saved.skillSlots;
-        }
-    }
-    me.skillSlots = slots || [null, null, null];
-    activeSkills = me.skillSlots.filter(skill => skill && skill.id);
-    renderSkills();
+    
+    // スキルを初期化
+    initializeBattleSkills();
 
     if (isBotBattle) {
         startBotBattle();
@@ -846,6 +837,239 @@ function shuffleArray(array) {
     return newArray;
 }
 
+// ============================================
+// スキルシステム（バトル中）
+// ============================================
+
+// バトルスキルの初期化
+function initializeBattleSkills() {
+    // プレイヤーデータからスキルツリー情報を取得
+    const player = getPlayerData();
+    if (!player) return;
+    
+    // スキルデータを初期化
+    const initializedPlayer = initializeSkillData(player);
+    
+    // 装備武器のアクティブスキルを取得
+    const weaponType = me.equippedWeapon?.type || 'sword_shield';
+    const skillEffects = getSkillNodeEffects(initializedPlayer, weaponType);
+    
+    // カスタムスキルも追加
+    const customSkills = initializedPlayer.customSkills || [];
+    
+    // アクティブスキルをマージ
+    activeSkills = [...skillEffects.active];
+    customSkills.forEach(customSkill => {
+        activeSkills.push({
+            id: customSkill.id,
+            name: customSkill.name,
+            description: customSkill.description,
+            effect: customSkill.effect,
+            isCustom: true
+        });
+    });
+    
+    // 使用済みスキルリストを初期化
+    usedSkills = [];
+    
+    // スキルスロットをレンダリング
+    renderSkills();
+}
+
+// スキルスロットのレンダリング
+function renderSkills() {
+    const container = document.getElementById('skillSlotsContainer');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    if (activeSkills.length === 0) {
+        container.innerHTML = '<p class="no-skills">アクティブスキルなし</p>';
+        return;
+    }
+    
+    activeSkills.forEach(skill => {
+        const skillBtn = document.createElement('button');
+        skillBtn.className = 'skill-slot';
+        skillBtn.dataset.skillId = skill.id;
+        
+        const isUsed = usedSkills.includes(skill.id);
+        const isActive = selectedSkill?.id === skill.id;
+        
+        skillBtn.innerHTML = `
+            <span class="skill-name">${skill.name}</span>
+            <span class="skill-desc">${skill.description}</span>
+        `;
+        
+        if (isUsed) {
+            skillBtn.classList.add('used');
+            skillBtn.disabled = true;
+        } else if (isActive) {
+            skillBtn.classList.add('active');
+        }
+        
+        skillBtn.onclick = () => activateSkill(skill);
+        
+        container.appendChild(skillBtn);
+    });
+}
+
+// スキルのアクティブ化
+function activateSkill(skill) {
+    if (usedSkills.includes(skill.id)) {
+        addLog('このスキルは既に使用済みです');
+        return;
+    }
+    
+    if (!skillActivationWindow) {
+        addLog('スキルは問題の間の3秒間のみアクティブにできます');
+        return;
+    }
+    
+    selectedSkill = skill;
+    addLog(`スキル「${skill.name}」をアクティブにしました`);
+    
+    // スキルボタンの状態を更新
+    renderSkills();
+}
+
+// スキルボタンの有効/無効化
+function enableSkillButtons(enabled) {
+    const buttons = document.querySelectorAll('.skill-slot');
+    buttons.forEach(btn => {
+        if (!btn.classList.contains('used')) {
+            btn.disabled = !enabled;
+        }
+    });
+}
+
+// スキルアクティベーションウィンドウの開始
+function startSkillActivationWindow() {
+    skillActivationWindow = true;
+    enableSkillButtons(true);
+    
+    // 3秒後にウィンドウを閉じる
+    if (skillActivationTimer) {
+        clearTimeout(skillActivationTimer);
+    }
+    
+    skillActivationTimer = setTimeout(() => {
+        skillActivationWindow = false;
+        enableSkillButtons(false);
+        
+        // アクティブなスキルがあればログに表示
+        if (selectedSkill) {
+            addLog(`スキル「${selectedSkill.name}」が発動準備完了`);
+        }
+    }, 3000);
+}
+
+// スキル効果の適用
+function applySkillEffect(damage, attacker, defender, skill) {
+    if (!skill || !skill.effect) return damage;
+    
+    let modifiedDamage = damage;
+    const effect = skill.effect;
+    
+    // ダメージ倍率
+    if (effect.damageMultiplier) {
+        modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
+        addLog(`スキル効果: ダメージ${effect.damageMultiplier}倍！`);
+    }
+    
+    // 防御貫通
+    if (effect.pierceDef) {
+        addLog(`スキル効果: 防御${effect.pierceDef * 100}%貫通！`);
+    }
+    
+    // ライフスティール
+    if (effect.lifeSteal) {
+        const healAmount = Math.floor(modifiedDamage * effect.lifeSteal);
+        attacker.hp = Math.min(attacker.hp + healAmount, attacker.maxHp);
+        addLog(`スキル効果: ${healAmount}回復！`);
+        updateHP();
+    }
+    
+    // 回復
+    if (effect.healPercent) {
+        const healAmount = Math.floor(attacker.maxHp * effect.healPercent);
+        attacker.hp = Math.min(attacker.hp + healAmount, attacker.maxHp);
+        addLog(`スキル効果: ${healAmount}回復！`);
+        updateHP();
+    }
+    
+    // ダメージ軽減（次の攻撃に対して）
+    if (effect.damageReduction) {
+        if (attacker === me) {
+            myPendingDamageReduction = effect.damageReduction;
+            addLog(`スキル効果: 次のダメージ${effect.damageReduction * 100}%軽減！`);
+        }
+    }
+    
+    // 回避率上昇
+    if (effect.evasionChance || effect.evasionBoost) {
+        addLog(`スキル効果: 回避率上昇！`);
+    }
+    
+    // 回避率無視
+    if (effect.ignoreEvasion) {
+        addLog(`スキル効果: 回避率無視！`);
+    }
+    
+    // カウンターアタック
+    if (effect.counterAttack) {
+        addLog(`スキル効果: カウンターアタック準備！`);
+    }
+    
+    // バーサーク（HPが低い時に強化）
+    if (effect.berserk) {
+        const hpRatio = attacker.hp / attacker.maxHp;
+        if (hpRatio <= 0.5) {
+            modifiedDamage = Math.floor(modifiedDamage * effect.berserk);
+            addLog(`スキル効果: バーサーク発動！ダメージ${effect.berserk}倍！`);
+        }
+    }
+    
+    // エクスキュート（相手HPが低い時に強化）
+    if (effect.execute) {
+        const hpRatio = defender.hp / defender.maxHp;
+        if (hpRatio <= 0.3) {
+            modifiedDamage = Math.floor(modifiedDamage * effect.execute);
+            addLog(`スキル効果: エクスキュート発動！ダメージ${effect.execute}倍！`);
+        }
+    }
+    
+    // 即死確率
+    if (effect.instantDeathChance) {
+        if (Math.random() < effect.instantDeathChance) {
+            defender.hp = 0;
+            addLog(`スキル効果: 即死！`);
+            updateHP();
+            return modifiedDamage;
+        }
+    }
+    
+    // カース（相手ステータス低下）
+    if (effect.curse) {
+        defender.atk = Math.floor(defender.atk * (1 - effect.curse));
+        defender.def = Math.floor(defender.def * (1 - effect.curse));
+        defender.speed = Math.floor(defender.speed * (1 - effect.curse));
+        addLog(`スキル効果: 相手のステータス${effect.curse * 100}%低下！`);
+        updateStats();
+    }
+    
+    return modifiedDamage;
+}
+
+// スキル使用後の処理
+function afterSkillUse(skill) {
+    if (skill && skill.id) {
+        usedSkills.push(skill.id);
+        selectedSkill = null;
+        renderSkills();
+    }
+}
+
 function handleChoiceClick(selectedOption) {
     // ボタンを無効化
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
@@ -1262,20 +1486,17 @@ function generateBotQuestion() {
     if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
     showCountdown(() => {
-        questionDisplay.textContent = currentQuestion.question;
-        // 選択肢を生成
-        generateChoices(currentQuestion);
-        startTimer();
-        addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+        questionDisplay.textContent = "スキルを選択してください (3秒)";
+        choicesContainer.innerHTML = '';
+        startSkillActivationWindow();
 
-        // 3秒間のスキル選択タイム
         setTimeout(() => {
-            addLog("3秒以内にスキルを選択してください！");
-            enableSkillButtons(true);
-            setTimeout(() => {
-                enableSkillButtons(false);
-            }, 3000);
-        }, 500);
+            questionDisplay.textContent = currentQuestion.question;
+            // 選択肢を生成
+            generateChoices(currentQuestion);
+            startTimer();
+            addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+        }, 3000);
     });
 }
 
@@ -1378,6 +1599,9 @@ function handleBotAnswer(userAnswer) {
             damage = Math.floor(damage * 1.5);
             addLog("必殺発動！ダメージ1.5倍！");
         }
+        
+        // スキル効果を適用（新しいスキルシステム）
+        damage = applySkillEffect(damage, me, enemy, usedSkill);
         
         // スキルによる威力補正
         if (skillEffect.damageMultiplier && skillEffect.damageMultiplier !== 1) {
@@ -1957,10 +2181,9 @@ if (!isBotBattle && socket) {
                 showCountdown(() => {
                     questionDisplay.textContent = "スキルを選択してください (3秒)";
                     choicesContainer.innerHTML = '';
-                    enableSkillButtons(true);
+                    startSkillActivationWindow();
 
                     setTimeout(() => {
-                        enableSkillButtons(false);
                         questionDisplay.textContent = currentQuestion.question;
                         generateChoices(currentQuestion);
                         startTimer();
@@ -2078,14 +2301,13 @@ function consumeSelectedSkill() {
         }
     }
 
+    // スキルを使用済みとしてマーク
     usedSkills.push(skill.id);
-    const btn = document.querySelector(`.skill-btn[data-skill-id="${skill.id}"]`);
-    if (btn) {
-        btn.disabled = true;
-        btn.classList.add('used');
-        btn.classList.remove('selected');
-    }
-    clearSkillSelection();
+    selectedSkill = null;
+    
+    // スキルボタンの状態を更新
+    renderSkills();
+    
     addLog(`スキル「${skill.name}」発動！`);
     return skill;
 }
