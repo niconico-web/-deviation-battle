@@ -821,8 +821,8 @@ a.menu-btn {
     min-width: 300px;
     width: 100%;
     overflow: auto;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background-color: var(--background-color);
+    border: 1px solid var(--surface-color);
     border-radius: 8px;
     -webkit-overflow-scrolling: touch;
 }
@@ -839,13 +839,13 @@ a.menu-btn {
     width: 60px;
     height: 40px;
     border-radius: 8px;
-    border: 2px solid #6c757d;
-    background-color: #e9ecef;
+    border: 2px solid var(--on-surface-variant-color);
+    background-color: var(--surface-color);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.65em;
-    color: #495057;
+    color: var(--on-surface-color);
     cursor: pointer;
     z-index: 1;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -862,52 +862,52 @@ a.menu-btn {
 }
 
 .skill-tree-canvas .skill-node.stat {
-    background-color: #6c757d;
-    border-color: #495057;
-    color: #fff;
+    background-color: var(--surface-color);
+    border-color: var(--on-surface-variant-color);
+    color: var(--on-surface-color);
 }
 
 .skill-tree-canvas .skill-node.active {
-    background-color: #dc3545;
-    border-color: #a71d2a;
-    color: #fff;
+    background-color: var(--error-color);
+    border-color: #c0392b;
+    color: var(--on-surface-color);
 }
 
 .skill-tree-canvas .skill-node.passive {
-    background-color: #28a745;
-    border-color: #1e7e34;
-    color: #fff;
+    background-color: var(--primary-color);
+    border-color: var(--primary-dark-color);
+    color: var(--on-surface-color);
 }
 
 .skill-tree-canvas .skill-node.unlocked {
-    border-color: #28a745;
-    box-shadow: 0 0 10px rgba(40, 167, 69, 0.7);
-    background-color: #d4edda;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.7);
+    background-color: rgba(52, 152, 219, 0.2);
 }
 
 .skill-tree-canvas .skill-node.unlockable {
-    border-color: #ffc107;
-    background-color: #fff3cd;
+    border-color: var(--primary-color);
+    background-color: rgba(52, 152, 219, 0.1);
     cursor: pointer;
 }
 
 .skill-tree-canvas .skill-node.unlockable:hover {
     transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(255, 193, 7, 0.9);
+    box-shadow: 0 0 15px rgba(52, 152, 219, 0.9);
 }
 
 .skill-tree-canvas .skill-node.locked {
-    border-color: #6c757d;
+    border-color: var(--on-surface-variant-color);
     cursor: not-allowed;
     opacity: 0.4;
-    background-color: #e9ecef;
+    background-color: var(--surface-color);
 }
 
 .skill-description-area {
     margin-top: 16px;
     padding: 16px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface-color);
+    border: 1px solid var(--primary-color);
     border-radius: 8px;
     border-left: 4px solid var(--primary-color);
 }
@@ -920,6 +920,7 @@ a.menu-btn {
 .skill-description-area p {
     margin: 8px 0;
     line-height: 1.5;
+    color: var(--on-surface-color);
 }
 
 .skill-node {
