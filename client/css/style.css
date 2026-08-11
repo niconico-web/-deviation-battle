@@ -802,7 +802,21 @@ a.menu-btn {
 .skill-tree-canvas {
     position: relative;
     min-height: 400px;
-    min-width: 600px;
+    min-width: 300px;
+    width: 100%;
+    overflow: auto;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+}
+
+.skill-tree-canvas > div {
+    position: relative;
+}
+
+.skill-tree-canvas .skill-node {
+    position: absolute;
+    transition: all 0.3s ease;
 }
 
 .skill-node {

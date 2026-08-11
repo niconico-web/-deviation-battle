@@ -774,13 +774,25 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
 }
 
 function renderTree() {
+    console.log('renderTree called');
     const content = document.getElementById('skillTreeCanvas');
     const pointsDisplay = document.getElementById('totalSkillPointsDisplay');
-    if (!content || !pointsDisplay) return;
+    if (!content || !pointsDisplay) {
+        console.log('renderTree: content or pointsDisplay not found');
+        return;
+    }
 
     const player = getPlayerData();
+    if (!player) {
+        console.log('renderTree: player not found');
+        return;
+    }
+    
     const treeData = SKILL_TREE;
     const playerData = player.skillTree;
+    
+    console.log('renderTree: treeData =', treeData);
+    console.log('renderTree: playerData =', playerData);
 
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
@@ -822,8 +834,11 @@ function renderTree() {
     svg.style.height = '100%';
     svg.style.pointerEvents = 'none'; // Crucial for touch scrolling
     innerContent.appendChild(svg);
+    
+    console.log('renderTree: created inner content and SVG');
 
     // 最初に接続線を描画
+    console.log('renderTree: drawing connections');
     treeData.nodes.forEach(node => {
         if (node.requires) {
             const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
@@ -843,6 +858,7 @@ function renderTree() {
     });
 
     // 次にノードを描画（線の上に表示するため）
+    console.log('renderTree: drawing nodes');
     treeData.nodes.forEach(node => {
         const nodeEl = document.createElement('div');
         nodeEl.className = `skill-node ${node.type}`;
@@ -904,6 +920,8 @@ function renderTree() {
             content.scrollLeft = nodeX - (content.clientWidth / 2) + (NODE_WIDTH / 2);
         }, 50);
     }
+    
+    console.log('renderTree: rendering complete');
 }
 
 function renderSkillSlots(player) {
