@@ -2,7 +2,6 @@
 // スキルツリーUI
 // ============================================
 
-let currentWeaponType = 'sword_shield';
 let selectedNode = null;
 
 // スキルツリーの初期化
@@ -13,22 +12,6 @@ function initializeSkillTreeUI() {
     // スキルデータを初期化
     const initializedPlayer = initializeSkillData(player);
     localStorage.setItem("player", JSON.stringify(initializedPlayer));
-    
-    // 武器種セレクターのイベントリスナー
-    const weaponTypeSelect = document.getElementById('skillWeaponType');
-    if (weaponTypeSelect) {
-        weaponTypeSelect.addEventListener('change', (e) => {
-            currentWeaponType = e.target.value;
-            renderSkillTree();
-            updateSkillPointsDisplay();
-        });
-        
-        // 装備中の武器種を自動選択
-        if (player.equippedWeapon && player.equippedWeapon.type) {
-            weaponTypeSelect.value = player.equippedWeapon.type;
-            currentWeaponType = player.equippedWeapon.type;
-        }
-    }
     
     // スキル解放ボタンのイベントリスナー
     const unlockBtn = document.getElementById('unlockSkillBtn');
@@ -229,7 +212,7 @@ function selectSkillNode(node) {
     if (costEl) costEl.textContent = `コスト: ${node.cost} スキルポイント`;
     
     const player = getPlayerData();
-    const playerTreeData = player.skillTrees?.[currentWeaponType] || { unlockedNodes: [], availablePoints: 0 };
+    const playerTreeData = player.skillTree || { unlockedNodes: [], availablePoints: 0 };
     
     if (unlockBtn) {
         const isUnlocked = playerTreeData.unlockedNodes.includes(node.id);
@@ -254,7 +237,7 @@ function unlockSelectedSkill() {
     const player = getPlayerData();
     if (!player) return;
     
-    const result = unlockSkillNode(player, currentWeaponType, selectedNode.id);
+    const result = unlockSkillNode(player, selectedNode.id);
     
     if (result.success) {
         localStorage.setItem("player", JSON.stringify(result.player));
@@ -273,16 +256,11 @@ function updateSkillPointsDisplay() {
     if (!player) return;
     
     const initializedPlayer = initializeSkillData(player);
+    const totalPoints = initializedPlayer.skillTree.availablePoints;
     
-    const totalPointsEl = document.getElementById('totalSkillPointsDisplay');
-    if (totalPointsEl) {
-        totalPointsEl.textContent = `総スキルポイント: ${initializedPlayer.totalSkillPoints || 0}`;
-    }
-    
-    const weaponPointsEl = document.getElementById('weaponSkillPointsDisplay');
-    if (weaponPointsEl) {
-        const weaponTreeData = initializedPlayer.skillTrees?.[currentWeaponType] || { availablePoints: 0 };
-        weaponPointsEl.textContent = `武器種スキルポイント: ${weaponTreeData.availablePoints}`;
+    const totalDisplay = document.getElementById('totalSkillPointsDisplay');
+    if (totalDisplay) {
+        totalDisplay.textContent = `総スキルポイント: ${totalPoints}`;
     }
 }
 
@@ -294,8 +272,16 @@ function handleCustomSkillCreation() {
     const skillName = nameInput.value.trim();
     const skillDescription = descInput.value.trim();
     
-    if (!skillName || !skillDescription) {
-        alert('スキル名と説明を入力してください');
+    console.log("Skill name:", skillName);
+    console.log("Skill description:", skillDescription);
+    
+    if (!skillName || skillName.length === 0) {
+        alert('スキル名を入力してください');
+        return;
+    }
+    
+    if (!skillDescription || skillDescription.length === 0) {
+        alert('スキルの説明を入力してください');
         return;
     }
     

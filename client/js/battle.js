@@ -861,12 +861,9 @@ function initializeBattleSkills() {
             const initializedPlayer = initializeSkillData(player);
             console.log("Initialized player skill data:", initializedPlayer);
             
-            // 装備武器のアクティブスキルを取得
-            const weaponType = me.equippedWeapon?.type || 'sword_shield';
-            console.log("Weapon type:", weaponType);
-            
+            // アクティブスキルを取得
             if (typeof getSkillNodeEffects === 'function') {
-                const skillEffects = getSkillNodeEffects(initializedPlayer, weaponType);
+                const skillEffects = getSkillNodeEffects(initializedPlayer);
                 console.log("Skill effects:", skillEffects);
                 
                 // カスタムスキルも追加

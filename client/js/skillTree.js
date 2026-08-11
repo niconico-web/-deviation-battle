@@ -149,30 +149,27 @@ function addSkillPointsOnLevelUp(player, oldLevel, newLevel) {
     return player;
 }
 
-// スキルノードのアンロック
+// スキルノードの解放
 function unlockSkillNode(player, nodeId) {
     player = initializeSkillData(player);
     
     const skillTree = SKILL_TREE;
-    if (!skillTree || !skillTree.nodes) {
-        return { success: false, error: "不明な武器種です" };
-    }
+    if (!skillTree) return { success: false, error: 'スキルツリーが見つかりません' };
     
     const node = skillTree.nodes.find(n => n.id === nodeId);
-    if (!node) {
-        return { success: false, error: "不明なスキルノードです" };
-    }
+    if (!node) return { success: false, error: 'スキルノードが見つかりません' };
     
     const playerTreeData = player.skillTree;
+    if (!playerTreeData) return { success: false, error: 'スキルツリーデータが見つかりません' };
     
-    // 既にアンロック済み
+    // 既に解放済み
     if (playerTreeData.unlockedNodes.includes(nodeId)) {
-        return { success: false, error: "既にアンロック済みです" };
+        return { success: false, error: 'このスキルは既に解放されています' };
     }
     
     // スキルポイント不足
     if (playerTreeData.availablePoints < node.cost) {
-        return { success: false, error: `スキルポイントが不足しています（必要: ${node.cost}、所持: ${playerTreeData.availablePoints}）` };
+        return { success: false, error: 'スキルポイントが不足しています' };
     }
     
     // 前提条件チェック
@@ -180,15 +177,15 @@ function unlockSkillNode(player, nodeId) {
         const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
         for (const reqId of requirements) {
             if (!playerTreeData.unlockedNodes.includes(reqId)) {
-                return { success: false, error: "前提条件を満たしていません" };
+                return { success: false, error: '前提条件のスキルを解放してください' };
             }
         }
     }
     
-    // アンロック処理
+    // スキルを解放
     playerTreeData.unlockedNodes.push(nodeId);
     playerTreeData.availablePoints -= node.cost;
-
+    
     // ポイントを付与するスキルの場合
     if (node.effect && node.effect.grantSkillPoints) {
         playerTreeData.availablePoints += node.effect.grantSkillPoints;
@@ -198,7 +195,7 @@ function unlockSkillNode(player, nodeId) {
 }
 
 // スキルノードの効果を取得
-function getSkillNodeEffects(player, weaponType = 'sword_shield') {
+function getSkillNodeEffects(player) {
     player = initializeSkillData(player);
     
     const effects = {
@@ -219,11 +216,6 @@ function getSkillNodeEffects(player, weaponType = 'sword_shield') {
     for (const nodeId of playerTreeData.unlockedNodes || []) {
         const node = skillTree.nodes.find(n => n.id === nodeId);
         if (!node) continue;
-        
-        // 武器タイプが一致するスキルのみを対象にする
-        if (node.weaponType && node.weaponType !== weaponType && node.weaponType !== 'all') {
-            continue;
-        }
         
         if (node.type === "stat" || node.type === "passive") {
             // パッシブ効果を適用
@@ -311,72 +303,124 @@ function validateCustomSkill(skillDescription, playerStats) {
         }
     }
     
-    // キーワードベースの強度判定（拡張）
-    if (estimatedMultiplier >= 2.0 || desc.includes('2.5') || desc.includes('3倍') || desc.includes('3.0')) {
+    // キーワードベースの強度判定（さらに拡張）
+    if (estimatedMultiplier >= 2.0 || desc.includes('2.5') || desc.includes('3倍') || desc.includes('3.0') || desc.includes('3x') || desc.includes('triple')) {
         estimatedStrength = "gameBreaking";
-    } else if (estimatedMultiplier >= 1.8 || desc.includes('2.2') || desc.includes('2.0') || desc.includes('double')) {
+    } else if (estimatedMultiplier >= 1.8 || desc.includes('2.2') || desc.includes('2.0') || desc.includes('double') || desc.includes('2x') || desc.includes('二倍')) {
         estimatedStrength = "extreme";
-    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.6') || desc.includes('1.7') || desc.includes('半分')) {
+    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.6') || desc.includes('1.7') || desc.includes('半分') || desc.includes('1.5x') || desc.includes('50%up')) {
         estimatedStrength = "veryStrong";
-    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.4') || desc.includes('40%') || desc.includes('大幅')) {
+    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.4') || desc.includes('40%') || desc.includes('大幅') || desc.includes('1.3x') || desc.includes('30%up')) {
         estimatedStrength = "strong";
-    } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%') || desc.includes('少し')) {
+    } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%') || desc.includes('少し') || desc.includes('1.2x') || desc.includes('20%up')) {
         estimatedStrength = "medium";
-    } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%') || desc.includes('わずか')) {
+    } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%') || desc.includes('わずか') || desc.includes('1.1x') || desc.includes('10%up')) {
         estimatedStrength = "weak";
     }
     
-    // 特殊効果の補正（拡張）
-    if (desc.includes('回復') && (desc.includes('50%') || desc.includes('半分') || desc.includes('大幅'))) {
+    // 特殊効果の補正（さらに拡張）
+    if (desc.includes('回復') && (desc.includes('50%') || desc.includes('半分') || desc.includes('大幅') || desc.includes('full') || desc.includes('完全'))) {
         estimatedStrength = "veryStrong";
-    } else if (desc.includes('回復') && (desc.includes('30%') || desc.includes('1/3'))) {
+    } else if (desc.includes('回復') && (desc.includes('30%') || desc.includes('1/3') || desc.includes('中程度'))) {
         estimatedStrength = "strong";
-    } else if (desc.includes('回復')) {
+    } else if (desc.includes('回復') || desc.includes('heal') || desc.includes('cure') || desc.includes('recover')) {
         estimatedStrength = "medium";
     }
     
-    if (desc.includes('回避') && (desc.includes('50%') || desc.includes('半分') || desc.includes('確実'))) {
+    if (desc.includes('回避') && (desc.includes('50%') || desc.includes('半分') || desc.includes('確実') || desc.includes('完全'))) {
         estimatedStrength = "veryStrong";
-    } else if (desc.includes('回避')) {
+    } else if (desc.includes('回避') || desc.includes('dodge') || desc.includes('evade') || desc.includes('miss')) {
         estimatedStrength = "strong";
     }
     
-    if (desc.includes('無効') || desc.includes('パリー') || desc.includes('完全防御') || desc.includes('無傷')) {
+    if (desc.includes('無効') || desc.includes('パリー') || desc.includes('完全防御') || desc.includes('無傷') || desc.includes('nullify') || desc.includes('negate') || desc.includes('block')) {
         estimatedStrength = "veryStrong";
     }
     
-    if (desc.includes('貫通') && (desc.includes('完全') || desc.includes('100%'))) {
+    if (desc.includes('貫通') && (desc.includes('完全') || desc.includes('100%') || desc.includes('true'))) {
         estimatedStrength = "veryStrong";
-    } else if (desc.includes('貫通')) {
+    } else if (desc.includes('貫通') || desc.includes('pierce') || desc.includes('penetrate') || desc.includes('ignore')) {
         estimatedStrength = "strong";
     }
     
-    if (desc.includes('吸収') || desc.includes('ライフスティール') || desc.includes('vampiric')) {
+    if (desc.includes('吸収') || desc.includes('ライフスティール') || desc.includes('vampiric') || desc.includes('lifesteal') || desc.includes('drain')) {
         estimatedStrength = "strong";
     }
     
-    if (desc.includes('カウンター') || desc.includes('反撃') || desc.includes('counter')) {
+    if (desc.includes('カウンター') || desc.includes('反撃') || desc.includes('counter') || desc.includes('retaliate') || desc.includes('revenge')) {
         estimatedStrength = "strong";
     }
     
-    if (desc.includes('即死') || desc.includes('一撃') || desc.includes('instant')) {
+    if (desc.includes('即死') || desc.includes('一撃') || desc.includes('instant') || desc.includes('onehit') || desc.includes('kill')) {
         estimatedStrength = "gameBreaking";
     }
     
-    if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化')) {
+    if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化') || desc.includes('curse') || desc.includes('debuff') || desc.includes('weaken')) {
         estimatedStrength = "strong";
     }
     
-    if (desc.includes('バーサーク') || desc.includes('狂化') || desc.includes('berserk')) {
+    if (desc.includes('バーサーク') || desc.includes('狂化') || desc.includes('berserk') || desc.includes('rage') || desc.includes('frenzy')) {
         estimatedStrength = "veryStrong";
     }
     
-    if (desc.includes('エクスキュート') || desc.includes('処刑') || desc.includes('execute')) {
+    if (desc.includes('エクスキュート') || desc.includes('処刑') || desc.includes('execute') || desc.includes('finish') || desc.includes('finisher')) {
         estimatedStrength = "veryStrong";
+    }
+    
+    if (desc.includes('シールド') || desc.includes('バリア') || desc.includes('shield') || desc.includes('barrier') || desc.includes('protect')) {
+        estimatedStrength = "strong";
+    }
+    
+    if (desc.includes('スロー') || desc.includes('遅延') || desc.includes('slow') || desc.includes('delay') || desc.includes('hindrance')) {
+        estimatedStrength = "medium";
+    }
+    
+    if (desc.includes('スタン') || desc.includes('気絶') || desc.includes('stun') || desc.includes('paralyze') || desc.includes('freeze')) {
+        estimatedStrength = "veryStrong";
+    }
+    
+    if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
+        estimatedStrength = "medium";
+    }
+    
+    if (desc.includes('バフ') || desc.includes('強化') || desc.includes('buff') || desc.includes('enhance') || desc.includes('boost')) {
+        estimatedStrength = "medium";
+    }
+    
+    if (desc.includes('クリティカル') || desc.includes('会心') || desc.includes('critical') || desc.includes('crit') || desc.includes('致命')) {
+        estimatedStrength = "strong";
+    }
+    
+    if (desc.includes('範囲') || desc.includes('全体') || desc.includes('aoe') || desc.includes('area') || desc.includes('splash')) {
+        estimatedStrength = "veryStrong";
+    }
+    
+    if (desc.includes('連続') || desc.includes('複数') || desc.includes('multi') || desc.includes('combo') || desc.includes('chain')) {
+        estimatedStrength = "strong";
+    }
+    
+    if (desc.includes('リフレクト') || desc.includes('反射') || desc.includes('reflect') || desc.includes('mirror')) {
+        estimatedStrength = "veryStrong";
+    }
+    
+    if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
+        estimatedStrength = "medium";
+    }
+    
+    if (desc.includes('インビジブル') || desc.includes('透明') || desc.includes('invisible') || desc.includes('stealth') || desc.includes('hide')) {
+        estimatedStrength = "veryStrong";
+    }
+    
+    if (desc.includes('テレポート') || desc.includes('瞬間移動') || desc.includes('teleport') || desc.includes('blink') || desc.includes('dash')) {
+        estimatedStrength = "strong";
+    }
+    
+    if (desc.includes('リスポーン') || desc.includes('復活') || desc.includes('respawn') || desc.includes('revive') || desc.includes('resurrect')) {
+        estimatedStrength = "gameBreaking";
     }
     
     // 複合効果の補正（複数の効果がある場合は強度を上げる）
-    const effectKeywords = ['ダメージ', '回復', '防御', '回避', '貫通', '吸収', 'カウンター', '呪い', 'デバフ', 'バーサーク', 'エクスキュート', '即死', '無効', 'パリー', 'ライフスティール', 'vampiric', 'counter', 'curse', 'debuff', 'berserk', 'execute', 'instant', 'parry', 'dodge', 'pierce', 'heal', 'damage'];
+    const effectKeywords = ['ダメージ', '回復', '防御', '回避', '貫通', '吸収', 'カウンター', '呪い', 'デバフ', 'バーサーク', 'エクスキュート', '即死', '無効', 'パリー', 'ライフスティール', 'シールド', 'スロー', 'スタン', '毒', 'バフ', 'クリティカル', '範囲', '連続', 'リフレクト', 'リジェネ', 'インビジブル', 'テレポート', 'リスポーン', 'vampiric', 'counter', 'curse', 'debuff', 'berserk', 'execute', 'instant', 'parry', 'dodge', 'pierce', 'heal', 'damage', 'shield', 'slow', 'stun', 'poison', 'buff', 'critical', 'aoe', 'multi', 'reflect', 'regen', 'invisible', 'teleport', 'respawn'];
     let effectCount = 0;
     effectKeywords.forEach(keyword => {
         if (desc.includes(keyword)) effectCount++;
