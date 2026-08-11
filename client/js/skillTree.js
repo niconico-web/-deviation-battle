@@ -729,36 +729,12 @@ function renderSkillTreeUI() {
         return;
     }
 
-    container.innerHTML = `
-        <div class="skill-tree-wrapper">
-            <div class="skill-tree-panel">
-                <div class="skill-tree-header">${SKILL_TREE.name}</div>
-                <div class="skill-tree-content-wrapper">
-                    <div class="skill-points-display"></div>
-                    <div class="skill-tree-content"></div>
-                </div>
-            </div>
-            <div class="skill-management-panel">
-                <div class="skill-slot-wrapper">
-                    <h3>スキルスロット</h3>
-                    <div id="skillSlotsContainer" class="skill-slots-container"></div>
-                    <h4>利用可能なアクティブスキル</h4>
-                    <div id="availableSkillsList" class="available-skills-list"></div>
-                </div>
-                <div class="custom-skill-wrapper">
-                    <h3>オリジナルスキル作成</h3>
-                    <p>作成には ${CUSTOM_SKILL_COST} コインが必要です。</p>
-                    <div class="custom-skill-form">
-                        <input type="text" id="customSkillName" placeholder="スキル名">
-                        <textarea id="customSkillDescription" placeholder="例: HPが50%以下の時、次の攻撃ダメージを1.5倍にし、必中にする"></textarea>
-                        <button id="createCustomSkillBtn">作成する</button>
-                    </div>
-                    <h4>作成済みオリジナルスキル</h4>
-                    <div id="customSkillList"></div>
-                </div>
-            </div>
-        </div>
-    `;
+    // index.htmlの静的UIを使用するため、動的生成は行わない
+    // スキルポイント表示のみ更新
+    const totalSkillPointsDisplay = document.getElementById('totalSkillPointsDisplay');
+    if (totalSkillPointsDisplay) {
+        totalSkillPointsDisplay.textContent = `総スキルポイント: ${player.skillPoints || 0}`;
+    }
 
     // 初期表示
     renderTree();
@@ -767,28 +743,31 @@ function renderSkillTreeUI() {
     renderAvailableSkills(player);
     renderCustomSkillList(player);
 
-    // イベントリスナー
-    document.getElementById('createCustomSkillBtn').onclick = () => {
-        const player = getPlayerData();
-        const skillName = document.getElementById('customSkillName').value.trim();
-        const skillDescription = document.getElementById('customSkillDescription').value.trim();
+    // イベントリスナー（index.htmlの静的UIのボタンに対応）
+    const createCustomSkillBtn = document.getElementById('createCustomSkillBtn');
+    if (createCustomSkillBtn) {
+        createCustomSkillBtn.onclick = () => {
+            const player = getPlayerData();
+            const skillName = document.getElementById('customSkillName').value.trim();
+            const skillDescription = document.getElementById('customSkillDescription').value.trim();
 
-        if (!skillName || !skillDescription) {
-            alert('スキル名と内容を入力してください。');
-            return;
-        }
+            if (!skillName || !skillDescription) {
+                alert('スキル名と内容を入力してください。');
+                return;
+            }
 
-        const result = createCustomSkill(player, skillName, skillDescription);
+            const result = createCustomSkill(player, skillName, skillDescription);
 
-        if (result.success) {
-            localStorage.setItem("player", JSON.stringify(result.player));
-            alert(`オリジナルスキル「${result.skill.name}」を作成しました！`);
-            renderSkillTreeUI(); // UI全体を再描画
-            if (typeof updateStatus === 'function') updateStatus(result.player);
-        } else {
-            alert(`作成に失敗しました:\n${result.error}`);
-        }
-    };
+            if (result.success) {
+                localStorage.setItem("player", JSON.stringify(result.player));
+                alert(`オリジナルスキル「${result.skill.name}」を作成しました！`);
+                renderSkillTreeUI(); // UI全体を再描画
+                if (typeof updateStatus === 'function') updateStatus(result.player);
+            } else {
+                alert(`作成に失敗しました:\n${result.error}`);
+            }
+        };
+    }
 }
 
 // ノード間の接続線を描画するためのヘルパー関数
