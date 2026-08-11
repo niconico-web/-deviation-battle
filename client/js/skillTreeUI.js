@@ -4,31 +4,11 @@
 
 let selectedNode = null;
 
-// スキルツリーの初期化
+// スキルツリーの初期化（skillTree.jsを使用するため無効化）
 function initializeSkillTreeUI() {
-    const player = getPlayerData();
-    if (!player) return;
-    
-    // スキルデータを初期化
-    const initializedPlayer = initializeSkillData(player);
-    localStorage.setItem("player", JSON.stringify(initializedPlayer));
-    
-    // スキル解放ボタンのイベントリスナー
-    const unlockBtn = document.getElementById('unlockSkillBtn');
-    if (unlockBtn) {
-        unlockBtn.addEventListener('click', unlockSelectedSkill);
-    }
-    
-    // オリジナルスキル作成ボタンのイベントリスナー
-    const createCustomSkillBtn = document.getElementById('createCustomSkillBtn');
-    if (createCustomSkillBtn) {
-        createCustomSkillBtn.addEventListener('click', handleCustomSkillCreation);
-    }
-    
-    // 初期レンダリング
-    renderSkillTree();
-    updateSkillPointsDisplay();
-    renderCustomSkillList();
+    // skillTree.jsのrenderSkillTreeUIを使用するため、ここでは何もしない
+    console.log("initializeSkillTreeUI: Using skillTree.js instead");
+    return;
 }
 
 // スキルツリーのレンダリング
@@ -309,54 +289,96 @@ function handleCustomSkillCreation() {
     }
 }
 
-// AIによるスキル効果の推定（簡易実装）
+// AIによるスキル効果の推定（より広範な解釈）
 function estimateSkillEffect(description) {
     const desc = description.toLowerCase();
     const effect = { type: 'active' };
     
-    // ダメージ倍率の推定
-    if (desc.includes('1.1') || desc.includes('1.1倍')) {
-        effect.damageMultiplier = 1.1;
-    } else if (desc.includes('1.2') || desc.includes('1.2倍')) {
-        effect.damageMultiplier = 1.2;
-    } else if (desc.includes('1.3') || desc.includes('1.3倍')) {
-        effect.damageMultiplier = 1.3;
-    } else if (desc.includes('1.5') || desc.includes('1.5倍')) {
-        effect.damageMultiplier = 1.5;
-    } else if (desc.includes('2倍') || desc.includes('2.0')) {
-        effect.damageMultiplier = 2.0;
-    } else if (desc.includes('ダメージ') && desc.includes('倍')) {
-        // 倍率が明示されていない場合のデフォルト
-        effect.damageMultiplier = 1.2;
+    // ダメージ倍率の推定（より広範なパターンマッチング）
+    const multiplierMatches = desc.match(/(\d+\.?\d*)\s*倍|(\d+\.?\d*)\s*%|(\d+\.?\d*)x|(\d+\.?\d*)\s*times/i);
+    if (multiplierMatches) {
+        const num = parseFloat(multiplierMatches[1] || multiplierMatches[2] || multiplierMatches[3] || multiplierMatches[4]);
+        if (!isNaN(num)) {
+            if (desc.includes('%')) {
+                effect.damageMultiplier = 1 + (num / 100);
+            } else {
+                effect.damageMultiplier = num;
+            }
+        }
+    }
+    
+    // ダメージ関連のキーワード
+    if (desc.includes('ダメージ') && !effect.damageMultiplier) {
+        effect.damageMultiplier = 1.2; // デフォルト倍率
+    }
+    if (desc.includes('強力') || desc.includes('強化')) {
+        effect.damageMultiplier = (effect.damageMultiplier || 1.0) * 1.2;
     }
     
     // 回復効果の推定
-    if (desc.includes('回復') || desc.includes('ヒール')) {
+    if (desc.includes('回復') || desc.includes('ヒール') || desc.includes('heal') || desc.includes('cure')) {
         effect.healPercent = 0.2;
-        if (desc.includes('30%')) effect.healPercent = 0.3;
-        if (desc.includes('50%')) effect.healPercent = 0.5;
+        if (desc.includes('30%') || desc.includes('1/3')) effect.healPercent = 0.3;
+        if (desc.includes('50%') || desc.includes('半分')) effect.healPercent = 0.5;
+        if (desc.includes('大幅') || desc.includes('強力')) effect.healPercent = 0.4;
     }
     
     // 防御効果の推定
-    if (desc.includes('防御') || desc.includes('軽減')) {
+    if (desc.includes('防御') || desc.includes('軽減') || desc.includes('reduce') || desc.includes('protect')) {
         effect.damageReduction = 0.2;
         if (desc.includes('30%')) effect.damageReduction = 0.3;
-        if (desc.includes('50%')) effect.damageReduction = 0.5;
+        if (desc.includes('50%') || desc.includes('半分')) effect.damageReduction = 0.5;
+        if (desc.includes('大幅')) effect.damageReduction = 0.4;
     }
     
     // 回避効果の推定
-    if (desc.includes('回避') || desc.includes('ドッジ')) {
+    if (desc.includes('回避') || desc.includes('ドッジ') || desc.includes('dodge') || desc.includes('evade') || desc.includes('miss')) {
         effect.evasionChance = 0.3;
-        if (desc.includes('50%')) effect.evasionChance = 0.5;
+        if (desc.includes('50%') || desc.includes('半分')) effect.evasionChance = 0.5;
+        if (desc.includes('確実') || desc.includes('完全')) effect.evasionChance = 1.0;
     }
     
-    // その他の特殊効果
-    if (desc.includes('貫通') || desc.includes('ピアス')) {
+    // その他の特殊効果（拡張）
+    if (desc.includes('貫通') || desc.includes('ピアス') || desc.includes('pierce') || desc.includes('penetrate') || desc.includes('ignore')) {
         effect.pierceDef = 0.5;
     }
     
-    if (desc.includes('ライフスティール') || desc.includes('吸収')) {
+    if (desc.includes('ライフスティール') || desc.includes('吸収') || desc.includes('lifesteal') || desc.includes('drain') || desc.includes('vampiric')) {
         effect.lifeSteal = 0.15;
+        if (desc.includes('30%')) effect.lifeSteal = 0.3;
+    }
+    
+    if (desc.includes('クリティカル') || desc.includes('会心') || desc.includes('critical') || desc.includes('crit')) {
+        effect.nextAttackCrit = true;
+    }
+    
+    if (desc.includes('火傷') || desc.includes('burn') || desc.includes('burning')) {
+        effect.burn = true;
+    }
+    
+    if (desc.includes('毒') || desc.includes('poison')) {
+        effect.poison = true;
+    }
+    
+    if (desc.includes('スタン') || desc.includes('気絶') || desc.includes('stun') || desc.includes('paralyze')) {
+        effect.stun = true;
+    }
+    
+    if (desc.includes('シールド') || desc.includes('バリア') || desc.includes('shield') || desc.includes('barrier')) {
+        effect.shield = true;
+    }
+    
+    if (desc.includes('カウンター') || desc.includes('反撃') || desc.includes('counter') || desc.includes('retaliate')) {
+        effect.counter = true;
+    }
+    
+    if (desc.includes('連続') || desc.includes('複数') || desc.includes('multi') || desc.includes('combo')) {
+        effect.multiHit = 2;
+        if (desc.includes('3')) effect.multiHit = 3;
+    }
+    
+    if (desc.includes('速さ') && (desc.includes('低下') || desc.includes('遅く') || desc.includes('slow') || desc.includes('debuff'))) {
+        effect.speedDebuff = 0.2;
     }
     
     return effect;
