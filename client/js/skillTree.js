@@ -749,6 +749,9 @@ function renderSkillTreeUI() {
             if (result.success) {
                 localStorage.setItem("player", JSON.stringify(result.player));
                 alert(`オリジナルスキル「${result.skill.name}」を作成しました！`);
+                // 入力をクリア
+                document.getElementById('customSkillName').value = '';
+                document.getElementById('customSkillDescription').value = '';
                 renderSkillTreeUI(); // UI全体を再描画
                 if (typeof updateStatus === 'function') updateStatus(result.player);
             } else {
@@ -911,7 +914,6 @@ function renderSkillSlots(player) {
     }
 
     console.log('renderSkillSlots: player.skillSlots =', player.skillSlots);
-    console.log('renderSkillSlots: slotsContainer element =', slotsContainer);
     
     slotsContainer.innerHTML = '';
     
@@ -924,6 +926,34 @@ function renderSkillSlots(player) {
         const slotEl = document.createElement('div');
         slotEl.className = 'skill-slot';
         slotEl.dataset.slotIndex = index;
+        
+        // ドロップゾーンとして設定
+        slotEl.ondragover = (e) => {
+            e.preventDefault();
+            slotEl.classList.add('drag-over');
+        };
+        
+        slotEl.ondragleave = () => {
+            slotEl.classList.remove('drag-over');
+        };
+        
+        slotEl.ondrop = (e) => {
+            e.preventDefault();
+            slotEl.classList.remove('drag-over');
+            const skillId = e.dataTransfer.getData('skillId');
+            const skillName = e.dataTransfer.getData('skillName');
+            
+            if (skillId) {
+                const result = equipSkillToSlot(getPlayerData(), skillId, index);
+                if (result.success) {
+                    localStorage.setItem("player", JSON.stringify(result.player));
+                    renderSkillTreeUI();
+                } else {
+                    alert(result.error);
+                }
+            }
+        };
+        
         if (skill) {
             slotEl.classList.add('filled');
             // レガシースキルのプロパティチェック
@@ -935,12 +965,10 @@ function renderSkillSlots(player) {
             slotEl.title = skillDescription;
         } else {
             slotEl.textContent = `スロット ${index + 1}`;
+            slotEl.classList.add('empty');
         }
         slotsContainer.appendChild(slotEl);
     });
-
-    console.log('renderSkillSlots: added', slotsContainer.children.length, 'slot elements');
-    console.log('renderSkillSlots: slotsContainer.innerHTML =', slotsContainer.innerHTML);
 
     slotsContainer.querySelectorAll('.unequip-skill-btn').forEach(btn => {
         btn.onclick = (e) => {
@@ -965,7 +993,7 @@ function renderCustomSkillList(player) {
     }
 
     const ul = document.createElement('ul');
-    customSkills.forEach(skill => {
+    customSkills.forEach((skill, index) => {
         // レガシースキルのプロパティチェック
         if (!skill.id) {
             skill.id = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -978,10 +1006,44 @@ function renderCustomSkillList(player) {
         }
         
         const li = document.createElement('li');
-        li.innerHTML = `<strong>${skill.name}</strong>: ${skill.description}`;
+        li.className = 'custom-skill-item';
+        li.innerHTML = `
+            <div class="skill-info">
+                <strong>${skill.name}</strong>: ${skill.description}
+            </div>
+            <button class="delete-skill-btn" data-skill-index="${index}" data-skill-id="${skill.id}">削除</button>
+        `;
         ul.appendChild(li);
     });
     listContainer.appendChild(ul);
+    
+    // 削除ボタンのイベントリスナー
+    listContainer.querySelectorAll('.delete-skill-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const skillIndex = parseInt(btn.dataset.skillIndex);
+            const skillId = btn.dataset.skillId;
+            
+            if (confirm(`このスキルを削除しますか？削除したスキルは復元できません。`)) {
+                const player = getPlayerData();
+                if (player.customSkills && player.customSkills[skillIndex]) {
+                    // スキルスロットからも削除
+                    player.skillSlots = player.skillSlots.map(slot => {
+                        if (slot && slot.id === skillId) {
+                            return null;
+                        }
+                        return slot;
+                    });
+                    
+                    // カスタムスキルを削除
+                    player.customSkills.splice(skillIndex, 1);
+                    
+                    localStorage.setItem("player", JSON.stringify(player));
+                    renderSkillTreeUI();
+                }
+            }
+        };
+    });
 }
 
 function renderAvailableSkills(player) {
@@ -995,7 +1057,6 @@ function renderAvailableSkills(player) {
     allAvailableSkills = allAvailableSkills.filter((skill, index, self) =>
         index === self.findIndex((s) => s.id === skill.id)
     );
-
 
     if (allAvailableSkills.length === 0) {
         availableSkillsList.innerHTML = '<p>利用可能なアクティブスキルがありません。</p>';
@@ -1013,18 +1074,28 @@ function renderAvailableSkills(player) {
         li.className = 'available-skill-item';
         li.textContent = skill.name || "名前なし";
         li.title = skill.description || "説明なし";
+        li.draggable = true;
+        li.dataset.skillId = skill.id;
+        
+        // ドラッグ開始
+        li.ondragstart = (e) => {
+            e.dataTransfer.setData('skillId', skill.id);
+            e.dataTransfer.setData('skillName', skill.name || "名前なし");
+        };
+        
+        // クリックで装備（従来の方法も残す）
         li.onclick = () => {
-            const slotIndex = prompt(`「${skill.name || "名前なし"}」をどのスロットに装備しますか？ (1, 2, 3)`, "1");
-            if (slotIndex === null) return;
-            const index = parseInt(slotIndex) - 1;
-            if (isNaN(index) || index < 0 || index >= 3) {
-                alert("無効なスロット番号です。1, 2, 3のいずれかを入力してください。");
+            // 最初の空スロットを自動的に選択
+            const emptySlotIndex = player.skillSlots.findIndex(s => s === null);
+            if (emptySlotIndex === -1) {
+                alert("空いているスロットがありません。まずスキルを外してください。");
                 return;
             }
-            const result = equipSkillToSlot(getPlayerData(), skill.id, index);
+            
+            const result = equipSkillToSlot(getPlayerData(), skill.id, emptySlotIndex);
             if (result.success) {
                 localStorage.setItem("player", JSON.stringify(result.player));
-                renderSkillTreeUI(); // UI全体を再描画
+                renderSkillTreeUI();
             } else {
                 alert(result.error);
             }
