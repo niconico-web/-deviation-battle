@@ -624,23 +624,23 @@ a.menu-btn {
     gap: 12px;
     margin: 16px 0;
     padding: 16px;
-    border: 2px dashed var(--primary-color);
+    border: 2px solid #007bff;
     border-radius: 8px;
-    background-color: #e7f3ff;
+    background-color: #ffffff;
     flex-wrap: wrap;
 }
 
 .skill-slot {
     width: 100px;
     height: 60px;
-    border: 2px solid var(--primary-color);
+    border: 2px solid #007bff;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.8em;
-    color: var(--primary-color);
-    background-color: #fff;
+    color: #007bff;
+    background-color: #ffffff;
     position: relative;
     overflow: hidden;
     text-align: center;
@@ -653,6 +653,7 @@ a.menu-btn {
 .skill-slot.empty {
     background-color: #f8f9fa;
     border-style: dashed;
+    color: #6c757d;
 }
 
 .skill-slot.drag-over {
@@ -662,8 +663,8 @@ a.menu-btn {
 }
 
 .skill-slot.filled {
-    background-color: var(--primary-color);
-    color: #fff;
+    background-color: #007bff;
+    color: #ffffff;
     font-weight: bold;
     cursor: pointer;
 }
@@ -678,7 +679,7 @@ a.menu-btn {
     top: 4px;
     right: 4px;
     background: rgba(255, 255, 255, 0.3);
-    color: #fff;
+    color: #ffffff;
     border: none;
     border-radius: 50%;
     width: 20px;
@@ -700,27 +701,28 @@ a.menu-btn {
     margin-top: 16px;
     max-height: 200px;
     overflow-y: auto;
-    border: 1px solid #eee;
+    border: 1px solid #dee2e6;
     padding: 12px;
-    background-color: #fdfdfd;
+    background-color: #ffffff;
     border-radius: 8px;
 }
 
 .available-skill-item {
     padding: 10px;
     margin-bottom: 8px;
-    background-color: #f0f8ff;
-    border: 1px solid #d0e9ff;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: #333;
 }
 
 .available-skill-item:hover {
-    background-color: #cce5ff;
+    background-color: #e9ecef;
     transform: translateX(4px);
 }
 
@@ -760,6 +762,11 @@ a.menu-btn {
 .skill-info {
     flex: 1;
     padding-right: 12px;
+    color: #333;
+}
+
+.skill-info strong {
+    color: #007bff;
 }
 
 .delete-skill-btn {
@@ -798,7 +805,8 @@ a.menu-btn {
 }
 
 .skill-tree-container {
-    background: var(--background-color);
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
     border-radius: 12px;
     padding: 20px;
     margin: 16px 0;
@@ -944,8 +952,38 @@ a.menu-btn {
     margin: 8px 0;
 }
 
+.skill-slot-section {
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.skill-slot-section h2,
+.skill-slot-section h3 {
+    color: #333;
+}
+
+.skill-slot-section .skill-desc {
+    color: #555;
+    line-height: 1.6;
+}
+
 .custom-skill-section {
-    margin-top: 32px;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.custom-skill-section h2,
+.custom-skill-section h3 {
+    color: #333;
+}
+
+.custom-skill-section .skill-desc {
+    color: #555;
+    line-height: 1.6;
 }
 
 .custom-skill-form {

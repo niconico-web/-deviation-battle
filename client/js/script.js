@@ -289,9 +289,16 @@ function stopStudy() {
     const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
     studyStartTime = null;
     studyElapsedBefore = 0;
-    document.getElementById("studyStart").disabled = false;
-    document.getElementById("studyStop").disabled = true;
-    document.getElementById("studyFocus").disabled = false;
+    
+    // ボタンの状態を確実に更新
+    const studyStartBtn = document.getElementById("studyStart");
+    const studyStopBtn = document.getElementById("studyStop");
+    const studyFocusBtn = document.getElementById("studyFocus");
+    
+    if (studyStartBtn) studyStartBtn.disabled = false;
+    if (studyStopBtn) studyStopBtn.disabled = true;
+    if (studyFocusBtn) studyFocusBtn.disabled = false;
+    
     applyStudyRewards(elapsed);
     document.getElementById("studyTimer").textContent = "00:00:00";
 }
