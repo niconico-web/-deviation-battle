@@ -17,6 +17,8 @@ let myDefDebuff = 0;              // 自身の防御低下量
 let myDefDebuffTurns = 0;         // 防御低下の残りターン
 let mySkipThisTurn = false;       // このターン攻撃できない
 let enemyBurnTurns = 0;           // 敵の火傷残りターン
+let myMultiHit = 0;               // 複数回攻撃の回数
+let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -1108,6 +1110,15 @@ function applySkillEffect(damage, attacker, defender, skill) {
         }
     }
     
+    // 複数回攻撃
+    if (effect.multiHit) {
+        if (attacker === me) {
+            myMultiHit = effect.multiHit;
+            myMultiHitTurns = 1;
+            addLog(`スキル効果: ${effect.multiHit}回攻撃！`);
+        }
+    }
+    
     // 自身の防御デバフ
     if (effect.selfDefDebuff) {
         if (attacker === me) {
@@ -1722,12 +1733,20 @@ function handleBotAnswer(userAnswer) {
             addLog("会心の一撃！ダメージ1.5倍！");
         }
         
-        // 多段攻撃
-        const strikeCount = Math.max(1, Math.min(5, skillEffect.multiStrike || 1));
-        if (strikeCount > 1) {
+        // 多段攻撃（新しいmyMultiHitシステムと統合）
+        const multiHitCount = myMultiHit > 0 ? myMultiHit : (skillEffect.multiStrike || 1);
+        if (multiHitCount > 1) {
             const perHitRate = skillEffect.multiStrikeMultiplier || 0.6;
-            damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
-            addLog(`${strikeCount}連撃！`);
+            damage = Math.max(1, Math.floor(damage * perHitRate)) * multiHitCount;
+            addLog(`${multiHitCount}連撃！`);
+            
+            // myMultiHitターンを減らす
+            if (myMultiHit > 0) {
+                myMultiHitTurns--;
+                if (myMultiHitTurns <= 0) {
+                    myMultiHit = 0;
+                }
+            }
         }
         
         // 「行動できない」デメリット
