@@ -329,6 +329,8 @@
                 <li><a href="#game-overview">ゲーム概要</a></li>
                 <li><a href="#orb-system">オーブシステム</a></li>
                 <li><a href="#weapon-system">武器システム</a></li>
+                <li><a href="#skill-system">スキルシステム</a></li>
+                <li><a href="#custom-skills">オリジナルスキル</a></li>
                 <li><a href="#battle-system">バトルシステム</a></li>
                 <li><a href="#tier4-abilities">Tier4オーブの固有能力一覧</a></li>
                 <li><a href="#tips">ゲームのコツ</a></li>
@@ -444,7 +446,8 @@
 
             <h3>武器の種類</h3>
             <div class="subsection">
-                <h4>標準武器</h4>
+                <h4>標準武器とステータス補正</h4>
+                <p>各武器種類は特定のステータスに補正を与えます：</p>
                 <table>
                     <tr>
                         <th>武器種</th>
@@ -463,8 +466,8 @@
                     </tr>
                     <tr>
                         <td>大剣</td>
-                        <td>攻撃</td>
-                        <td>高火力。速さがやや低下</td>
+                        <td>攻撃（防御と速さは低下）</td>
+                        <td>高火力。防御と速さが低下</td>
                     </tr>
                     <tr>
                         <td>双剣</td>
@@ -474,12 +477,12 @@
                     <tr>
                         <td>鎌</td>
                         <td>全ステータス</td>
-                        <td>万能型。全てが上昇します</td>
+                        <td>万能型。全てがバランスよく上昇します</td>
                     </tr>
                     <tr>
                         <td>ピストル</td>
-                        <td>速さ、HP</td>
-                        <td>耐久型</td>
+                        <td>速さ、HP（攻撃にも少し補正）</td>
+                        <td>耐久型。速さとHP重視</td>
                     </tr>
                     <tr>
                         <td>刀</td>
@@ -488,7 +491,7 @@
                     </tr>
                     <tr>
                         <td>魔法の杖</td>
-                        <td>攻撃、HP</td>
+                        <td>攻撃、HP（防御にも少し補正、速さは少し低下）</td>
                         <td>火力と体力の両立型</td>
                     </tr>
                 </table>
@@ -527,6 +530,93 @@
             <div class="tip">
                 <h4>💡 武器選択のコツ</h4>
                 <p>自分のプレイスタイルに合わせて武器を選びましょう。攻撃重視なら「大剣」「長槍」、防御重視なら「片手剣＋盾」「刀」、そしてオーブを組み合わせてオリジナル武器を作れば、自分だけの最強武器が完成します！</p>
+            </div>
+        </div>
+
+        <!-- スキルシステム -->
+        <div class="section">
+            <h2 id="skill-system">🌳 スキルシステム</h2>
+            <p>スキルシステムは、レベルアップで獲得したスキルポイントを使って、様々なスキルを解放できるシステムです。</p>
+
+            <h3>スキルポイントの獲得</h3>
+            <div class="subsection">
+                <h4>獲得方法</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>レベルアップするたびにスキルポイントを獲得できます</li>
+                    <li>獲得できるポイントはレベルによって異なります</li>
+                    <li>レベルが上がるほど、多くのポイントが獲得できます</li>
+                </ul>
+            </div>
+
+            <h3>スキルの種類</h3>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>🛡️ パッシブスキル</h4>
+                    <div class="description">常に効果が発動するスキル。ステータスを永続的に強化します。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡ アクティブスキル</h4>
+                    <div class="description">バトル中に手動で発動するスキル。ダメージ倍率アップ、回復、デバフ付与などの効果があります。</div>
+                </div>
+            </div>
+
+            <h3>スキルスロット</h3>
+            <div class="subsection">
+                <h4>装備システム</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>解放したアクティブスキルは、スキルスロットに装備してバトルで使用できます</li>
+                    <li>最大3つのスキルを装備可能です</li>
+                    <li>ドラッグ＆ドロップでスキルをスロットに装備できます</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- オリジナルスキル -->
+        <div class="section">
+            <h2 id="custom-skills">✨ オリジナルスキル</h2>
+            <p>オリジナルスキルは、100コインを消費してAIがあなた専用のカスタムスキルを作成する機能です。</p>
+
+            <h3>スキルの作成</h3>
+            <div class="subsection">
+                <h4>作成方法</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>スキル名と効果を説明すると、AIがその説明を解析してゲーム内効果を自動生成します</li>
+                    <li>効果が強いほど、より高いステータスが必要になります</li>
+                    <li>コスト：100コイン</li>
+                </ul>
+            </div>
+
+            <h3>効果の例</h3>
+            <div class="subsection">
+                <h4>指定できる効果</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>ダメージ倍率</strong>：「次の攻撃のダメージを1.2倍にする」</li>
+                    <li><strong>回復</strong>：「HPを30回復する」「HPの30%回復」</li>
+                    <li><strong>敵へのデバフ</strong>：「敵の攻撃力を20%低下させる」「敵の防御力を低下させる」「敵の命中率を下げる」</li>
+                    <li><strong>特殊効果</strong>：「必中」「防御無視」「クリティカル率アップ」</li>
+                </ul>
+            </div>
+
+            <h3>新しく追加されたデバフ効果</h3>
+            <div class="subsection">
+                <h4>敵へのデバフ</h4>
+                <p>オリジナルスキルでは、以下の敵へのデバフ効果も指定できます：</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>敵の攻撃力低下</strong>: 「敵の攻撃力を20%低下させる」「enemy attack down」</li>
+                    <li><strong>敵の防御力低下</strong>: 「敵の防御力を20%低下させる」「enemy defense down」</li>
+                    <li><strong>敵の命中率低下</strong>: 「敵の命中率を20%低下させる」「enemy accuracy down」</li>
+                </ul>
+                <p style="margin-top: 10px;">これらのデバフ効果は2ターン持続し、相手のステータスを一時的に弱体化させることができます。</p>
+            </div>
+
+            <h3>AIの解釈範囲</h3>
+            <div class="subsection">
+                <h4>対応言語と表現</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>AIは日本語と英語の両方に対応しています</li>
+                    <li>様々な表現パターンを理解できます</li>
+                    <li>具体的な数値（1.2倍、30%など）を含めることで、より正確な効果が得られます</li>
+                </ul>
             </div>
         </div>
 
