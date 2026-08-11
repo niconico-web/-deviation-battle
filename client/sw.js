@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v1';
+const CACHE_NAME = 'school-battle-cache-v2';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -20,7 +20,6 @@ const urlsToCache = [
   '/js/battle.js',
   '/js/result.js',
   '/js/skillTree.js',
-  '/js/skillTreeUI.js',
   '/socket.io/socket.io.js'
   // アイコン画像などもここに追加します
   // '/images/icons/icon-192x192.png',
