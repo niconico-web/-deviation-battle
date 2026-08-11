@@ -9,6 +9,12 @@ let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTi
 let activeSkills = [];
 let selectedSkill = null;
 let usedSkills = [];
+// スキルによる一時的な効果（ボット戦で使用）
+let myPendingDamageReduction = 0; // 次に受けるダメージの軽減率
+let myDefDebuff = 0;              // 自身の防御低下量
+let myDefDebuffTurns = 0;         // 防御低下の残りターン
+let mySkipThisTurn = false;       // このターン攻撃できない
+let enemyBurnTurns = 0;           // 敵の火傷残りターン
  
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -118,10 +124,18 @@ function initialize() {
     addLog(I18N.battleBegin);
 
     // スキルスロットに登録されたスキルを読み込む
-    if (me.skillSlots && Array.isArray(me.skillSlots)) {
-        activeSkills = me.skillSlots.filter(skill => skill !== null);
-        renderSkills();
+    // サーバー経由のデータに skillSlots が含まれていない場合は
+    // ローカルに保存されたプレイヤーデータからフォールバックする
+    let slots = Array.isArray(me.skillSlots) ? me.skillSlots : null;
+    if (!slots || slots.every(s => !s)) {
+        const saved = getSavedPlayer();
+        if (saved && Array.isArray(saved.skillSlots) && saved.skillSlots.some(s => s)) {
+            slots = saved.skillSlots;
+        }
     }
+    me.skillSlots = slots || [null, null, null];
+    activeSkills = me.skillSlots.filter(skill => skill && skill.id);
+    renderSkills();
 
     if (isBotBattle) {
         startBotBattle();
@@ -1243,6 +1257,10 @@ function generateBotQuestion() {
     const randomQuestion = questions[Math.floor(Math.random() * questions.length)];
     currentQuestion = { ...randomQuestion, id: Date.now(), subject: subject, subjectDisplayName: getSubjectDisplayName(subject) };
 
+    // 継続効果の処理（火傷・防御低下）
+    tickBotBattleStatus();
+    if (enemy.hp <= 0) { finishBotBattle("win"); return; }
+
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
         // 選択肢を生成
@@ -1261,7 +1279,29 @@ function generateBotQuestion() {
     });
 }
 
+// ボット戦の継続効果（火傷・自身の防御低下）を1ターン分進める
+function tickBotBattleStatus() {
+    if (enemyBurnTurns > 0) {
+        const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.05));
+        enemy.hp = Math.max(0, enemy.hp - burnDamage);
+        enemyBurnTurns--;
+        addLog(`火傷ダメージ！${enemy.name}に${burnDamage}のダメージ（残り${enemyBurnTurns}ターン）`);
+        updateHP();
+    }
+    if (myDefDebuffTurns > 0) {
+        myDefDebuffTurns--;
+        if (myDefDebuffTurns === 0) {
+            myDefDebuff = 0;
+            addLog("防御低下から回復した。");
+        }
+    }
+}
+
 function handleBotAnswer(userAnswer) {
+    const usedSkill = consumeSelectedSkill();
+    const skillEffect = (usedSkill && usedSkill.effect) || {};
+    applyInstantSkillEffects(skillEffect);
+
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
 
@@ -1301,6 +1341,12 @@ function handleBotAnswer(userAnswer) {
             enemyDef = Math.floor(enemyDef * 0.5);
         }
         
+        // スキルによる防御無視
+        if (skillEffect.ignoreDef) {
+            enemyDef = 0;
+            addLog("相手の防御を無視した！");
+        }
+        
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
@@ -1333,13 +1379,44 @@ function handleBotAnswer(userAnswer) {
             addLog("必殺発動！ダメージ1.5倍！");
         }
         
+        // スキルによる威力補正
+        if (skillEffect.damageMultiplier && skillEffect.damageMultiplier !== 1) {
+            damage = Math.floor(damage * skillEffect.damageMultiplier);
+            addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
+        }
+        if (skillEffect.nextAttackCrit) {
+            damage = Math.floor(damage * 1.5);
+            addLog("会心の一撃！ダメージ1.5倍！");
+        }
+        
+        // 多段攻撃
+        const strikeCount = Math.max(1, Math.min(5, skillEffect.multiStrike || 1));
+        if (strikeCount > 1) {
+            const perHitRate = skillEffect.multiStrikeMultiplier || 0.6;
+            damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
+            addLog(`${strikeCount}連撃！`);
+        }
+        
+        // 「行動できない」デメリット
+        if (mySkipThisTurn) {
+            mySkipThisTurn = false;
+            damage = 0;
+            addLog(`${me.name}は身を固めていて攻撃できない！`);
+        }
+        
         // 回避判定（敵の回避率）
         const enemyDodgeChance = calculateDodgeChance(enemy.speed);
         const dodgeRoll = Math.random() * 100;
-        if (dodgeRoll < enemyDodgeChance) {
+        if (damage <= 0) {
+            showDamage("enemyDamage", 0);
+        } else if (!skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
             addLog("回避！ダメージなし");
+            damage = 0;
         } else {
+            if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+                addLog("必中効果で回避を許さなかった！");
+            }
             if (enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
                 enemy.hp = 1;
                 addLog(`${enemy.name}は根性で持ちこたえた！`);
@@ -1348,6 +1425,15 @@ function handleBotAnswer(userAnswer) {
             }
             showDamage("enemyDamage", damage);
             addLog("ボットにダメージ: " + damage);
+        }
+        
+        // スキルによるHP吸収
+        if (skillEffect.lifeSteal && damage > 0) {
+            const stolen = Math.floor(damage * skillEffect.lifeSteal);
+            if (stolen > 0) {
+                me.hp = Math.min(me.maxHp, me.hp + stolen);
+                addLog(`HP吸収！${stolen}回復`);
+            }
         }
         
         // ライフドレイン（与えたダメージの20%分回復）
@@ -1371,7 +1457,7 @@ function handleBotAnswer(userAnswer) {
         addLog("不正解...");
         
         // 不正解時、即座にダメージを受ける
-        let myDef = me.def || 0;
+        let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
         const defReduction = Math.floor(myDef * 0.1);
         let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
         
@@ -1380,6 +1466,9 @@ function handleBotAnswer(userAnswer) {
             damage = Math.floor(damage * 0.5);
             addLog("鉄壁発動！ダメージ50%カット");
         }
+        
+        // スキルによるダメージ軽減
+        damage = applyIncomingDamageReduction(damage);
         
         // 回避判定（プレイヤーの回避率）
         const myDodgeChance = calculateDodgeChance(me.speed);
@@ -1415,7 +1504,7 @@ function handleBotAnswer(userAnswer) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
                 
                 // ユニーク能力適用（防御側）
-                let myDef = me.def || 0;
+                let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
 
                 let botAtk = enemy.atk;
                 if (enemy.hp === 1 && hasUniqueAbility(enemy, 'guts')) {
@@ -1441,6 +1530,9 @@ function handleBotAnswer(userAnswer) {
                     damage = Math.floor(damage * 0.5);
                     addLog("鉄壁発動！ダメージ50%カット");
                 }
+                
+                // スキルによるダメージ軽減
+                damage = applyIncomingDamageReduction(damage);
                 
                 // 回避判定（プレイヤーの回避率）
                 const myDodgeChance = calculateDodgeChance(me.speed);
@@ -1795,15 +1887,19 @@ if (!isBotBattle && socket) {
 
     socket.on("answerResult", data => {
         // スキルが使用されたら使用済みリストに追加し、ボタンを無効化
-        if (data.skillUsed) {
+        if (data.skillUsed && data.playerId === me.id) {
             usedSkills.push(data.skillUsed.id);
             const usedButton = document.querySelector(`.skill-btn[data-skill-id="${data.skillUsed.id}"]`);
             if (usedButton) {
                 usedButton.disabled = true;
+                usedButton.classList.add('used');
+                usedButton.classList.remove('selected');
             }
+            addLog(`スキル「${data.skillUsed.name}」が発動！`);
         }
-        selectedSkill = null; // スキル選択をリセット
-        document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
+        if (data.playerId === me.id) {
+            clearSkillSelection(); // スキル選択をリセット
+        }
         console.log("answerResult received:", data);
         const answererIsMe = data.playerId === me.id;
 
@@ -1914,8 +2010,10 @@ if (!isBotBattle && socket) {
 }
 
 function renderSkills() {
-    if (!skillsContainer || !activeSkills || activeSkills.length === 0) {
-        if(skillsContainer) skillsContainer.innerHTML = "<p>アクティブスキル未装備</p>";
+    if (!skillsContainer) return;
+
+    if (!activeSkills || activeSkills.length === 0) {
+        skillsContainer.innerHTML = '<p class="no-skill-text">アクティブスキル未装備（メニューの「スキルツリー」でスロットに装備できます）</p>';
         return;
     }
 
@@ -1927,12 +2025,16 @@ function renderSkills() {
         skillButton.className = 'skill-btn';
         skillButton.dataset.skillId = skill.id;
         skillButton.textContent = skill.name;
-        skillButton.title = skill.description;
+        skillButton.title = skill.description || "";
         skillButton.disabled = true; // 初期状態は無効
 
         if (isUsed) {
             skillButton.disabled = true;
             skillButton.classList.add('used');
+        }
+
+        if (selectedSkill && selectedSkill.id === skill.id) {
+            skillButton.classList.add('selected');
         }
 
         skillButton.onclick = () => selectSkill(skill, skillButton);
@@ -1956,15 +2058,107 @@ function selectSkill(skill, button) {
     }
 }
 
+// スキル選択をリセットする（回答が確定したあとに呼ぶ）
+function clearSkillSelection() {
+    selectedSkill = null;
+    document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
+}
+
+// 選択中のスキルを消費する（発動条件を満たさない場合は null を返す）
+function consumeSelectedSkill() {
+    if (!selectedSkill) return null;
+    const skill = selectedSkill;
+    const effect = skill.effect || {};
+
+    if (effect.condition && effect.condition.type === 'hp_below') {
+        if (me.maxHp > 0 && me.hp / me.maxHp > effect.condition.value) {
+            addLog(`スキル「${skill.name}」は発動条件（HP${Math.round(effect.condition.value * 100)}%以下）を満たしていません。`);
+            clearSkillSelection();
+            return null;
+        }
+    }
+
+    usedSkills.push(skill.id);
+    const btn = document.querySelector(`.skill-btn[data-skill-id="${skill.id}"]`);
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('used');
+        btn.classList.remove('selected');
+    }
+    clearSkillSelection();
+    addLog(`スキル「${skill.name}」発動！`);
+    return skill;
+}
+
+// 攻撃を伴わないスキル効果を即時適用する（ボット戦用）
+function applyInstantSkillEffects(effect) {
+    if (!effect) return;
+
+    if (effect.damageReduction) {
+        myPendingDamageReduction = Math.min(0.9, effect.damageReduction);
+        addLog(`次に受けるダメージを${Math.round(myPendingDamageReduction * 100)}%軽減！`);
+    }
+    if (effect.skipNextTurn) {
+        mySkipThisTurn = true;
+    }
+    if (effect.selfDefDebuff) {
+        myDefDebuff = effect.selfDefDebuff;
+        myDefDebuffTurns = 2;
+        addLog(`代償として防御が${effect.selfDefDebuff}低下…`);
+    }
+    if (effect.heal) {
+        const healAmount = Math.floor(me.maxHp * effect.heal);
+        me.hp = Math.min(me.maxHp, me.hp + healAmount);
+        addLog(`HPを${healAmount}回復した！`);
+        updateHP();
+    }
+    if (effect.selfDamage) {
+        const selfDmg = Math.floor(me.maxHp * effect.selfDamage);
+        me.hp = Math.max(1, me.hp - selfDmg);
+        addLog(`代償として${selfDmg}のダメージを受けた…`);
+        updateHP();
+    }
+    if (effect.resetUsedSkill) {
+        let restored = 0;
+        while (restored < effect.resetUsedSkill && usedSkills.length > 0) {
+            const restoredId = usedSkills.shift();
+            const btn = document.querySelector(`.skill-btn[data-skill-id="${restoredId}"]`);
+            if (btn) btn.classList.remove('used');
+            restored++;
+        }
+        if (restored > 0) addLog(`使用済みスキルを${restored}個再使用可能にした！`);
+    }
+    if (effect.speedDebuff) {
+        enemy.speed = Math.max(1, Math.floor(enemy.speed * (1 - effect.speedDebuff)));
+        addLog(`${enemy.name}の速さが低下した！`);
+        updateStats();
+    }
+    if (effect.burn) {
+        enemyBurnTurns = 3;
+        addLog(`${enemy.name}を火傷状態にした！`);
+    }
+}
+
+// 自分が受けるダメージにスキルの軽減効果を適用する
+function applyIncomingDamageReduction(damage) {
+    if (myPendingDamageReduction > 0) {
+        const reduced = Math.max(1, Math.floor(damage * (1 - myPendingDamageReduction)));
+        addLog(`ダメージ軽減発動！ ${damage} → ${reduced}`);
+        myPendingDamageReduction = 0;
+        return reduced;
+    }
+    return damage;
+}
+
 function enableSkillButtons(enable) {
     document.querySelectorAll('.skill-btn').forEach(btn => {
         if (!btn.classList.contains('used')) {
             btn.disabled = !enable;
         }
     });
-    if (!enable) {
-        selectedSkill = null;
-        document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
+    // 選択時間が終了しても選択済みスキルは保持する（回答時に発動させるため）
+    if (!enable && selectedSkill) {
+        addLog(`スキル「${selectedSkill.name}」は次の回答で発動します。`);
     }
 }
 
