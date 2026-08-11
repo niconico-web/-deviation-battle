@@ -685,21 +685,8 @@ function injectSkillTreeCSS() {
     // CSSはstyle.cssに直接追加したため、この関数は何もしない
     return;
 }
-.custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 10px; }
-.custom-skill-form input, .custom-skill-form textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-.custom-skill-form textarea { height: 60px; resize: vertical; }
-    `;
-    const style = document.createElement('style');
-    style.id = 'skill-tree-styles';
-    style.textContent = css;
-    document.head.appendChild(style);
-    
-    console.log('injectSkillTreeCSS: styles injected successfully');
-}
 
 function renderSkillTreeUI() {
-    console.log('renderSkillTreeUI called');
-
     const container = document.getElementById('skillTreeContainer');
     if (!container) {
         console.log('renderSkillTreeUI: skillTreeContainer not found');
@@ -712,8 +699,6 @@ function renderSkillTreeUI() {
         return;
     }
 
-    console.log('renderSkillTreeUI: player =', player);
-
     // index.htmlの静的UIを使用するため、動的生成は行わない
     // スキルポイント表示のみ更新
     const totalSkillPointsDisplay = document.getElementById('totalSkillPointsDisplay');
@@ -724,11 +709,8 @@ function renderSkillTreeUI() {
     // 初期表示
     renderTree();
 
-    console.log('renderSkillTreeUI: calling renderSkillSlots');
     renderSkillSlots(player);
-    console.log('renderSkillTreeUI: calling renderAvailableSkills');
     renderAvailableSkills(player);
-    console.log('renderSkillTreeUI: calling renderCustomSkillList');
     renderCustomSkillList(player);
     
     // スキル説明表示エリアを作成
@@ -788,7 +770,6 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
 }
 
 function renderTree() {
-    console.log('renderTree called');
     const content = document.getElementById('skillTreeCanvas');
     const pointsDisplay = document.getElementById('totalSkillPointsDisplay');
     if (!content || !pointsDisplay) {
@@ -804,20 +785,9 @@ function renderTree() {
     
     const treeData = SKILL_TREE;
     const playerData = player.skillTree;
-    
-    console.log('renderTree: treeData =', treeData);
-    console.log('renderTree: playerData =', playerData);
-    console.log('renderTree: number of nodes =', treeData.nodes.length);
 
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
-
-    // テスト用にシンプルな表示を追加
-    const testDiv = document.createElement('div');
-    testDiv.style.padding = '20px';
-    testDiv.style.color = 'red';
-    testDiv.textContent = `スキルツリー (${treeData.nodes.length} ノード)`;
-    content.appendChild(testDiv);
 
     // 1. Find bounds of the tree
     const allX = treeData.nodes.map(n => n.x);
