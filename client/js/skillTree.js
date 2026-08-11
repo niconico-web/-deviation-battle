@@ -682,85 +682,9 @@ function createCustomSkill(player, skillName, skillDescription) {
 // ============================================
 
 function injectSkillTreeCSS() {
-    // スタイルが既に存在する場合は注入しない
-    if (document.getElementById('skill-tree-styles')) return;
-
-    const css = `
-/* --- Skill Tree Layout --- */
-.skill-tree-wrapper {
-    display: flex;
-    height: 70vh; /* Adjust overall height */
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: 20px;
-    background-color: #222;
-    color: #eee;
+    // CSSはstyle.cssに直接追加したため、この関数は何もしない
+    return;
 }
-
-.skill-tree-panel {
-    flex: 3; /* Give more space to the tree */
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid #555;
-    min-width: 0;
-}
-
-.skill-management-panel {
-    flex: 2; /* Make it a bit wider */
-    padding: 10px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    overflow-y: auto;
-    background-color: #f8f8f8;
-    color: #333;
-}
-
-@media (max-width: 768px) {
-    .skill-tree-wrapper {
-        flex-direction: column;
-        height: 85vh; /* Use a fixed viewport height for scrolling */
-    }
-    .skill-tree-panel {
-        border-right: none;
-        border-bottom: 1px solid #555;
-        height: 50vh; /* Adjust height for mobile */
-        flex-shrink: 0;
-    }
-    .skill-management-panel {
-        flex: 1; /* This will now take the remaining space and scroll */
-        min-height: 0; /* Add this for safety in flex-column */
-    }
-}
-
-/* ... (rest of the styles from previous response) ... */
-/* The following styles are mostly the same, just ensure they are present */
-.skill-tree-header { padding: 10px 15px; font-size: 1.2em; font-weight: bold; text-align: center; background-color: #333; border-bottom: 1px solid #555; flex-shrink: 0; color: #fff; }
-.skill-tree-content-wrapper { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
-.skill-points-display { padding: 10px; background-color: #444; border-bottom: 1px solid #555; text-align: center; font-weight: bold; color: #fff; flex-shrink: 0; }
-.skill-tree-content { position: relative; flex-grow: 1; overflow: auto; background-color: #2a2a2a; background-image: radial-gradient(#444 1px, transparent 1px); background-size: 20px 20px; -webkit-overflow-scrolling: touch; }
-.skill-tree-content svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
-.skill-node { position: absolute; width: 60px; height: 40px; border-radius: 8px; border: 2px solid #777; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; font-size: 0.65em; color: #eee; background-color: #555; box-sizing: border-box; padding: 4px; text-align: center; line-height: 1.2; overflow: hidden; white-space: normal; text-overflow: ellipsis; box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 1; }
-.skill-node span { display: block; max-width: 100%; white-space: normal; overflow: hidden; text-overflow: ellipsis; }
-.skill-node.stat { background-color: #3a6b8a; border-color: #5a9bd3; }
-.skill-node.active { background-color: #8a3a3a; border-color: #d35a5a; }
-.skill-node.passive { background-color: #3a8a6b; border-color: #5ad39b; }
-.skill-node.unlocked { border-color: #28a745; box-shadow: 0 0 10px rgba(40, 167, 69, 0.7); background-color: #3a9a5a; }
-.skill-node.unlockable { border-color: #ffc107; cursor: pointer; background-color: #a78a3a; }
-.skill-node.unlockable:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 193, 7, 0.9); }
-.skill-node.locked { border-color: #666; cursor: not-allowed; opacity: 0.4; background-color: #444; }
-.skill-tree-content line { stroke-linecap: round; transition: stroke 0.2s; }
-.skill-slot-wrapper, .custom-skill-wrapper { flex: 0; min-width: auto; display: flex; flex-direction: column; gap: 10px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.skill-slot-wrapper h3, .custom-skill-wrapper h3 { margin-top: 0; color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; font-size: 1.1em; }
-.skill-slots-container { display: flex; justify-content: center; gap: 8px; margin: 8px 0; padding: 8px; border: 2px dashed #007bff; border-radius: 8px; background-color: #e7f3ff; flex-wrap: wrap; }
-.skill-slot { width: 80px; height: 45px; border: 2px solid #007bff; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 0.75em; color: #007bff; background-color: #fff; position: relative; overflow: hidden; text-align: center; padding: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-.skill-slot.filled { background-color: #007bff; color: #fff; font-weight: bold; cursor: pointer; }
-.skill-slot.filled .unequip-skill-btn { position: absolute; top: 2px; right: 2px; background: rgba(255, 255, 255, 0.3); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 0.7em; display: flex; align-items: center; justify-content: center; cursor: pointer; line-height: 1; }
-.skill-slot.filled .unequip-skill-btn:hover { background: rgba(255, 255, 255, 0.5); }
-.available-skills-list { margin-top: 8px; max-height: 120px; overflow-y: auto; border: 1px solid #eee; padding: 10px; background-color: #fdfdfd; border-radius: 5px; }
-.available-skill-item { padding: 6px; margin-bottom: 5px; background-color: #f0f8ff; border: 1px solid #d0e9ff; border-radius: 4px; cursor: pointer; transition: background-color 0.2s; }
-.available-skill-item:hover { background-color: #cce5ff; }
 .custom-skill-form { display: flex; flex-direction: column; gap: 10px; max-width: 100%; margin-bottom: 10px; }
 .custom-skill-form input, .custom-skill-form textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 .custom-skill-form textarea { height: 60px; resize: vertical; }
@@ -769,19 +693,26 @@ function injectSkillTreeCSS() {
     style.id = 'skill-tree-styles';
     style.textContent = css;
     document.head.appendChild(style);
+    
+    console.log('injectSkillTreeCSS: styles injected successfully');
 }
 
 function renderSkillTreeUI() {
-    injectSkillTreeCSS(); // CSSを注入
+    console.log('renderSkillTreeUI called');
 
     const container = document.getElementById('skillTreeContainer');
-    if (!container) return;
+    if (!container) {
+        console.log('renderSkillTreeUI: skillTreeContainer not found');
+        return;
+    }
 
     const player = getPlayerData();
     if (!player) {
         container.innerHTML = '<p>プレイヤーデータが見つかりません。</p>';
         return;
     }
+
+    console.log('renderSkillTreeUI: player =', player);
 
     // index.htmlの静的UIを使用するため、動的生成は行わない
     // スキルポイント表示のみ更新
@@ -793,8 +724,11 @@ function renderSkillTreeUI() {
     // 初期表示
     renderTree();
 
+    console.log('renderSkillTreeUI: calling renderSkillSlots');
     renderSkillSlots(player);
+    console.log('renderSkillTreeUI: calling renderAvailableSkills');
     renderAvailableSkills(player);
+    console.log('renderSkillTreeUI: calling renderCustomSkillList');
     renderCustomSkillList(player);
 
     // イベントリスナー（index.htmlの静的UIのボタンに対応）
@@ -971,9 +905,21 @@ function renderTree() {
 
 function renderSkillSlots(player) {
     const slotsContainer = document.getElementById('skillSlotsContainer');
-    if (!slotsContainer) return;
+    if (!slotsContainer) {
+        console.log('renderSkillSlots: skillSlotsContainer not found');
+        return;
+    }
 
+    console.log('renderSkillSlots: player.skillSlots =', player.skillSlots);
+    console.log('renderSkillSlots: slotsContainer element =', slotsContainer);
+    
     slotsContainer.innerHTML = '';
+    
+    // 空のスロットを確実に表示
+    if (!player.skillSlots || player.skillSlots.length === 0) {
+        player.skillSlots = [null, null, null];
+    }
+    
     player.skillSlots.forEach((skill, index) => {
         const slotEl = document.createElement('div');
         slotEl.className = 'skill-slot';
@@ -992,6 +938,9 @@ function renderSkillSlots(player) {
         }
         slotsContainer.appendChild(slotEl);
     });
+
+    console.log('renderSkillSlots: added', slotsContainer.children.length, 'slot elements');
+    console.log('renderSkillSlots: slotsContainer.innerHTML =', slotsContainer.innerHTML);
 
     slotsContainer.querySelectorAll('.unequip-skill-btn').forEach(btn => {
         btn.onclick = (e) => {

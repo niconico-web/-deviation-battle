@@ -679,8 +679,9 @@ function switchSection(section) {
     if (activeSection) {
         activeSection.classList.add('active');
         // スキルツリーセクションが表示されるときに再描画
-        if (section === 'skill-tree' && typeof renderSkillTreeUI === 'function') {
-            renderSkillTreeUI();
+        if (section === 'skills' && typeof renderSkillTreeUI === 'function') {
+            console.log('switchSection: calling renderSkillTreeUI for skills section');
+            setTimeout(() => renderSkillTreeUI(), 100); // 少し遅延させてDOMが確実にレンダリングされるように
         }
     }
     const activeButton = document.querySelector(`.menu-btn[data-section="${section}"]`);
