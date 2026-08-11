@@ -98,15 +98,22 @@ const CUSTOM_SKILL_VALIDATION = {
         "deleteEnemy", // 敵削除
         "setEnemyStatsToZero", // 敵ステータス0化
         "multiplyStatsByLargeAmount", // ステータス大幅増加
+        "permanent", // 永続効果
+        "all", // 全て
+        "every", // 全ての
+        "always", // 常時
+        "unlimited", // 無制限
+        "forever", // 永遠に
     ],
     
-    // 効果の強度に基づく必要ステータス合計値
+    // 効果の強度に基づく必要ステータス合計値（厳しめの設定）
     statRequirements: {
-        weak: { totalStats: 200, maxMultiplier: 1.1 },
-        medium: { totalStats: 400, maxMultiplier: 1.3 },
-        strong: { totalStats: 600, maxMultiplier: 1.5 },
-        veryStrong: { totalStats: 800, maxMultiplier: 1.8 },
-        extreme: { totalStats: 1000, maxMultiplier: 2.0 }
+        weak: { totalStats: 300, maxMultiplier: 1.1, description: "微弱" },
+        medium: { totalStats: 500, maxMultiplier: 1.2, description: "中程度" },
+        strong: { totalStats: 800, maxMultiplier: 1.3, description: "強力" },
+        veryStrong: { totalStats: 1200, maxMultiplier: 1.5, description: "非常に強力" },
+        extreme: { totalStats: 1800, maxMultiplier: 1.8, description: "極めて強力" },
+        gameBreaking: { totalStats: 2500, maxMultiplier: 2.0, description: "ゲームバランス崩壊レベル" }
     }
 };
 
@@ -267,44 +274,93 @@ function applySkillEffectsToStats(baseStats, player, weaponType) {
     return stats;
 }
 
-// カスタムスキルのバリデーション
+// カスタムスキルのバリデーション（厳しめのAI判定）
 function validateCustomSkill(skillDescription, playerStats) {
     const totalStats = playerStats.maxHp + playerStats.atk + playerStats.def + playerStats.speed;
+    const desc = skillDescription.toLowerCase();
     
-    // 禁止効果チェック
+    // 禁止効果チェック（より厳格）
     for (const banned of CUSTOM_SKILL_VALIDATION.bannedEffects) {
-        if (skillDescription.toLowerCase().includes(banned.toLowerCase())) {
+        if (desc.includes(banned.toLowerCase())) {
             return { 
                 valid: false, 
-                reason: `この効果はゲームバランスを崩壊させるため許可されていません: ${banned}` 
+                reason: `この効果はゲームバランスを崩壊させるため許可されていません: "${banned}"` 
             };
         }
     }
     
-    // 効果の強度を推定（簡易的なキーワードベース）
+    // 効果の強度を推定（より詳細なAI判定）
     let estimatedStrength = "weak";
-    const desc = skillDescription.toLowerCase();
+    let estimatedMultiplier = 1.0;
     
-    if (desc.includes("2倍") || desc.includes("2.0") || desc.includes("double")) {
-        estimatedStrength = "strong";
-    } else if (desc.includes("1.5") || desc.includes("1.5倍") || desc.includes("50%")) {
-        estimatedStrength = "medium";
-    } else if (desc.includes("1.8") || desc.includes("1.8倍")) {
-        estimatedStrength = "veryStrong";
-    } else if (desc.includes("2.2") || desc.includes("2.2倍") || desc.includes("2.5")) {
+    // ダメージ倍率の抽出
+    const multiplierMatches = desc.match(/(\d+\.?\d*)\s*倍|(\d+\.?\d*)\s*%|(\d+\.?\d*)x/i);
+    if (multiplierMatches) {
+        const num = parseFloat(multiplierMatches[1] || multiplierMatches[2] || multiplierMatches[3]);
+        if (!isNaN(num)) {
+            if (desc.includes('%')) {
+                estimatedMultiplier = 1 + (num / 100);
+            } else {
+                estimatedMultiplier = num;
+            }
+        }
+    }
+    
+    // キーワードベースの強度判定
+    if (estimatedMultiplier >= 2.0 || desc.includes('2.5') || desc.includes('3倍')) {
+        estimatedStrength = "gameBreaking";
+    } else if (estimatedMultiplier >= 1.8 || desc.includes('2.2') || desc.includes('2.0')) {
         estimatedStrength = "extreme";
+    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.6') || desc.includes('1.7')) {
+        estimatedStrength = "veryStrong";
+    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.4') || desc.includes('40%')) {
+        estimatedStrength = "strong";
+    } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%')) {
+        estimatedStrength = "medium";
+    } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%')) {
+        estimatedStrength = "weak";
+    }
+    
+    // 特殊効果の補正
+    if (desc.includes('回復') && desc.includes('50%')) {
+        estimatedStrength = "veryStrong";
+    } else if (desc.includes('回復') && desc.includes('30%')) {
+        estimatedStrength = "strong";
+    } else if (desc.includes('回避') && desc.includes('50%')) {
+        estimatedStrength = "veryStrong";
+    } else if (desc.includes('無効') || desc.includes('パリー')) {
+        estimatedStrength = "veryStrong";
+    }
+    
+    // 複合効果の補正（複数の効果がある場合は強度を上げる）
+    const effectCount = (desc.match(/ダメージ|回復|防御|回避|貫通|吸収/g) || []).length;
+    if (effectCount >= 2) {
+        // 1つ強いランクに昇格
+        const strengthLevels = ["weak", "medium", "strong", "veryStrong", "extreme", "gameBreaking"];
+        const currentIndex = strengthLevels.indexOf(estimatedStrength);
+        if (currentIndex < strengthLevels.length - 1) {
+            estimatedStrength = strengthLevels[currentIndex + 1];
+        }
     }
     
     const requirement = CUSTOM_SKILL_VALIDATION.statRequirements[estimatedStrength];
     
-    if (totalStats < requirement.totalStats) {
+    // ゲームバランス崩壊レベルは却下
+    if (estimatedStrength === "gameBreaking") {
         return { 
             valid: false, 
-            reason: `ステータスが不足しています。必要: 合計${requirement.totalStats}、現在: 合計${totalStats}` 
+            reason: `この効果は強すぎます。ゲームバランスを崩壊させる可能性があります。必要ステータス: 合計${requirement.totalStats}（現在: 合計${totalStats}）` 
         };
     }
     
-    return { valid: true, strength: estimatedStrength };
+    if (totalStats < requirement.totalStats) {
+        return { 
+            valid: false, 
+            reason: `ステータスが不足しています。効果強度: ${requirement.description}、必要ステータス: 合計${requirement.totalStats}、現在: 合計${totalStats}` 
+        };
+    }
+    
+    return { valid: true, strength: estimatedStrength, requiredStats: requirement.totalStats, description: requirement.description };
 }
 
 // スキル説明文からeffectオブジェクトを簡易的に生成

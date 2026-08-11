@@ -590,3 +590,151 @@ a.menu-btn {
     flex-direction: column;
     gap: 8px;
 }
+
+/* Skill Tree Styles */
+.skill-section {
+    margin-bottom: 24px;
+}
+
+.skill-desc {
+    color: var(--on-surface-variant-color);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+}
+
+.skill-points-display {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin: 8px 0;
+}
+
+.weapon-type-selector {
+    margin: 16px 0;
+}
+
+.weapon-type-selector label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.weapon-type-selector select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--background-color);
+    color: var(--on-surface-color);
+    font-size: 1rem;
+}
+
+.skill-tree-container {
+    background: var(--background-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin: 16px 0;
+    min-height: 400px;
+    position: relative;
+    overflow: auto;
+}
+
+.skill-tree-canvas {
+    position: relative;
+    min-height: 400px;
+    min-width: 600px;
+}
+
+.skill-node {
+    transition: all 0.3s ease;
+}
+
+.skill-node:hover {
+    transform: scale(1.15);
+    z-index: 10;
+}
+
+.skill-node-tooltip {
+    pointer-events: none;
+    z-index: 100;
+}
+
+.skill-node-details {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 16px;
+    border-radius: 12px;
+    margin-top: 16px;
+}
+
+.skill-node-details h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.skill-node-details p {
+    margin: 8px 0;
+}
+
+.custom-skill-section {
+    margin-top: 32px;
+}
+
+.custom-skill-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.custom-skill-form label {
+    font-weight: bold;
+}
+
+.custom-skill-form input,
+.custom-skill-form textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--background-color);
+    color: var(--on-surface-color);
+    font-size: 1rem;
+    font-family: inherit;
+}
+
+.custom-skill-form textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+.custom-skill-list {
+    margin-top: 16px;
+}
+
+.custom-skill-item {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 16px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.custom-skill-item h4 {
+    margin: 0 0 8px 0;
+    color: var(--primary-color);
+}
+
+.custom-skill-item p {
+    margin: 4px 0;
+    color: var(--on-surface-variant-color);
+}
+
+.skill-strength {
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.skill-date {
+    font-size: 0.8rem;
+    color: var(--on-surface-variant-color);
+}

@@ -490,20 +490,36 @@ body {
     flex-wrap: wrap;
 }
 
-.skill-btn {
-    padding: 8px 12px;
+.skill-slot {
+    padding: 10px 14px;
     font-size: 12px;
     border: 2px solid #888;
     background-color: #555;
     color: #fff;
     cursor: pointer;
-    border-radius: 5px;
+    border-radius: 8px;
     transition: all 0.2s;
-    min-width: 80px;
-    min-height: 40px;
+    min-width: 100px;
+    min-height: 50px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
 }
 
-.skill-btn:disabled:not(.used) {
+.skill-slot .skill-name {
+    font-weight: bold;
+    font-size: 13px;
+}
+
+.skill-slot .skill-desc {
+    font-size: 10px;
+    color: #ccc;
+    text-align: center;
+}
+
+.skill-slot:disabled:not(.used) {
     background-color: #444;
     border-color: #666;
     color: #999;
@@ -511,23 +527,25 @@ body {
     opacity: 0.6;
 }
 
-.skill-btn.selected {
+.skill-slot.active {
     border-color: #3498db;
     background-color: #2980b9;
-    box-shadow: 0 0 8px #3498db;
-    transform: scale(1.05);
+    box-shadow: 0 0 12px #3498db;
+    transform: scale(1.08);
 }
 
-.skill-btn.used {
+.skill-slot.used {
     background-color: #333;
     border-color: #555;
     color: #777;
     cursor: not-allowed;
     text-decoration: line-through;
+    opacity: 0.5;
 }
 
-.no-skill-text {
+.no-skills {
     margin: 0;
     font-size: 12px;
     color: #aaa;
+    text-align: center;
 }
