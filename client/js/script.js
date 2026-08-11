@@ -3,34 +3,73 @@ let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
 
-// 複数タブ防止
+// 複数タブ防止（改善版）
 const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-const existingTab = localStorage.getItem('activeTabId');
+let heartbeatInterval = null;
 
-if (existingTab) {
-    // 他のタブが既に開いている
-    alert('このサイトは同時に1つのタブでのみ使用できます。既存のタブを閉じてから再度開いてください。');
-    window.location.href = 'about:blank';
+// 既存のタブ情報をチェック
+const existingTabData = localStorage.getItem('activeTabData');
+if (existingTabData) {
+    try {
+        const data = JSON.parse(existingTabData);
+        const now = Date.now();
+        // 5秒以上前のタブ情報は無効とみなす（タブが正常に閉じられなかった場合）
+        if (now - data.timestamp < 5000) {
+            // 他のタブが最近開かれている
+            alert('このサイトは同時に1つのタブでのみ使用できます。既存のタブを閉じてから再度開いてください。');
+            window.location.href = 'about:blank';
+        }
+    } catch (e) {
+        // データが破損している場合は無視して続行
+        console.log('Invalid tab data, continuing...');
+    }
 }
 
-// 自分のタブIDを設定
-if (!existingTab) {
-    localStorage.setItem('activeTabId', tabId);
-}
+// 自分のタブ情報を設定
+localStorage.setItem('activeTabData', JSON.stringify({
+    id: tabId,
+    timestamp: Date.now()
+}));
+
+// ハートビートを送信してタブが生きていることを示す
+heartbeatInterval = setInterval(() => {
+    localStorage.setItem('activeTabData', JSON.stringify({
+        id: tabId,
+        timestamp: Date.now()
+    }));
+}, 2000);
 
 // 他のタブからのメッセージを監視
 window.addEventListener('storage', (e) => {
-    if (e.key === 'activeTabId' && e.newValue !== tabId) {
-        // 他のタブが開かれた
-        alert('このサイトは同時に1つのタブでのみ使用できます。このタブを閉じてください。');
-        window.location.href = 'about:blank';
+    if (e.key === 'activeTabData' && e.newValue) {
+        try {
+            const data = JSON.parse(e.newValue);
+            if (data.id !== tabId) {
+                // 他のタブが開かれた
+                alert('このサイトは同時に1つのタブでのみ使用できます。このタブを閉じてください。');
+                window.location.href = 'about:blank';
+            }
+        } catch (e) {
+            console.log('Invalid tab data from storage event');
+        }
     }
 });
 
-// ページを離れる時にタブIDをクリア
+// ページを離れる時にタブ情報をクリア
 window.addEventListener('beforeunload', () => {
-    if (localStorage.getItem('activeTabId') === tabId) {
-        localStorage.removeItem('activeTabId');
+    if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+    }
+    const currentData = localStorage.getItem('activeTabData');
+    if (currentData) {
+        try {
+            const data = JSON.parse(currentData);
+            if (data.id === tabId) {
+                localStorage.removeItem('activeTabData');
+            }
+        } catch (e) {
+            localStorage.removeItem('activeTabData');
+        }
     }
 });
 
