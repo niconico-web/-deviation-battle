@@ -106,14 +106,23 @@ const CUSTOM_SKILL_VALIDATION = {
         "forever", // 永遠に
     ],
     
-    // 効果の強度に基づく必要ステータス合計値（さらに厳しめの設定 - 10倍）
+    // 効果の強度に基づく必要ステータス合計値（さらに厳しめの設定 - 細かい区分分け）
     statRequirements: {
-        weak: { totalStats: 5000, maxMultiplier: 1.1, description: "微弱" },
-        medium: { totalStats: 8000, maxMultiplier: 1.2, description: "中程度" },
-        strong: { totalStats: 12000, maxMultiplier: 1.3, description: "強力" },
-        veryStrong: { totalStats: 18000, maxMultiplier: 1.5, description: "非常に強力" },
-        extreme: { totalStats: 25000, maxMultiplier: 1.8, description: "極めて強力" },
-        gameBreaking: { totalStats: 35000, maxMultiplier: 2.0, description: "ゲームバランス崩壊レベル" }
+        tier1: { totalStats: 500, maxMultiplier: 1.05, description: "微弱" },
+        tier2: { totalStats: 1000, maxMultiplier: 1.1, description: "弱い" },
+        tier3: { totalStats: 2000, maxMultiplier: 1.15, description: "やや弱い" },
+        tier4: { totalStats: 4000, maxMultiplier: 1.2, description: "普通" },
+        tier5: { totalStats: 8000, maxMultiplier: 1.25, description: "やや強い" },
+        tier6: { totalStats: 15000, maxMultiplier: 1.3, description: "強い" },
+        tier7: { totalStats: 25000, maxMultiplier: 1.4, description: "かなり強い" },
+        tier8: { totalStats: 40000, maxMultiplier: 1.5, description: "非常に強い" },
+        tier9: { totalStats: 65000, maxMultiplier: 1.6, description: "極めて強い" },
+        tier10: { totalStats: 100000, maxMultiplier: 1.7, description: "超強力" },
+        tier11: { totalStats: 150000, maxMultiplier: 1.8, description: "伝説級" },
+        tier12: { totalStats: 250000, maxMultiplier: 1.9, description: "神話級" },
+        tier13: { totalStats: 400000, maxMultiplier: 2.0, description: "神級" },
+        tier14: { totalStats: 650000, maxMultiplier: 2.2, description: "超越" },
+        tier15: { totalStats: 1000000, maxMultiplier: 2.5, description: "宇宙崩壊レベル" }
     }
 };
 
@@ -287,7 +296,7 @@ function validateCustomSkill(skillDescription, playerStats) {
     }
     
     // 効果の強度を推定（より詳細なAI判定）
-    let estimatedStrength = "weak";
+    let estimatedStrength = "tier1";
     let estimatedMultiplier = 1.0;
     
     // ダメージ倍率の抽出（より広範なパターン）
@@ -303,152 +312,135 @@ function validateCustomSkill(skillDescription, playerStats) {
         }
     }
     
-    // キーワードベースの強度判定（さらに拡張）
-    if (estimatedMultiplier >= 2.0 || desc.includes('2.5') || desc.includes('3倍') || desc.includes('3.0') || desc.includes('3x') || desc.includes('triple')) {
-        estimatedStrength = "gameBreaking";
-    } else if (estimatedMultiplier >= 1.8 || desc.includes('2.2') || desc.includes('2.0') || desc.includes('double') || desc.includes('2x') || desc.includes('二倍')) {
-        estimatedStrength = "extreme";
-    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.6') || desc.includes('1.7') || desc.includes('半分') || desc.includes('1.5x') || desc.includes('50%up')) {
-        estimatedStrength = "veryStrong";
-    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.4') || desc.includes('40%') || desc.includes('大幅') || desc.includes('1.3x') || desc.includes('30%up')) {
-        estimatedStrength = "strong";
+    // キーワードベースの強度判定（さらに拡張 - 新しいティアシステム）
+    if (estimatedMultiplier >= 2.5 || desc.includes('3倍') || desc.includes('3.0') || desc.includes('3x') || desc.includes('triple')) {
+        estimatedStrength = "tier15";
+    } else if (estimatedMultiplier >= 2.2 || desc.includes('2.5') || desc.includes('2.5x')) {
+        estimatedStrength = "tier14";
+    } else if (estimatedMultiplier >= 2.0 || desc.includes('2.0') || desc.includes('double') || desc.includes('2x') || desc.includes('二倍')) {
+        estimatedStrength = "tier13";
+    } else if (estimatedMultiplier >= 1.9 || desc.includes('1.9x')) {
+        estimatedStrength = "tier12";
+    } else if (estimatedMultiplier >= 1.8 || desc.includes('1.8x')) {
+        estimatedStrength = "tier11";
+    } else if (estimatedMultiplier >= 1.7 || desc.includes('1.7x')) {
+        estimatedStrength = "tier10";
+    } else if (estimatedMultiplier >= 1.6 || desc.includes('1.6x') || desc.includes('半分')) {
+        estimatedStrength = "tier9";
+    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.5x') || desc.includes('50%up')) {
+        estimatedStrength = "tier8";
+    } else if (estimatedMultiplier >= 1.4 || desc.includes('1.4x')) {
+        estimatedStrength = "tier7";
+    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.3x') || desc.includes('30%up')) {
+        estimatedStrength = "tier6";
+    } else if (estimatedMultiplier >= 1.25 || desc.includes('1.25x')) {
+        estimatedStrength = "tier5";
     } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%') || desc.includes('少し') || desc.includes('1.2x') || desc.includes('20%up')) {
-        estimatedStrength = "medium";
+        estimatedStrength = "tier4";
+    } else if (estimatedMultiplier >= 1.15 || desc.includes('1.15x')) {
+        estimatedStrength = "tier3";
     } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%') || desc.includes('わずか') || desc.includes('1.1x') || desc.includes('10%up')) {
-        estimatedStrength = "weak";
+        estimatedStrength = "tier2";
     }
     
-    // 特殊効果の補正（さらに拡張）
-    if (desc.includes('回復') && (desc.includes('50%') || desc.includes('半分') || desc.includes('大幅') || desc.includes('full') || desc.includes('完全'))) {
-        estimatedStrength = "veryStrong";
-    } else if (desc.includes('回復') && (desc.includes('30%') || desc.includes('1/3') || desc.includes('中程度'))) {
-        estimatedStrength = "strong";
-    } else if (desc.includes('回復') || desc.includes('heal') || desc.includes('cure') || desc.includes('recover')) {
-        estimatedStrength = "medium";
-    }
-    
-    if (desc.includes('回避') && (desc.includes('50%') || desc.includes('半分') || desc.includes('確実') || desc.includes('完全'))) {
-        estimatedStrength = "veryStrong";
-    } else if (desc.includes('回避') || desc.includes('dodge') || desc.includes('evade') || desc.includes('miss')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('無効') || desc.includes('パリー') || desc.includes('完全防御') || desc.includes('無傷') || desc.includes('nullify') || desc.includes('negate') || desc.includes('block')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('貫通') && (desc.includes('完全') || desc.includes('100%') || desc.includes('true'))) {
-        estimatedStrength = "veryStrong";
-    } else if (desc.includes('貫通') || desc.includes('pierce') || desc.includes('penetrate') || desc.includes('ignore')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('吸収') || desc.includes('ライフスティール') || desc.includes('vampiric') || desc.includes('lifesteal') || desc.includes('drain')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('カウンター') || desc.includes('反撃') || desc.includes('counter') || desc.includes('retaliate') || desc.includes('revenge')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('即死') || desc.includes('一撃') || desc.includes('instant') || desc.includes('onehit') || desc.includes('kill')) {
-        estimatedStrength = "gameBreaking";
-    }
-    
-    if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化') || desc.includes('curse') || desc.includes('debuff') || desc.includes('weaken')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('バーサーク') || desc.includes('狂化') || desc.includes('berserk') || desc.includes('rage') || desc.includes('frenzy')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('エクスキュート') || desc.includes('処刑') || desc.includes('execute') || desc.includes('finish') || desc.includes('finisher')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('シールド') || desc.includes('バリア') || desc.includes('shield') || desc.includes('barrier') || desc.includes('protect')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('スロー') || desc.includes('遅延') || desc.includes('slow') || desc.includes('delay') || desc.includes('hindrance')) {
-        estimatedStrength = "medium";
-    }
-    
-    if (desc.includes('スタン') || desc.includes('気絶') || desc.includes('stun') || desc.includes('paralyze') || desc.includes('freeze')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
-        estimatedStrength = "medium";
-    }
-    
-    if (desc.includes('バフ') || desc.includes('強化') || desc.includes('buff') || desc.includes('enhance') || desc.includes('boost')) {
-        estimatedStrength = "medium";
-    }
-    
-    if (desc.includes('クリティカル') || desc.includes('会心') || desc.includes('critical') || desc.includes('crit') || desc.includes('致命')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('範囲') || desc.includes('全体') || desc.includes('aoe') || desc.includes('area') || desc.includes('splash')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('連続') || desc.includes('複数') || desc.includes('multi') || desc.includes('combo') || desc.includes('chain')) {
-        estimatedStrength = "strong";
-    }
-    
-    if (desc.includes('リフレクト') || desc.includes('反射') || desc.includes('reflect') || desc.includes('mirror')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
-        estimatedStrength = "medium";
-    }
-    
-    if (desc.includes('インビジブル') || desc.includes('透明') || desc.includes('invisible') || desc.includes('stealth') || desc.includes('hide')) {
-        estimatedStrength = "veryStrong";
-    }
-    
-    if (desc.includes('テレポート') || desc.includes('瞬間移動') || desc.includes('teleport') || desc.includes('blink') || desc.includes('dash')) {
-        estimatedStrength = "strong";
-    }
-    
+    // 特殊効果の補正（さらに拡張 - 新しいティアシステム）
     if (desc.includes('リスポーン') || desc.includes('復活') || desc.includes('respawn') || desc.includes('revive') || desc.includes('resurrect')) {
-        estimatedStrength = "gameBreaking";
+        estimatedStrength = "tier15";
+    } else if (desc.includes('即死') || desc.includes('一撃') || desc.includes('instant') || desc.includes('onehit') || desc.includes('kill')) {
+        estimatedStrength = "tier15";
+    } else if (desc.includes('インビジブル') || desc.includes('透明') || desc.includes('invisible') || desc.includes('stealth') || desc.includes('hide')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('リフレクト') || desc.includes('反射') || desc.includes('reflect') || desc.includes('mirror')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('範囲') || desc.includes('全体') || desc.includes('aoe') || desc.includes('area') || desc.includes('splash')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('スタン') || desc.includes('気絶') || desc.includes('stun') || desc.includes('paralyze') || desc.includes('freeze')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('バーサーク') || desc.includes('狂化') || desc.includes('berserk') || desc.includes('rage') || desc.includes('frenzy')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('エクスキュート') || desc.includes('処刑') || desc.includes('execute') || desc.includes('finish') || desc.includes('finisher')) {
+        estimatedStrength = "tier14";
+    } else if (desc.includes('回復') && (desc.includes('50%') || desc.includes('半分') || desc.includes('大幅') || desc.includes('full') || desc.includes('完全'))) {
+        estimatedStrength = "tier13";
+    } else if (desc.includes('無効') || desc.includes('パリー') || desc.includes('完全防御') || desc.includes('無傷') || desc.includes('nullify') || desc.includes('negate') || desc.includes('block')) {
+        estimatedStrength = "tier13";
+    } else if (desc.includes('回避') && (desc.includes('50%') || desc.includes('半分') || desc.includes('確実') || desc.includes('完全'))) {
+        estimatedStrength = "tier13";
+    } else if (desc.includes('貫通') && (desc.includes('完全') || desc.includes('100%') || desc.includes('true'))) {
+        estimatedStrength = "tier13";
+    } else if (desc.includes('回復') && (desc.includes('30%') || desc.includes('1/3') || desc.includes('中程度'))) {
+        estimatedStrength = "tier12";
+    } else if (desc.includes('回避') || desc.includes('dodge') || desc.includes('evade') || desc.includes('miss')) {
+        estimatedStrength = "tier12";
+    } else if (desc.includes('貫通') || desc.includes('pierce') || desc.includes('penetrate') || desc.includes('ignore')) {
+        estimatedStrength = "tier12";
+    } else if (desc.includes('吸収') || desc.includes('ライフスティール') || desc.includes('vampiric') || desc.includes('lifesteal') || desc.includes('drain')) {
+        estimatedStrength = "tier12";
+    } else if (desc.includes('カウンター') || desc.includes('反撃') || desc.includes('counter') || desc.includes('retaliate') || desc.includes('revenge')) {
+        estimatedStrength = "tier12";
+    } else if (desc.includes('シールド') || desc.includes('バリア') || desc.includes('shield') || desc.includes('barrier') || desc.includes('protect')) {
+        estimatedStrength = "tier11";
+    } else if (desc.includes('クリティカル') || desc.includes('会心') || desc.includes('critical') || desc.includes('crit') || desc.includes('致命')) {
+        estimatedStrength = "tier11";
+    } else if (desc.includes('連続') || desc.includes('複数') || desc.includes('multi') || desc.includes('combo') || desc.includes('chain')) {
+        estimatedStrength = "tier11";
+    } else if (desc.includes('テレポート') || desc.includes('瞬間移動') || desc.includes('teleport') || desc.includes('blink') || desc.includes('dash')) {
+        estimatedStrength = "tier10";
+    } else if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化') || desc.includes('curse') || desc.includes('debuff') || desc.includes('weaken')) {
+        estimatedStrength = "tier9";
+    } else if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
+        estimatedStrength = "tier8";
+    } else if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
+        estimatedStrength = "tier8";
+    } else if (desc.includes('バフ') || desc.includes('強化') || desc.includes('buff') || desc.includes('enhance') || desc.includes('boost')) {
+        estimatedStrength = "tier7";
+    } else if (desc.includes('スロー') || desc.includes('遅延') || desc.includes('slow') || desc.includes('delay') || desc.includes('hindrance')) {
+        estimatedStrength = "tier6";
+    } else if (desc.includes('回復') || desc.includes('heal') || desc.includes('cure') || desc.includes('recover')) {
+        estimatedStrength = "tier5";
     }
     
-    // 複合効果の補正（複数の効果がある場合は強度を上げる）
+    // 複合効果の補正（複数の効果がある場合は強度を上げる - ティアシステム対応）
     const effectKeywords = ['ダメージ', '回復', '防御', '回避', '貫通', '吸収', 'カウンター', '呪い', 'デバフ', 'バーサーク', 'エクスキュート', '即死', '無効', 'パリー', 'ライフスティール', 'シールド', 'スロー', 'スタン', '毒', 'バフ', 'クリティカル', '範囲', '連続', 'リフレクト', 'リジェネ', 'インビジブル', 'テレポート', 'リスポーン', 'vampiric', 'counter', 'curse', 'debuff', 'berserk', 'execute', 'instant', 'parry', 'dodge', 'pierce', 'heal', 'damage', 'shield', 'slow', 'stun', 'poison', 'buff', 'critical', 'aoe', 'multi', 'reflect', 'regen', 'invisible', 'teleport', 'respawn'];
     let effectCount = 0;
     effectKeywords.forEach(keyword => {
         if (desc.includes(keyword)) effectCount++;
     });
     
-    if (effectCount >= 3) {
-        // 2つ強いランクに昇格
-        const strengthLevels = ["weak", "medium", "strong", "veryStrong", "extreme", "gameBreaking"];
-        const currentIndex = strengthLevels.indexOf(estimatedStrength);
+    // 複合効果によるランクアップ（ティアシステム対応）
+    const strengthLevels = ["tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9", "tier10", "tier11", "tier12", "tier13", "tier14", "tier15"];
+    const currentIndex = strengthLevels.indexOf(estimatedStrength);
+    
+    if (effectCount >= 4) {
+        // 4つ以上の効果で3ティア昇格
+        if (currentIndex < strengthLevels.length - 3) {
+            estimatedStrength = strengthLevels[currentIndex + 3];
+        } else {
+            estimatedStrength = strengthLevels[strengthLevels.length - 1];
+        }
+    } else if (effectCount >= 3) {
+        // 3つの効果で2ティア昇格
         if (currentIndex < strengthLevels.length - 2) {
             estimatedStrength = strengthLevels[currentIndex + 2];
+        } else {
+            estimatedStrength = strengthLevels[strengthLevels.length - 1];
         }
     } else if (effectCount >= 2) {
-        // 1つ強いランクに昇格
-        const strengthLevels = ["weak", "medium", "strong", "veryStrong", "extreme", "gameBreaking"];
-        const currentIndex = strengthLevels.indexOf(estimatedStrength);
+        // 2つの効果で1ティア昇格
         if (currentIndex < strengthLevels.length - 1) {
             estimatedStrength = strengthLevels[currentIndex + 1];
+        } else {
+            estimatedStrength = strengthLevels[strengthLevels.length - 1];
         }
     }
     
     const requirement = CUSTOM_SKILL_VALIDATION.statRequirements[estimatedStrength];
     
-    // ゲームバランス崩壊レベルは却下
-    if (estimatedStrength === "gameBreaking") {
+    // ティア15（宇宙崩壊レベル）は却下
+    if (estimatedStrength === "tier15") {
         return { 
             valid: false, 
-            reason: `この効果は強すぎます。ゲームバランスを崩壊させる可能性があります。必要ステータス: 合計${requirement.totalStats}（現在: 合計${totalStats}）` 
+            reason: `この効果は強すぎます。宇宙崩壊レベルの効果は許可されていません。必要ステータータス: 合計${requirement.totalStats}（現在: 合計${totalStats}）` 
         };
     }
     
@@ -468,48 +460,88 @@ function parseEffectFromDescription(description) {
     const desc = description.toLowerCase();
     let effectFound = false;
 
-    // --- 効果のパース ---
-    // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍")
-    const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃)[をが]?([\d.]+)倍/);
+    // --- 効果のパース（拡張版） ---
+    
+    // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍", "damage 1.5x", "1.5倍ダメージ")
+    const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃|damage|attack)[をが]?[\s]*([\d.]+)[\s]*(?:倍|x|times)/i);
     if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
+    
+    // 別のパターン: "1.2倍", "1.5x", "150%" など
+    const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x|times|%)/i);
+    if (simpleMultiplierMatch && !damageMultiplierMatch) {
+        const num = parseFloat(simpleMultiplierMatch[1]);
+        if (desc.includes('%')) {
+            finalEffect.damageMultiplier = 1 + (num / 100);
+        } else {
+            finalEffect.damageMultiplier = num;
+        }
+        effectFound = true;
+    }
 
-    // ダメージ軽減 (例: "ダメージを30%軽減")
-    const damageReductionMatch = desc.match(/ダメージ(?:を|が)([\d.]+)%軽減/);
+    // ダメージ軽減 (例: "ダメージを30%軽減", "30% damage reduction")
+    const damageReductionMatch = desc.match(/(?:ダメージ|damage)[をが]?[\s]*([\d.]+)%[\s]*(?:軽減|reduction)/i);
     if (damageReductionMatch) { finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0; effectFound = true; }
 
-    // ライフスティール (例: "与えたダメージの30%を吸収")
-    const lifeStealMatch = desc.match(/与えたダメージの([\d.]+)%を吸収/);
+    // ライフスティール (例: "与えたダメージの30%を吸収", "30% lifesteal", "30% life steal")
+    const lifeStealMatch = desc.match(/(?:与えたダメージの|lifesteal|life steal)[\s]*([\d.]+)%/i);
     if (lifeStealMatch) { finalEffect.lifeSteal = parseFloat(lifeStealMatch[1]) / 100.0; effectFound = true; }
 
-    // 必中 (例: "攻撃を必中にする")
-    if (desc.includes("必中")) { finalEffect.sureHit = true; effectFound = true; }
+    // 回復 (例: "HPを30回復", "heal 30", "recover 30 hp")
+    const healMatch = desc.match(/(?:hp|health)[\s]*(?:を|to)?[\s]*([\d.]+)[\s]*(?:回復|heal|recover)/i);
+    if (healMatch) { finalEffect.heal = parseFloat(healMatch[1]); effectFound = true; }
+    
+    // 回復率 (例: "HPの30%回復", "30% heal")
+    const healPercentMatch = desc.match(/(?:hp|health)[\s]*(?:の|of)?[\s]*([\d.]+)%[\s]*(?:回復|heal)/i);
+    if (healPercentMatch) { finalEffect.healPercent = parseFloat(healPercentMatch[1]) / 100.0; effectFound = true; }
 
-    // 防御無視 (例: "敵の防御を無視")
-    if (desc.includes("防御無視")) { finalEffect.ignoreDef = true; effectFound = true; }
+    // 必中 (例: "攻撃を必中にする", "sure hit", "always hit")
+    if (desc.includes("必中") || desc.includes("sure hit") || desc.includes("always hit")) { finalEffect.sureHit = true; effectFound = true; }
 
-    // クリティカル確定 (例: "次の攻撃は必ずクリティカル")
-    if (desc.includes("必ずクリティカル")) { finalEffect.nextAttackCrit = true; effectFound = true; }
+    // 防御無視 (例: "敵の防御を無視", "ignore defense", "pierce defense")
+    if (desc.includes("防御無視") || desc.includes("ignore defense") || desc.includes("pierce defense") || desc.includes("貫通")) { finalEffect.ignoreDef = true; effectFound = true; }
 
-    // 火傷付与 (例: "敵に火傷付与")
-    if (desc.includes("火傷付与")) { finalEffect.burn = true; effectFound = true; }
+    // クリティカル確定 (例: "次の攻撃は必ずクリティカル", "guaranteed crit", "always critical")
+    if (desc.includes("必ずクリティカル") || desc.includes("guaranteed crit") || desc.includes("always critical")) { finalEffect.nextAttackCrit = true; effectFound = true; }
 
-    // 速度低下 (例: "敵の速さを20%低下")
-    const speedDebuffMatch = desc.match(/速さを([\d.]+)%低下/);
+    // クリティカル率アップ (例: "クリティカル率30%アップ", "30% crit chance")
+    const critChanceMatch = desc.match(/(?:クリティカル|crit)[\s]*(?:率|chance)?[\s]*([\d.]+)%/i);
+    if (critChanceMatch) { finalEffect.critChance = parseFloat(critChanceMatch[1]) / 100.0; effectFound = true; }
+
+    // 火傷付与 (例: "敵に火傷付与", "burn enemy", "apply burn")
+    if (desc.includes("火傷") || desc.includes("burn")) { finalEffect.burn = true; effectFound = true; }
+    
+    // 毒付与 (例: "敵に毒付与", "poison enemy", "apply poison")
+    if (desc.includes("毒") || desc.includes("poison")) { finalEffect.poison = true; effectFound = true; }
+
+    // 速度低下 (例: "敵の速さを20%低下", "reduce speed by 20%", "slow 20%")
+    const speedDebuffMatch = desc.match(/(?:速さ|speed)[\s]*(?:を|by)?[\s]*([\d.]+)%[\s]*(?:低下|reduce|slow)/i);
     if (speedDebuffMatch) { finalEffect.speedDebuff = parseFloat(speedDebuffMatch[1]) / 100.0; effectFound = true; }
 
-    // --- デメリット/コストのパース ---
-    // 自身の防御デバフ (例: "自身の防御-10")
-    const selfDefDebuffMatch = desc.match(/自身の防御-([\d.]+)/);
-    if (selfDefDebuffMatch) { finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]); }
+    // シールド (例: "シールド30", "shield 30", "barrier 30")
+    const shieldMatch = desc.match(/(?:シールド|shield|barrier)[\s]*([\d.]+)/i);
+    if (shieldMatch) { finalEffect.shield = parseFloat(shieldMatch[1]); effectFound = true; }
 
-    // 次のターンスキップ (例: "次のターン行動できない")
-    if (desc.includes("行動できない")) { finalEffect.skipNextTurn = true; }
+    // 回避率アップ (例: "回避率30%アップ", "30% dodge chance", "30% evade")
+    const dodgeMatch = desc.match(/(?:回避|dodge|evade)[\s]*(?:率|chance)?[\s]*([\d.]+)%/i);
+    if (dodgeMatch) { finalEffect.dodgeChance = parseFloat(dodgeMatch[1]) / 100.0; effectFound = true; }
+
+    // 反撃 (例: "反撃する", "counter attack", "retaliate")
+    if (desc.includes("反撃") || desc.includes("counter") || desc.includes("retaliate")) { finalEffect.counter = true; effectFound = true; }
+
+    // --- デメリット/コストのパース ---
+    // 自身の防御デバフ (例: "自身の防御-10", "self defense -10")
+    const selfDefDebuffMatch = desc.match(/(?:自身|self)[\s]*(?:の|)?[\s]*(?:防御|defense)[\s]*-([\d.]+)/i);
+    if (selfDefDebuffMatch) { finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]); effectFound = true; }
+
+    // 次のターンスキップ (例: "次のターン行動できない", "skip next turn")
+    if (desc.includes("行動できない") || desc.includes("skip") || desc.includes("skip turn")) { finalEffect.skipNextTurn = true; effectFound = true; }
 
     // --- 条件のパース ---
-    // HP条件 (例: "hpが50%以下の時")
-    const hpConditionMatch = desc.match(/hpが([\d.]+)%以下/);
+    // HP条件 (例: "hpが50%以下の時", "when hp below 50%", "hp < 50%")
+    const hpConditionMatch = desc.match(/(?:hp|health)[\s]*(?:が|is|below|<)[\s]*([\d.]+)%/i);
     if (hpConditionMatch) {
         finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
+        effectFound = true;
     }
 
     // 何かしらの効果がパースできた場合のみ effect オブジェクトを返す

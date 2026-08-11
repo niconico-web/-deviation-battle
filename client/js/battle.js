@@ -1011,9 +1011,9 @@ function applySkillEffect(damage, attacker, defender, skill) {
         addLog(`スキル効果: ダメージ${effect.damageMultiplier}倍！`);
     }
     
-    // 防御貫通
-    if (effect.pierceDef) {
-        addLog(`スキル効果: 防御${effect.pierceDef * 100}%貫通！`);
+    // 防御貫通/防御無視
+    if (effect.pierceDef || effect.ignoreDef) {
+        addLog(`スキル効果: 防御を無視！`);
     }
     
     // ライフスティール
@@ -1024,12 +1024,97 @@ function applySkillEffect(damage, attacker, defender, skill) {
         updateHP();
     }
     
-    // 回復
+    // 回復（固定値）
+    if (effect.heal) {
+        const healAmount = effect.heal;
+        attacker.hp = Math.min(attacker.hp + healAmount, attacker.maxHp);
+        addLog(`スキル効果: ${healAmount}回復！`);
+        updateHP();
+    }
+    
+    // 回復（割合）
     if (effect.healPercent) {
         const healAmount = Math.floor(attacker.maxHp * effect.healPercent);
         attacker.hp = Math.min(attacker.hp + healAmount, attacker.maxHp);
         addLog(`スキル効果: ${healAmount}回復！`);
         updateHP();
+    }
+    
+    // シールド
+    if (effect.shield) {
+        const shieldAmount = effect.shield;
+        if (attacker === me) {
+            myShield = (myShield || 0) + shieldAmount;
+            addLog(`スキル効果: シールド${shieldAmount}獲得！`);
+        }
+    }
+    
+    // 必中
+    if (effect.sureHit) {
+        addLog(`スキル効果: 攻撃が必中！`);
+    }
+    
+    // クリティカル確定
+    if (effect.nextAttackCrit) {
+        addLog(`スキル効果: 次の攻撃が必ずクリティカル！`);
+    }
+    
+    // クリティカル率アップ
+    if (effect.critChance) {
+        addLog(`スキル効果: クリティカル率${effect.critChance * 100}%アップ！`);
+    }
+    
+    // 火傷付与
+    if (effect.burn) {
+        if (defender === enemy) {
+            enemyBurnTurns = 3;
+            addLog(`スキル効果: 敵に火傷付与！`);
+        }
+    }
+    
+    // 毒付与
+    if (effect.poison) {
+        if (defender === enemy) {
+            enemyPoisonTurns = 3;
+            addLog(`スキル効果: 敵に毒付与！`);
+        }
+    }
+    
+    // 速度低下
+    if (effect.speedDebuff) {
+        if (defender === enemy) {
+            enemySpeedDebuff = effect.speedDebuff;
+            enemySpeedDebuffTurns = 2;
+            addLog(`スキル効果: 敵の速度${effect.speedDebuff * 100}%低下！`);
+        }
+    }
+    
+    // 回避率アップ
+    if (effect.dodgeChance || effect.evasionChance || effect.evasionBoost) {
+        const dodgeValue = effect.dodgeChance || effect.evasionChance || effect.evasionBoost;
+        if (attacker === me) {
+            myDodgeChance = dodgeValue;
+            myDodgeTurns = 2;
+            addLog(`スキル効果: 回避率${dodgeValue * 100}%アップ！`);
+        }
+    }
+    
+    // 反撃
+    if (effect.counter) {
+        if (attacker === me) {
+            myCounterActive = true;
+            myCounterTurns = 2;
+            addLog(`スキル効果: 反撃発動準備！`);
+        }
+    }
+    
+    // 自身の防御デバフ
+    if (effect.selfDefDebuff) {
+        if (attacker === me) {
+            myDefDebuff = effect.selfDefDebuff;
+            myDefDebuffTurns = 2;
+            addLog(`スキル効果: 自身の防御${effect.selfDefDebuff}低下！`);
+        }
     }
     
     // ダメージ軽減（次の攻撃に対して）
@@ -1040,17 +1125,12 @@ function applySkillEffect(damage, attacker, defender, skill) {
         }
     }
     
-    // 回避率上昇
-    if (effect.evasionChance || effect.evasionBoost) {
-        addLog(`スキル効果: 回避率上昇！`);
-    }
-    
     // 回避率無視
     if (effect.ignoreEvasion) {
         addLog(`スキル効果: 回避率無視！`);
     }
     
-    // カウンターアタック
+    // カウンターアタック（古い互換性）
     if (effect.counterAttack) {
         addLog(`スキル効果: カウンターアタック準備！`);
     }
