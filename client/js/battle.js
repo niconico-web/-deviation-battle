@@ -857,6 +857,7 @@ function initializeBattleSkills() {
         }
         
         console.log("Player data found:", player);
+        console.log("Player skillSlots:", player.skillSlots);
         
         // スキルデータを初期化（関数が存在する場合のみ）
         if (typeof initializeSkillData === 'function') {
@@ -873,24 +874,14 @@ function initializeBattleSkills() {
                 console.log("Custom skills:", customSkills);
                 
                 // スキルスロットにあるスキルのみをアクティブスキルとして使用
-                const slottedSkills = (player.skillSlots || []).filter(skill => skill !== null);
+                const slottedSkills = (initializedPlayer.skillSlots || []).filter(skill => skill !== null);
+                console.log("Slotted skills:", slottedSkills);
                 activeSkills = [];
                 
+                // skillEffects.activeに既にカスタムスキルが含まれているため、そのまま使用
                 skillEffects.active.forEach(skill => {
                     if (slottedSkills.some(slotted => slotted.id === skill.id)) {
                         activeSkills.push(skill);
-                    }
-                });
-                
-                customSkills.forEach(customSkill => {
-                    if (slottedSkills.some(slotted => slotted.id === customSkill.id)) {
-                        activeSkills.push({
-                            id: customSkill.id,
-                            name: customSkill.name,
-                            description: customSkill.description,
-                            effect: customSkill.effect,
-                            isCustom: true
-                        });
                     }
                 });
                 
@@ -1024,7 +1015,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
     const effect = skill.effect;
     
     // ダメージ倍率
-    if (effect.damageMultiplier) {
+    if (effect.damageMultiplier && effect.damageMultiplier !== 1) {
         modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
         addLog(`スキル効果: ダメージ${effect.damageMultiplier}倍！`);
     }
@@ -1161,6 +1152,9 @@ function applySkillEffect(damage, attacker, defender, skill) {
     if (effect.counterAttack) {
         addLog(`スキル効果: カウンターアタック準備！`);
     }
+    
+    console.log("Skill effect applied, modified damage:", modifiedDamage);
+    return modifiedDamage;
     
     // バーサーク（HPが低い時に強化）
     if (effect.berserk) {
@@ -1739,20 +1733,10 @@ function handleBotAnswer(userAnswer) {
         // スキル効果を適用（新しいスキルシステム）
         damage = applySkillEffect(damage, me, enemy, usedSkill);
         
-        // スキルによる威力補正
-        if (skillEffect.damageMultiplier && skillEffect.damageMultiplier !== 1) {
-            damage = Math.floor(damage * skillEffect.damageMultiplier);
-            addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
-        }
-        if (skillEffect.nextAttackCrit) {
-            damage = Math.floor(damage * 1.5);
-            addLog("会心の一撃！ダメージ1.5倍！");
-        }
-        
         // 多段攻撃（新しいmyMultiHitシステムと統合）
-        const multiHitCount = myMultiHit > 0 ? myMultiHit : (skillEffect.multiHit || 1);
+        const multiHitCount = myMultiHit > 0 ? myMultiHit : 1;
         if (multiHitCount > 1) {
-            const perHitRate = skillEffect.multiStrikeMultiplier || 0.6;
+            const perHitRate = 0.6;
             damage = Math.max(1, Math.floor(damage * perHitRate)) * multiHitCount;
             addLog(`${multiHitCount}連撃！`);
             
@@ -2538,6 +2522,12 @@ function getSavedPlayer() {
     if (!player.weapons) player.weapons = [];
     if (!player.weaponWins) player.weaponWins = {};
     if (!player.orbs) player.orbs = [];
+    
+    // スキルデータを初期化
+    if (typeof initializeSkillData === 'function') {
+        return initializeSkillData(player);
+    }
+    
     return player;
 }
 
