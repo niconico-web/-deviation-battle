@@ -401,10 +401,12 @@ function renderCustomSkillList() {
         const skillEl = document.createElement('div');
         skillEl.className = 'custom-skill-item';
         skillEl.innerHTML = `
-            <h4>${skill.name}</h4>
-            <p>${skill.description}</p>
-            <p class="skill-strength">強度: ${skill.strength}</p>
-            <p class="skill-date">作成日: ${new Date(skill.createdAt).toLocaleDateString()}</p>
+            <div class="skill-info">
+                <div class="skill-name"><strong>${skill.name}</strong></div>
+                <div class="skill-description">${skill.description}</div>
+                <div class="skill-strength">強度: ${skill.strength}</div>
+                <div class="skill-date">作成日: ${new Date(skill.createdAt).toLocaleDateString()}</div>
+            </div>
         `;
         container.appendChild(skillEl);
     });
