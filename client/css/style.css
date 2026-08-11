@@ -593,14 +593,14 @@ a.menu-btn {
 
 /* Skill Tree Styles */
 .skill-section {
-    background-color: #ffffff;
+    background-color: var(--surface-color);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
 }
 
 .skill-desc {
-    color: #333;
+    color: var(--on-surface-variant-color);
     font-size: 0.9rem;
     margin-bottom: 16px;
     line-height: 1.6;
@@ -609,10 +609,10 @@ a.menu-btn {
 .skill-points-display {
     font-size: 1.2em;
     font-weight: bold;
-    color: #007bff;
+    color: var(--primary-color);
     margin: 12px 0;
     padding: 10px;
-    background-color: #e7f3ff;
+    background-color: rgba(52, 152, 219, 0.1);
     border-radius: 4px;
     text-align: center;
 }
@@ -624,23 +624,23 @@ a.menu-btn {
     gap: 12px;
     margin: 16px 0;
     padding: 16px;
-    border: 2px solid #007bff;
+    border: 2px solid var(--primary-color);
     border-radius: 8px;
-    background-color: #ffffff;
+    background-color: var(--surface-color);
     flex-wrap: wrap;
 }
 
 .skill-slot {
     width: 100px;
     height: 60px;
-    border: 2px solid #007bff;
+    border: 2px solid var(--primary-color);
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.8em;
-    color: #007bff;
-    background-color: #ffffff;
+    color: var(--primary-color);
+    background-color: var(--surface-color);
     position: relative;
     overflow: hidden;
     text-align: center;
@@ -651,20 +651,20 @@ a.menu-btn {
 }
 
 .skill-slot.empty {
-    background-color: #f8f9fa;
+    background-color: var(--background-color);
     border-style: dashed;
-    color: #6c757d;
+    color: var(--on-surface-variant-color);
 }
 
 .skill-slot.drag-over {
-    background-color: #cce5ff;
-    border-color: #0056b3;
+    background-color: rgba(52, 152, 219, 0.2);
+    border-color: var(--primary-dark-color);
     transform: scale(1.05);
 }
 
 .skill-slot.filled {
-    background-color: #007bff;
-    color: #ffffff;
+    background-color: var(--primary-color);
+    color: var(--on-surface-color);
     font-weight: bold;
     cursor: pointer;
 }
@@ -679,7 +679,7 @@ a.menu-btn {
     top: 4px;
     right: 4px;
     background: rgba(255, 255, 255, 0.3);
-    color: #ffffff;
+    color: var(--on-surface-color);
     border: none;
     border-radius: 50%;
     width: 20px;
@@ -701,28 +701,28 @@ a.menu-btn {
     margin-top: 16px;
     max-height: 200px;
     overflow-y: auto;
-    border: 1px solid #dee2e6;
+    border: 1px solid var(--surface-color);
     padding: 12px;
-    background-color: #ffffff;
+    background-color: var(--background-color);
     border-radius: 8px;
 }
 
 .available-skill-item {
     padding: 10px;
     margin-bottom: 8px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface-color);
+    border: 1px solid var(--surface-color);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: #333;
+    color: var(--on-surface-color);
 }
 
 .available-skill-item:hover {
-    background-color: #e9ecef;
+    background-color: var(--primary-color);
     transform: translateX(4px);
 }
 
@@ -746,8 +746,8 @@ a.menu-btn {
 .custom-skill-item {
     padding: 12px;
     margin-bottom: 8px;
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface-color);
+    border: 1px solid var(--surface-color);
     border-radius: 6px;
     display: flex;
     justify-content: space-between;
@@ -756,21 +756,21 @@ a.menu-btn {
 }
 
 .custom-skill-item:hover {
-    background-color: #e9ecef;
+    background-color: var(--primary-color);
 }
 
 .skill-info {
     flex: 1;
     padding-right: 12px;
-    color: #333;
+    color: var(--on-surface-color);
 }
 
 .skill-info strong {
-    color: #007bff;
+    color: var(--primary-color);
 }
 
 .delete-skill-btn {
-    background-color: #dc3545;
+    background-color: var(--error-color);
     color: white;
     border: none;
     border-radius: 4px;
@@ -781,7 +781,7 @@ a.menu-btn {
 }
 
 .delete-skill-btn:hover {
-    background-color: #c82333;
+    background-color: #c0392b;
 }
 
 .weapon-type-selector {
@@ -805,8 +805,8 @@ a.menu-btn {
 }
 
 .skill-tree-container {
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface-color);
+    border: 1px solid var(--surface-color);
     border-radius: 12px;
     padding: 20px;
     margin: 16px 0;
@@ -953,7 +953,7 @@ a.menu-btn {
 }
 
 .skill-slot-section {
-    background-color: #ffffff;
+    background-color: var(--surface-color);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -961,16 +961,16 @@ a.menu-btn {
 
 .skill-slot-section h2,
 .skill-slot-section h3 {
-    color: #333;
+    color: var(--on-surface-color);
 }
 
 .skill-slot-section .skill-desc {
-    color: #555;
+    color: var(--on-surface-variant-color);
     line-height: 1.6;
 }
 
 .custom-skill-section {
-    background-color: #ffffff;
+    background-color: var(--surface-color);
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 20px;
@@ -978,11 +978,11 @@ a.menu-btn {
 
 .custom-skill-section h2,
 .custom-skill-section h3 {
-    color: #333;
+    color: var(--on-surface-color);
 }
 
 .custom-skill-section .skill-desc {
-    color: #555;
+    color: var(--on-surface-variant-color);
     line-height: 1.6;
 }
 
