@@ -435,6 +435,8 @@ function validateCustomSkill(skillDescription, playerStats) {
         estimatedStrength = "tier8";
     } else if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化') || desc.includes('curse') || desc.includes('debuff') || desc.includes('weaken')) {
         estimatedStrength = "tier6";
+    } else if (desc.includes('敵の攻撃低下') || desc.includes('enemy attack down') || desc.includes('相手の攻撃ダウン') || desc.includes('攻撃弱体') || desc.includes('敵の防御低下') || desc.includes('enemy defense down') || desc.includes('相手の防御ダウン') || desc.includes('防御弱体') || desc.includes('敵の命中低下') || desc.includes('enemy accuracy down') || desc.includes('命中率ダウン')) {
+        estimatedStrength = "tier5";
     } else if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
         estimatedStrength = "tier5";
     } else if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
@@ -501,6 +503,18 @@ function validateCustomSkill(skillDescription, playerStats) {
         if (parsedEffect.speedDebuff) {
             effectCount++;
             effectScore += Math.floor(parsedEffect.speedDebuff * 10); // 20%なら2点
+        }
+        if (parsedEffect.enemyAtkDebuff) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.enemyAtkDebuff * 10); // 20%なら2点
+        }
+        if (parsedEffect.enemyDefDebuff) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.enemyDefDebuff * 10); // 20%なら2点
+        }
+        if (parsedEffect.enemyAccuracyDebuff) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.enemyAccuracyDebuff * 10); // 20%なら2点
         }
         if (parsedEffect.shield) {
             effectCount++;
@@ -739,11 +753,47 @@ function parseEffectFromDescription(description) {
     // 速度低下 (例: "敵の速さを20%低下", "reduce speed by 20%", "slow 20%", "鈍足")
     const speedDebuffMatch = desc.match(/(?:速さ|speed|spped)[\s]*(?:を|by)?[\s]*([\d.]+)%[\s]*(?:低下|reduce|slow|down|減少)/i);
     if (speedDebuffMatch) { finalEffect.speedDebuff = parseFloat(speedDebuffMatch[1]) / 100.0; effectFound = true; }
-    
+
     // 追加の速度低下キーワード
     if (desc.includes("鈍足") || desc.includes("遅く") || desc.includes("slow") || desc.includes("slower")) {
         if (!finalEffect.speedDebuff) {
             finalEffect.speedDebuff = 0.2; // デフォルトで20%
+        }
+        effectFound = true;
+    }
+
+    // 敵の攻撃力低下 (例: "敵の攻撃力を20%低下", "reduce enemy attack by 20%", "enemy attack -20%")
+    const enemyAtkDebuffMatch = desc.match(/(?:敵|enemy|相手)[\s]*(?:の|'?s)?[\s]*(?:攻撃|attack|atk)[\s]*(?:力|power)?[\s]*(?:を|by)?[\s]*-?([\d.]+)%?[\s]*(?:低下|reduce|down|減少|weak)/i);
+    if (enemyAtkDebuffMatch) { finalEffect.enemyAtkDebuff = parseFloat(enemyAtkDebuffMatch[1]) / 100.0; effectFound = true; }
+
+    // 追加の敵攻撃力低下キーワード
+    if (desc.includes("敵の攻撃低下") || desc.includes("enemy attack down") || desc.includes("相手の攻撃ダウン") || desc.includes("攻撃弱体")) {
+        if (!finalEffect.enemyAtkDebuff) {
+            finalEffect.enemyAtkDebuff = 0.2; // デフォルトで20%
+        }
+        effectFound = true;
+    }
+
+    // 敵の防御力低下 (例: "敵の防御力を20%低下", "reduce enemy defense by 20%", "enemy defense -20%")
+    const enemyDefDebuffMatch = desc.match(/(?:敵|enemy|相手)[\s]*(?:の|'?s)?[\s]*(?:防御|defense|def)[\s]*(?:力|power)?[\s]*(?:を|by)?[\s]*-?([\d.]+)%?[\s]*(?:低下|reduce|down|減少|weak)/i);
+    if (enemyDefDebuffMatch) { finalEffect.enemyDefDebuff = parseFloat(enemyDefDebuffMatch[1]) / 100.0; effectFound = true; }
+
+    // 追加の敵防御力低下キーワード
+    if (desc.includes("敵の防御低下") || desc.includes("enemy defense down") || desc.includes("相手の防御ダウン") || desc.includes("防御弱体")) {
+        if (!finalEffect.enemyDefDebuff) {
+            finalEffect.enemyDefDebuff = 0.2; // デフォルトで20%
+        }
+        effectFound = true;
+    }
+
+    // 敵の命中率低下 (例: "敵の命中率を20%低下", "reduce enemy accuracy by 20%", "enemy accuracy -20%")
+    const enemyAccuracyDebuffMatch = desc.match(/(?:敵|enemy|相手)[\s]*(?:の|'?s)?[\s]*(?:命中|accuracy)[\s]*(?:率|rate)?[\s]*(?:を|by)?[\s]*-?([\d.]+)%?[\s]*(?:低下|reduce|down|減少)/i);
+    if (enemyAccuracyDebuffMatch) { finalEffect.enemyAccuracyDebuff = parseFloat(enemyAccuracyDebuffMatch[1]) / 100.0; effectFound = true; }
+
+    // 追加の敵命中率低下キーワード
+    if (desc.includes("敵の命中低下") || desc.includes("enemy accuracy down") || desc.includes("命中率ダウン")) {
+        if (!finalEffect.enemyAccuracyDebuff) {
+            finalEffect.enemyAccuracyDebuff = 0.2; // デフォルトで20%
         }
         effectFound = true;
     }
@@ -1234,7 +1284,8 @@ function renderCustomSkillList(player) {
         li.className = 'custom-skill-item';
         li.innerHTML = `
             <div class="skill-info">
-                <strong>${skill.name}</strong>: ${skill.description}
+                <div class="skill-name"><strong>${skill.name}</strong></div>
+                <div class="skill-description">${skill.description}</div>
             </div>
             <button class="delete-skill-btn" data-skill-index="${index}" data-skill-id="${skill.id}">削除</button>
         `;
