@@ -843,37 +843,58 @@ function shuffleArray(array) {
 
 // バトルスキルの初期化
 function initializeBattleSkills() {
-    // プレイヤーデータからスキルツリー情報を取得
-    const player = getPlayerData();
-    if (!player) return;
-    
-    // スキルデータを初期化
-    const initializedPlayer = initializeSkillData(player);
-    
-    // 装備武器のアクティブスキルを取得
-    const weaponType = me.equippedWeapon?.type || 'sword_shield';
-    const skillEffects = getSkillNodeEffects(initializedPlayer, weaponType);
-    
-    // カスタムスキルも追加
-    const customSkills = initializedPlayer.customSkills || [];
-    
-    // アクティブスキルをマージ
-    activeSkills = [...skillEffects.active];
-    customSkills.forEach(customSkill => {
-        activeSkills.push({
-            id: customSkill.id,
-            name: customSkill.name,
-            description: customSkill.description,
-            effect: customSkill.effect,
-            isCustom: true
-        });
-    });
-    
-    // 使用済みスキルリストを初期化
-    usedSkills = [];
-    
-    // スキルスロットをレンダリング
-    renderSkills();
+    try {
+        // プレイヤーデータからスキルツリー情報を取得
+        const player = getSavedPlayer();
+        if (!player) {
+            console.log("Player data not found, skipping skill initialization");
+            activeSkills = [];
+            renderSkills();
+            return;
+        }
+        
+        // スキルデータを初期化（関数が存在する場合のみ）
+        if (typeof initializeSkillData === 'function') {
+            const initializedPlayer = initializeSkillData(player);
+            
+            // 装備武器のアクティブスキルを取得
+            const weaponType = me.equippedWeapon?.type || 'sword_shield';
+            
+            if (typeof getSkillNodeEffects === 'function') {
+                const skillEffects = getSkillNodeEffects(initializedPlayer, weaponType);
+                
+                // カスタムスキルも追加
+                const customSkills = initializedPlayer.customSkills || [];
+                
+                // アクティブスキルをマージ
+                activeSkills = [...skillEffects.active];
+                customSkills.forEach(customSkill => {
+                    activeSkills.push({
+                        id: customSkill.id,
+                        name: customSkill.name,
+                        description: customSkill.description,
+                        effect: customSkill.effect,
+                        isCustom: true
+                    });
+                });
+            } else {
+                activeSkills = [];
+            }
+        } else {
+            activeSkills = [];
+        }
+        
+        // 使用済みスキルリストを初期化
+        usedSkills = [];
+        
+        // スキルスロットをレンダリング
+        renderSkills();
+    } catch (error) {
+        console.error("Error initializing battle skills:", error);
+        activeSkills = [];
+        usedSkills = [];
+        renderSkills();
+    }
 }
 
 // スキルスロットのレンダリング
@@ -945,23 +966,29 @@ function enableSkillButtons(enabled) {
 
 // スキルアクティベーションウィンドウの開始
 function startSkillActivationWindow() {
-    skillActivationWindow = true;
-    enableSkillButtons(true);
-    
-    // 3秒後にウィンドウを閉じる
-    if (skillActivationTimer) {
-        clearTimeout(skillActivationTimer);
-    }
-    
-    skillActivationTimer = setTimeout(() => {
+    try {
+        skillActivationWindow = true;
+        enableSkillButtons(true);
+        
+        // 3秒後にウィンドウを閉じる
+        if (skillActivationTimer) {
+            clearTimeout(skillActivationTimer);
+        }
+        
+        skillActivationTimer = setTimeout(() => {
+            skillActivationWindow = false;
+            enableSkillButtons(false);
+            
+            // アクティブなスキルがあればログに表示
+            if (selectedSkill) {
+                addLog(`スキル「${selectedSkill.name}」が発動準備完了`);
+            }
+        }, 3000);
+    } catch (error) {
+        console.error("Error in skill activation window:", error);
         skillActivationWindow = false;
         enableSkillButtons(false);
-        
-        // アクティブなスキルがあればログに表示
-        if (selectedSkill) {
-            addLog(`スキル「${selectedSkill.name}」が発動準備完了`);
-        }
-    }, 3000);
+    }
 }
 
 // スキル効果の適用
@@ -1122,16 +1149,11 @@ function calculateBotDifficulty() {
     const randomMaxHp = remainingStats;
     
     // ボットのステータスを設定
-    const oldMaxHp = enemy.maxHp || 50;
-    const oldHpRatio = enemy.hp / oldMaxHp;
-    
     enemy.atk = minAtk + randomAtk;
     enemy.def = minDef + randomDef;
     enemy.speed = minSpeed + randomSpeed;
     enemy.maxHp = minMaxHp + randomMaxHp;
-    
-    // HP比率を維持して現在HPを更新
-    enemy.hp = Math.floor(enemy.maxHp * oldHpRatio);
+    enemy.hp = enemy.maxHp; // HPを最大値に設定
     
     // 正解率は固定（85%）
     const botAccuracy = 0.85;
