@@ -817,9 +817,15 @@ function renderSkillTreeUI() {
     const createCustomSkillBtn = document.getElementById('createCustomSkillBtn');
     if (createCustomSkillBtn) {
         createCustomSkillBtn.onclick = () => {
+            console.log('Create custom skill button clicked');
             const player = getPlayerData();
+            console.log('Player data:', player);
+            
             const skillName = document.getElementById('customSkillName').value.trim();
             const skillDescription = document.getElementById('customSkillDescription').value.trim();
+            
+            console.log('Skill name:', skillName);
+            console.log('Skill description:', skillDescription);
 
             if (!skillName || !skillDescription) {
                 alert('スキル名と内容を入力してください。');
@@ -827,6 +833,7 @@ function renderSkillTreeUI() {
             }
 
             const result = createCustomSkill(player, skillName, skillDescription);
+            console.log('Create skill result:', result);
 
             if (result.success) {
                 localStorage.setItem("player", JSON.stringify(result.player));
@@ -840,6 +847,8 @@ function renderSkillTreeUI() {
                 alert(`作成に失敗しました:\n${result.error}`);
             }
         };
+    } else {
+        console.log('createCustomSkillBtn not found');
     }
 }
 
