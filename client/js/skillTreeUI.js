@@ -397,7 +397,7 @@ function renderCustomSkillList() {
     
     container.innerHTML = '';
     
-    player.customSkills.forEach(skill => {
+    player.customSkills.forEach((skill, index) => {
         const skillEl = document.createElement('div');
         skillEl.className = 'custom-skill-item';
         skillEl.innerHTML = `
@@ -407,8 +407,37 @@ function renderCustomSkillList() {
                 <div class="skill-strength">強度: ${skill.strength}</div>
                 <div class="skill-date">作成日: ${new Date(skill.createdAt).toLocaleDateString()}</div>
             </div>
+            <button class="delete-skill-btn" data-skill-index="${index}" data-skill-id="${skill.id}">削除</button>
         `;
         container.appendChild(skillEl);
+    });
+
+    // 削除ボタンのイベントリスナー
+    container.querySelectorAll('.delete-skill-btn').forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            const skillIndex = parseInt(btn.dataset.skillIndex);
+            const skillId = btn.dataset.skillId;
+
+            if (confirm(`このスキルを削除しますか？削除したスキルは復元できません。`)) {
+                const player = getPlayerData();
+                if (player.customSkills && player.customSkills[skillIndex]) {
+                    // スキルスロットからも削除
+                    player.skillSlots = player.skillSlots.map(slot => {
+                        if (slot && slot.id === skillId) {
+                            return null;
+                        }
+                        return slot;
+                    });
+
+                    // カスタムスキルを削除
+                    player.customSkills.splice(skillIndex, 1);
+
+                    localStorage.setItem("player", JSON.stringify(player));
+                    renderCustomSkillList();
+                }
+            }
+        };
     });
 }
 
