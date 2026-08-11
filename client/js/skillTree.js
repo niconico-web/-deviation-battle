@@ -730,6 +730,20 @@ function renderSkillTreeUI() {
     renderAvailableSkills(player);
     console.log('renderSkillTreeUI: calling renderCustomSkillList');
     renderCustomSkillList(player);
+    
+    // スキル説明表示エリアを作成
+    if (!document.getElementById('skillDescriptionArea')) {
+        const descArea = document.createElement('div');
+        descArea.id = 'skillDescriptionArea';
+        descArea.style.marginTop = '16px';
+        descArea.style.padding = '12px';
+        descArea.style.backgroundColor = '#f8f9fa';
+        descArea.style.border = '1px solid #dee2e6';
+        descArea.style.borderRadius = '8px';
+        descArea.style.display = 'none';
+        descArea.innerHTML = '<p>スキルを選択してください</p>';
+        container.appendChild(descArea);
+    }
 
     // イベントリスナー（index.htmlの静的UIのボタンに対応）
     const createCustomSkillBtn = document.getElementById('createCustomSkillBtn');
@@ -793,9 +807,17 @@ function renderTree() {
     
     console.log('renderTree: treeData =', treeData);
     console.log('renderTree: playerData =', playerData);
+    console.log('renderTree: number of nodes =', treeData.nodes.length);
 
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
+
+    // テスト用にシンプルな表示を追加
+    const testDiv = document.createElement('div');
+    testDiv.style.padding = '20px';
+    testDiv.style.color = 'red';
+    testDiv.textContent = `スキルツリー (${treeData.nodes.length} ノード)`;
+    content.appendChild(testDiv);
 
     // 1. Find bounds of the tree
     const allX = treeData.nodes.map(n => n.x);
@@ -891,7 +913,15 @@ function renderTree() {
         else if (isUnlockable) nodeEl.classList.add('unlockable');
         else nodeEl.classList.add('locked');
 
-        nodeEl.onclick = () => {
+        // クリックイベント（説明表示）
+        nodeEl.onclick = (e) => {
+            e.stopPropagation();
+            showSkillDescription(node, isUnlocked, isUnlockable);
+        };
+        
+        // ダブルクリックイベント（習得）
+        nodeEl.ondblclick = (e) => {
+            e.stopPropagation();
             if (isUnlockable) {
                 if (confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) {
                     const result = unlockSkillNode(getPlayerData(), node.id);
@@ -903,6 +933,10 @@ function renderTree() {
                         alert(result.error);
                     }
                 }
+            } else if (isUnlocked) {
+                alert('このスキルは既に習得済みです。');
+            } else {
+                alert('このスキルはまだ習得できません。前提スキルを解放してください。');
             }
         };
 
@@ -922,6 +956,30 @@ function renderTree() {
     }
     
     console.log('renderTree: rendering complete');
+}
+
+function showSkillDescription(node, isUnlocked, isUnlockable) {
+    const descArea = document.getElementById('skillDescriptionArea');
+    if (!descArea) return;
+    
+    let statusText = '';
+    if (isUnlocked) {
+        statusText = '<span style="color: #28a745;">習得済み</span>';
+    } else if (isUnlockable) {
+        statusText = '<span style="color: #ffc107;">習得可能（ダブルクリックで習得）</span>';
+    } else {
+        statusText = '<span style="color: #6c757d;">未解放</span>';
+    }
+    
+    descArea.style.display = 'block';
+    descArea.innerHTML = `
+        <h3 style="margin-top: 0; color: var(--primary-color);">${node.name}</h3>
+        <p><strong>タイプ:</strong> ${node.type}</p>
+        <p><strong>説明:</strong> ${node.description}</p>
+        <p><strong>コスト:</strong> ${node.cost} スキルポイント</p>
+        <p><strong>状態:</strong> ${statusText}</p>
+        ${node.requires ? `<p><strong>前提スキル:</strong> ${Array.isArray(node.requires) ? node.requires.join(', ') : node.requires}</p>` : ''}
+    `;
 }
 
 function renderSkillSlots(player) {
