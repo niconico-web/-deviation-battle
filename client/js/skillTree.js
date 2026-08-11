@@ -98,23 +98,23 @@ const CUSTOM_SKILL_VALIDATION = {
         "unlimited", // 無制限
     ],
     
-    // 効果の強度に基づく必要ステータス合計値（緩和された設定）
+    // 効果の強度に基づく必要ステータス合計値（緩和された設定 - 指数関数的に拡大）
     statRequirements: {
         tier1: { totalStats: 100, maxMultiplier: 1.05, description: "微弱" },
-        tier2: { totalStats: 200, maxMultiplier: 1.1, description: "弱い" },
-        tier3: { totalStats: 350, maxMultiplier: 1.15, description: "やや弱い" },
-        tier4: { totalStats: 500, maxMultiplier: 1.2, description: "普通" },
-        tier5: { totalStats: 800, maxMultiplier: 1.25, description: "やや強い" },
-        tier6: { totalStats: 1200, maxMultiplier: 1.3, description: "強い" },
-        tier7: { totalStats: 1800, maxMultiplier: 1.4, description: "かなり強い" },
-        tier8: { totalStats: 2500, maxMultiplier: 1.5, description: "非常に強い" },
-        tier9: { totalStats: 3500, maxMultiplier: 1.6, description: "極めて強い" },
-        tier10: { totalStats: 5000, maxMultiplier: 1.7, description: "超強力" },
-        tier11: { totalStats: 7000, maxMultiplier: 1.8, description: "伝説級" },
-        tier12: { totalStats: 10000, maxMultiplier: 1.9, description: "神話級" },
-        tier13: { totalStats: 15000, maxMultiplier: 2.0, description: "神級" },
-        tier14: { totalStats: 20000, maxMultiplier: 2.2, description: "超越" },
-        tier15: { totalStats: 30000, maxMultiplier: 2.5, description: "宇宙崩壊レベル" }
+        tier2: { totalStats: 250, maxMultiplier: 1.1, description: "弱い" },
+        tier3: { totalStats: 625, maxMultiplier: 1.15, description: "やや弱い" },
+        tier4: { totalStats: 1562, maxMultiplier: 1.2, description: "普通" },
+        tier5: { totalStats: 3906, maxMultiplier: 1.25, description: "やや強い" },
+        tier6: { totalStats: 9765, maxMultiplier: 1.3, description: "強い" },
+        tier7: { totalStats: 24414, maxMultiplier: 1.4, description: "かなり強い" },
+        tier8: { totalStats: 61035, maxMultiplier: 1.5, description: "非常に強い" },
+        tier9: { totalStats: 152587, maxMultiplier: 1.6, description: "極めて強い" },
+        tier10: { totalStats: 381469, maxMultiplier: 1.7, description: "超強力" },
+        tier11: { totalStats: 953674, maxMultiplier: 1.8, description: "伝説級" },
+        tier12: { totalStats: 2384185, maxMultiplier: 1.9, description: "神話級" },
+        tier13: { totalStats: 5960462, maxMultiplier: 2.0, description: "神級" },
+        tier14: { totalStats: 14901156, maxMultiplier: 2.2, description: "超越" },
+        tier15: { totalStats: 15000000, maxMultiplier: 2.5, description: "宇宙崩壊レベル" }
     }
 };
 
