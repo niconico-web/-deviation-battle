@@ -1024,16 +1024,16 @@ function showSkillDescription(node, isUnlocked, isUnlockable) {
     
     let statusText = '';
     if (isUnlocked) {
-        statusText = '<span style="color: #28a745;">習得済み</span>';
+        statusText = '<span class="status-unlocked">習得済み</span>';
     } else if (isUnlockable) {
-        statusText = '<span style="color: #ffc107;">習得可能（ダブルクリックで習得）</span>';
+        statusText = '<span class="status-unlockable">習得可能（ダブルクリックで習得）</span>';
     } else {
-        statusText = '<span style="color: #6c757d;">未解放</span>';
+        statusText = '<span class="status-locked">未解放</span>';
     }
     
     descArea.style.display = 'block';
     descArea.innerHTML = `
-        <h3 style="margin-top: 0; color: var(--primary-color);">${node.name}</h3>
+        <h3>${node.name}</h3>
         <p><strong>タイプ:</strong> ${node.type}</p>
         <p><strong>説明:</strong> ${node.description}</p>
         <p><strong>コスト:</strong> ${node.cost} スキルポイント</p>

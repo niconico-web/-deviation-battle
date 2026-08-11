@@ -923,6 +923,24 @@ a.menu-btn {
     color: var(--on-surface-color);
 }
 
+.skill-description-area p strong {
+    color: var(--on-surface-variant-color);
+}
+
+.status-unlocked {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.status-unlockable {
+    color: var(--primary-color);
+    font-weight: bold;
+}
+
+.status-locked {
+    color: var(--on-surface-variant-color);
+}
+
 .skill-node {
     transition: all 0.3s ease;
 }
