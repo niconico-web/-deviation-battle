@@ -233,12 +233,19 @@ function renderOriginalWeapons() {
         // 必殺技名表示
         const ultimateName = weapon.ultimateName || "未設定";
 
+        // 二個目の武器種表示
+        let secondaryTypeText = "";
+        if (weapon.secondaryType) {
+            secondaryTypeText = `<span class="quest-progress">二個目武器種: ${getWeaponTypeLabel(weapon.secondaryType)}</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
                 <span>倍率: ${weapon.multiplier.toFixed(3)}x (${progress}%)</span>
                 <span class="quest-progress">${bonusText || "補正なし"}</span>
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
+                ${secondaryTypeText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
@@ -506,8 +513,29 @@ function showOriginalWeaponCreationDialog() {
 
     const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
 
+    // デュアルウェポン能力のチェック
+    const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
+    let secondaryType = null;
+    
+    if (hasDualWeapon) {
+        const secondaryTypeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
+        const secondaryTypeInput = prompt(`デュアルウェポン能力発動！二個目の武器種を選択してください:\n${secondaryTypeOptions}\n番号を入力（キャンセルでスキップ）:`, "1");
+        
+        if (secondaryTypeInput !== null) {
+            const secondaryTypeIndex = parseInt(secondaryTypeInput) - 1;
+            if (!isNaN(secondaryTypeIndex) && secondaryTypeIndex >= 0 && secondaryTypeIndex < weaponTypes.length) {
+                secondaryType = weaponTypes[secondaryTypeIndex];
+            }
+        }
+    }
+
     // 基本武器を作成（補正なし）
     const baseWeapon = createOriginalWeapon(name.trim(), selectedType, {}, validatedUltimateName);
+    
+    // 二個目の武器種を設定
+    if (secondaryType) {
+        baseWeapon.secondaryType = secondaryType;
+    }
     
     // オーブを適用
     const weapon = applyOrbToWeapon(baseWeapon, selectedOrbs);

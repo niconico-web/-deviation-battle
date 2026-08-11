@@ -170,6 +170,14 @@ if ('serviceWorker' in navigator) {
             </section>
 
             <section class="custom-skill-section section">
+                <h2>スキルスロット</h2>
+                <p class="skill-desc">解放したスキルをスロットに装備してバトルで使用できます。</p>
+                <div id="skillSlotsContainer" class="skill-slots-container"></div>
+                <h3>利用可能なアクティブスキル</h3>
+                <div id="availableSkillsList" class="available-skills-list"></div>
+            </section>
+
+            <section class="custom-skill-section section">
                 <h2>オリジナルスキル作成</h2>
                 <p class="skill-desc">AIがあなた専用のオリジナルスキルを作成します。効果が強いほど多くのステータスが必要です。</p>
                 <p class="skill-desc">コスト: 100コイン</p>
@@ -184,6 +192,7 @@ if ('serviceWorker' in navigator) {
                     <button type="button" class="btn" id="createCustomSkillBtn">オリジナルスキル作成 (100コイン)</button>
                 </div>
                 
+                <h3>作成済みオリジナルスキル</h3>
                 <div id="customSkillList" class="custom-skill-list"></div>
             </section>
         </div>

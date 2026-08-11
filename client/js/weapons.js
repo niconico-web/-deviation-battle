@@ -806,8 +806,8 @@ function applyWeaponStats(baseStats, weapon) {
         let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
 
         // デュアルウェポン能力による武器種情報のマージ
-        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.dualWeaponType) {
-            const dualWeaponInfo = WEAPON_TYPES[weapon.dualWeaponType];
+        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.secondaryType) {
+            const dualWeaponInfo = WEAPON_TYPES[weapon.secondaryType];
             if (typeConf && dualWeaponInfo) {
                 // primary, secondary, debuffをマージする
                 const mergedPrimary = [...new Set([...typeConf.primary, ...dualWeaponInfo.primary])];
