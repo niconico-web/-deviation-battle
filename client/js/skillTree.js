@@ -448,7 +448,7 @@ function validateCustomSkill(skillDescription, playerStats) {
     }
     
     // パースされたeffectオブジェクトに基づいて効果数をカウント
-    const parsedEffect = parseEffectFromDescription(description);
+    const parsedEffect = parseEffectFromDescription(desc);
     let effectCount = 0;
     
     if (parsedEffect) {
