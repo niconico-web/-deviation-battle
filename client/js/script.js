@@ -3,6 +3,37 @@ let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
 
+// 複数タブ防止
+const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+const existingTab = localStorage.getItem('activeTabId');
+
+if (existingTab) {
+    // 他のタブが既に開いている
+    alert('このサイトは同時に1つのタブでのみ使用できます。既存のタブを閉じてから再度開いてください。');
+    window.location.href = 'about:blank';
+}
+
+// 自分のタブIDを設定
+if (!existingTab) {
+    localStorage.setItem('activeTabId', tabId);
+}
+
+// 他のタブからのメッセージを監視
+window.addEventListener('storage', (e) => {
+    if (e.key === 'activeTabId' && e.newValue !== tabId) {
+        // 他のタブが開かれた
+        alert('このサイトは同時に1つのタブでのみ使用できます。このタブを閉じてください。');
+        window.location.href = 'about:blank';
+    }
+});
+
+// ページを離れる時にタブIDをクリア
+window.addEventListener('beforeunload', () => {
+    if (localStorage.getItem('activeTabId') === tabId) {
+        localStorage.removeItem('activeTabId');
+    }
+});
+
 // Initialize socket after DOM is ready
 window.socket = null;
 
