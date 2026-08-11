@@ -450,26 +450,110 @@ function validateCustomSkill(skillDescription, playerStats) {
     // パースされたeffectオブジェクトに基づいて効果数をカウント
     const parsedEffect = parseEffectFromDescription(desc);
     let effectCount = 0;
+    let effectScore = 0; // 効果のスコア（各効果の重要度に基づく）
     
     if (parsedEffect) {
-        if (parsedEffect.damageMultiplier) effectCount++;
-        if (parsedEffect.damageReduction) effectCount++;
-        if (parsedEffect.lifeSteal) effectCount++;
-        if (parsedEffect.heal) effectCount++;
-        if (parsedEffect.healPercent) effectCount++;
-        if (parsedEffect.sureHit) effectCount++;
-        if (parsedEffect.ignoreDef) effectCount++;
-        if (parsedEffect.nextAttackCrit) effectCount++;
-        if (parsedEffect.critChance) effectCount++;
-        if (parsedEffect.burn) effectCount++;
-        if (parsedEffect.poison) effectCount++;
-        if (parsedEffect.speedDebuff) effectCount++;
-        if (parsedEffect.shield) effectCount++;
-        if (parsedEffect.dodgeChance) effectCount++;
-        if (parsedEffect.counter) effectCount++;
-        if (parsedEffect.multiHit) effectCount++;
-        if (parsedEffect.skipNextTurn) effectCount++;
-        if (parsedEffect.defDebuff) effectCount++;
+        // 各効果にスコアを割り当て
+        if (parsedEffect.damageMultiplier) {
+            effectCount++;
+            effectScore += Math.floor((parsedEffect.damageMultiplier - 1) * 10); // 1.2倍なら2点
+        }
+        if (parsedEffect.damageReduction) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.damageReduction * 10); // 30%なら3点
+        }
+        if (parsedEffect.lifeSteal) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.lifeSteal * 10); // 30%なら3点
+        }
+        if (parsedEffect.heal) {
+            effectCount++;
+            effectScore += Math.min(parsedEffect.heal / 10, 5); // 最大5点
+        }
+        if (parsedEffect.healPercent) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.healPercent * 10); // 30%なら3点
+        }
+        if (parsedEffect.sureHit) {
+            effectCount++;
+            effectScore += 5; // 必中は重要
+        }
+        if (parsedEffect.ignoreDef) {
+            effectCount++;
+            effectScore += 4; // 防御無視は重要
+        }
+        if (parsedEffect.nextAttackCrit) {
+            effectCount++;
+            effectScore += 5; // クリティカル確定は重要
+        }
+        if (parsedEffect.critChance) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.critChance * 10); // 20%なら2点
+        }
+        if (parsedEffect.burn) {
+            effectCount++;
+            effectScore += 3; // 火傷は中程度
+        }
+        if (parsedEffect.poison) {
+            effectCount++;
+            effectScore += 3; // 毒は中程度
+        }
+        if (parsedEffect.speedDebuff) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.speedDebuff * 10); // 20%なら2点
+        }
+        if (parsedEffect.shield) {
+            effectCount++;
+            effectScore += Math.min(parsedEffect.shield / 10, 5); // 最大5点
+        }
+        if (parsedEffect.dodgeChance) {
+            effectCount++;
+            effectScore += Math.floor(parsedEffect.dodgeChance * 10); // 20%なら2点
+        }
+        if (parsedEffect.counter) {
+            effectCount++;
+            effectScore += 4; // 反撃は重要
+        }
+        if (parsedEffect.multiHit) {
+            effectCount++;
+            effectScore += (parsedEffect.multiHit - 1) * 3; // 2回なら3点、3回なら6点
+        }
+        if (parsedEffect.skipNextTurn) {
+            effectCount++;
+            effectScore += 3; // ターンスキップは中程度
+        }
+        if (parsedEffect.selfDefDebuff) {
+            effectCount++;
+            effectScore += 2; // 自身のデバフは軽い
+        }
+        
+        console.log('Parsed effect score:', effectScore, 'Effect count:', effectCount);
+    }
+    
+    // パースされた効果に基づいて強度を計算
+    if (effectScore > 0) {
+        // 効果スコアに基づいてティアを決定
+        if (effectScore >= 20) {
+            estimatedStrength = "tier12";
+        } else if (effectScore >= 15) {
+            estimatedStrength = "tier11";
+        } else if (effectScore >= 12) {
+            estimatedStrength = "tier10";
+        } else if (effectScore >= 10) {
+            estimatedStrength = "tier9";
+        } else if (effectScore >= 8) {
+            estimatedStrength = "tier8";
+        } else if (effectScore >= 6) {
+            estimatedStrength = "tier7";
+        } else if (effectScore >= 4) {
+            estimatedStrength = "tier6";
+        } else if (effectScore >= 3) {
+            estimatedStrength = "tier5";
+        } else if (effectScore >= 2) {
+            estimatedStrength = "tier4";
+        } else {
+            estimatedStrength = "tier3";
+        }
     }
     
     // 複合効果によるランクアップ（ティアシステム対応）
