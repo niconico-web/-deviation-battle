@@ -884,6 +884,25 @@ a.menu-btn {
     background-color: #e9ecef;
 }
 
+.skill-description-area {
+    margin-top: 16px;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.skill-description-area h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.skill-description-area p {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
 .skill-node {
     transition: all 0.3s ease;
 }
