@@ -136,6 +136,33 @@ function initializeSkillData(player) {
         player.skillSlots = [null, null, null]; // 3つのスキルスロット
     }
     
+    // レガシーカスタムスキルのマイグレーション（IDがない場合）
+    if (player.customSkills && Array.isArray(player.customSkills)) {
+        player.customSkills = player.customSkills.map(skill => {
+            if (!skill.id) {
+                // IDがない場合は生成
+                skill.id = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            }
+            if (!skill.type) {
+                // typeがない場合はactiveに設定
+                skill.type = "active";
+            }
+            if (!skill.effect) {
+                // effectがない場合はデフォルト効果を設定
+                skill.effect = { type: "active", damageMultiplier: 1.2 };
+            }
+            if (!skill.createdAt) {
+                // createdAtがない場合は現在時刻を設定
+                skill.createdAt = Date.now();
+            }
+            if (!skill.strength) {
+                // strengthがない場合はデフォルト値を設定
+                skill.strength = "tier4";
+            }
+            return skill;
+        });
+    }
+    
     return player;
 }
 
@@ -257,6 +284,17 @@ function getSkillNodeEffects(player) {
     // カスタムスキルもアクティブスキルとして含める（重複チェック付き）
     if (player.customSkills && Array.isArray(player.customSkills)) {
         player.customSkills.forEach(customSkill => {
+            // レガシースキルのプロパティチェック
+            if (!customSkill.id) {
+                customSkill.id = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            }
+            if (!customSkill.type) {
+                customSkill.type = "active";
+            }
+            if (!customSkill.effect) {
+                customSkill.effect = { type: "active", damageMultiplier: 1.2 };
+            }
+            
             // 重複チェック
             if (!effects.active.some(skill => skill.id === customSkill.id)) {
                 effects.active.push(customSkill);
@@ -942,8 +980,13 @@ function renderSkillSlots(player) {
         slotEl.dataset.slotIndex = index;
         if (skill) {
             slotEl.classList.add('filled');
-            slotEl.innerHTML = `<span>${skill.name}</span><button class="unequip-skill-btn" data-skill-id="${skill.id}">X</button>`;
-            slotEl.title = skill.description;
+            // レガシースキルのプロパティチェック
+            const skillName = skill.name || "名前なし";
+            const skillId = skill.id || `legacy_${index}`;
+            const skillDescription = skill.description || "説明なし";
+            
+            slotEl.innerHTML = `<span>${skillName}</span><button class="unequip-skill-btn" data-skill-id="${skillId}">X</button>`;
+            slotEl.title = skillDescription;
         } else {
             slotEl.textContent = `スロット ${index + 1}`;
         }
@@ -974,6 +1017,17 @@ function renderCustomSkillList(player) {
 
     const ul = document.createElement('ul');
     customSkills.forEach(skill => {
+        // レガシースキルのプロパティチェック
+        if (!skill.id) {
+            skill.id = `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+        }
+        if (!skill.name) {
+            skill.name = "名前なし";
+        }
+        if (!skill.description) {
+            skill.description = "説明なし";
+        }
+        
         const li = document.createElement('li');
         li.innerHTML = `<strong>${skill.name}</strong>: ${skill.description}`;
         ul.appendChild(li);
@@ -1008,10 +1062,10 @@ function renderAvailableSkills(player) {
 
         const li = document.createElement('li');
         li.className = 'available-skill-item';
-        li.textContent = skill.name;
-        li.title = skill.description;
+        li.textContent = skill.name || "名前なし";
+        li.title = skill.description || "説明なし";
         li.onclick = () => {
-            const slotIndex = prompt(`「${skill.name}」をどのスロットに装備しますか？ (1, 2, 3)`, "1");
+            const slotIndex = prompt(`「${skill.name || "名前なし"}」をどのスロットに装備しますか？ (1, 2, 3)`, "1");
             if (slotIndex === null) return;
             const index = parseInt(slotIndex) - 1;
             if (isNaN(index) || index < 0 || index >= 3) {
