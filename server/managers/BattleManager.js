@@ -196,6 +196,8 @@ function createBattle(roomId, host, guest){
 
                 equippedWeapon: hostWeapon,
 
+                skillSlots: Array.isArray(host.skillSlots) ? host.skillSlots : [null, null, null],
+
                 answerTime: null,
                 correctAnswers: 0,
                 ultimateGauge: { current: 0, max: 100 }
@@ -217,6 +219,8 @@ function createBattle(roomId, host, guest){
                 grade: guestGrade,
 
                 equippedWeapon: guestWeapon,
+
+                skillSlots: Array.isArray(guest.skillSlots) ? guest.skillSlots : [null, null, null],
 
                 answerTime: null,
                 correctAnswers: 0,

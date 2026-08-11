@@ -140,7 +140,9 @@ function generateQuestion(battle) {
 
 function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
     // attackerAtkが渡されなかった場合は、元のステータスを使用
-    const baseAtk = options.attackerAtk !== null ? options.attackerAtk : attacker.atk;
+    const baseAtk = (options.attackerAtk !== null && options.attackerAtk !== undefined)
+        ? options.attackerAtk
+        : (attacker.atk || 0);
     // 基本ダメージ
     let damage = BASE_DAMAGE + Math.floor(baseAtk * 0.5); // ダメージ計算式を少し強化
 
@@ -235,6 +237,78 @@ function applyLifeDrain(attacker, damageDealt) {
 }
 
 /**
+ * 攻撃を伴わないスキル効果を即時適用する
+ */
+function applyInstantSkillEffects(player, enemy, effect, result) {
+    if (!effect) return;
+
+    if (effect.damageReduction) {
+        player.pendingDamageReduction = Math.min(0.9, effect.damageReduction);
+        result.damageReductionActive = player.pendingDamageReduction;
+    }
+    if (effect.skipNextTurn) {
+        player.skipTurn = true;
+    }
+    if (effect.selfDefDebuff) {
+        if (!player.debuffs) player.debuffs = [];
+        player.debuffs.push({
+            stat: 'def',
+            reduction: effect.selfDefDebuff,
+            isFlat: true,
+            remainingTurns: 2 // このターンと次の相手のターンまで持続
+        });
+    }
+    if (effect.heal) {
+        const healAmount = Math.floor(player.maxHp * effect.heal);
+        player.hp = Math.min(player.maxHp, player.hp + healAmount);
+        result.skillHealed = healAmount;
+    }
+    if (effect.selfDamage) {
+        const selfDmg = Math.floor(player.maxHp * effect.selfDamage);
+        player.hp = Math.max(1, player.hp - selfDmg);
+        result.skillSelfDamage = selfDmg;
+    }
+    if (effect.speedDebuff && enemy) {
+        if (!enemy.debuffs) enemy.debuffs = [];
+        enemy.debuffs.push({
+            stat: 'speed',
+            reduction: effect.speedDebuff,
+            isFlat: false,
+            remainingTurns: 3
+        });
+        result.enemySpeedDebuff = effect.speedDebuff;
+    }
+    if (effect.burn && enemy) {
+        enemy.burnTurns = 3;
+        result.enemyBurned = true;
+    }
+}
+
+/**
+ * 受けるダメージにスキルの軽減効果を適用する
+ */
+function applyPendingDamageReduction(defender, damage, result) {
+    if (defender.pendingDamageReduction > 0) {
+        const reduced = Math.max(1, Math.floor(damage * (1 - defender.pendingDamageReduction)));
+        result.skillDamageReduced = { from: damage, to: reduced };
+        defender.pendingDamageReduction = 0;
+        return reduced;
+    }
+    return damage;
+}
+
+/**
+ * 火傷の継続ダメージを処理する
+ */
+function tickBurn(player, result, key) {
+    if (!player.burnTurns || player.burnTurns <= 0) return;
+    const burnDamage = Math.max(1, Math.floor(player.maxHp * 0.05));
+    player.hp = Math.max(0, player.hp - burnDamage);
+    player.burnTurns--;
+    result[key] = { damage: burnDamage, remaining: player.burnTurns, hp: player.hp };
+}
+
+/**
  * ターン終了時にデバフのターンを減らす
  */
 function tickDebuffs(player) {
@@ -289,6 +363,27 @@ function processAnswer(battle, playerId, answer, usedSkill) {
     // 両方のプレイヤーが回答したかチェック
     const bothAnswered = player.answerTime !== null && enemy.answerTime !== null;
     
+    // スキルの発動判定と、攻撃を伴わない効果の即時適用
+    // （正解・不正解にかかわらず発動させることで防御系スキルも機能させる）
+    let activeSkillEffect = null;
+    if (usedSkill && usedSkill.effect) {
+        const eff = usedSkill.effect;
+        let canApply = true;
+        if (eff.condition && eff.condition.type === 'hp_below') {
+            if (player.maxHp > 0 && player.hp / player.maxHp > eff.condition.value) {
+                canApply = false;
+            }
+        }
+        if (canApply) {
+            console.log(`[BattleEngine] Applying skill "${usedSkill.name}" for player ${player.name}`);
+            activeSkillEffect = eff;
+            result.skillUsed = usedSkill;
+            applyInstantSkillEffects(player, enemy, eff, result);
+        } else {
+            result.skillFailed = usedSkill.name;
+        }
+    }
+    
     if (isCorrect) {
         // 正解の場合
         const attacker = player;
@@ -307,40 +402,13 @@ function processAnswer(battle, playerId, answer, usedSkill) {
         
         // 先に正解した場合のみダメージを与える
         if (!defender.answerTime) {
-            let skillIsActive = false;
+            const skillIsActive = !!activeSkillEffect;
             let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion"); // 必中能力
             let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half"); // 貫通能力
 
-            // スキル効果を適用
-            if (usedSkill && usedSkill.effect && usedSkill.effect.type === 'active') {
-                console.log(`[BattleEngine] Applying skill "${usedSkill.name}" for player ${player.name}`);
-                let canApply = true;
-                // 条件チェック
-                if (usedSkill.effect.condition) {
-                    const cond = usedSkill.effect.condition;
-                    if (cond.type === 'hp_below') {
-                        if (attacker.hp / attacker.maxHp > cond.value) {
-                            canApply = false;
-                        }
-                    }
-                }
-                
-                if (canApply) {
-                    result.skillUsed = usedSkill; // 条件を満たした場合のみスキルを使用したとみなす
-                    skillIsActive = true;
-                    // 必中効果
-                    if (usedSkill.effect.ignoreDef) isAttackerIgnoreDef = true;
-                    if (usedSkill.effect.selfDefDebuff) {
-                        if (!attacker.debuffs) attacker.debuffs = [];
-                        attacker.debuffs.push({
-                            stat: 'def',
-                            reduction: skill.effect.selfDefDebuff,
-                            isFlat: true,
-                            remainingTurns: 2 // このターンと次の相手のターンまで持続
-                        });
-                    }
-                    if (usedSkill.effect.sureHit) isAttackerSureHit = true;
-                }
+            if (skillIsActive) {
+                if (activeSkillEffect.ignoreDef) isAttackerIgnoreDef = true;
+                if (activeSkillEffect.sureHit) isAttackerSureHit = true;
             }
 
             // 「根性」の攻撃力アップ効果
@@ -360,9 +428,28 @@ function processAnswer(battle, playerId, answer, usedSkill) {
             });
             let damage = damageResult.damage;
             
-            // スキルによるダメージ倍率を適用
-            if (skillIsActive && usedSkill.effect.damageMultiplier) {
-                damage = Math.floor(damage * usedSkill.effect.damageMultiplier);
+            // スキルによるダメージ倍率・追加効果を適用
+            if (skillIsActive) {
+                if (activeSkillEffect.damageMultiplier) {
+                    damage = Math.floor(damage * activeSkillEffect.damageMultiplier);
+                }
+                if (activeSkillEffect.nextAttackCrit) {
+                    damage = Math.floor(damage * 1.5);
+                    result.skillCrit = true;
+                }
+                const strikeCount = Math.max(1, Math.min(5, activeSkillEffect.multiStrike || 1));
+                if (strikeCount > 1) {
+                    const perHitRate = activeSkillEffect.multiStrikeMultiplier || 0.6;
+                    damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
+                    result.multiStrike = strikeCount;
+                }
+            }
+            
+            // 「行動できない」デメリット
+            if (attacker.skipTurn) {
+                attacker.skipTurn = false;
+                damage = 0;
+                result.skippedTurn = true;
             }
             const dodgeChance = damageResult.dodgeChance;
             
@@ -384,13 +471,17 @@ function processAnswer(battle, playerId, answer, usedSkill) {
             
             // 回避判定
             const dodgeRoll = Math.random() * 100;
-            if (dodgeRoll < dodgeChance) {
+            if (damage <= 0) {
+                result.damage = 0;
+            } else if (dodgeRoll < dodgeChance) {
                 result.damage = 0;
                 result.dodged = true;
                 result.dodgeChance = dodgeChance;
             } else {
                 // ユニーク能力によるダメージ軽減を適用（防御側）
                 let finalDamage = applyUniqueAbilityDefense(damage, defender);
+                // 防御側のスキルによるダメージ軽減
+                finalDamage = applyPendingDamageReduction(defender, finalDamage, result);
 
                 if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
                     defender.hp = 1;
@@ -402,6 +493,15 @@ function processAnswer(battle, playerId, answer, usedSkill) {
                 result.damage = finalDamage;
                 result.enemyHp = defender.hp;
                 result.firstCorrect = true;
+                
+                // スキルによるHP吸収
+                if (skillIsActive && activeSkillEffect.lifeSteal) {
+                    const stolen = Math.floor(finalDamage * activeSkillEffect.lifeSteal);
+                    if (stolen > 0) {
+                        attacker.hp = Math.min(attacker.maxHp, attacker.hp + stolen);
+                        result.skillLifeSteal = stolen;
+                    }
+                }
                 
                 // ライフドレイン: ダメージの20%をHP回復
                 const healAmount = applyLifeDrain(attacker, finalDamage);
@@ -435,7 +535,11 @@ function processAnswer(battle, playerId, answer, usedSkill) {
         // 敵が必中能力を持っているかチェック
         const isEnemySureHit = hasUniqueAbility(attacker, "ignore_evasion");
         
-        const damageResult = calculateDamage(attacker, defender, 0, isEnemySureHit, attackerAtk);
+        const damageResult = calculateDamage(attacker, defender, 0, {
+            isSureHit: isEnemySureHit,
+            attackerAtk: attackerAtk,
+            defenderDef: getStatWithDebuffs(defender, 'def')
+        });
         let damage = damageResult.damage;
         const dodgeChance = damageResult.dodgeChance;
         

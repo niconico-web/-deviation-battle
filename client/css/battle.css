@@ -525,3 +525,9 @@ body {
     cursor: not-allowed;
     text-decoration: line-through;
 }
+
+.no-skill-text {
+    margin: 0;
+    font-size: 12px;
+    color: #aaa;
+}

@@ -141,7 +141,11 @@ function createCharacter() {
         coins: existing?.coins || 0,
         weapons: existing?.weapons || [],
         equippedWeapon: existing?.equippedWeapon || null,
-        weaponWins: existing?.weaponWins || {}
+        weaponWins: existing?.weaponWins || {},
+        orbs: existing?.orbs || [],
+        skillTree: existing?.skillTree,
+        skillSlots: existing?.skillSlots,
+        customSkills: existing?.customSkills
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -156,6 +160,8 @@ function createCharacter() {
     if (playerIdEl) playerIdEl.textContent = player.id;
     const saveDataBtn = document.getElementById("saveDataBtn");
     if (saveDataBtn) saveDataBtn.disabled = false;
+
+    syncPlayerToServer(true);
 
     alert(I18N.charCreated);
 }
@@ -265,7 +271,7 @@ function updateStatGrowthInfo() {
 
 function applyStudyRewards(seconds) {
     if (seconds < 60) { alert("勉強時間は1分以上にしてください"); return; }
-    const player = getPlayerData(); if (!player) return;
+    let player = getPlayerData(); if (!player) return;
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
@@ -321,8 +327,9 @@ function applyStudyRewards(seconds) {
         equippedWeapon: player.equippedWeapon,
         weaponWins: player.weaponWins,
         orbs: player.orbs || [],
-        skillTrees: player.skillTrees,
-        totalSkillPoints: player.totalSkillPoints
+        skillTree: player.skillTree,
+        skillSlots: player.skillSlots,
+        customSkills: player.customSkills
     });
 
     // オーブを追加
@@ -335,6 +342,8 @@ function applyStudyRewards(seconds) {
     setStatsToInputs(stats);
     updateStatus(updated);
     updateXpDisplay(updated);
+    if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+    syncPlayerToServer(true);
     const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engDefSpeed, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
     let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
     if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
@@ -360,6 +369,28 @@ function getMatchPlayer() {
     return { ...p, ...battleStats, hp: battleStats.maxHp, battleStats };
 }
 
+// プレイヤーIDの正規化（大文字・空白・全角の揺れを吸収）
+function normalizePlayerId(rawId) {
+    if (rawId == null) return "";
+    return String(rawId)
+        // 全角英数字を半角に変換
+        .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+        .replace(/[\s\u3000]/g, "")
+        .trim()
+        .toUpperCase();
+}
+
+// サーバーへのデータ同期（silent=true の場合は成功通知を出さない）
+let pendingSilentSave = false;
+function syncPlayerToServer(silent) {
+    const player = getPlayerData();
+    if (!player) return false;
+    if (!window.socket || !window.socket.connected) return false;
+    pendingSilentSave = !!silent;
+    window.socket.emit("saveData", player);
+    return true;
+}
+
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
     socketHandlersSetup = true;
@@ -367,27 +398,42 @@ function setupSocketEventHandlers() {
     console.log("Setting up socket event handlers...");
 
     // データ保存・読み込み関連のイベント
-    window.socket.on("dataSaved", () => {
-        alert("データをサーバーに保存しました。");
+    window.socket.on("dataSaved", (info) => {
+        const id = info && info.playerId ? info.playerId : (getPlayerData()?.id || "");
+        if (pendingSilentSave) {
+            pendingSilentSave = false;
+            console.log("[Data] Auto saved to server:", id);
+            return;
+        }
+        alert(`データをサーバーに保存しました。\n\nプレイヤーID: ${id}\n\nこのIDを他の端末で入力すると引き継げます。`);
     });
 
     window.socket.on("dataLoaded", (loadedPlayer) => {
-        if (loadedPlayer) {
+        if (loadedPlayer && loadedPlayer.id) {
             if (studyStartTime !== null) stopStudy(); // 勉強中なら停止
-            localStorage.setItem("player", JSON.stringify(loadedPlayer));
-            alert(`プレイヤー「${loadedPlayer.name}」のデータを引き継ぎました。`);
+            // 引き継ぎ後に前回のバトル情報が残らないよう掃除する
+            ["battlePlayer", "enemy", "roomId", "isBotBattle", "battleResult", "rewardsApplied", "stolenWeapon", "droppedOrb"]
+                .forEach(key => localStorage.removeItem(key));
+            const migrated = typeof migratePlayer === "function" ? migratePlayer(loadedPlayer) : loadedPlayer;
+            localStorage.setItem("player", JSON.stringify(migrated));
+            alert(`プレイヤー「${migrated.name}」(ID: ${migrated.id}) のデータを引き継ぎました。`);
             location.reload(); // ページをリロードしてUIを完全に更新
         } else {
-            alert("指定されたIDのプレイヤーデータが見つかりませんでした。");
+            alert("指定されたIDのプレイヤーデータが見つかりませんでした。\n\n・IDが正しいか確認してください（英数字6文字）\n・引き継ぎ元の端末で「データをサーバーに保存」を実行済みか確認してください");
         }
     });
 
     window.socket.on("dataError", (message) => {
+        pendingSilentSave = false;
         alert(`エラー: ${message}`);
     });
 
     console.log("Socket event handlers setup complete");
 }
+
+// グローバルにアクセス可能に
+window.normalizePlayerId = normalizePlayerId;
+window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
 window.setupSocketEventHandlers = setupSocketEventHandlers;
@@ -535,14 +581,15 @@ function setupDOMEventHandlers() {
         document.getElementById("saveDataBtn").onclick = () => {
             const player = getPlayerData();
             if (!player) { alert("保存するキャラクターデータがありません。"); return; }
-            if (confirm("現在のキャラクターデータをサーバーに保存しますか？\n同じIDのデータは上書きされます。")) {
-                if (window.socket && window.socket.connected) { window.socket.emit("saveData", player); } else { alert("サーバーに接続されていません。"); }
+            if (confirm(`現在のキャラクターデータをサーバーに保存しますか？\n\nプレイヤーID: ${player.id}\n同じIDのデータは上書きされます。`)) {
+                if (window.socket && window.socket.connected) { syncPlayerToServer(false); } else { alert("サーバーに接続されていません。"); }
             }
         };
 
         document.getElementById("loadDataBtn").onclick = () => {
-            const playerIdToLoad = document.getElementById("loadPlayerIdInput").value.trim().toUpperCase();
+            const playerIdToLoad = normalizePlayerId(document.getElementById("loadPlayerIdInput").value);
             if (!playerIdToLoad) { alert("引き継ぎたいプレイヤーIDを入力してください。"); return; }
+            document.getElementById("loadPlayerIdInput").value = playerIdToLoad;
             if (confirm(`プレイヤーID「${playerIdToLoad}」のデータを引き継ぎますか？\n現在のキャラクターデータは失われます。`)) {
                 if (window.socket && window.socket.connected) { window.socket.emit("loadData", playerIdToLoad); } else { alert("サーバーに接続されていません。"); }
             }
@@ -663,13 +710,17 @@ window.onload = () => {
     // Setup DOM event handlers
     setupDOMEventHandlers();
 
-    // skillTree.jsを読み込み、完了後UIを初期化
-    const skillTreeScript = document.createElement('script');
-    skillTreeScript.src = 'js/skillTree.js';
-    skillTreeScript.onload = () => {
-        if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
-    };
-    document.body.appendChild(skillTreeScript);
+    // スキルツリーUIを初期化（skillTree.js は index.html で静的に読み込み済み）
+    if (typeof renderSkillTreeUI === "function") {
+        renderSkillTreeUI();
+    } else {
+        const skillTreeScript = document.createElement('script');
+        skillTreeScript.src = 'js/skillTree.js';
+        skillTreeScript.onload = () => {
+            if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+        };
+        document.body.appendChild(skillTreeScript);
+    }
 
     const saveDataSection = document.getElementById('saveDataSection');
     const loadDataHelpText = document.getElementById('loadDataHelpText');
