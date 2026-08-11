@@ -593,20 +593,28 @@ a.menu-btn {
 
 /* Skill Tree Styles */
 .skill-section {
-    margin-bottom: 24px;
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
 }
 
 .skill-desc {
-    color: var(--on-surface-variant-color);
+    color: #333;
     font-size: 0.9rem;
     margin-bottom: 16px;
+    line-height: 1.6;
 }
 
 .skill-points-display {
-    font-size: 1.1rem;
+    font-size: 1.2em;
     font-weight: bold;
-    color: var(--primary-color);
-    margin: 8px 0;
+    color: #007bff;
+    margin: 12px 0;
+    padding: 10px;
+    background-color: #e7f3ff;
+    border-radius: 4px;
+    text-align: center;
 }
 
 /* Skill slots styles for skill tree page */
@@ -808,10 +816,13 @@ a.menu-btn {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
     border-radius: 8px;
+    -webkit-overflow-scrolling: touch;
 }
 
 .skill-tree-canvas > div {
     position: relative;
+    min-width: 100%;
+    min-height: 100%;
 }
 
 .skill-tree-canvas .skill-node {
