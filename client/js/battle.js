@@ -17,6 +17,15 @@ let myDefDebuff = 0;              // 自身の防御低下量
 let myDefDebuffTurns = 0;         // 防御低下の残りターン
 let mySkipThisTurn = false;       // このターン攻撃できない
 let enemyBurnTurns = 0;           // 敵の火傷残りターン
+let enemyPoisonTurns = 0;         // 敵の毒残りターン
+let enemySpeedDebuff = 0;         // 敵の速度低下率
+let enemySpeedDebuffTurns = 0;    // 敵の速度低下残りターン
+let enemyAtkDebuff = 0;           // 敵の攻撃力低下率
+let enemyAtkDebuffTurns = 0;      // 敵の攻撃力低下残りターン
+let enemyDefDebuff = 0;           // 敵の防御力低下率
+let enemyDefDebuffTurns = 0;      // 敵の防御力低下残りターン
+let enemyAccuracyDebuff = 0;      // 敵の命中率低下率
+let enemyAccuracyDebuffTurns = 0; // 敵の命中率低下残りターン
 let myMultiHit = 0;               // 複数回攻撃の回数
 let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
 
@@ -1097,7 +1106,34 @@ function applySkillEffect(damage, attacker, defender, skill) {
             addLog(`スキル効果: 敵の速度${effect.speedDebuff * 100}%低下！`);
         }
     }
-    
+
+    // 敵の攻撃力低下
+    if (effect.enemyAtkDebuff) {
+        if (defender === enemy) {
+            enemyAtkDebuff = effect.enemyAtkDebuff;
+            enemyAtkDebuffTurns = 2;
+            addLog(`スキル効果: 敵の攻撃力${effect.enemyAtkDebuff * 100}%低下！`);
+        }
+    }
+
+    // 敵の防御力低下
+    if (effect.enemyDefDebuff) {
+        if (defender === enemy) {
+            enemyDefDebuff = effect.enemyDefDebuff;
+            enemyDefDebuffTurns = 2;
+            addLog(`スキル効果: 敵の防御力${effect.enemyDefDebuff * 100}%低下！`);
+        }
+    }
+
+    // 敵の命中率低下
+    if (effect.enemyAccuracyDebuff) {
+        if (defender === enemy) {
+            enemyAccuracyDebuff = effect.enemyAccuracyDebuff;
+            enemyAccuracyDebuffTurns = 2;
+            addLog(`スキル効果: 敵の命中率${effect.enemyAccuracyDebuff * 100}%低下！`);
+        }
+    }
+
     // 回避率アップ
     if (effect.dodgeChance || effect.evasionChance || effect.evasionBoost) {
         const dodgeValue = effect.dodgeChance || effect.evasionChance || effect.evasionBoost;
@@ -1630,7 +1666,7 @@ function generateBotQuestion() {
     });
 }
 
-// ボット戦の継続効果（火傷・自身の防御低下）を1ターン分進める
+// ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
 function tickBotBattleStatus() {
     if (enemyBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.05));
@@ -1639,11 +1675,47 @@ function tickBotBattleStatus() {
         addLog(`火傷ダメージ！${enemy.name}に${burnDamage}のダメージ（残り${enemyBurnTurns}ターン）`);
         updateHP();
     }
+    if (enemyPoisonTurns > 0) {
+        const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * 0.03));
+        enemy.hp = Math.max(0, enemy.hp - poisonDamage);
+        enemyPoisonTurns--;
+        addLog(`毒ダメージ！${enemy.name}に${poisonDamage}のダメージ（残り${enemyPoisonTurns}ターン）`);
+        updateHP();
+    }
     if (myDefDebuffTurns > 0) {
         myDefDebuffTurns--;
         if (myDefDebuffTurns === 0) {
             myDefDebuff = 0;
             addLog("防御低下から回復した。");
+        }
+    }
+    // 敵のデバフターンを減らす
+    if (enemySpeedDebuffTurns > 0) {
+        enemySpeedDebuffTurns--;
+        if (enemySpeedDebuffTurns === 0) {
+            enemySpeedDebuff = 0;
+            addLog("敵の速度低下が回復した。");
+        }
+    }
+    if (enemyAtkDebuffTurns > 0) {
+        enemyAtkDebuffTurns--;
+        if (enemyAtkDebuffTurns === 0) {
+            enemyAtkDebuff = 0;
+            addLog("敵の攻撃力低下が回復した。");
+        }
+    }
+    if (enemyDefDebuffTurns > 0) {
+        enemyDefDebuffTurns--;
+        if (enemyDefDebuffTurns === 0) {
+            enemyDefDebuff = 0;
+            addLog("敵の防御力低下が回復した。");
+        }
+    }
+    if (enemyAccuracyDebuffTurns > 0) {
+        enemyAccuracyDebuffTurns--;
+        if (enemyAccuracyDebuffTurns === 0) {
+            enemyAccuracyDebuff = 0;
+            addLog("敵の命中率低下が回復した。");
         }
     }
 }
@@ -1673,6 +1745,13 @@ function handleBotAnswer(userAnswer) {
         updateUltimateGauge();
 
         let attackerAtk = me.atk;
+
+        // 敵の攻撃デバフ適用（自分が攻撃する場合）
+        if (enemyAtkDebuff > 0) {
+            // 敵の攻撃デバフは敵の攻撃力に適用されるので、ここでは適用しない
+            // 敵の攻撃デバフは敵が攻撃する時に適用される
+        }
+
         if (me.hp === 1 && hasUniqueAbility(me, 'guts')) {
             attackerAtk = Math.floor(attackerAtk * 3);
             addLog(`${me.name}の攻撃力が根性で3倍に！`);
@@ -1686,12 +1765,17 @@ function handleBotAnswer(userAnswer) {
         
         // ユニーク能力適用
         let enemyDef = enemy.def || 0;
-        
+
+        // 敵の防御デバフ適用
+        if (enemyDefDebuff > 0) {
+            enemyDef = Math.floor(enemyDef * (1 - enemyDefDebuff));
+        }
+
         // 貫通
         if (hasUniqueAbility(me, 'ignore_def_half')) {
             enemyDef = Math.floor(enemyDef * 0.5);
         }
-        
+
         // スキルによる防御無視
         if (skillEffect.ignoreDef) {
             enemyDef = 0;
@@ -1850,7 +1934,14 @@ function handleBotAnswer(userAnswer) {
         // ボットが回答するチャンス
         setTimeout(() => {
             const botAnswerTime = Math.random() * 2000 + 500; // 0.5-2.5秒に短縮
-            const botIsCorrect = Math.random() < (botDifficulty ? botDifficulty.accuracy : 0.85); // 計算された正解率を使用
+            let botAccuracy = botDifficulty ? botDifficulty.accuracy : 0.85; // 計算された正解率を使用
+
+            // 敵の命中率デバフ適用
+            if (enemyAccuracyDebuff > 0) {
+                botAccuracy = Math.max(0.1, botAccuracy * (1 - enemyAccuracyDebuff));
+            }
+
+            const botIsCorrect = Math.random() < botAccuracy;
 
             if (botIsCorrect) {
                 addLog("ボットが正解！回答時間: " + (botAnswerTime / 1000).toFixed(2) + "秒");
@@ -1859,6 +1950,12 @@ function handleBotAnswer(userAnswer) {
                 let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
 
                 let botAtk = enemy.atk;
+
+                // 敵の攻撃デバフ適用
+                if (enemyAtkDebuff > 0) {
+                    botAtk = Math.floor(botAtk * (1 - enemyAtkDebuff));
+                }
+
                 if (enemy.hp === 1 && hasUniqueAbility(enemy, 'guts')) {
                     botAtk = Math.floor(botAtk * 3);
                     addLog(`${enemy.name}の攻撃力が根性で3倍に！`);

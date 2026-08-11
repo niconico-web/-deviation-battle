@@ -763,10 +763,22 @@ a.menu-btn {
     flex: 1;
     padding-right: 12px;
     color: var(--on-surface-color);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.skill-info strong {
+.skill-name {
     color: var(--primary-color);
+    font-weight: bold;
+}
+
+.skill-description {
+    color: var(--on-surface-variant-color);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    white-space: normal;
 }
 
 .delete-skill-btn {
