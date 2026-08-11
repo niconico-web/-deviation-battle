@@ -807,11 +807,7 @@ function renderSkillTreeUI() {
     if (!document.getElementById('skillDescriptionArea')) {
         const descArea = document.createElement('div');
         descArea.id = 'skillDescriptionArea';
-        descArea.style.marginTop = '16px';
-        descArea.style.padding = '12px';
-        descArea.style.backgroundColor = '#f8f9fa';
-        descArea.style.border = '1px solid #dee2e6';
-        descArea.style.borderRadius = '8px';
+        descArea.className = 'skill-description-area';
         descArea.style.display = 'none';
         descArea.innerHTML = '<p>スキルを選択してください</p>';
         container.appendChild(descArea);
