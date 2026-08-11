@@ -854,7 +854,7 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
     line.setAttribute('y1', y1);
     line.setAttribute('x2', x2);
     line.setAttribute('y2', y2);
-    line.setAttribute('stroke', isUnlocked ? '#28a745' : '#ccc');
+    line.setAttribute('stroke', isUnlocked ? '#3498db' : '#2a2d32');
     line.setAttribute('stroke-width', '2');
     svg.appendChild(line);
 }
