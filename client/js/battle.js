@@ -872,17 +872,33 @@ function initializeBattleSkills() {
                 const customSkills = initializedPlayer.customSkills || [];
                 console.log("Custom skills:", customSkills);
                 
-                // アクティブスキルをマージ
-                activeSkills = [...skillEffects.active];
-                customSkills.forEach(customSkill => {
-                    activeSkills.push({
-                        id: customSkill.id,
-                        name: customSkill.name,
-                        description: customSkill.description,
-                        effect: customSkill.effect,
-                        isCustom: true
-                    });
+                // スキルスロットにあるスキルのみをアクティブスキルとして使用
+                const slottedSkills = (player.skillSlots || []).filter(skill => skill !== null);
+                activeSkills = [];
+                
+                skillEffects.active.forEach(skill => {
+                    if (slottedSkills.some(slotted => slotted.id === skill.id)) {
+                        activeSkills.push(skill);
+                    }
                 });
+                
+                customSkills.forEach(customSkill => {
+                    if (slottedSkills.some(slotted => slotted.id === customSkill.id)) {
+                        activeSkills.push({
+                            id: customSkill.id,
+                            name: customSkill.name,
+                            description: customSkill.description,
+                            effect: customSkill.effect,
+                            isCustom: true
+                        });
+                    }
+                });
+                
+                // 重複を削除
+                activeSkills = activeSkills.filter((skill, index, self) =>
+                    index === self.findIndex((s) => s.id === skill.id)
+                );
+                
                 console.log("Final active skills:", activeSkills);
             } else {
                 console.log("getSkillNodeEffects function not found");
@@ -1734,7 +1750,7 @@ function handleBotAnswer(userAnswer) {
         }
         
         // 多段攻撃（新しいmyMultiHitシステムと統合）
-        const multiHitCount = myMultiHit > 0 ? myMultiHit : (skillEffect.multiStrike || 1);
+        const multiHitCount = myMultiHit > 0 ? myMultiHit : (skillEffect.multiHit || 1);
         if (multiHitCount > 1) {
             const perHitRate = skillEffect.multiStrikeMultiplier || 0.6;
             damage = Math.max(1, Math.floor(damage * perHitRate)) * multiHitCount;

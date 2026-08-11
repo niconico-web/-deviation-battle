@@ -405,12 +405,30 @@ function validateCustomSkill(skillDescription, playerStats) {
         estimatedStrength = "tier5";
     }
     
-    // 複合効果の補正（複数の効果がある場合は強度を上げる - ティアシステム対応）
-    const effectKeywords = ['ダメージ', '回復', '防御', '回避', '貫通', '吸収', 'カウンター', '呪い', 'デバフ', 'バーサーク', 'エクスキュート', '即死', '無効', 'パリー', 'ライフスティール', 'シールド', 'スロー', 'スタン', '毒', 'バフ', 'クリティカル', '範囲', '連続', 'リフレクト', 'リジェネ', 'インビジブル', 'テレポート', 'リスポーン', 'vampiric', 'counter', 'curse', 'debuff', 'berserk', 'execute', 'instant', 'parry', 'dodge', 'pierce', 'heal', 'damage', 'shield', 'slow', 'stun', 'poison', 'buff', 'critical', 'aoe', 'multi', 'reflect', 'regen', 'invisible', 'teleport', 'respawn'];
+    // パースされたeffectオブジェクトに基づいて効果数をカウント
+    const parsedEffect = parseEffectFromDescription(description);
     let effectCount = 0;
-    effectKeywords.forEach(keyword => {
-        if (desc.includes(keyword)) effectCount++;
-    });
+    
+    if (parsedEffect) {
+        if (parsedEffect.damageMultiplier) effectCount++;
+        if (parsedEffect.damageReduction) effectCount++;
+        if (parsedEffect.lifeSteal) effectCount++;
+        if (parsedEffect.heal) effectCount++;
+        if (parsedEffect.healPercent) effectCount++;
+        if (parsedEffect.sureHit) effectCount++;
+        if (parsedEffect.ignoreDef) effectCount++;
+        if (parsedEffect.nextAttackCrit) effectCount++;
+        if (parsedEffect.critChance) effectCount++;
+        if (parsedEffect.burn) effectCount++;
+        if (parsedEffect.poison) effectCount++;
+        if (parsedEffect.speedDebuff) effectCount++;
+        if (parsedEffect.shield) effectCount++;
+        if (parsedEffect.dodgeChance) effectCount++;
+        if (parsedEffect.counter) effectCount++;
+        if (parsedEffect.multiHit) effectCount++;
+        if (parsedEffect.skipNextTurn) effectCount++;
+        if (parsedEffect.defDebuff) effectCount++;
+    }
     
     // 複合効果によるランクアップ（ティアシステム対応）
     const strengthLevels = ["tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9", "tier10", "tier11", "tier12", "tier13", "tier14", "tier15"];
