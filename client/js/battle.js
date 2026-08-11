@@ -844,6 +844,7 @@ function shuffleArray(array) {
 // バトルスキルの初期化
 function initializeBattleSkills() {
     try {
+        console.log("Initializing battle skills...");
         // プレイヤーデータからスキルツリー情報を取得
         const player = getSavedPlayer();
         if (!player) {
@@ -853,18 +854,24 @@ function initializeBattleSkills() {
             return;
         }
         
+        console.log("Player data found:", player);
+        
         // スキルデータを初期化（関数が存在する場合のみ）
         if (typeof initializeSkillData === 'function') {
             const initializedPlayer = initializeSkillData(player);
+            console.log("Initialized player skill data:", initializedPlayer);
             
             // 装備武器のアクティブスキルを取得
             const weaponType = me.equippedWeapon?.type || 'sword_shield';
+            console.log("Weapon type:", weaponType);
             
             if (typeof getSkillNodeEffects === 'function') {
                 const skillEffects = getSkillNodeEffects(initializedPlayer, weaponType);
+                console.log("Skill effects:", skillEffects);
                 
                 // カスタムスキルも追加
                 const customSkills = initializedPlayer.customSkills || [];
+                console.log("Custom skills:", customSkills);
                 
                 // アクティブスキルをマージ
                 activeSkills = [...skillEffects.active];
@@ -877,10 +884,13 @@ function initializeBattleSkills() {
                         isCustom: true
                     });
                 });
+                console.log("Final active skills:", activeSkills);
             } else {
+                console.log("getSkillNodeEffects function not found");
                 activeSkills = [];
             }
         } else {
+            console.log("initializeSkillData function not found");
             activeSkills = [];
         }
         

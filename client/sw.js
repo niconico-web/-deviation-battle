@@ -1,5 +1,5 @@
 const CACHE_NAME = 'school-battle-cache-v1';
-// ƒLƒƒƒbƒVƒ…‚·‚éƒtƒ@ƒCƒ‹‚ÌƒŠƒXƒg
+// ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã™ã‚‹ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒªã‚¹ãƒˆ
 const urlsToCache = [
   '/',
   '/index.html',
@@ -19,12 +19,14 @@ const urlsToCache = [
   '/js/help.js',
   '/js/battle.js',
   '/js/result.js',
+  '/js/skillTree.js',
+  '/js/skillTreeUI.js',
   '/socket.io/socket.io.js'
-  // ƒAƒCƒRƒ“‰æ‘œ‚È‚Ç‚à‚±‚±‚É’Ç‰Á‚µ‚Ü‚·
+  // ã‚¢ã‚¤ã‚³ãƒ³ç”»åƒãªã©ã‚‚ã“ã“ã«è¿½åŠ ã—ã¾ã™
   // '/images/icons/icon-192x192.png',
 ];
 
-// installƒCƒxƒ“ƒgFƒLƒƒƒbƒVƒ…‚Éƒtƒ@ƒCƒ‹‚ð’Ç‰Á‚·‚é
+// installã‚¤ãƒ™ãƒ³ãƒˆï¼šã‚­ãƒ£ãƒƒã‚·ãƒ¥ã«ãƒ•ã‚¡ã‚¤ãƒ«ã‚’è¿½åŠ ã™ã‚‹
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -35,9 +37,9 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// fetchƒCƒxƒ“ƒgFƒŠƒNƒGƒXƒg‚ðƒCƒ“ƒ^[ƒZƒvƒg‚µAƒLƒƒƒbƒVƒ…‚©‚ç•Ô‚·
+// fetchã‚¤ãƒ™ãƒ³ãƒˆï¼šãƒªã‚¯ã‚¨ã‚¹ãƒˆã‚’ã‚¤ãƒ³ã‚¿ãƒ¼ã‚»ãƒ—ãƒˆã—ã€ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‹ã‚‰è¿”ã™
 self.addEventListener('fetch', (event) => {
-  // APIƒŠƒNƒGƒXƒg‚âsocket.ioŠÖ˜A‚ÌƒŠƒNƒGƒXƒg‚ÍƒLƒƒƒbƒVƒ…‚µ‚È‚¢
+  // APIãƒªã‚¯ã‚¨ã‚¹ãƒˆã‚„socket.ioé–¢é€£ã®ãƒªã‚¯ã‚¨ã‚¹ãƒˆã¯ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã—ãªã„
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
     return;
   }
@@ -45,17 +47,17 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // ƒLƒƒƒbƒVƒ…‚É‚ ‚ê‚Î‚»‚ê‚ð•Ô‚·
+        // ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã«ã‚ã‚Œã°ãã‚Œã‚’è¿”ã™
         if (response) {
           return response;
         }
-        // ‚È‚¯‚ê‚Îƒlƒbƒgƒ[ƒN‚©‚çŽæ“¾‚µAƒLƒƒƒbƒVƒ…‚É•Û‘¶‚µ‚Ä•Ô‚·
+        // ãªã‘ã‚Œã°ãƒãƒƒãƒˆãƒ¯ãƒ¼ã‚¯ã‹ã‚‰å–å¾—ã—ã€ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã«ä¿å­˜ã—ã¦è¿”ã™
         return fetch(event.request);
       })
   );
 });
 
-// activateƒCƒxƒ“ƒgFŒÃ‚¢ƒLƒƒƒbƒVƒ…‚ðíœ‚·‚é
+// activateã‚¤ãƒ™ãƒ³ãƒˆï¼šå¤ã„ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‚’å‰Šé™¤ã™ã‚‹
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
