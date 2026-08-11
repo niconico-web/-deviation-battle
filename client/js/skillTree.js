@@ -460,21 +460,52 @@ function parseEffectFromDescription(description) {
     const desc = description.toLowerCase();
     let effectFound = false;
 
-    // --- 効果のパース（拡張版） ---
+    console.log("パース開始:", description);
+    console.log("小文字化:", desc);
+
+    // --- 効果のパース（拡張版 - 複数効果対応） ---
+    
+    // 複数回攻撃 (例: "3段攻撃", "3回攻撃", "triple attack", "3-hit attack")
+    const multiHitMatch = desc.match(/(\d+)[\s]*(?:段|回)[\s]*攻撃/i);
+    if (multiHitMatch) { finalEffect.multiHit = parseInt(multiHitMatch[1]); effectFound = true; }
+    
+    // 英語版複数回攻撃 (例: "3-hit attack", "triple attack")
+    const multiHitEnglishMatch = desc.match(/(\d+)[\s]*-[\s]*hit[\s]*attack|triple[\s]*attack|double[\s]*attack/i);
+    if (multiHitEnglishMatch) {
+        if (multiHitEnglishMatch[0].includes('triple')) {
+            finalEffect.multiHit = 3;
+        } else if (multiHitEnglishMatch[0].includes('double')) {
+            finalEffect.multiHit = 2;
+        } else if (multiHitEnglishMatch[1]) {
+            finalEffect.multiHit = parseInt(multiHitEnglishMatch[1]);
+        }
+        effectFound = true;
+    }
+    
+    // 連続攻撃キーワード (例: "連続攻撃", "combo attack")
+    if (desc.includes("連続攻撃") || desc.includes("combo attack") || desc.includes("連続")) {
+        if (!finalEffect.multiHit) {
+            finalEffect.multiHit = 2; // デフォルトで2回
+        }
+        effectFound = true;
+    }
     
     // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍", "damage 1.5x", "1.5倍ダメージ")
     const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃|damage|attack)[をが]?[\s]*([\d.]+)[\s]*(?:倍|x|times)/i);
     if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
     
-    // 別のパターン: "1.2倍", "1.5x", "150%" など
-    const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x|times|%)/i);
-    if (simpleMultiplierMatch && !damageMultiplierMatch) {
+    // 単独の倍率パターン (例: "0.5倍", "1.2x") - 複数回攻撃と競合しないように
+    const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x)/i);
+    if (simpleMultiplierMatch && !damageMultiplierMatch && !multiHitMatch && !multiHitEnglishMatch) {
         const num = parseFloat(simpleMultiplierMatch[1]);
-        if (desc.includes('%')) {
-            finalEffect.damageMultiplier = 1 + (num / 100);
-        } else {
-            finalEffect.damageMultiplier = num;
-        }
+        finalEffect.damageMultiplier = num;
+        effectFound = true;
+    }
+    
+    // パーセンテージ倍率 (例: "150%ダメージ", "50%up")
+    const percentMultiplierMatch = desc.match(/([\d.]+)%[\s]*(?:ダメージ|damage|up|増加)/i);
+    if (percentMultiplierMatch) {
+        finalEffect.damageMultiplier = 1 + (parseFloat(percentMultiplierMatch[1]) / 100);
         effectFound = true;
     }
 
@@ -543,6 +574,9 @@ function parseEffectFromDescription(description) {
         finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
         effectFound = true;
     }
+
+    console.log("パース結果:", finalEffect);
+    console.log("効果検出:", effectFound);
 
     // 何かしらの効果がパースできた場合のみ effect オブジェクトを返す
     return effectFound ? finalEffect : null;
