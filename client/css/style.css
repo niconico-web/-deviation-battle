@@ -905,22 +905,24 @@ a.menu-btn {
 
 .skill-description-area {
     margin-top: 16px;
-    padding: 16px;
+    padding: 20px;
     background-color: var(--surface-color);
-    border: 1px solid var(--primary-color);
-    border-radius: 8px;
-    border-left: 4px solid var(--primary-color);
+    border: 1px solid #40444B;
+    border-radius: 16px;
 }
 
 .skill-description-area h3 {
     margin-top: 0;
     color: var(--primary-color);
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--primary-dark-color);
 }
 
 .skill-description-area p {
     margin: 8px 0;
     line-height: 1.5;
     color: var(--on-surface-color);
+    font-size: 1rem;
 }
 
 .skill-description-area p strong {
