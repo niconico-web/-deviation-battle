@@ -250,9 +250,14 @@ function getSkillNodeEffects(player) {
             });
         }
     }
-    // カスタムスキルもアクティブスキルとして含める
+    // カスタムスキルもアクティブスキルとして含める（重複チェック付き）
     if (player.customSkills && Array.isArray(player.customSkills)) {
-        effects.active = effects.active.concat(player.customSkills);
+        player.customSkills.forEach(customSkill => {
+            // 重複チェック
+            if (!effects.active.some(skill => skill.id === customSkill.id)) {
+                effects.active.push(customSkill);
+            }
+        });
     }
 
     // 重複を削除（カスタムスキルとツリースキルでIDが被ることはないが念のため）
@@ -460,9 +465,6 @@ function parseEffectFromDescription(description) {
     const desc = description.toLowerCase();
     let effectFound = false;
 
-    console.log("パース開始:", description);
-    console.log("小文字化:", desc);
-
     // --- 効果のパース（拡張版 - 複数効果対応） ---
     
     // 複数回攻撃 (例: "3段攻撃", "3回攻撃", "triple attack", "3-hit attack")
@@ -495,8 +497,8 @@ function parseEffectFromDescription(description) {
     if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
     
     // 単独の倍率パターン (例: "0.5倍", "1.2x") - 複数回攻撃と競合しないように
-    const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x)/i);
-    if (simpleMultiplierMatch && !damageMultiplierMatch && !multiHitMatch && !multiHitEnglishMatch) {
+    const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x)(?!.*段)(?!.*回攻撃)/i);
+    if (simpleMultiplierMatch && !damageMultiplierMatch) {
         const num = parseFloat(simpleMultiplierMatch[1]);
         finalEffect.damageMultiplier = num;
         effectFound = true;
@@ -574,9 +576,6 @@ function parseEffectFromDescription(description) {
         finalEffect.condition = { type: 'hp_below', value: parseFloat(hpConditionMatch[1]) / 100 };
         effectFound = true;
     }
-
-    console.log("パース結果:", finalEffect);
-    console.log("効果検出:", effectFound);
 
     // 何かしらの効果がパースできた場合のみ effect オブジェクトを返す
     return effectFound ? finalEffect : null;
@@ -783,15 +782,15 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
 }
 
 function renderTree() {
-    const content = document.querySelector('.skill-tree-content');
-    const pointsDisplay = document.querySelector('.skill-points-display');
+    const content = document.getElementById('skillTreeCanvas');
+    const pointsDisplay = document.getElementById('totalSkillPointsDisplay');
     if (!content || !pointsDisplay) return;
 
     const player = getPlayerData();
     const treeData = SKILL_TREE;
     const playerData = player.skillTree;
 
-    pointsDisplay.textContent = `利用可能スキルポイント: ${playerData.availablePoints || 0}`;
+    pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
 
     // 1. Find bounds of the tree

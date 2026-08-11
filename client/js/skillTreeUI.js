@@ -415,9 +415,9 @@ if (typeof window !== 'undefined') {
     window.handleCustomSkillCreation = handleCustomSkillCreation;
 }
 
-// DOM読み込み後に初期化
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeSkillTreeUI);
-} else {
-    initializeSkillTreeUI();
-}
+// DOM読み込み後に初期化（無効化 - skillTree.jsを使用）
+// if (document.readyState === 'loading') {
+//     document.addEventListener('DOMContentLoaded', initializeSkillTreeUI);
+// } else {
+//     initializeSkillTreeUI();
+// }
