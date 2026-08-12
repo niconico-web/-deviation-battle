@@ -1,3 +1,28 @@
+// PWA Install Prompt Logic
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // デフォルトのインストールプロンプトを抑制
+    e.preventDefault();
+    // イベントを後で使えるように保存
+    deferredPrompt = e;
+    
+    const installPopup = document.getElementById('install-popup');
+    if (installPopup) {
+        // 既にインストール済みかチェック
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+            console.log('App is already installed.');
+            return;
+        }
+        console.log('`beforeinstallprompt` event was fired.');
+        installPopup.style.display = 'flex';
+    }
+});
+
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+});
+
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
