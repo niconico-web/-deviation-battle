@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v6';
+const CACHE_NAME = 'school-battle-cache-v7';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -55,19 +55,24 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', event => {
   // APIリクエストとsocket.io関連のリクエストはキャッシュしない
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
-    return event.respondWith(fetch(event.request));
-  }
-
-  // Stale-While-Revalidate 戦略
-  event.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(event.request).then((response) => {
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
+    // ネットワークに直接アクセスし、キャッシュは使用しない
+    event.respondWith(fetch(event.request));
+  } else {
+    // Stale-While-Revalidate 戦略
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((response) => {
+          const fetchPromise = fetch(event.request).then((networkResponse) => {
+            // 有効なレスポンス（ステータスコード200）のみキャッシュする
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          });
+          // キャッシュがあればそれを返し、なければネットワークの結果を待つ
+          return response || fetchPromise;
         });
-        return response || fetchPromise;
-      });
-    })
-  );
+      })
+    );
+  }
 });
