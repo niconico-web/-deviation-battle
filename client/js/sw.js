@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v7';
+const CACHE_NAME = 'school-battle-cache-v9';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -22,7 +22,6 @@ const urlsToCache = [
   '/js/ability-popup.js',
   '/js/result.js',
   '/js/help.js',
-  // アイコンのパスを修正
   '/images/icons/icon-192x192.png',
   '/images/icons/icon-512x512.png'
 ];
@@ -57,22 +56,21 @@ self.addEventListener('fetch', event => {
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
     // ネットワークに直接アクセスし、キャッシュは使用しない
     event.respondWith(fetch(event.request));
-  } else {
-    // Stale-While-Revalidate 戦略
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((response) => {
-          const fetchPromise = fetch(event.request).then((networkResponse) => {
-            // 有効なレスポンス（ステータスコード200）のみキャッシュする
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(event.request, networkResponse.clone());
-            }
-            return networkResponse;
-          });
-          // キャッシュがあればそれを返し、なければネットワークの結果を待つ
-          return response || fetchPromise;
-        });
-      })
-    );
+    return; // This is crucial to prevent calling respondWith twice.
   }
+
+  // Stale-While-Revalidate 戦略 for other requests
+  event.respondWith(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((response) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        });
+        return response || fetchPromise;
+      });
+    })
+  );
 });
