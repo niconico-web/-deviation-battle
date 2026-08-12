@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v1';
+const CACHE_NAME = 'school-battle-cache-v5';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -18,34 +18,56 @@ const urlsToCache = [
   '/js/online.js',
   '/js/shop.js',
   '/js/skillTree.js',
+  '/js/battle.js',
   '/js/ability-popup.js',
   '/js/result.js',
   '/js/help.js',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  // アイコンのパスを修正
+  '/images/icons/icon-192x192.png',
+  '/images/icons/icon-512x512.png'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('ServiceWorker: Caching files');
         return cache.addAll(urlsToCache);
       })
+      .then(() => self.skipWaiting()) // 新しいService Workerを即座に有効化
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => Promise.all(
+      cacheNames.map((cacheName) => {
+        if (cacheWhitelist.indexOf(cacheName) === -1) {
+          console.log('ServiceWorker: Deleting old cache', cacheName);
+          return caches.delete(cacheName);
+        }
+      })
+    )).then(() => self.clients.claim()) // すべてのクライアントを制御下に置く
   );
 });
 
 self.addEventListener('fetch', event => {
   // APIリクエストとsocket.io関連のリクエストはキャッシュしない
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
-    return;
+    return event.respondWith(fetch(event.request));
   }
 
-  // URLクエリパラメータを無視してキャッシュを検索
+  // Stale-While-Revalidate 戦略
   event.respondWith(
-    caches.match(event.request, { ignoreSearch: true })
-      .then(response => {
-        return response || fetch(event.request);
-      })
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(event.request).then((response) => {
+        const fetchPromise = fetch(event.request).then((networkResponse) => {
+          cache.put(event.request, networkResponse.clone());
+          return networkResponse;
+        });
+        return response || fetchPromise;
+      });
+    })
   );
 });
