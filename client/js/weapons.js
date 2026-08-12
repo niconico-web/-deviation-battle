@@ -714,6 +714,7 @@ const UNIQUE_QUEST_WINS = 500; // 通常のユニーク武器は500勝で入手�
 const TEST_UNIQUE_WINS = 3; // テスト用に3勝に設定（本番は500に戻す）
 const COIN_BATTLE_WIN = 15;
 // const COIN_STUDY_30MIN = 20;
+const COIN_STUDY_30MIN = 20;
 const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
 
 function getWeaponMultiplier(weapon) {
