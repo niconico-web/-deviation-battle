@@ -1,9 +1,9 @@
-const CACHE_NAME = 'school-battle-cache-v10';
+const CACHE_NAME = 'school-battle-cache-v11';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
   '/index.html',
-  '/js/manifest.json',
+  '/manifest.json',
   '/battle.html',
   '/result.html',
   '/help.html',

@@ -6,13 +6,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>School Battle - 結果</title>
 <meta name="theme-color" content="#667eea">
-<link rel="manifest" href="/js/manifest.json">
+<link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
 <link rel="stylesheet" href="css/result.css?v=1783932440567">
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/js/sw.js', { scope: '/' })
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
       .then(registration => console.log('ServiceWorker registered'))
       .catch(error => console.log('ServiceWorker registration failed'));
   });

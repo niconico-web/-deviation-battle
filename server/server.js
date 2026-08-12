@@ -29,6 +29,11 @@ app.use(express.static(path.join(__dirname, "../client"), {
             res.setHeader('Service-Worker-Allowed', '/');
         }
 
+        // Ensure manifest.json is served with correct content type
+        if (filePath.endsWith('manifest.json')) {
+            res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+        }
+
         if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
             res.setHeader("Content-Type", `${getContentType(filePath)}; charset=utf-8`);
             // Avoid stale CDN/browser assets after redeploys.
@@ -36,6 +41,26 @@ app.use(express.static(path.join(__dirname, "../client"), {
         }
     }
 }));
+
+// Serve root manifest.json and sw.js explicitly
+app.get('/manifest.json', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/manifest.json'), {
+        headers: {
+            'Content-Type': 'application/manifest+json; charset=utf-8',
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
+    });
+});
+
+app.get('/sw.js', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/sw.js'), {
+        headers: {
+            'Content-Type': 'application/javascript; charset=utf-8',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Service-Worker-Allowed': '/'
+        }
+    });
+});
 
 function getContentType(filePath) {
     if (filePath.endsWith(".html")) return "text/html";
