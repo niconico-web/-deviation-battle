@@ -1,8 +1,8 @@
-const CACHE_NAME = 'school-battle-cache-v5';
+const CACHE_NAME = 'school-battle-cache-v6';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
+  '/js/manifest.json',
   '/battle.html',
   '/result.html',
   '/help.html',
