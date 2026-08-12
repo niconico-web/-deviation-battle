@@ -256,6 +256,15 @@ function renderOriginalWeapons() {
         setUltimateBtn.onclick = () => setOriginalWeaponUltimateNameUI(weapon);
         item.appendChild(setUltimateBtn);
 
+        // デュアルウェポン能力がある場合、二次武器種設定ボタンを追加
+        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon')) {
+            const setSecondaryTypeBtn = document.createElement("button");
+            setSecondaryTypeBtn.className = "btn btn-small btn-info";
+            setSecondaryTypeBtn.textContent = "二次武器種設定";
+            setSecondaryTypeBtn.onclick = () => setSecondaryWeaponTypeUI(weapon);
+            item.appendChild(setSecondaryTypeBtn);
+        }
+
         if (canUpgrade) {
             const upgradeBtn = document.createElement("button");
             upgradeBtn.className = "btn btn-small";
@@ -739,11 +748,11 @@ function setOriginalWeaponUltimateNameUI(weapon) {
 
     const currentUltimateName = weapon.ultimateName || "未設定";
     const newUltimateName = prompt(`必殺技名を入力してください:\n現在: ${currentUltimateName}`, currentUltimateName === "未設定" ? "" : currentUltimateName);
-    
+
     if (newUltimateName === null) return; // キャンセル
-    
+
     const trimmedName = newUltimateName.trim();
-    
+
     // 空文字の場合は未設定に戻す
     if (trimmedName === "") {
         const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
@@ -763,7 +772,6 @@ function setOriginalWeaponUltimateNameUI(weapon) {
         return;
     }
 
-    // 武器を更新
     const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
     if (weaponIndex !== -1) {
         player.weapons[weaponIndex].ultimateName = trimmedName;
@@ -774,7 +782,49 @@ function setOriginalWeaponUltimateNameUI(weapon) {
         }
         
         localStorage.setItem("player", JSON.stringify(player));
-        alert(`必殺技名を「${trimmedName}」に設定しました`);
+        alert("必殺技名を設定しました");
+        renderOriginalWeapons();
+    }
+}
+
+function setSecondaryWeaponTypeUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const weaponTypes = Object.keys(WEAPON_TYPES);
+    const currentSecondaryType = weapon.secondaryType || "未設定";
+    const secondaryTypeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
+    
+    const currentSecondaryTypeText = currentSecondaryType === "未設定" ? "未設定" : getWeaponTypeLabel(currentSecondaryType);
+    const secondaryTypeInput = prompt(`二次武器種を選択してください:\n現在: ${currentSecondaryTypeText}\n${secondaryTypeOptions}\n番号を入力（キャンセルで未設定に戻す）:`, "1");
+
+    if (secondaryTypeInput === null) return; // キャンセル
+
+    const secondaryTypeIndex = parseInt(secondaryTypeInput) - 1;
+    if (isNaN(secondaryTypeIndex) || secondaryTypeIndex < 0 || secondaryTypeIndex >= weaponTypes.length) {
+        alert("無効な番号です");
+        return;
+    }
+
+    const selectedSecondaryType = weaponTypes[secondaryTypeIndex];
+
+    // 同じ武器種は選択できない
+    if (selectedSecondaryType === weapon.type) {
+        alert("一次武器種と同じ武器種は選択できません");
+        return;
+    }
+
+    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+    if (weaponIndex !== -1) {
+        player.weapons[weaponIndex].secondaryType = selectedSecondaryType;
+        
+        // 装備中の武器も更新
+        if (player.equippedWeapon && player.equippedWeapon.id === weapon.id) {
+            player.equippedWeapon.secondaryType = selectedSecondaryType;
+        }
+        
+        localStorage.setItem("player", JSON.stringify(player));
+        alert(`二次武器種を${getWeaponTypeLabel(selectedSecondaryType)}に設定しました`);
         renderOriginalWeapons();
     }
 }
