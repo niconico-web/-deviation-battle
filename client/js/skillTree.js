@@ -623,7 +623,7 @@ function parseEffectFromDescription(description) {
     // 複数回攻撃 (例: "3段攻撃", "3回攻撃", "triple attack", "3-hit attack")
     const multiHitMatch = desc.match(/(\d+)[\s]*(?:段|回|連)[\s]*攻撃/i);
     if (multiHitMatch) { finalEffect.multiHit = parseInt(multiHitMatch[1]); effectFound = true; }
-    
+
     // 英語版複数回攻撃 (例: "3-hit attack", "triple attack")
     const multiHitEnglishMatch = desc.match(/(\d+)[\s]*-[\s]*hit[\s]*attack|triple[\s]*attack|double[\s]*attack/i);
     if (multiHitEnglishMatch) {
@@ -636,7 +636,7 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
-    
+
     // 連続攻撃キーワード (例: "連続攻撃", "combo attack", "コンビネーション")
     if (desc.includes("連続攻撃") || desc.includes("combo attack") || desc.includes("連続") || desc.includes("コンビネーション")) {
         if (!finalEffect.multiHit) {
@@ -644,7 +644,7 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
-    
+
     // 追加の複数回攻撃キーワード
     if (desc.includes("多段") || desc.includes("多段攻撃") || desc.includes("multi hit") || desc.includes("multi-hit")) {
         if (!finalEffect.multiHit) {
@@ -652,11 +652,40 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
+
+    // さらなる複数回攻撃パターン
+    if (desc.includes("二連撃") || desc.includes("二回攻撃") || desc.includes("2連撃") || desc.includes("double hit")) {
+        if (!finalEffect.multiHit) {
+            finalEffect.multiHit = 2;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("三連撃") || desc.includes("三回攻撃") || desc.includes("3連撃") || desc.includes("triple hit")) {
+        if (!finalEffect.multiHit) {
+            finalEffect.multiHit = 3;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("四連撃") || desc.includes("四回攻撃") || desc.includes("4連撃") || desc.includes("quad hit")) {
+        if (!finalEffect.multiHit) {
+            finalEffect.multiHit = 4;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("五連撃") || desc.includes("五回攻撃") || desc.includes("5連撃") || desc.includes("penta hit")) {
+        if (!finalEffect.multiHit) {
+            finalEffect.multiHit = 5;
+        }
+        effectFound = true;
+    }
     
     // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍", "damage 1.5x", "1.5倍ダメージ")
     const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃|威力|damage|attack|power)[をが]?[\s]*([\d.]+)[\s]*(?:倍|x|times)/i);
     if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
-    
+
     // 単独の倍率パターン (例: "0.5倍", "1.2x") - 複数回攻撃と競合しないように
     const simpleMultiplierMatch = desc.match(/([\d.]+)[\s]*(?:倍|x)(?!.*段)(?!.*回攻撃)/i);
     if (simpleMultiplierMatch && !damageMultiplierMatch) {
@@ -664,14 +693,14 @@ function parseEffectFromDescription(description) {
         finalEffect.damageMultiplier = num;
         effectFound = true;
     }
-    
+
     // パーセンテージ倍率 (例: "150%ダメージ", "50%up", "増加50%")
     const percentMultiplierMatch = desc.match(/([\d.]+)%[\s]*(?:ダメージ|damage|up|増加|increase|boost)/i);
     if (percentMultiplierMatch) {
         finalEffect.damageMultiplier = 1 + (parseFloat(percentMultiplierMatch[1]) / 100);
         effectFound = true;
     }
-    
+
     // 追加の倍率キーワード
     if (desc.includes("強化") || desc.includes("増強") || desc.includes("boost") || desc.includes("enhance")) {
         if (!finalEffect.damageMultiplier) {
@@ -680,14 +709,58 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
 
+    // さらなる倍率パターン
+    if (desc.includes("強") && (desc.includes("攻撃") || desc.includes("ダメージ"))) {
+        if (!finalEffect.damageMultiplier) {
+            finalEffect.damageMultiplier = 1.3;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("超強化") || desc.includes("超強") || desc.includes("super boost")) {
+        if (!finalEffect.damageMultiplier) {
+            finalEffect.damageMultiplier = 1.5;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("絶大") || desc.includes("巨大") || desc.includes("massive") || desc.includes("huge")) {
+        if (!finalEffect.damageMultiplier) {
+            finalEffect.damageMultiplier = 2.0;
+        }
+        effectFound = true;
+    }
+
     // ダメージ軽減 (例: "ダメージを30%軽減", "30% damage reduction", "防御30%")
     const damageReductionMatch = desc.match(/(?:ダメージ|damage|攻撃|attack)[をが]?[\s]*([\d.]+)%[\s]*(?:軽減|reduction|減少|reduce|down)/i);
     if (damageReductionMatch) { finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0; effectFound = true; }
-    
+
     // 追加の軽減キーワード
     if (desc.includes("軽減") || desc.includes("カット") || desc.includes("reduce") || desc.includes("mitigate")) {
         if (!finalEffect.damageReduction) {
             finalEffect.damageReduction = 0.3; // デフォルトで30%軽減
+        }
+        effectFound = true;
+    }
+
+    // さらなる軽減パターン
+    if (desc.includes("半減") || desc.includes("半分") || desc.includes("half") || desc.includes("50%")) {
+        if (!finalEffect.damageReduction) {
+            finalEffect.damageReduction = 0.5;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("大幅軽減") || desc.includes("大減少") || desc.includes("greatly reduce")) {
+        if (!finalEffect.damageReduction) {
+            finalEffect.damageReduction = 0.7;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("完全無効") || desc.includes("無傷") || desc.includes("nullify") || desc.includes("immune")) {
+        if (!finalEffect.damageReduction) {
+            finalEffect.damageReduction = 1.0;
         }
         effectFound = true;
     }
@@ -707,11 +780,33 @@ function parseEffectFromDescription(description) {
     // 回復 (例: "HPを30回復", "heal 30", "recover 30 hp", "回復30")
     const healMatch = desc.match(/(?:hp|health)[\s]*(?:を|to)?[\s]*([\d.]+)[\s]*(?:回復|heal|recover|restore)/i);
     if (healMatch) { finalEffect.heal = parseFloat(healMatch[1]); effectFound = true; }
-    
+
     // 追加の回復キーワード
     if (desc.includes("回復") || desc.includes("ヒール") || desc.includes("heal") || desc.includes("cure")) {
         if (!finalEffect.heal && !finalEffect.healPercent) {
             finalEffect.heal = 30; // デフォルトで30回復
+        }
+        effectFound = true;
+    }
+
+    // さらなる回復パターン
+    if (desc.includes("完全回復") || desc.includes("全回復") || desc.includes("full heal") || desc.includes("full recovery")) {
+        if (!finalEffect.healPercent) {
+            finalEffect.healPercent = 1.0;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("大幅回復") || desc.includes("大回復") || desc.includes("large heal") || desc.includes("major heal")) {
+        if (!finalEffect.heal && !finalEffect.healPercent) {
+            finalEffect.heal = 50;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("小回復") || desc.includes("微回復") || desc.includes("small heal") || desc.includes("minor heal")) {
+        if (!finalEffect.heal && !finalEffect.healPercent) {
+            finalEffect.heal = 15;
         }
         effectFound = true;
     }
@@ -732,12 +827,25 @@ function parseEffectFromDescription(description) {
     // クリティカル率アップ (例: "クリティカル率30%アップ", "30% crit chance", "会心率上昇")
     const critChanceMatch = desc.match(/(?:クリティカル|crit|会心)[\s]*(?:率|chance)?[\s]*([\d.]+)%/i);
     if (critChanceMatch) { finalEffect.critChance = parseFloat(critChanceMatch[1]) / 100.0; effectFound = true; }
-    
+
     // 追加のクリティカルキーワード
     if (desc.includes("クリティカル") || desc.includes("critical") || desc.includes("会心") || desc.includes("crit")) {
         if (!finalEffect.critChance && !finalEffect.nextAttackCrit) {
             finalEffect.critChance = 0.2; // デフォルトで20%
         }
+        effectFound = true;
+    }
+
+    // さらなるクリティカルパターン
+    if (desc.includes("高クリティカル率") || desc.includes("高会心率") || desc.includes("high crit") || desc.includes("high critical")) {
+        if (!finalEffect.critChance) {
+            finalEffect.critChance = 0.4;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("必クリ") || desc.includes("会心確定") || desc.includes("guaranteed crit") || desc.includes("certain crit")) {
+        finalEffect.nextAttackCrit = true;
         effectFound = true;
     }
 
@@ -801,7 +909,7 @@ function parseEffectFromDescription(description) {
     // シールド (例: "シールド30", "shield 30", "barrier 30", "保護")
     const shieldMatch = desc.match(/(?:シールド|shield|barrier|保護|防御壁)[\s]*([\d.]+)/i);
     if (shieldMatch) { finalEffect.shield = parseFloat(shieldMatch[1]); effectFound = true; }
-    
+
     // 追加のシールドキーワード
     if (desc.includes("シールド") || desc.includes("shield") || desc.includes("バリア") || desc.includes("barrier") || desc.includes("保護")) {
         if (!finalEffect.shield) {
@@ -810,10 +918,25 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
 
+    // さらなるシールドパターン
+    if (desc.includes("強力なシールド") || desc.includes("強シールド") || desc.includes("strong shield") || desc.includes("powerful barrier")) {
+        if (!finalEffect.shield) {
+            finalEffect.shield = 50;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("完全防御") || desc.includes("無敵") || desc.includes("invincible") || desc.includes("untouchable")) {
+        if (!finalEffect.shield) {
+            finalEffect.shield = 999;
+        }
+        effectFound = true;
+    }
+
     // 回避率アップ (例: "回避率30%アップ", "30% dodge chance", "30% evade", "回避上昇")
     const dodgeMatch = desc.match(/(?:回避|dodge|evade|miss)[\s]*(?:率|chance)?[\s]*([\d.]+)%/i);
     if (dodgeMatch) { finalEffect.dodgeChance = parseFloat(dodgeMatch[1]) / 100.0; effectFound = true; }
-    
+
     // 追加の回避キーワード
     if (desc.includes("回避") || desc.includes("dodge") || desc.includes("evade") || desc.includes("避ける")) {
         if (!finalEffect.dodgeChance) {
@@ -822,8 +945,73 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
 
+    // さらなる回避パターン
+    if (desc.includes("高回避率") || desc.includes("高回避") || desc.includes("high dodge") || desc.includes("high evasion")) {
+        if (!finalEffect.dodgeChance) {
+            finalEffect.dodgeChance = 0.4;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("完全回避") || desc.includes("確実回避") || desc.includes("perfect dodge") || desc.includes("certain evade")) {
+        finalEffect.dodgeChance = 1.0;
+        effectFound = true;
+    }
+
     // 反撃 (例: "反撃する", "counter attack", "retaliate", "カウンター")
     if (desc.includes("反撃") || desc.includes("counter") || desc.includes("retaliate") || desc.includes("カウンター") || desc.includes("反撃攻撃")) { finalEffect.counter = true; effectFound = true; }
+
+    // 追加の特殊効果パターン
+    if (desc.includes("吸血") || desc.includes("vampiric") || desc.includes("blood drain")) {
+        if (!finalEffect.lifeSteal) {
+            finalEffect.lifeSteal = 0.3;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("反射") || desc.includes("mirror") || desc.includes("reflect damage")) {
+        finalEffect.counter = true;
+        effectFound = true;
+    }
+
+    if (desc.includes("無敵") || desc.includes("invincible") || desc.includes("untouchable")) {
+        if (!finalEffect.damageReduction) {
+            finalEffect.damageReduction = 1.0;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("即死") || desc.includes("一撃必殺") || desc.includes("instant kill") || desc.includes("one shot")) {
+        if (!finalEffect.damageMultiplier) {
+            finalEffect.damageMultiplier = 10.0;
+        }
+        effectFound = true;
+    }
+
+    if (desc.includes("麻痺") || desc.includes("スタン") || desc.includes("paralyze") || desc.includes("stun")) {
+        finalEffect.skipNextTurn = true;
+        effectFound = true;
+    }
+
+    if (desc.includes("沈黙") || desc.includes("封印") || desc.includes("silence") || desc.includes("seal")) {
+        finalEffect.skipNextTurn = true;
+        effectFound = true;
+    }
+
+    if (desc.includes("凍結") || desc.includes("フリーズ") || desc.includes("freeze") || desc.includes("frozen")) {
+        finalEffect.skipNextTurn = true;
+        effectFound = true;
+    }
+
+    if (desc.includes("石化") || desc.includes("ストーン") || desc.includes("petrify") || desc.includes("stone")) {
+        finalEffect.skipNextTurn = true;
+        effectFound = true;
+    }
+
+    if (desc.includes("挑発") || desc.includes("タウント") || desc.includes("taunt") || desc.includes("provoke")) {
+        finalEffect.skipNextTurn = true;
+        effectFound = true;
+    }
 
     // --- デメリット/コストのパース ---
     // 自身の防御デバフ (例: "自身の防御-10", "self defense -10", "防御ダウン")
