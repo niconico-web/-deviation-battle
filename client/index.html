@@ -12,12 +12,12 @@
 <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
 <link rel="stylesheet" href="css/style.css?v=1783932441600">
 <link rel="stylesheet" href="css/help.css?v=1783932440600">
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/js/manifest.json">
 <meta name="theme-color" content="#3498db">
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('/js/sw.js')
       .then(registration => console.log('ServiceWorker registered'))
       .catch(error => console.log('ServiceWorker registration failed'));
   });
