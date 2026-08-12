@@ -122,6 +122,12 @@ function initializeSocket() {
             setupOnlineEventHandlers();
         }
 
+        // 保留中のデータ保存を実行
+        if (localStorage.getItem('pendingSave') === 'true') {
+            console.log("Found pending save, attempting to sync to server...");
+            syncPlayerToServer(true); // silent=trueで自動保存
+        }
+
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
             window.socket.emit("requestRandomMatch", pendingRandomMatchPlayer);
@@ -487,7 +493,14 @@ let pendingSilentSave = false;
 function syncPlayerToServer(silent) {
     const player = getPlayerData();
     if (!player) return false;
-    if (!window.socket || !window.socket.connected) return false;
+
+    if (!window.socket || !window.socket.connected) {
+        // 接続がない場合は保留フラグを立てる
+        localStorage.setItem('pendingSave', 'true');
+        console.log("Socket not connected. Marked for pending save.");
+        return false;
+    }
+
     pendingSilentSave = !!silent;
     window.socket.emit("saveData", player);
     return true;
@@ -501,6 +514,7 @@ function setupSocketEventHandlers() {
 
     // データ保存・読み込み関連のイベント
     window.socket.on("dataSaved", (info) => {
+        localStorage.removeItem('pendingSave'); // 保存成功したので保留フラグを削除
         const id = info && info.playerId ? info.playerId : (getPlayerData()?.id || "");
         if (pendingSilentSave) {
             pendingSilentSave = false;
