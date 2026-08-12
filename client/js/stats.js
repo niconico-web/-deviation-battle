@@ -86,7 +86,19 @@ function calcStatsFromSubjects(s) {
 }
 
 function xpToNextLevel(l) { return Math.max(40, l * 50); }
-function calcLevel(xp) { let lv = 1, r = xp; while (r >= xpToNextLevel(lv)) { r -= xpToNextLevel(lv); lv++; } return lv; }
+function calcLevel(xp) {
+    // 元の反復計算は、非常に大きなXP値に対して遅くなる可能性があり、UIがフリーズする原因となっていました。
+    // レベルアップの公式から導出した閉形式解に置き換えます。
+    // レベルLに到達するための合計XPは 25 * L * (L - 1) です。
+    // これを L について解きます: 25L^2 - 25L - xp = 0
+    // 二次方程式の解の公式を使用: L = (-b + sqrt(b^2 - 4ac)) / 2a
+    // a=25, b=-25, c=-xp
+    const level = Math.floor((25 + Math.sqrt(625 + 100 * xp)) / 50);
+
+    // xpが0の場合、levelは1になります。xpが49の場合、levelは1です。xpが50の場合、levelは2になります。
+    // 浮動小数点数の問題で負の値にならないように、最低でも1を返すようにします。
+    return Math.max(1, level);
+}
 function calcStudyXp(s) { return Math.floor(s / 4); }
 function calcStatGain(s) { return Math.max(1, Math.floor(s / 60)); }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
