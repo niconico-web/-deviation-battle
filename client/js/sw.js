@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v11';
+const CACHE_NAME = 'school-battle-cache-v12';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -23,7 +23,8 @@ const urlsToCache = [
   '/js/result.js',
   '/js/help.js',
   '/images/icons/icon-192x192.png',
-  '/images/icons/icon-512x512.png'
+  '/images/icons/icon-512x512.png',
+  '/socket.io/socket.io.js'
 ];
 
 self.addEventListener('install', event => {
@@ -53,7 +54,7 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', event => {
   // APIリクエストとsocket.io関連のリクエストはキャッシュしない
-  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/')) {
+  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/?')) {
     // ネットワークに直接アクセスし、キャッシュは使用しない
     event.respondWith(fetch(event.request));
     return; // This is crucial to prevent calling respondWith twice.
