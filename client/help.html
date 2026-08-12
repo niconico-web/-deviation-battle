@@ -2,14 +2,26 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ヘルプ - School Battle</title>
+    <meta name="theme-color" content="#3498db">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="cache-buster" content="1783932440600">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
     <link rel="stylesheet" href="css/style.css?v=1783932440600">
     <link rel="stylesheet" href="css/help.css?v=1783932440600">
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => console.log('ServiceWorker registered'))
+          .catch(error => console.log('ServiceWorker registration failed'));
+      });
+    }
+    </script>
 </head>
 <body>
     <div class="container">
@@ -77,17 +89,8 @@
                 <ul>
                     <li>ダメージ倍率：「次の攻撃のダメージを1.2倍にする」</li>
                     <li>回復：「HPを30回復する」「HPの30%回復」</li>
-                    <li>敵へのデバフ：「敵の攻撃力を20%低下させる」「敵の防御力を低下させる」「敵の命中率を下げる」</li>
                     <li>特殊効果：「必中」「防御無視」「クリティカル率アップ」</li>
                 </ul>
-                <h3>新しく追加されたデバフ効果</h3>
-                <p>オリジナルスキルでは、以下の敵へのデバフ効果も指定できます：</p>
-                <ul>
-                    <li><strong>敵の攻撃力低下</strong>: 「敵の攻撃力を20%低下させる」「enemy attack down」</li>
-                    <li><strong>敵の防御力低下</strong>: 「敵の防御力を20%低下させる」「enemy defense down」</li>
-                    <li><strong>敵の命中率低下</strong>: 「敵の命中率を20%低下させる」「enemy accuracy down」</li>
-                </ul>
-                <p>これらのデバフ効果は2ターン持続し、相手のステータスを一時的に弱体化させることができます。</p>
                 <h3>AIの解釈範囲</h3>
                 <p>AIは日本語と英語の両方に対応しており、様々な表現パターンを理解できます。具体的な数値（1.2倍、30%など）を含めることで、より正確な効果が得られます。</p>
             </section>
