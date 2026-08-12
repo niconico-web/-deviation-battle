@@ -2,7 +2,7 @@ const CACHE_NAME = 'school-battle-cache-v14';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/js/manifest.json',
+  '/manifest.json', // 一般的にmanifest.jsonはルートに配置されます。もし '/js/' ディレクトリで正しい場合は元に戻してください。
   '/battle.html',
   '/result.html',
   '/help.html',
@@ -23,8 +23,8 @@ const urlsToCache = [
   '/js/result.js',
   '/js/help.js',
   '/images/icons/icon-192x192.png',
-  '/images/icons/icon-512x512.png',
-  '/socket.io/socket.io.js'
+  '/images/icons/icon-512x512.png'
+  // '/socket.io/socket.io.js' は動的に生成されるため、プリキャッシュの対象から除外します。
 ];
 
 self.addEventListener('install', event => {
