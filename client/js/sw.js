@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v9';
+const CACHE_NAME = 'school-battle-cache-v11';
 const urlsToCache = [
   '/',
   '/index.html',

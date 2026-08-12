@@ -10,7 +10,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     const installPopup = document.getElementById('install-popup');
     if (installPopup) {
         // 既にインストール済みかチェック
-        if (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: minimal-ui)').matches) {
+        if (window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches || window.matchMedia('(display-mode: minimal-ui)').matches || navigator.standalone) {
             console.log('App is already installed.');
             return;
         }
