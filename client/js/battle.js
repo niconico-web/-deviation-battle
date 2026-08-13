@@ -1362,6 +1362,8 @@ function calculateBotDifficulty() {
 }
 
 function generateBotQuestion() {
+    console.log("generateBotQuestion called, isBossBattle:", isBossBattle);
+    
     // ステータス更新を反映
     updateStats();
     updateHP();
@@ -1374,9 +1376,12 @@ function generateBotQuestion() {
         
         // Use local boss questions for bot battles
         const bossQuestions = getLocalBossQuestions(bossSubject);
+        console.log(`[BotBattle] Got ${bossQuestions.length} boss questions for subject=${bossSubject}`);
+        
         if (bossQuestions && bossQuestions.length > 0) {
             const randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
             currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+            console.log('[BotBattle] Selected boss question:', currentQuestion);
             
             // 継続効果の処理（火傷・防御低下）
             tickBotBattleStatus();
@@ -2576,7 +2581,7 @@ if (!isBotBattle && socket) {
 }
 
 // Local boss questions for bot battles
-function getLocalBossQuestions(subject) {
+function getLocalBossQuestions(subject, grade) {
     const bossQuestions = {
         math: [
             { question: "√144 = ?", answer: "12" },
@@ -2588,7 +2593,28 @@ function getLocalBossQuestions(subject) {
             { question: "√256 = ?", answer: "16" },
             { question: "2^8 = ?", answer: "256" },
             { question: "18 × 6 = ?", answer: "108" },
-            { question: "√324 = ?", answer: "18" }
+            { question: "√324 = ?", answer: "18" },
+            { question: "5^3 = ?", answer: "125" },
+            { question: "32 × 4 = ?", answer: "128" },
+            { question: "√400 = ?", answer: "20" },
+            { question: "4^4 = ?", answer: "256" },
+            { question: "14 × 9 = ?", answer: "126" },
+            { question: "√576 = ?", answer: "24" },
+            { question: "6^3 = ?", answer: "216" },
+            { question: "27 × 3 = ?", answer: "81" },
+            { question: "√625 = ?", answer: "25" },
+            { question: "7^3 = ?", answer: "343" },
+            { question: "35 × 2 = ?", answer: "70" },
+            { question: "√729 = ?", answer: "27" },
+            { question: "8^3 = ?", answer: "512" },
+            { question: "45 × 2 = ?", answer: "90" },
+            { question: "√841 = ?", answer: "29" },
+            { question: "9^3 = ?", answer: "729" },
+            { question: "56 × 2 = ?", answer: "112" },
+            { question: "√961 = ?", answer: "31" },
+            { question: "10^3 = ?", answer: "1000" },
+            { question: "48 × 3 = ?", answer: "144" },
+            { question: "√1024 = ?", answer: "32" }
         ],
         jp: [
             { question: "「梅」の読み方は？", answer: "うめ" },
@@ -2600,7 +2626,27 @@ function getLocalBossQuestions(subject) {
             { question: "「川」の読み方は？", answer: "かわ" },
             { question: "「風」の読み方は？", answer: "かぜ" },
             { question: "「雨」の読み方は？", answer: "あめ" },
-            { question: "「雪」の読み方は？", answer: "ゆき" }
+            { question: "「雪」の読み方は？", answer: "ゆき" },
+            { question: "「月」の読み方は？", answer: "つき" },
+            { question: "「星」の読み方は？", answer: "ほし" },
+            { question: "「花」の読み方は？", answer: "はな" },
+            { question: "「草」の読み方は？", answer: "くさ" },
+            { question: "「木」の読み方は？", answer: "き" },
+            { question: "「火」の読み方は？", answer: "ひ" },
+            { question: "「水」の読み方は？", answer: "みず" },
+            { question: "「土」の読み方は？", answer: "つち" },
+            { question: "「金」の読み方は？", answer: "きん" },
+            { question: "「銀」の読み方は？", answer: "ぎん" },
+            { question: "「銅」の読み方は？", answer: "どう" },
+            { question: "「鉄」の読み方は？", answer: "てつ" },
+            { question: "「石」の読み方は？", answer: "いし" },
+            { question: "「岩」の読み方は？", answer: "いわ" },
+            { question: "「砂」の読み方は？", answer: "すな" },
+            { question: "「泥」の読み方は？", answer: "どろ" },
+            { question: "「雲」の読み方は？", answer: "くも" },
+            { question: "「虹」の読み方は？", answer: "にじ" },
+            { question: "「光」の読み方は？", answer: "ひかり" },
+            { question: "「影」の読み方は？", answer: "かげ" }
         ],
         eng: [
             { question: "What is the past tense of 'go'?", answer: "went" },
@@ -2612,7 +2658,27 @@ function getLocalBossQuestions(subject) {
             { question: "What is the past tense of 'give'?", answer: "gave" },
             { question: "What is the past tense of 'write'?", answer: "wrote" },
             { question: "What is the past tense of 'read'?", answer: "read" },
-            { question: "What is the past tense of 'know'?", answer: "knew" }
+            { question: "What is the past tense of 'know'?", answer: "knew" },
+            { question: "What is the past tense of 'think'?", answer: "thought" },
+            { question: "What is the past tense of 'bring'?", answer: "brought" },
+            { question: "What is the past tense of 'buy'?", answer: "bought" },
+            { question: "What is the past tense of 'catch'?", answer: "caught" },
+            { question: "What is the past tense of 'teach'?", answer: "taught" },
+            { question: "What is the past tense of 'fight'?", answer: "fought" },
+            { question: "What is the past tense of 'feel'?", answer: "felt" },
+            { question: "What is the past tense of 'leave'?", answer: "left" },
+            { question: "What is the past tense of 'keep'?", answer: "kept" },
+            { question: "What is the past tense of 'sleep'?", answer: "slept" },
+            { question: "What is the past tense of 'speak'?", answer: "spoke" },
+            { question: "What is the past tense of 'break'?", answer: "broke" },
+            { question: "What is the past tense of 'choose'?", answer: "chose" },
+            { question: "What is the past tense of 'drive'?", answer: "drove" },
+            { question: "What is the past tense of 'wear'?", answer: "wore" },
+            { question: "What is the past tense of 'win'?", answer: "won" },
+            { question: "What is the past tense of 'lose'?", answer: "lost" },
+            { question: "What is the past tense of 'find'?", answer: "found" },
+            { question: "What is the past tense of 'send'?", answer: "sent" },
+            { question: "What is the past tense of 'spend'?", answer: "spent" }
         ],
         sci: [
             { question: "水の化学式は？", answer: "H2O" },
@@ -2624,7 +2690,27 @@ function getLocalBossQuestions(subject) {
             { question: "塩素の化学式は？", answer: "Cl" },
             { question: "カリウムの化学式は？", answer: "K" },
             { question: "カルシウムの化学式は？", answer: "Ca" },
-            { question: "鉄の化学式は？", answer: "Fe" }
+            { question: "鉄の化学式は？", answer: "Fe" },
+            { question: "銅の化学式は？", answer: "Cu" },
+            { question: "亜鉛の化学式は？", answer: "Zn" },
+            { question: "銀の化学式は？", answer: "Ag" },
+            { question: "金の化学式は？", answer: "Au" },
+            { question: "光合成の化学式は？", answer: "6CO2+6H2O" },
+            { question: "光合成で生成されるものは？", answer: "グルコース" },
+            { question: "光合成で消費されるものは？", answer: "CO2" },
+            { question: "光合成で放出されるものは？", answer: "O2" },
+            { question: "植物の光合成を行う器官は？", answer: "葉緑体" },
+            { question: "葉緑体に含まれる色素は？", answer: "クロロフィル" },
+            { question: "光合成の光反応で生成されるものは？", answer: "ATP" },
+            { question: "光合成の暗反応で生成されるものは？", answer: "グルコース" },
+            { question: "呼吸で消費されるものは？", answer: "O2" },
+            { question: "呼吸で生成されるものは？", answer: "CO2" },
+            { question: "呼吸でエネルギーを生成する細胞器官は？", answer: "ミトコンドリア" },
+            { question: "DNAの基本構成単位は？", answer: "ヌクレオチド" },
+            { question: "DNAの二重らせん構造を発見したのは？", answer: "ワトソン" },
+            { question: "RNAの基本構成単位は？", answer: "リボヌクレオチド" },
+            { question: "タンパク質の基本構成単位は？", answer: "アミノ酸" },
+            { question: "細胞膜の主成分は？", answer: "リン脂質" }
         ],
         soc: [
             { question: "日本の首都は？", answer: "東京" },
@@ -2636,7 +2722,27 @@ function getLocalBossQuestions(subject) {
             { question: "韓国の首都は？", answer: "ソウル" },
             { question: "ロシアの首都は？", answer: "モスクワ" },
             { question: "イタリアの首都は？", answer: "ローマ" },
-            { question: "スペインの首都は？", answer: "マドリード" }
+            { question: "スペインの首都は？", answer: "マドリード" },
+            { question: "カナダの首都は？", answer: "オタワ" },
+            { question: "オーストラリアの首都は？", answer: "キャンベラ" },
+            { question: "インドの首都は？", answer: "ニューデリー" },
+            { question: "ブラジルの首都は？", answer: "ブラジリア" },
+            { question: "アルゼンチンの首都は？", answer: "ブエノスアイレス" },
+            { question: "メキシコの首都は？", answer: "メキシコシティ" },
+            { question: "エジプトの首都は？", answer: "カイロ" },
+            { question: "南アフリカの首都は？", answer: "プレトリア" },
+            { question: "タイの首都は？", answer: "バンコク" },
+            { question: "ベトナムの首都は？", answer: "ハノイ" },
+            { question: "シンガポールの首都は？", answer: "シンガポール" },
+            { question: "マレーシアの首都は？", answer: "クアラルンプール" },
+            { question: "インドネシアの首都は？", answer: "ジャカルタ" },
+            { question: "フィリピンの首都は？", answer: "マニラ" },
+            { question: "北朝鮮の首都は？", answer: "ピョンヤン" },
+            { question: "モンゴルの首都は？", answer: "ウランバートル" },
+            { question: "カザフスタンの首都は？", answer: "アスタナ" },
+            { question: "トルコの首都は？", answer: "アンカラ" },
+            { question: "ギリシャの首都は？", answer: "アテネ" },
+            { question: "ポルトガルの首都は？", answer: "リスボン" }
         ]
     };
     

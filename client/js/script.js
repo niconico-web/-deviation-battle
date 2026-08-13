@@ -1032,17 +1032,22 @@ function startSoloBossBattle(player, bossId, difficulty) {
     const boss = getBossData(bossId);
     const enemy = {
         name: boss.name,
+        maxHp: bossStats.hp,
+        hp: bossStats.hp,
+        atk: bossStats.atk,
+        def: bossStats.def,
+        speed: bossStats.speed,
+        grade: player.grade, // Use player's grade
+        skills: boss.skills,
+        isBoss: true,
+        bossId: bossId,
+        difficulty: difficulty,
         stats: {
             maxHp: bossStats.hp,
             atk: bossStats.atk,
             def: bossStats.def,
             speed: bossStats.speed
-        },
-        grade: player.grade, // Use player's grade
-        skills: boss.skills,
-        isBoss: true,
-        bossId: bossId,
-        difficulty: difficulty
+        }
     };
     
     console.log('Boss enemy created:', enemy);
