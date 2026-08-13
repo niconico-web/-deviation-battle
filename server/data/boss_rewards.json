@@ -1,11 +1,30 @@
 {
-    "medium": {
-        "tier4Abilities": 3,
-        "multiplier": 3.0,
-        "weaponName": "深淵の刃"
+    "boss1": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
     },
-    "hard": {
-        "customSkill": true,
-        "skillName": "ヴォイド・クラッシュ"
+    "boss2": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "boss3": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "boss4": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "boss5": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "boss6": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "boss7": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
     }
 }

@@ -58,6 +58,7 @@ function migratePlayer(player) {
     if (typeof initializeSkillData === 'function') {
         player = initializeSkillData(player);
     }
+    if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
 
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);

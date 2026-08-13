@@ -904,6 +904,7 @@ function createParty() {
         alert('キャラクターを作成してください。');
         return;
     }
+    console.log("[Client] Emitting party:create with player:", player); // Debug log
     window.socket.emit('party:create', player);
 }
 
@@ -915,6 +916,7 @@ function joinParty() {
     }
     const player = getMatchPlayer();
     if (!player) { alert('キャラクターを作成してください。'); return; }
+    console.log("[Client] Emitting party:join with partyId:", partyCode, "player:", player); // Debug log
     window.socket.emit('party:join', { partyId: partyCode, player });
 }
 
@@ -936,7 +938,10 @@ function updatePartyUI(party) {
     const partyReadyBtn = document.getElementById('partyReadyBtn');
     const startBossBattleControls = document.getElementById('startBossBattleControls');
 
-    if (!partyInfo || !createPartyBtn || !joinPartyControls || !leavePartyBtn || !partyReadyBtn || !startBossBattleControls) return;
+    if (!partyInfo || !createPartyBtn || !joinPartyControls || !leavePartyBtn || !partyReadyBtn || !startBossBattleControls) {
+        console.warn("Party UI elements not found. Skipping updatePartyUI.");
+        return;
+    }
 
     const isInParty = !!party;
 
@@ -946,7 +951,14 @@ function updatePartyUI(party) {
     createPartyBtn.style.display = isInParty ? 'none' : 'inline-block';
     joinPartyControls.style.display = isInParty ? 'none' : 'block';
 
-    if (!isInParty) return;
+    if (!isInParty) {
+        // Reset UI if not in party
+        partyInfo.innerHTML = '';
+        partyReadyBtn.classList.remove('ready');
+        partyReadyBtn.textContent = '準備OK';
+        startBossBattleControls.style.display = 'none';
+        return;
+    }
 
     const player = getPlayerData();
     const isHost = player.id === party.hostId;
@@ -961,7 +973,38 @@ function updatePartyUI(party) {
     partyInfo.innerHTML = `<h4>パーティ (コード: ${party.id})</h4><ul>${membersHtml}</ul>`;
 
     startBossBattleControls.style.display = isHost ? 'block' : 'none';
-    partyReadyBtn.textContent = party.members.find(m => m.id === player.id)?.isReady ? '準備完了' : '準備OK';
+    
+    const myMember = party.members.find(m => m.id === player.id);
+    if (myMember) {
+        partyReadyBtn.textContent = myMember.isReady ? '準備完了' : '準備OK';
+        if (myMember.isReady) {
+            partyReadyBtn.classList.add('ready');
+        } else {
+            partyReadyBtn.classList.remove('ready');
+        }
+    }
+}
+
+function resetPartyUI() {
+    const partyInfo = document.getElementById('party-info');
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    const joinPartyControls = document.getElementById('joinPartyControls');
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const startBossBattleControls = document.getElementById('startBossBattleControls');
+
+    if (partyInfo) partyInfo.style.display = 'none';
+    if (leavePartyBtn) leavePartyBtn.style.display = 'none';
+    if (partyReadyBtn) partyReadyBtn.style.display = 'none';
+    if (createPartyBtn) createPartyBtn.style.display = 'inline-block';
+    if (joinPartyControls) joinPartyControls.style.display = 'block';
+    if (startBossBattleControls) startBossBattleControls.style.display = 'none';
+
+    if (partyInfo) partyInfo.innerHTML = '';
+    if (partyReadyBtn) {
+        partyReadyBtn.classList.remove('ready');
+        partyReadyBtn.textContent = '準備OK';
+    }
 }
 
 function switchSection(section) {
