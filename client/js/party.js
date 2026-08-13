@@ -1,161 +1,123 @@
-// Party System for Boss Battles
-// Allows up to 4 players to form a party and fight bosses together
+// client/js/party.js
 
-var MAX_PARTY_SIZE = 4; // constからvarに変更し、再宣言エラーを回避
+function setupPartyEventListeners() {
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    const joinPartyBtn = document.getElementById('joinPartyBtn');
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const startBossBattleBtn = document.getElementById('startBossBattleBtn');
 
-// Party data structure
-function createPartyData(hostPlayerId) {
-    return {
-        id: `party_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        hostId: hostPlayerId,
-        members: [hostPlayerId],
-        createdAt: Date.now(),
-        status: 'waiting', // waiting, ready, in_battle
-        targetBoss: null,
-        difficulty: null
-    };
-}
-
-// Check if party is full
-function isPartyFull(party) {
-    return party.members.length >= MAX_PARTY_SIZE;
-}
-
-// Add member to party
-function addMemberToParty(party, playerId) {
-    if (isPartyFull(party)) return false;
-    if (party.members.includes(playerId)) return false;
-    party.members.push(playerId);
-    return true;
-}
-
-// Remove member from party
-function removeMemberFromParty(party, playerId) {
-    const index = party.members.indexOf(playerId);
-    if (index > -1) {
-        party.members.splice(index, 1);
-        // If host leaves, transfer host to next member
-        if (party.hostId === playerId && party.members.length > 0) {
-            party.hostId = party.members[0];
-        }
-        return true;
+    if (createPartyBtn) {
+        createPartyBtn.addEventListener('click', () => {
+            const player = getPlayerData();
+            if (player && window.socket) {
+                window.socket.emit('party:create', player);
+            }
+        });
     }
-    return false;
+
+    if (joinPartyBtn) {
+        joinPartyBtn.addEventListener('click', () => {
+            const partyId = document.getElementById('partyCodeInput').value;
+            const player = getPlayerData();
+            if (partyId && player && window.socket) {
+                window.socket.emit('party:join', { partyId, player });
+            }
+        });
+    }
+
+    if (leavePartyBtn) {
+        leavePartyBtn.addEventListener('click', () => {
+            if (window.socket) {
+                window.socket.emit('party:leave');
+            }
+        });
+    }
+
+    if (partyReadyBtn) {
+        partyReadyBtn.addEventListener('click', () => {
+            if (window.socket) {
+                const isReady = !partyReadyBtn.classList.contains('ready');
+                window.socket.emit('party:setReady', { isReady });
+            }
+        });
+    }
+
+    if (startBossBattleBtn) {
+        startBossBattleBtn.addEventListener('click', () => {
+            const bossId = document.getElementById('bossSelect').value;
+            const difficulty = document.getElementById('bossDifficulty').value;
+            if (bossId && difficulty && window.socket) {
+                window.socket.emit('party:startBossBattle', { bossId, difficulty });
+            }
+        });
+    }
 }
 
-// Get party member count
-function getPartyMemberCount(party) {
-    return party.members.length;
-}
+function updatePartyUI(party) {
+    const partyInfo = document.getElementById('party-info');
+    const partyControls = document.getElementById('party-controls');
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    const joinPartyControls = document.getElementById('joinPartyControls');
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const startBossBattleControls = document.getElementById('startBossBattleControls');
+    const player = getPlayerData();
 
-// Calculate party power (sum of all members' total stats)
-function calculatePartyPower(players) {
-    let totalPower = 0;
-    players.forEach(player => {
-        const stats = player.stats || {};
-        const totalStats = (stats.maxHp || 0) + (stats.atk || 0) + (stats.def || 0) + (stats.speed || 0);
-        totalPower += totalStats;
+    if (!party || !player) {
+        resetPartyUI();
+        return;
+    }
+
+    partyInfo.style.display = 'block';
+    createPartyBtn.style.display = 'none';
+    joinPartyControls.style.display = 'none';
+    leavePartyBtn.style.display = 'block';
+    partyReadyBtn.style.display = 'block';
+
+    const amIHost = party.hostId === player.id;
+    if (amIHost) {
+        startBossBattleControls.style.display = 'block';
+    } else {
+        startBossBattleControls.style.display = 'none';
+    }
+
+    let membersHtml = `<h3>Party (Code: ${party.id})</h3><ul>`;
+    party.members.forEach(member => {
+        membersHtml += `<li>${member.player.name} ${member.isReady ? '(Ready)' : ''}</li>`;
     });
-    return totalPower;
-}
+    membersHtml += '</ul>';
+    partyInfo.innerHTML = membersHtml;
 
-// Adjust boss difficulty based on party size
-function adjustBossDifficultyForParty(baseStats, partySize) {
-    const multiplier = 1 + (partySize - 1) * 0.25; // 25% increase per additional member
-    return {
-        hp: Math.floor(baseStats.hp * multiplier),
-        atk: Math.floor(baseStats.atk * multiplier),
-        def: Math.floor(baseStats.def * multiplier),
-        speed: Math.floor(baseStats.speed * multiplier)
-    };
-}
-
-// Distribute rewards among party members
-function distributeRewards(reward, partySize) {
-    // For weapons: randomly give to one party member
-    // For skills: give to all party members
-    // For XP/coins: distribute equally
-    return {
-        weapon: reward.weapon ? (Math.random() < (1 / partySize)) : null,
-        skill: reward.skill, // All members get skills
-        xp: Math.floor(reward.xp / partySize),
-        coins: Math.floor(reward.coins / partySize)
-    };
-}
-
-// Party matchmaking data
-let partyMatchmakingData = {
-    activeParties: new Map(),
-    playerToParty: new Map()
-};
-
-// Player party management
-function joinParty(playerId, partyId) {
-    const party = partyMatchmakingData.activeParties.get(partyId);
-    if (!party) return { success: false, message: "Party not found" };
-    
-    if (isPartyFull(party)) return { success: false, message: "Party is full" };
-    
-    const added = addMemberToParty(party, playerId);
-    if (!added) return { success: false, message: "Already in party" };
-    
-    partyMatchmakingData.playerToParty.set(playerId, partyId);
-    return { success: true, party };
-}
-
-function leaveParty(playerId) {
-    const partyId = partyMatchmakingData.playerToParty.get(playerId);
-    if (!partyId) return { success: false, message: "Not in a party" };
-    
-    const party = partyMatchmakingData.activeParties.get(partyId);
-    if (!party) return { success: false, message: "Party not found" };
-    
-    removeMemberFromParty(party, playerId);
-    partyMatchmakingData.playerToParty.delete(playerId);
-    
-    // If party is empty, remove it
-    if (party.members.length === 0) {
-        partyMatchmakingData.activeParties.delete(partyId);
+    const myMember = party.members.find(m => m.id === player.id);
+    if (myMember && myMember.isReady) {
+        partyReadyBtn.textContent = 'Cancel Ready';
+        partyReadyBtn.classList.add('ready');
+    } else {
+        partyReadyBtn.textContent = 'Ready';
+        partyReadyBtn.classList.remove('ready');
     }
-    
-    return { success: true };
 }
 
-function createNewParty(hostPlayerId) {
-    const party = createPartyData(hostPlayerId);
-    partyMatchmakingData.activeParties.set(party.id, party);
-    partyMatchmakingData.playerToParty.set(hostPlayerId, party.id);
-    return { success: true, party };
+function resetPartyUI() {
+    const partyInfo = document.getElementById('party-info');
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    const joinPartyControls = document.getElementById('joinPartyControls');
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const startBossBattleControls = document.getElementById('startBossBattleControls');
+
+    partyInfo.style.display = 'none';
+    partyInfo.innerHTML = '';
+    createPartyBtn.style.display = 'block';
+    joinPartyControls.style.display = 'block';
+    leavePartyBtn.style.display = 'none';
+    partyReadyBtn.style.display = 'none';
+    startBossBattleControls.style.display = 'none';
 }
 
-function getPlayerParty(playerId) {
-    const partyId = partyMatchmakingData.playerToParty.get(playerId);
-    if (!partyId) return null;
-    return partyMatchmakingData.activeParties.get(partyId);
-}
-
-// Party ready status
-function setPartyReady(partyId, isReady) {
-    const party = partyMatchmakingData.activeParties.get(partyId);
-    if (!party) return { success: false };
-    
-    party.status = isReady ? 'ready' : 'waiting';
-    return { success: true, party };
-}
-
-// Check if all party members are ready
-function isPartyReady(partyId) {
-    const party = partyMatchmakingData.activeParties.get(partyId);
-    if (!party) return false;
-    return party.status === 'ready';
-}
-
-// Export functions for global access
-if (typeof window !== 'undefined') {
-    window.createNewParty = createNewParty;
-    window.joinParty = joinParty;
-    window.leaveParty = leaveParty;
-    window.getPlayerParty = getPlayerParty;
-    window.setPartyReady = setPartyReady;
-    window.isPartyReadyCheck = isPartyReady;
-}
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof setupPartyEventListeners === 'function') {
+        setupPartyEventListeners();
+    }
+});

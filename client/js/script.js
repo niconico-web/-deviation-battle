@@ -616,15 +616,35 @@ function setupSocketEventHandlers() {
                 updatePartyUI(party);
             }
         } else {
-            // Null party object means we left or the party was disbanded
             if (typeof resetPartyUI === 'function') {
                 resetPartyUI();
             }
         }
     });
 
+    window.socket.on('party:closed', () => {
+        if (typeof resetPartyUI === 'function') {
+            resetPartyUI();
+        }
+        alert('The party has been disbanded.');
+    });
+
     window.socket.on('party:error', (error) => {
-        alert(`パーティエラー: ${error.message}`);
+        alert(`Party Error: ${error.message}`);
+    });
+
+    window.socket.on('bossBattle:start', ({ boss }) => {
+        const player = getMatchPlayer();
+        if (!player) {
+            alert('Character not created.');
+            return;
+        }
+        localStorage.setItem("isBossBattle", "true");
+        localStorage.setItem("isBotBattle", "true"); // Use bot battle flow for now
+        localStorage.setItem("battlePlayer", JSON.stringify(player));
+        localStorage.setItem("enemy", JSON.stringify(boss));
+        localStorage.removeItem("rewardsApplied");
+        location.href = "battle.html";
     });
 
     window.socket.on('bosses:details', ({ boss }) => {
@@ -708,15 +728,36 @@ function updateOnlineButtons(isConnected) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    initializeSocket();
+    if (typeof setupPartyEventListeners === 'function') {
+        setupPartyEventListeners();
+    }
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
     const menuButtons = document.querySelectorAll('.menu-btn');
     const contentSections = document.querySelectorAll('.content-section');
 
-    if (mobileMenuToggle && sidebar) {
-        mobileMenuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('active');
-        });
+    function toggleMobileMenu() {
+        if (!sidebar) return;
+        const isOpen = sidebar.classList.toggle('active');
+        if (sidebarOverlay) sidebarOverlay.classList.toggle('active', isOpen);
+        if (mobileMenuToggle) mobileMenuToggle.textContent = isOpen ? '✕' : '☰';
+    }
+
+    function closeMobileMenu() {
+        if (!sidebar) return;
+        sidebar.classList.remove('active');
+        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        if (mobileMenuToggle) mobileMenuToggle.textContent = '☰';
+    }
+
+    if (mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+    }
+
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeMobileMenu);
     }
 
     menuButtons.forEach(button => {
@@ -732,9 +773,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeSection.classList.add('active');
             }
 
-            if (sidebar && sidebar.classList.contains('active')) {
-                sidebar.classList.remove('active');
-            }
+            closeMobileMenu();
         });
     });
+
+    // ソロボスバトル開始ボタン
+    const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
+    if (startSoloBossBattleBtn) {
+        startSoloBossBattleBtn.addEventListener('click', () => {
+            const player = getPlayerData();
+            if (!player) {
+                alert('まずはキャラクターを作成してください。');
+                return;
+            }
+            if (!window.socket || !window.socket.connected) {
+                alert('サーバーに接続されていません。ページを再読み込みしてください。');
+                return;
+            }
+            const bossId = document.getElementById('soloBossSelect').value;
+            const difficulty = document.getElementById('soloBossDifficulty').value;
+            if (!bossId) {
+                alert('ボスを選択してください。');
+                return;
+            }
+            window.socket.emit('bosses:getDetails', { bossId, difficulty });
+        });
+    }
 });
