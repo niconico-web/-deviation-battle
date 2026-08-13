@@ -1,0 +1,31 @@
+/* Popup-specific Styles - Ensure visibility and readability */
+.install-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: #1e1e1e;
+  color: #ffffff;
+  padding: 30px;
+  border-radius: 10px;
+  text-align: center;
+  z-index: 1000;
+}
+
+.install-popup p {
+  font-size: 18px;
+  margin-bottom: 20px;
+}
+
+.install-popup .btn {
+  padding: 10px 20px;
+  font-size: 16px;
+  background-color: #00ffe0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.install-popup .btn:hover {
+  background-color: #00e0cc;
+}
