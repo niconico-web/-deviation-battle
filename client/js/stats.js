@@ -116,12 +116,19 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);
     let gainedCoins = 0;
+    const isBossBattle = localStorage.getItem("isBossBattle") === "true";
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
     let droppedOrb = null;
 
     if (won) {
+        // Boss battle rewards are handled separately
+        if (isBossBattle && options.enemy) {
+            if (typeof applyBossRewards === 'function') {
+                player = applyBossRewards(player, options.enemy);
+            }
+        }
         gainedCoins += COIN_BATTLE_WIN;
         console.log(`[Stats] Calling incrementWeaponWin for weapon: ${player.equippedWeapon?.name} (type: ${player.equippedWeapon?.type})`);
         player = incrementWeaponWin(player);
@@ -161,6 +168,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
         customSkills: player.customSkills
+        bossDefeats: player.bossDefeats || {}
     });
 
     // オーブを追加
@@ -253,7 +261,8 @@ function buildPlayer(name, stats, xp, options = {}) {
         orbs: options.orbs || [],
         skillTree: options.skillTree || { unlockedNodes: [], availablePoints: 0 },
         skillSlots: options.skillSlots || [null, null, null],
-        customSkills: options.customSkills || []
+        customSkills: options.customSkills || [],
+        bossDefeats: options.bossDefeats || {}
     };
 }
 

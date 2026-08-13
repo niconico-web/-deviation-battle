@@ -136,112 +136,108 @@ function applyWeaponStats(player) {
 // バトル作成
 // -----------------------------
 
-function createBattle(roomId, host, guest, isBossBattle = false){
-
-    if(!host?.id || !guest?.id){
+function createBattle(roomId, player1, player2, isBossBattle = false) {
+    if (!player1?.id || !player2?.id) {
+        console.error("[BattleManager] createBattle failed: player1 or player2 is missing id.", { player1, player2 });
         return null;
     }
 
     console.log(`[BattleManager] createBattle: isBossBattle=${isBossBattle}`);
 
-    // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
-    const applyReMiserable = (attacker, defender) => {
-        if (attacker.equippedWeapon && attacker.equippedWeapon.uniqueAbilities) {
-            const hasReMiserable = attacker.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
-            if (hasReMiserable) {
-                console.log(`[BattleManager] ${attacker.name}'s "Re Miserable" activated on ${defender.name}`);
-                defender.atk = Math.floor(defender.atk * 0.8);
-                defender.def = Math.floor(defender.def * 0.8);
-                defender.speed = Math.floor(defender.speed * 0.8);
-                defender.maxHp = Math.floor(defender.maxHp * 0.8);
-            }
-        }
-    };
+    const host = player1;
+    const guest = player2;
 
-    // お互いに適用チェック
-    applyReMiserable(host, guest);
-    applyReMiserable(guest, host);
-
-    // Normalize and log grades
-    const hostGrade = Number(host.grade) || 1;
-    const guestGrade = Number(guest.grade) || 1;
-    console.log(`[BattleManager] createBattle: host.grade=${hostGrade}, guest.grade=${guestGrade}`);
-
-    // クライアント側で既に武器補正が適用されているステータスを使用
-    // battleStatsがある場合はそれを使用し、ない場合はベースステータスを使用
     const hostStats = host.battleStats || host;
-    const guestStats = guest.battleStats || guest;
-
-    // 武器情報は保持
     const hostWeapon = host.equippedWeapon || null;
-    const guestWeapon = guest.equippedWeapon || null;
+    const hostGrade = Number(host.grade) || 1;
 
-    battles[roomId] = {
-
+    const battleData = {
         roomId,
-
-        players:{
-
-            [host.id]:{
-
+        players: {
+            [host.id]: {
                 id: host.id,
                 socketId: host.socketId,
                 name: host.name,
-
                 hp: hostStats.maxHp,
                 maxHp: hostStats.maxHp,
-
                 atk: hostStats.atk,
                 def: hostStats.def,
                 speed: hostStats.speed,
                 grade: hostGrade,
-
                 equippedWeapon: hostWeapon,
-
                 skillSlots: Array.isArray(host.skillSlots) ? host.skillSlots : [null, null, null],
-
                 answerTime: null,
                 correctAnswers: 0,
                 ultimateGauge: { current: 0, max: 100 }
-
-            },
-
-            [guest.id]:{
-
-                id: guest.id,
-                socketId: guest.socketId,
-                name: guest.name,
-
-                hp: guestStats.maxHp,
-                maxHp: guestStats.maxHp,
-
-                atk: guestStats.atk,
-                def: guestStats.def,
-                speed: guestStats.speed,
-                grade: guestGrade,
-
-                equippedWeapon: guestWeapon,
-
-                skillSlots: Array.isArray(guest.skillSlots) ? guest.skillSlots : [null, null, null],
-
-                answerTime: null,
-                correctAnswers: 0,
-                ultimateGauge: { current: 0, max: 100 }
-
             }
-
         },
-
         turn: null,
-
         finished: false,
-        
         isBossBattle: isBossBattle
-
     };
 
-    return battles[roomId];
+    if (isBossBattle) {
+        // Guest is the Boss
+        const boss = guest;
+        battleData.players[boss.id] = {
+            id: boss.id,
+            name: boss.name,
+            hp: boss.hp,
+            maxHp: boss.maxHp,
+            atk: boss.atk,
+            def: boss.def,
+            speed: boss.speed,
+            grade: 99, // Boss grade
+            isBoss: true,
+            skills: boss.skills,
+            equippedWeapon: null,
+            skillSlots: [],
+            answerTime: null,
+            correctAnswers: 0,
+            ultimateGauge: { current: 0, max: 100 }
+        };
+    } else {
+        // Guest is another player (PvP)
+        const applyReMiserable = (attacker, defender) => {
+            if (attacker.equippedWeapon && attacker.equippedWeapon.uniqueAbilities) {
+                const hasReMiserable = attacker.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+                if (hasReMiserable) {
+                    console.log(`[BattleManager] ${attacker.name}'s "Re Miserable" activated on ${defender.name}`);
+                    defender.atk = Math.floor(defender.atk * 0.8);
+                    defender.def = Math.floor(defender.def * 0.8);
+                    defender.speed = Math.floor(defender.speed * 0.8);
+                    defender.maxHp = Math.floor(defender.maxHp * 0.8);
+                }
+            }
+        };
 
+        applyReMiserable(host, guest);
+        applyReMiserable(guest, host);
+
+        const guestStats = guest.battleStats || guest;
+        const guestWeapon = guest.equippedWeapon || null;
+        const guestGrade = Number(guest.grade) || 1;
+
+        battleData.players[guest.id] = {
+            id: guest.id,
+            socketId: guest.socketId,
+            name: guest.name,
+            hp: guestStats.maxHp,
+            maxHp: guestStats.maxHp,
+            atk: guestStats.atk,
+            def: guestStats.def,
+            speed: guestStats.speed,
+            grade: guestGrade,
+            equippedWeapon: guestWeapon,
+            skillSlots: Array.isArray(guest.skillSlots) ? guest.skillSlots : [null, null, null],
+            answerTime: null,
+            correctAnswers: 0,
+            ultimateGauge: { current: 0, max: 100 }
+        };
+    }
+
+    battles[roomId] = battleData;
+    return battles[roomId];
 }
 
 // -----------------------------

@@ -1,0 +1,30 @@
+{
+    "goblin_king": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "orc_warlord": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "shadow_serpent": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "ice_golem": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "flame_dragon": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "abyssal_knight": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    },
+    "celestial_guardian": {
+        "medium": { "weapon": true },
+        "hard": { "skill": true }
+    }
+}
