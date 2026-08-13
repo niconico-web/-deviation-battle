@@ -21,7 +21,36 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    console.log('App was installed.');
 });
+
+// Install button click handler
+const installBtn = document.getElementById('install-btn');
+if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            deferredPrompt = null;
+        }
+        const installPopup = document.getElementById('install-popup');
+        if (installPopup) {
+            installPopup.style.display = 'none';
+        }
+    });
+}
+
+// Cancel button click handler
+const cancelInstallBtn = document.getElementById('cancel-install-btn');
+if (cancelInstallBtn) {
+    cancelInstallBtn.addEventListener('click', () => {
+        const installPopup = document.getElementById('install-popup');
+        if (installPopup) {
+            installPopup.style.display = 'none';
+        }
+    });
+}
 
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
 let socketHandlersSetup = false;
