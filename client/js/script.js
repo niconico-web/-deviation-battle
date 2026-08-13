@@ -706,3 +706,35 @@ function updateOnlineButtons(isConnected) {
         console.log(`joinRoomBtn.disabled set to: ${!isConnected}`);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    const menuButtons = document.querySelectorAll('.menu-btn');
+    const contentSections = document.querySelectorAll('.content-section');
+
+    if (mobileMenuToggle && sidebar) {
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+    }
+
+    menuButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const section = button.dataset.section;
+            
+            menuButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+
+            contentSections.forEach(sec => sec.classList.remove('active'));
+            const activeSection = document.getElementById(`section-${section}`);
+            if (activeSection) {
+                activeSection.classList.add('active');
+            }
+
+            if (sidebar && sidebar.classList.contains('active')) {
+                sidebar.classList.remove('active');
+            }
+        });
+    });
+});
