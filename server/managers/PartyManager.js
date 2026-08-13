@@ -4,12 +4,12 @@ const parties = new Map();
 const playerToParty = new Map();
 const MAX_PARTY_SIZE = 4;
 
-function createParty(hostId, hostSocketId) {
+function createParty(hostId, hostSocketId, hostPlayer) {
     const partyId = `party_${Date.now()}`;
     const party = {
         id: partyId,
         hostId: hostId,
-        members: [{ id: hostId, socketId: hostSocketId, isReady: false }],
+        members: [{ id: hostId, socketId: hostSocketId, player: hostPlayer, isReady: false }],
         status: 'waiting',
         targetBoss: null,
         difficulty: null,
@@ -19,7 +19,7 @@ function createParty(hostId, hostSocketId) {
     return party;
 }
 
-function joinParty(partyId, playerId, playerSocketId) {
+function joinParty(partyId, playerId, playerSocketId, player) {
     const party = parties.get(partyId);
     if (!party) {
         return { error: 'Party not found.' };
@@ -28,12 +28,16 @@ function joinParty(partyId, playerId, playerSocketId) {
         return { error: 'Party is full.' };
     }
     if (party.members.some(member => member.id === playerId)) {
-        return { error: 'You are already in this party.' };
+        // If player is already in party, just update their socketId
+        const member = party.members.find(m => m.id === playerId);
+        member.socketId = playerSocketId;
+        console.log(`[PartyManager] Player ${playerId} re-joined party ${partyId} with new socket ${playerSocketId}`);
+        return { party };
     }
 
-    party.members.push({ id: playerId, socketId: playerSocketId, isReady: false });
+    party.members.push({ id: playerId, socketId: playerSocketId, player: player, isReady: false });
     playerToParty.set(playerId, partyId);
-    return party;
+    return { party };
 }
 
 function leaveParty(playerId) {
@@ -63,7 +67,7 @@ function leaveParty(playerId) {
         party.hostId = party.members[0].id;
     }
 
-    return party;
+    return { party };
 }
 
 function getPartyByPlayerId(playerId) {

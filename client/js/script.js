@@ -833,6 +833,25 @@ function setupDOMEventHandlers() {
         };
     }
 
+    const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
+    if (startSoloBossBattleBtn) {
+        startSoloBossBattleBtn.onclick = () => {
+            const player = getMatchPlayer();
+            if (!player) {
+                alert('キャラクターを作成してください。');
+                return;
+            }
+            const bossId = document.getElementById('soloBossSelect').value;
+            if (!bossId) {
+                alert('挑戦するボスを選択してください。');
+                return;
+            }
+            const difficulty = document.getElementById('soloBossDifficulty').value;
+
+            window.socket.emit('bosses:getDetails', { bossId, difficulty });
+        };
+    }
+
     // Party UI Handlers
     const createPartyBtn = document.getElementById('createPartyBtn');
     if (createPartyBtn) createPartyBtn.onclick = createParty;
@@ -855,26 +874,26 @@ function setupDOMEventHandlers() {
 }
 
 function createParty() {
-    const player = getMatchPlayer();
+    const player = getMatchPlayer(); // プレイヤー情報を取得
     if (!player) {
         alert('キャラクターを作成してください。');
         return;
     }
-    window.socket.emit('party:create');
+    window.socket.emit('party:create'); // プレイヤー情報は送らない（サーバー側でsocket.idから引く）
 }
 
 function joinParty() {
-    const player = getMatchPlayer();
+    const player = getMatchPlayer(); // プレイヤー情報を取得
     if (!player) {
         alert('キャラクターを作成してください。');
         return;
     }
-    const partyCode = document.getElementById('partyCodeInput').value.trim();
+    const partyCode = document.getElementById('partyCodeInput').value.trim().toUpperCase();
     if (!partyCode) {
         alert('パーティコードを入力してください。');
         return;
     }
-    window.socket.emit('party:join', { partyId: partyCode });
+    window.socket.emit('party:join', { partyId: partyCode }); // partyIdのみ送る
 }
 
 function leaveParty() {
@@ -885,6 +904,42 @@ function setPartyReady() {
     const partyReadyBtn = document.getElementById('partyReadyBtn');
     const isReady = !partyReadyBtn.classList.contains('ready');
     window.socket.emit('party:setReady', { isReady });
+}
+
+function updatePartyUI(party) {
+    const partyInfo = document.getElementById('party-info');
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    const joinPartyControls = document.getElementById('joinPartyControls');
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const startBossBattleControls = document.getElementById('startBossBattleControls');
+
+    if (!partyInfo || !createPartyBtn || !joinPartyControls || !leavePartyBtn || !partyReadyBtn || !startBossBattleControls) return;
+
+    const isInParty = !!party;
+
+    partyInfo.style.display = isInParty ? 'block' : 'none';
+    leavePartyBtn.style.display = isInParty ? 'inline-block' : 'none';
+    partyReadyBtn.style.display = isInParty ? 'inline-block' : 'none';
+    createPartyBtn.style.display = isInParty ? 'none' : 'inline-block';
+    joinPartyControls.style.display = isInParty ? 'none' : 'block';
+
+    if (!isInParty) return;
+
+    const player = getPlayerData();
+    const isHost = player.id === party.hostId;
+
+    let membersHtml = party.members.map(member => {
+        const memberPlayer = member.player;
+        const readyStatus = member.isReady ? '✅' : '❌';
+        const hostLabel = member.id === party.hostId ? ' (ホスト)' : '';
+        return `<li>${readyStatus} ${memberPlayer.name} (Lv.${memberPlayer.level})${hostLabel}</li>`;
+    }).join('');
+
+    partyInfo.innerHTML = `<h4>パーティ (コード: ${party.id})</h4><ul>${membersHtml}</ul>`;
+
+    startBossBattleControls.style.display = isHost ? 'block' : 'none';
+    partyReadyBtn.textContent = party.members.find(m => m.id === player.id)?.isReady ? '準備完了' : '準備OK';
 }
 
 function switchSection(section) {

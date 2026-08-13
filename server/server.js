@@ -73,6 +73,7 @@ require("./socket/connection")(io);
 require("./socket/matchmaking")(io);
 require("./socket/battle")(io);
 require("./socket/party")(io);
+require("./socket/boss")(io);
 require("./socket/disconnect")(io);
 
 app.get("/api/unique/claims", (req, res) => {
