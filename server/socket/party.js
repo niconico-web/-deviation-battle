@@ -91,9 +91,6 @@ module.exports = function(io) {
                 return socket.emit('party:error', { message: 'Only the party host can start the battle.' });
             }
 
-            if (!party.members.every(m => m.isReady)) {
-                return socket.emit('party:error', { message: 'Not all players are ready.' });
-            }
             // if (!party.members.every(m => m.isReady)) {
             //     return socket.emit('party:error', { message: 'Not all players are ready.' });
             // }
