@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v15';
+const CACHE_NAME = 'school-battle-cache-v16';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -103,9 +103,12 @@ self.addEventListener('fetch', (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((response) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // 有効なレスポンスのみキャッシュ
+          // 有効なレスポンスのみキャッシュ（chrome-extensionを除外）
           if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
+            // chrome-extension URLはキャッシュしない
+            if (!event.request.url.startsWith('chrome-extension://')) {
+              cache.put(event.request, networkResponse.clone());
+            }
           }
           return networkResponse;
         }).catch((error) => {

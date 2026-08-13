@@ -164,8 +164,10 @@ function initialize() {
     initializeBattleSkills();
 
     if (isBotBattle) {
+        console.log("Bot battle detected, starting bot battle immediately");
         startBotBattle();
     } else {
+        console.log("Online battle detected, waiting for server");
         if (!socket) {
             addLog("エラー: ソケットが初期化されていません");
             alert("ソケット接続エラーが発生しました。ページを再読み込みしてください。");
@@ -195,7 +197,14 @@ function initialize() {
 
 function startOnlineBattle() {
     console.log("Starting online battle for room:", roomId);
-    console.log("Player data:", { me: me.id, enemy: enemy.id });
+    console.log("Player data:", { me: me.id, enemy: enemy ? enemy.id : 'undefined' });
+    
+    // ボット戦の場合はオンラインバトルを開始しない
+    if (isBotBattle) {
+        console.log("This is a bot battle, skipping online battle start");
+        return;
+    }
+    
     addLog("バトル開始をリクエスト中...");
     
     // プレイヤー情報を含めてバトル開始をリクエスト
@@ -205,13 +214,15 @@ function startOnlineBattle() {
         playerName: me.name
     });
     
-    // タイムアウト処理
-    setTimeout(() => {
-        if (!currentQuestion) {
-            addLog("エラー: バトル開始の応答がありません");
-            console.error("No battleStarted response received");
-        }
-    }, 10000);
+    // タイムアウト処理（オンラインバトルのみ）
+    if (!isBotBattle) {
+        setTimeout(() => {
+            if (!currentQuestion) {
+                addLog("エラー: バトル開始の応答がありません");
+                console.error("No battleStarted response received");
+            }
+        }, 10000);
+    }
 }
 
 function calculateDodgeChance(speed) {
