@@ -104,7 +104,7 @@ module.exports = function(io) {
             party.members.forEach(member => {
                 const targetSocket = io.sockets.sockets.get(member.socketId);
                 if (targetSocket) {
-                    targetSocket.emit('bossBattleStarted', { player: member.player, boss });
+                    targetSocket.emit('bossBattle:start', { boss });
                 }
             });
             console.log(`[Party] Boss battle started for party ${party.id} against ${boss.name}`);
