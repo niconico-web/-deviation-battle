@@ -74,7 +74,36 @@ function generateQuestion(battle) {
     const player1 = battle.players[playerIds[0]];
     const player2 = battle.players[playerIds[1]];
 
-    console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}`);
+    console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}, isBossBattle=${battle.isBossBattle}`);
+
+    // Check if this is a boss battle
+    if (battle.isBossBattle) {
+        console.log('[BattleEngine] Using boss question system');
+        // For boss battles, use boss questions with player's grade
+        const subjects = ['math', 'jp', 'eng', 'sci', 'soc'];
+        const subject = subjects[Math.floor(Math.random() * subjects.length)];
+        const playerGrade = player1.grade || 1;
+        const bossQuestion = QuestionManager.getBossBattleQuestion(subject, playerGrade);
+        
+        if (bossQuestion) {
+            const options = QuestionManager.generateOptions(bossQuestion.answer);
+            const question = {
+                ...bossQuestion,
+                options,
+                subject,
+                subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
+                startTime: Date.now()
+            };
+            
+            // プレイヤーの回答時間をリセット（新しい問題の前にリセット）
+            playerIds.forEach(id => {
+                battle.players[id].answerTime = null;
+            });
+            
+            battle.currentQuestion = question;
+            return question;
+        }
+    }
 
     // 教科をランダムに選択
     let subject = ['math', 'jp', 'english'][Math.floor(Math.random() * 3)];

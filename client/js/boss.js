@@ -3,12 +3,12 @@
 
 const BOSS_DATA = {
     boss1: {
-        name: "学習の守護者",
-        description: "知識の守護者。強力な攻撃魔法を操る。",
+        name: "魔導書の守護者 アルカディア",
+        description: "古代の知識を守る魔導書の守護者。強力な攻撃魔法を操る。",
         skills: [
-            { name: "知識の光", description: "光の魔法で敵に大ダメージを与える", effect: { damageMultiplier: 2.0, sureHit: true } },
-            { name: "守護の盾", description: "強力な防御シールドを展開する", effect: { shield: 100, damageReduction: 0.5 } },
-            { name: "知恵の波動", description: "全ステータスを一時的に強化する", effect: { damageMultiplier: 1.5, damageReduction: 0.3 } }
+            { name: "聖なる光の裁き", description: "聖なる光で敵に大ダメージを与える", effect: { damageMultiplier: 2.0, sureHit: true } },
+            { name: "マジック・シールド", description: "強力な魔法防御シールドを展開する", effect: { shield: 100, damageReduction: 0.5 } },
+            { name: "知恵の恩恵", description: "全ステータスを一時的に強化する", effect: { damageMultiplier: 1.5, damageReduction: 0.3 } }
         ],
         difficulties: {
             easy: { hp: 5000, atk: 100, def: 100, speed: 100, totalStats: 5300 },
@@ -17,12 +17,12 @@ const BOSS_DATA = {
         }
     },
     boss2: {
-        name: "試練の管理者",
-        description: "試練を管理する管理者。物理攻撃が強力。",
+        name: "鉄壁の守護者 ベルセルク",
+        description: "試練を守る剣士。物理攻撃が絶大。",
         skills: [
-            { name: "鉄の拳", description: "物理攻撃で敵を粉砕する", effect: { damageMultiplier: 2.5, defenseIgnore: true } },
-            { name: "不屈の精神", description: "防御力を大幅に上昇させる", effect: { damageReduction: 0.7, selfDefDebuff: -20 } },
-            { name: "試練の咆哮", description: "敵の攻撃力を下げる", effect: { enemyAtkDebuff: 0.3 } }
+            { name: "破壊の一撃", description: "物理攻撃で敵を粉砕する", effect: { damageMultiplier: 2.5, defenseIgnore: true } },
+            { name: "不屈の意志", description: "防御力を大幅に上昇させる", effect: { damageReduction: 0.7, selfDefDebuff: -20 } },
+            { name: "戦士の咆哮", description: "敵の攻撃力を下げる", effect: { enemyAtkDebuff: 0.3 } }
         ],
         difficulties: {
             easy: { hp: 6000, atk: 120, def: 120, speed: 120, totalStats: 6360 },
@@ -31,12 +31,12 @@ const BOSS_DATA = {
         }
     },
     boss3: {
-        name: "時間の支配者",
-        description: "時間を操る支配者。速度と回避が異常に高い。",
+        name: "時空の支配者 クロノス",
+        description: "時間を操る神秘の存在。速度と回避が異常に高い。",
         skills: [
             { name: "時間停止", description: "敵の行動を1ターン封じる", effect: { skipNextTurn: true } },
-            { name: "加速", description: "自分の速度を大幅に上昇させる", effect: { dodgeChance: 0.5, speedBoost: 50 } },
-            { name: "時空斬り", description: "時空を裂く一撃を放つ", effect: { damageMultiplier: 3.0, sureHit: true, multiHit: 2 } }
+            { name: "加速の呪い", description: "自分の速度を大幅に上昇させる", effect: { dodgeChance: 0.5, speedBoost: 50 } },
+            { name: "時空切断剣", description: "時空を裂く一撃を放つ", effect: { damageMultiplier: 3.0, sureHit: true, multiHit: 2 } }
         ],
         difficulties: {
             easy: { hp: 7000, atk: 140, def: 140, speed: 200, totalStats: 7480 },
@@ -45,12 +45,12 @@ const BOSS_DATA = {
         }
     },
     boss4: {
-        name: "知恵の賢者",
+        name: "賢者 メルクリウス",
         description: "古代の知恵を持つ賢者。魔法防御が高い。",
         skills: [
             { name: "古代魔法", description: "古代の強力な魔法を放つ", effect: { damageMultiplier: 2.2, heal: 50 } },
             { name: "魔法障壁", description: "魔法ダメージを大幅に軽減する", effect: { damageReduction: 0.8, shield: 150 } },
-            { name: "賢者の叡智", description: "回復と強化を同時に行う", effect: { heal: 100, damageMultiplier: 1.3 } }
+            { name: "賢者の智慧", description: "回復と強化を同時に行う", effect: { heal: 100, damageMultiplier: 1.3 } }
         ],
         difficulties: {
             easy: { hp: 8000, atk: 160, def: 160, speed: 160, totalStats: 8480 },
@@ -59,11 +59,11 @@ const BOSS_DATA = {
         }
     },
     boss5: {
-        name: "混沌の化身",
+        name: "混沌の化身 カオス",
         description: "混沌の化身。予測不能な攻撃を行う。",
         skills: [
             { name: "混沌の渦", description: "混沌の渦巻きで敵を巻き込む", effect: { damageMultiplier: 2.0, multiHit: 3, poison: true } },
-            { name: "狂乱の舞", description: "ランダムな効果を発動する", effect: { damageMultiplier: 1.8, dodgeChance: 0.3, counter: true } },
+            { name: "狂乱の舞踏", description: "ランダムな効果を発動する", effect: { damageMultiplier: 1.8, dodgeChance: 0.3, counter: true } },
             { name: "破壊の宴", description: "全体に大ダメージを与える", effect: { damageMultiplier: 2.5, areaDamage: true } }
         ],
         difficulties: {
@@ -73,7 +73,7 @@ const BOSS_DATA = {
         }
     },
     boss6: {
-        name: "絶望の魔王",
+        name: "絶望の魔王 デス・ドレッド",
         description: "絶望を支配する魔王。全ステータスが高い。",
         skills: [
             { name: "絶望の視線", description: "敵に強力なデバフを与える", effect: { enemyAtkDebuff: 0.4, enemyDefDebuff: 0.4, enemyAccuracyDebuff: 0.4 } },
@@ -87,7 +87,7 @@ const BOSS_DATA = {
         }
     },
     boss7: {
-        name: "学問の頂点",
+        name: "学問の頂点 オムニサイエンス",
         description: "全ての学問の頂点に立つ存在。最強のボス。",
         skills: [
             { name: "究極の知識", description: "全てのステータスを最大化する", effect: { damageMultiplier: 2.0, damageReduction: 0.5, dodgeChance: 0.3, critChance: 0.5 } },
@@ -116,12 +116,12 @@ const BOSS_REWARDS = {
     medium: {
         tier4Abilities: 3,
         multiplier: 3.0,
-        weaponName: "討伐武器"
+        weaponName: "伝説の討伐武器"
     },
     // Hard difficulty rewards: Boss skill as custom skill
     hard: {
         customSkill: true,
-        skillName: "ボススキル"
+        skillName: "伝説のボススキル"
     }
 };
 
@@ -174,13 +174,28 @@ function getBossSkillAsCustomSkill(bossId) {
     // Return the most powerful skill (last one in array)
     const bossSkill = boss.skills[boss.skills.length - 1];
     
+    // RPG-style skill names
+    const skillPrefixes = {
+        boss1: "アルカディアの",
+        boss2: "ベルセルクの",
+        boss3: "クロノスの",
+        boss4: "メルクリウスの",
+        boss5: "カオスの",
+        boss6: "デス・ドレッドの",
+        boss7: "オムニサイエンスの"
+    };
+    
+    const prefix = skillPrefixes[bossId] || "";
+    
     return {
         id: `boss_skill_${bossId}`,
         name: bossSkill.name,
         description: bossSkill.description,
         effect: bossSkill.effect,
         strength: 100, // Boss skills are very powerful
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        isBossSkill: true,
+        bossSource: bossId
     };
 }
 
@@ -191,16 +206,37 @@ function generateBossWeapon(bossId, difficulty) {
     
     const reward = BOSS_REWARDS.medium;
     
+    // RPG-style weapon names based on boss
+    const weaponNames = {
+        boss1: "アルカディアの魔導書",
+        boss2: "ベルセルクの破壊剣",
+        boss3: "クロノスの時空刃",
+        boss4: "メルクリウスの賢者杖",
+        boss5: "カオスの混沌剣",
+        boss6: "デス・ドレッドの断罪刀",
+        boss7: "オムニサイエンスの至高の杖"
+    };
+    
+    const ultimateNames = {
+        boss1: "アルカディア撃破の証",
+        boss2: "ベルセルク撃破の証",
+        boss3: "クロノス撃破の証",
+        boss4: "メルクリウス撃破の証",
+        boss5: "カオス撃破の証",
+        boss6: "デス・ドレッド撃破の証",
+        boss7: "オムニサイエンス撃破の証"
+    };
+    
     // Will use TIER4_ABILITIES from weapons.js when this function is called
     // For now, return a structure that will be completed by the caller
     return {
         id: `boss_weapon_${bossId}_${Date.now()}`,
-        name: `${boss.name}の${reward.weaponName}`,
+        name: weaponNames[bossId] || `${boss.name}の${reward.weaponName}`,
         type: "鎌", // Best weapon type
         multiplier: reward.multiplier,
         isOriginal: true,
         tier4AbilityCount: reward.tier4Abilities,
-        ultimateName: `${boss.name}撃破の証`,
+        ultimateName: ultimateNames[bossId] || `${boss.name}撃破の証`,
         bossDefeated: bossId,
         difficultyDefeated: difficulty
     };

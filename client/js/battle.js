@@ -1,4 +1,5 @@
 const isBotBattle = localStorage.getItem("isBotBattle") === "true";
+const isBossBattle = localStorage.getItem("isBossBattle") === "true";
 const socket = isBotBattle ? null : io();
 const roomId = localStorage.getItem("roomId");
 const battlePlayerData = localStorage.getItem("battlePlayer");
@@ -11,6 +12,8 @@ let selectedSkill = null;
 let usedSkills = [];
 let skillActivationWindow = false;
 let skillActivationTimer = null;
+let bossAutoAnswerTimer = null; // Boss auto-answer timer
+const BOSS_AUTO_ANSWER_TIMEOUT = 5000; // 5 seconds for boss to auto-answer
 // スキルによる一時的な効果（ボット戦で使用）
 let myPendingDamageReduction = 0; // 次に受けるダメージの軽減率
 let myDefDebuff = 0;              // 自身の防御低下量
@@ -1242,6 +1245,12 @@ function afterSkillUse(skill) {
 }
 
 function handleChoiceClick(selectedOption) {
+    // Clear boss auto-answer timer if active
+    if (bossAutoAnswerTimer) {
+        clearTimeout(bossAutoAnswerTimer);
+        bossAutoAnswerTimer = null;
+    }
+    
     // ボタンを無効化
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
     buttons.forEach(btn => btn.disabled = true);
@@ -1312,6 +1321,53 @@ function generateBotQuestion() {
     // ステータス更新を反映
     updateStats();
     updateHP();
+    
+    // ボス戦の場合、ボス用の問題を使用
+    if (isBossBattle) {
+        console.log('[BotBattle] Using boss question system');
+        const bossSubjects = ['math', 'jp', 'eng', 'sci', 'soc'];
+        const bossSubject = bossSubjects[Math.floor(Math.random() * bossSubjects.length)];
+        
+        // Use local boss questions for bot battles
+        const bossQuestions = getLocalBossQuestions(bossSubject);
+        if (bossQuestions && bossQuestions.length > 0) {
+            const randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+            currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+            
+            // 継続効果の処理（火傷・防御低下）
+            tickBotBattleStatus();
+            if (enemy.hp <= 0) { finishBotBattle("win"); return; }
+
+            showCountdown(() => {
+                questionDisplay.textContent = "スキルを選択してください (3秒)";
+                choicesContainer.innerHTML = '';
+                startSkillActivationWindow();
+
+                setTimeout(() => {
+                    questionDisplay.textContent = currentQuestion.question;
+                    // 選択肢を生成
+                    generateChoices(currentQuestion);
+                    startTimer();
+                    addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+                    
+                    // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+                    if (isBossBattle) {
+                        if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+                        bossAutoAnswerTimer = setTimeout(() => {
+                            if (!battleEnd && currentQuestion) {
+                                console.log('[Boss Auto-Answer] Boss auto-answer triggered');
+                                // ボスが正解する
+                                const bossCorrectAnswer = currentQuestion.answer;
+                                addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
+                                handleChoiceClick(bossCorrectAnswer);
+                            }
+                        }, BOSS_AUTO_ANSWER_TIMEOUT);
+                    }
+                }, 3000);
+            });
+            return;
+        }
+    }
     
     // 学年に応じた問題を生成
     const playerGrade = me.grade || 1;
@@ -1662,6 +1718,20 @@ function generateBotQuestion() {
             generateChoices(currentQuestion);
             startTimer();
             addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+            
+            // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+            if (isBossBattle) {
+                if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+                bossAutoAnswerTimer = setTimeout(() => {
+                    if (!battleEnd && currentQuestion) {
+                        console.log('[Boss Auto-Answer] Boss auto-answer triggered');
+                        // ボスが正解する
+                        const bossCorrectAnswer = currentQuestion.answer;
+                        addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
+                        handleChoiceClick(bossCorrectAnswer);
+                    }
+                }, BOSS_AUTO_ANSWER_TIMEOUT);
+            }
         }, 3000);
     });
 }
@@ -2023,6 +2093,7 @@ function finishBotBattle(result) {
     battleEnd = true;
     if (timerInterval) clearInterval(timerInterval);
     if (countdownInterval) clearInterval(countdownInterval);
+    if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
 
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
     buttons.forEach(btn => btn.disabled = true);
@@ -2030,7 +2101,7 @@ function finishBotBattle(result) {
     const win = result === "win";
     addLog(win ? I18N.victory : I18N.defeat);
 
-    console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}`);
+    console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}, isBossBattle=${isBossBattle}`);
 
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
@@ -2040,6 +2111,7 @@ function finishBotBattle(result) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
     localStorage.removeItem("isBotBattle");
+    localStorage.removeItem("isBossBattle");
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
     setTimeout(() => location.href = "result.html", 2000);
@@ -2455,6 +2527,74 @@ if (!isBotBattle && socket) {
             }
         }, 15000); // 15秒待つ
     });
+}
+
+// Local boss questions for bot battles
+function getLocalBossQuestions(subject) {
+    const bossQuestions = {
+        math: [
+            { question: "√144 = ?", answer: "12" },
+            { question: "2^6 = ?", answer: "64" },
+            { question: "15 × 7 = ?", answer: "105" },
+            { question: "√225 = ?", answer: "15" },
+            { question: "3^4 = ?", answer: "81" },
+            { question: "24 × 5 = ?", answer: "120" },
+            { question: "√256 = ?", answer: "16" },
+            { question: "2^8 = ?", answer: "256" },
+            { question: "18 × 6 = ?", answer: "108" },
+            { question: "√324 = ?", answer: "18" }
+        ],
+        jp: [
+            { question: "「梅」の読み方は？", answer: "うめ" },
+            { question: "「桜」の読み方は？", answer: "さくら" },
+            { question: "「富士」の読み方は？", answer: "ふじ" },
+            { question: "「海」の読み方は？", answer: "うみ" },
+            { question: "「山」の読み方は？", answer: "やま" },
+            { question: "「空」の読み方は？", answer: "そら" },
+            { question: "「川」の読み方は？", answer: "かわ" },
+            { question: "「風」の読み方は？", answer: "かぜ" },
+            { question: "「雨」の読み方は？", answer: "あめ" },
+            { question: "「雪」の読み方は？", answer: "ゆき" }
+        ],
+        eng: [
+            { question: "What is the past tense of 'go'?", answer: "went" },
+            { question: "What is the past tense of 'eat'?", answer: "ate" },
+            { question: "What is the past tense of 'see'?", answer: "saw" },
+            { question: "What is the past tense of 'take'?", answer: "took" },
+            { question: "What is the past tense of 'make'?", answer: "made" },
+            { question: "What is the past tense of 'come'?", answer: "came" },
+            { question: "What is the past tense of 'give'?", answer: "gave" },
+            { question: "What is the past tense of 'write'?", answer: "wrote" },
+            { question: "What is the past tense of 'read'?", answer: "read" },
+            { question: "What is the past tense of 'know'?", answer: "knew" }
+        ],
+        sci: [
+            { question: "水の化学式は？", answer: "H2O" },
+            { question: "酸素の化学式は？", answer: "O2" },
+            { question: "二酸化炭素の化学式は？", answer: "CO2" },
+            { question: "水素の化学式は？", answer: "H2" },
+            { question: "窒素の化学式は？", answer: "N2" },
+            { question: "ナトリウムの化学式は？", answer: "Na" },
+            { question: "塩素の化学式は？", answer: "Cl" },
+            { question: "カリウムの化学式は？", answer: "K" },
+            { question: "カルシウムの化学式は？", answer: "Ca" },
+            { question: "鉄の化学式は？", answer: "Fe" }
+        ],
+        soc: [
+            { question: "日本の首都は？", answer: "東京" },
+            { question: "アメリカの首都は？", answer: "ワシントン" },
+            { question: "イギリスの首都は？", answer: "ロンドン" },
+            { question: "フランスの首都は？", answer: "パリ" },
+            { question: "ドイツの首都は？", answer: "ベルリン" },
+            { question: "中国の首都は？", answer: "北京" },
+            { question: "韓国の首都は？", answer: "ソウル" },
+            { question: "ロシアの首都は？", answer: "モスクワ" },
+            { question: "イタリアの首都は？", answer: "ローマ" },
+            { question: "スペインの首都は？", answer: "マドリード" }
+        ]
+    };
+    
+    return bossQuestions[subject] || [];
 }
 
 function renderSkills() {
