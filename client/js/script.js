@@ -899,26 +899,23 @@ function setupDOMEventHandlers() {
 }
 
 function createParty() {
-    const player = getMatchPlayer(); // プレイヤー情報を取得
+    const player = getMatchPlayer();
     if (!player) {
         alert('キャラクターを作成してください。');
         return;
     }
-    window.socket.emit('party:create'); // プレイヤー情報は送らない（サーバー側でsocket.idから引く）
+    window.socket.emit('party:create', player);
 }
 
 function joinParty() {
-    const player = getMatchPlayer(); // プレイヤー情報を取得
-    if (!player) {
-        alert('キャラクターを作成してください。');
-        return;
-    }
     const partyCode = document.getElementById('partyCodeInput').value.trim().toUpperCase();
     if (!partyCode) {
         alert('パーティコードを入力してください。');
         return;
     }
-    window.socket.emit('party:join', { partyId: partyCode }); // partyIdのみ送る
+    const player = getMatchPlayer();
+    if (!player) { alert('キャラクターを作成してください。'); return; }
+    window.socket.emit('party:join', { partyId: partyCode, player });
 }
 
 function leaveParty() {
