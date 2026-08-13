@@ -65,6 +65,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle manifest.json requests specifically
+  if (event.request.url.includes('manifest.json')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          });
+        });
+      })
+    );
+    return;
+  }
+
   // Stale-While-Revalidate 戦略
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {

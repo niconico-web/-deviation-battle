@@ -1025,6 +1025,8 @@ function startSoloBossBattle(player, bossId, difficulty) {
     }
     
     console.log('Boss stats:', bossStats);
+    console.log('Player stats:', player.stats);
+    console.log('Player grade:', player.grade);
     
     // Create boss enemy
     const boss = getBossData(bossId);
@@ -1036,6 +1038,7 @@ function startSoloBossBattle(player, bossId, difficulty) {
             def: bossStats.def,
             speed: bossStats.speed
         },
+        grade: player.grade, // Use player's grade
         skills: boss.skills,
         isBoss: true,
         bossId: bossId,

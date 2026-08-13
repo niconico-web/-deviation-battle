@@ -9,9 +9,11 @@ const path = require('path');
 
 // 問題データベースのパス
 const QUESTIONS_DB_PATH = path.join(__dirname, '../data/questions.json');
+const BOSS_QUESTIONS_DB_PATH = path.join(__dirname, '../data/boss_questions.json');
 
 // 問題データをキャッシュ
 let questionsCache = null;
+let bossQuestionsCache = null;
 
 // -----------------------------
 // 問題データベースを読み込む
@@ -27,6 +29,24 @@ function loadQuestions() {
         return questionsCache;
     } catch (error) {
         console.error('問題データベースの読み込みエラー:', error);
+        return null;
+    }
+}
+
+// -----------------------------
+// ボス問題データベースを読み込む
+// -----------------------------
+function loadBossQuestions() {
+    if (bossQuestionsCache) {
+        return bossQuestionsCache;
+    }
+
+    try {
+        const data = fs.readFileSync(BOSS_QUESTIONS_DB_PATH, 'utf8');
+        bossQuestionsCache = JSON.parse(data);
+        return bossQuestionsCache;
+    } catch (error) {
+        console.error('ボス問題データベースの読み込みエラー:', error);
         return null;
     }
 }
@@ -76,6 +96,43 @@ function getRandomQuestion(schoolLevel, grade, subject) {
 }
 
 // -----------------------------
+// ボス用の問題を取得
+// -----------------------------
+function getBossQuestion(subject, grade) {
+    const bossQuestions = loadBossQuestions();
+    if (!bossQuestions) {
+        console.log('[QuestionManager] getBossQuestion: boss questions database not loaded');
+        return null;
+    }
+
+    const bossData = bossQuestions.boss;
+    if (!bossData) {
+        console.log('[QuestionManager] getBossQuestion: boss data not found');
+        return null;
+    }
+
+    // Normalize grade to 1-12
+    const normalizedGrade = normalizeGrade(grade);
+    
+    // Try to get questions for the specific grade
+    const gradeData = bossData[normalizedGrade];
+    if (!gradeData) {
+        console.log(`[QuestionManager] getBossQuestion: grade=${normalizedGrade} not found in boss questions`);
+        return null;
+    }
+
+    const subjectQuestions = gradeData[subject];
+    if (!subjectQuestions) {
+        console.log(`[QuestionManager] getBossQuestion: subject=${subject} not found in grade=${normalizedGrade}`);
+        return null;
+    }
+
+    console.log(`[QuestionManager] getBossQuestion: found ${subjectQuestions.length} boss questions for grade=${normalizedGrade}, subject=${subject}`);
+    const randomIndex = Math.floor(Math.random() * subjectQuestions.length);
+    return subjectQuestions[randomIndex];
+}
+
+// -----------------------------
 // 学年の正規化ヘルパー
 // - サーバーに渡される grade が文字列や範囲外の可能性を正規化する
 // -----------------------------
@@ -116,6 +173,20 @@ function determineQuestionLevel(player1Grade, player2Grade) {
     } else {
         return { schoolLevel: 'high_school', grade: targetGrade - 9 };
     }
+}
+
+// -----------------------------
+// ボス戦用の問題を取得
+// -----------------------------
+function getBossBattleQuestion(subject, grade) {
+    const bossQuestion = getBossQuestion(subject, grade);
+    if (bossQuestion) {
+        return bossQuestion;
+    }
+    
+    // Fallback to regular questions if boss questions not available
+    console.log('[QuestionManager] getBossBattleQuestion: falling back to regular questions');
+    return getBattleQuestion(1, 12, subject, true); // Hardest difficulty
 }
 
 // -----------------------------
@@ -667,11 +738,14 @@ function getSubjectDisplayName(subject) {
 
 module.exports = {
     loadQuestions,
+    loadBossQuestions,
     getQuestions,
     getRandomQuestion,
     determineQuestionLevel,
     getBattleQuestion,
+    getBossBattleQuestion,
     getBattleQuestionWithOptions,
+    generateOptions,
     checkAnswer,
     getSubjectDisplayName
 };

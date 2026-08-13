@@ -136,11 +136,13 @@ function applyWeaponStats(player) {
 // バトル作成
 // -----------------------------
 
-function createBattle(roomId, host, guest){
+function createBattle(roomId, host, guest, isBossBattle = false){
 
     if(!host?.id || !guest?.id){
         return null;
     }
+
+    console.log(`[BattleManager] createBattle: isBossBattle=${isBossBattle}`);
 
     // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
     const applyReMiserable = (attacker, defender) => {
@@ -232,7 +234,9 @@ function createBattle(roomId, host, guest){
 
         turn: null,
 
-        finished: false
+        finished: false,
+        
+        isBossBattle: isBossBattle
 
     };
 
