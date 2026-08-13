@@ -240,10 +240,16 @@ function updateStats() {
 }
 
 function updateHP() {
-    myHPText.textContent = "HP " + me.hp + " / " + me.maxHp;
-    enemyHPText.textContent = "HP " + enemy.hp + " / " + enemy.maxHp;
-    myHPBar.style.width = (me.hp / me.maxHp * 100) + "%";
-    enemyHPBar.style.width = (enemy.hp / enemy.maxHp * 100) + "%";
+    // Ensure HP values are defined
+    const myHp = me.hp || me.maxHp || 100;
+    const myMaxHp = me.maxHp || 100;
+    const enemyHp = enemy.hp || enemy.maxHp || 100;
+    const enemyMaxHp = enemy.maxHp || 100;
+    
+    myHPText.textContent = "HP " + myHp + " / " + myMaxHp;
+    enemyHPText.textContent = "HP " + enemyHp + " / " + enemyMaxHp;
+    myHPBar.style.width = (myHp / myMaxHp * 100) + "%";
+    enemyHPBar.style.width = (enemyHp / enemyMaxHp * 100) + "%";
 }
 
 function updateUltimateGauge() {
@@ -405,6 +411,18 @@ function startTimer() {
 }
 
 function startBotBattle() {
+    console.log("Starting bot battle, isBossBattle:", isBossBattle);
+    
+    // For boss battles, ensure enemy HP is set from stats
+    if (isBossBattle && enemy.stats && !enemy.hp) {
+        enemy.hp = enemy.stats.maxHp;
+        enemy.maxHp = enemy.stats.maxHp;
+        enemy.atk = enemy.stats.atk;
+        enemy.def = enemy.stats.def;
+        enemy.speed = enemy.stats.speed;
+        console.log("Boss battle: Set enemy from stats", enemy);
+    }
+    
     // ボットの難易度を計算（バトル開始時に1回だけ）
     botDifficulty = calculateBotDifficulty();
     // ステータス更新を反映
