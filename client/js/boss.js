@@ -105,6 +105,11 @@ const BOSS_DATA = {
 // Party system for 4 players
 const MAX_PARTY_SIZE = 4;
 
+// Make MAX_PARTY_SIZE available globally
+if (typeof window !== 'undefined') {
+    window.MAX_PARTY_SIZE = MAX_PARTY_SIZE;
+}
+
 // Boss rewards
 const BOSS_REWARDS = {
     // Medium difficulty rewards: Tier4 weapon with 3 abilities and max multiplier
@@ -134,7 +139,9 @@ function getBossDifficultyStats(bossId, difficulty) {
 
 // Get all boss IDs
 function getAllBossIds() {
-    return Object.keys(BOSS_DATA);
+    const ids = Object.keys(BOSS_DATA);
+    console.log('All boss IDs:', ids);
+    return ids;
 }
 
 // Check if player has defeated a boss at specific difficulty

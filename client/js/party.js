@@ -149,3 +149,13 @@ function isPartyReady(partyId) {
     if (!party) return false;
     return party.status === 'ready';
 }
+
+// Export functions for global access
+if (typeof window !== 'undefined') {
+    window.createNewParty = createNewParty;
+    window.joinParty = joinParty;
+    window.leaveParty = leaveParty;
+    window.getPlayerParty = getPlayerParty;
+    window.setPartyReady = setPartyReady;
+    window.isPartyReadyCheck = isPartyReady;
+}
