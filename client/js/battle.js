@@ -424,18 +424,18 @@ function startTimer() {
 function startBotBattle() {
     console.log("Starting bot battle, isBossBattle:", isBossBattle);
     
-    // For boss battles, ensure enemy HP is set from stats
-    if (isBossBattle && enemy.stats && !enemy.hp) {
-        enemy.hp = enemy.stats.maxHp;
-        enemy.maxHp = enemy.stats.maxHp;
-        enemy.atk = enemy.stats.atk;
-        enemy.def = enemy.stats.def;
-        enemy.speed = enemy.stats.speed;
-        console.log("Boss battle: Set enemy from stats", enemy);
+    if (isBossBattle) {
+        // ボス戦の場合、敵オブジェクトは既にサーバーから受け取った正しいステータスを持っています。
+        // HPが設定されていない場合のみ、最大HPで初期化します。
+        if (!enemy.hp) {
+            enemy.hp = enemy.maxHp;
+        }
+        console.log("Boss battle: using pre-configured boss stats", enemy);
+    } else {
+        // 通常のボット戦の場合のみ、プレイヤーに合わせて難易度を計算します。
+        botDifficulty = calculateBotDifficulty();
     }
     
-    // ボットの難易度を計算（バトル開始時に1回だけ）
-    botDifficulty = calculateBotDifficulty();
     // ステータス更新を反映
     updateStats();
     updateHP();
@@ -2256,8 +2256,6 @@ function finishBotBattle(result) {
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
-    localStorage.removeItem("isBotBattle");
-    localStorage.removeItem("isBossBattle"); // Clear boss battle flag
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
     setTimeout(() => location.href = "result.html", 2000);

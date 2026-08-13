@@ -36,7 +36,7 @@ function saveStudyTimerState() {
         const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
         const state = {
             elapsed: elapsed,
-            subject: document.getElementById("studySubject")?.value || 'jp',
+            subject: document.getElementById("studyFocus")?.value || 'jp',
             timestamp: Date.now()
         };
         localStorage.setItem(STUDY_TIMER_STORAGE_KEY, JSON.stringify(state));
@@ -79,7 +79,7 @@ document.addEventListener('visibilitychange', () => {
         const savedState = loadStudyTimerState();
         if (savedState && studyStartTime === null) {
             // タイマーが停止中なら復元
-            const subjectSelect = document.getElementById("studySubject");
+            const subjectSelect = document.getElementById("studyFocus");
             if (subjectSelect) {
                 subjectSelect.value = savedState.subject;
             }

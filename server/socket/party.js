@@ -91,10 +91,9 @@ module.exports = function(io) {
                 return socket.emit('party:error', { message: 'Only the party host can start the battle.' });
             }
 
-            // パーティの人数に関わらず、参加しているメンバー全員が「準備OK」であればボスバトルを開始できるようにする
-            // if (!party.members.every(m => m.isReady)) {
-            //     return socket.emit('party:error', { message: 'Not all players are ready.' });
-            // }
+            if (!party.members.every(m => m.isReady)) {
+                return socket.emit('party:error', { message: 'Not all players are ready.' });
+            }
 
             const boss = BossManager.createBossForBattle(bossId, difficulty);
             if (!boss) {
