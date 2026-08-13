@@ -27,3 +27,76 @@ a:hover {
 .container {
   padding: 20px;
 }
+/* Skill Tree & Inventory Styles - Unified UI Elements */
+
+/* Skill Tree Container */
+.skill-tree {
+  border: 2px solid #00ffe0;
+  background-color: #1e1e1e;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+/* Inventory Container */
+.inventory-container {
+  border: 2px solid #00ffe0;
+  background-color: #1e1e1e;
+  padding: 15px;
+  border-radius: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Inventory Item */
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #212529;
+}
+
+/* Skill Tree Node */
+.skill-node {
+  background-color: #212529;
+  color: #00ffe0;
+  padding: 8px 12px;
+  border-radius: 5px;
+  margin: 5px 0;
+}
+
+/* Highlighted UI Elements */
+.highlight {
+  color: #00ffe0;
+  font-weight: bold;
+}
+
+/* Tooltip Styling */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  cursor: help;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 200px;
+  background-color: #1e1e1e;
+  color: #ffffff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -100px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
