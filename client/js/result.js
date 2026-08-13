@@ -70,5 +70,7 @@ localStorage.removeItem("stolenWeapon");
 localStorage.removeItem("lostWeapon");
 localStorage.removeItem("battleCoinGain");
 localStorage.removeItem("droppedOrb");
+localStorage.removeItem("isBotBattle");
+localStorage.removeItem("isBossBattle");
 
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";

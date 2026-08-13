@@ -8,11 +8,12 @@ module.exports = function(io) {
     io.on('connection', (socket) => {
 
         // Party creation
-        socket.on('party:create', () => {
-            const player = PlayerManager.getPlayer(socket.id);
+        socket.on('party:create', (player) => {
             if (!player) {
                 return socket.emit('party:error', { message: 'Player not found on server. Please create a character first.' });
             }
+            PlayerManager.addPlayer(socket.id, player);
+
             // Ensure player is not already in a party
             if (PartyManager.getPartyByPlayerId(player.id)) {
                 return socket.emit('party:error', { message: 'You are already in a party.' });
@@ -24,11 +25,12 @@ module.exports = function(io) {
             console.log(`[Party] Player ${player.id} created party ${party.id}`);
         });
 
-        socket.on('party:join', ({ partyId }) => {
-            const player = PlayerManager.getPlayer(socket.id);
+        socket.on('party:join', ({ partyId, player }) => {
             if (!player) {
                 return socket.emit('party:error', { message: 'Player not found on server.' });
             }
+            PlayerManager.addPlayer(socket.id, player);
+
             const result = PartyManager.joinParty(partyId, player.id, socket.id, player);
             if (result.error) {
                 return socket.emit('party:error', { message: result.error });
