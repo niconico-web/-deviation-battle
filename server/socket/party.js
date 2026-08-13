@@ -7,34 +7,103 @@ const PlayerManager = require('../managers/PlayerManager');
 module.exports = function(io) {
     io.on('connection', (socket) => {
 
-        // Handler to get the list of all available bosses
-        socket.on('bosses:get', () => {
-            try {
-                const bosses = BossManager.getAllBosses();
-                socket.emit('bosses:list', bosses);
-            } catch (error) {
-                console.error('Error fetching boss list:', error);
-                socket.emit('error:server', { message: 'Failed to load boss list.' });
-            }
-        });
-
         // Party creation
         socket.on('party:create', () => {
             const player = PlayerManager.getPlayer(socket.id);
             if (!player) {
-                return socket.emit('party:error', { message: 'Player not found.' });
+                return socket.emit('party:error', { message: 'Player not found on server. Please create a character first.' });
             }
             // Ensure player is not already in a party
             if (PartyManager.getPartyByPlayerId(player.id)) {
                 return socket.emit('party:error', { message: 'You are already in a party.' });
             }
 
-            const party = PartyManager.createParty(player.id, socket.id);
+            const party = PartyManager.createParty(player.id, socket.id, player);
             socket.join(party.id);
-            io.to(party.id).emit('party:update', party);
+            socket.emit('party:update', party); // Emit to the creator first
             console.log(`[Party] Player ${player.id} created party ${party.id}`);
         });
 
-        // More party handlers (join, leave, etc.) will be added here
+        socket.on('party:join', ({ partyId }) => {
+            const player = PlayerManager.getPlayer(socket.id);
+            if (!player) {
+                return socket.emit('party:error', { message: 'Player not found on server.' });
+            }
+            const result = PartyManager.joinParty(partyId, player.id, socket.id, player);
+            if (result.error) {
+                return socket.emit('party:error', { message: result.error });
+            }
+            const party = result.party;
+            socket.join(party.id);
+            io.to(party.id).emit('party:update', party);
+            console.log(`[Party] Player ${player.name} joined party: ${partyId}`);
+        });
+
+        socket.on('party:leave', () => {
+            const player = PlayerManager.getPlayer(socket.id);
+            if (!player) return;
+
+            const partyBeforeLeave = PartyManager.getPartyByPlayerId(player.id);
+            const partyId = partyBeforeLeave ? partyBeforeLeave.id : null;
+
+            const result = PartyManager.leaveParty(player.id);
+
+            if (result.error) {
+                return socket.emit('party:error', { message: result.error });
+            }
+
+            if (partyId) {
+                socket.leave(partyId);
+                if (result.partyDeleted) {
+                    console.log(`[Party] Party ${partyId} disbanded.`);
+                } else {
+                    console.log(`[Party] Player ${player.name} left party ${partyId}`);
+                    io.to(partyId).emit('party:update', result.party);
+                }
+            }
+
+            // Notify the leaving player to reset their UI
+            socket.emit('party:update', null);
+        });
+
+        socket.on('party:setReady', ({ isReady }) => {
+            const player = PlayerManager.getPlayer(socket.id);
+            if (!player) return;
+
+            const party = PartyManager.setPlayerReady(player.id, isReady);
+            if (party) {
+                io.to(party.id).emit('party:update', party);
+            }
+        });
+
+        socket.on('party:startBossBattle', ({ bossId, difficulty }) => {
+            const player = PlayerManager.getPlayer(socket.id);
+            if (!player) {
+                return socket.emit('party:error', { message: 'Player not found.' });
+            }
+
+            const party = PartyManager.getPartyByPlayerId(player.id);
+            if (!party || party.hostId !== player.id) {
+                return socket.emit('party:error', { message: 'Only the party host can start the battle.' });
+            }
+
+            if (!party.members.every(m => m.isReady)) {
+                return socket.emit('party:error', { message: 'Not all players are ready.' });
+            }
+
+            const boss = BossManager.createBossForBattle(bossId, difficulty);
+            if (!boss) {
+                return socket.emit('party:error', { message: 'Invalid boss selection.' });
+            }
+
+            // For now, start a 1v1 battle for each player against the same boss
+            party.members.forEach(member => {
+                const targetSocket = io.sockets.sockets.get(member.socketId);
+                if (targetSocket) {
+                    targetSocket.emit('bossBattleStarted', { player: member.player, boss });
+                }
+            });
+            console.log(`[Party] Boss battle started for party ${party.id} against ${boss.name}`);
+        });
     });
 };

@@ -589,17 +589,24 @@ function setupSocketEventHandlers() {
 
     // Boss list handler
     window.socket.on('bosses:list', (bosses) => {
-        const bossSelect = document.getElementById('bossSelect');
-        if (bossSelect) {
-            bossSelect.innerHTML = ''; // Clear existing options
+        const bossSelects = [
+            document.getElementById('bossSelect'),       // For party
+            document.getElementById('soloBossSelect')    // For solo
+        ];
+        bossSelects.forEach(select => {
+            if (!select) return;
+            const currentVal = select.value;
+            select.innerHTML = ''; // Clear existing options
             bosses.forEach(boss => {
                 const option = document.createElement('option');
                 option.value = boss.id;
                 option.textContent = boss.name;
-                bossSelect.appendChild(option);
+                select.appendChild(option);
             });
-            console.log('Boss list updated from server.');
-        }
+            // Restore previous selection if possible
+            if (currentVal) select.value = currentVal;
+        });
+        console.log('Boss list updated from server.');
     });
 
     // Party handlers
@@ -618,6 +625,24 @@ function setupSocketEventHandlers() {
 
     window.socket.on('party:error', (error) => {
         alert(`パーティエラー: ${error.message}`);
+    });
+
+    window.socket.on('bosses:details', ({ boss }) => {
+        if (!boss) {
+            alert('ボスの詳細の取得に失敗しました。');
+            return;
+        }
+        const player = getMatchPlayer();
+        if (!player) {
+            alert('キャラクターを作成してください。');
+            return;
+        }
+        localStorage.setItem("isBossBattle", "true"); // ボス戦フラグ
+        localStorage.setItem("isBotBattle", "true"); // ボット戦の仕組みを流用
+        localStorage.setItem("battlePlayer", JSON.stringify(player));
+        localStorage.setItem("enemy", JSON.stringify(boss));
+        localStorage.removeItem("rewardsApplied"); // Ensure rewards can be applied
+        location.href = "battle.html";
     });
 
     // データ保存・読み込み関連のイベント
