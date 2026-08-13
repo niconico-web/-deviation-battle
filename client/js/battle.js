@@ -94,10 +94,31 @@ function initialize() {
         return;
     }
 
-    console.log("Battle initialize:", { me, enemy, roomId, isBotBattle });
+    console.log("Battle initialize:", { me, enemy, roomId, isBotBattle, isBossBattle });
+    console.log("Enemy stats:", enemy.stats);
+    console.log("Enemy maxHp:", enemy.maxHp);
     console.log("Socket exists:", !!socket);
     console.log("Socket connected:", socket ? socket.connected : "N/A");
     console.log("Socket ID:", socket ? socket.id : "N/A");
+
+    // Ensure enemy has stats if they're undefined
+    if (!enemy.stats) {
+        console.warn("Enemy stats undefined, using defaults");
+        enemy.stats = {
+            maxHp: enemy.maxHp || 100,
+            atk: enemy.atk || 10,
+            def: enemy.def || 10,
+            speed: enemy.speed || 10
+        };
+    }
+
+    // Ensure enemy maxHp is set
+    if (!enemy.maxHp && enemy.stats && enemy.stats.maxHp) {
+        enemy.maxHp = enemy.stats.maxHp;
+    }
+    if (!enemy.maxHp) {
+        enemy.maxHp = 100;
+    }
 
     // 武器補正が適用されたmaxHpに合わせて現在のHPを調整
     // 武器による補正が減少する場合でもHPはmaxHpを超えないようにする
@@ -206,10 +227,15 @@ function updateStats() {
     mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
     myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
     
-    enemyAtk.textContent = statLabel("atk", enemy.atk);
-    enemyDef.textContent = statLabel("def", enemy.def);
-    const enemyDodgeChance = calculateDodgeChance(enemy.speed);
-    enemySpeed.textContent = statLabel("speed", enemy.speed) + ` (回避${enemyDodgeChance}%)`;
+    // Handle enemy stats - use enemy.stats if available, otherwise use direct properties
+    const enemyAtkVal = enemy.stats ? enemy.stats.atk : enemy.atk;
+    const enemyDefVal = enemy.stats ? enemy.stats.def : enemy.def;
+    const enemySpeedVal = enemy.stats ? enemy.stats.speed : enemy.speed;
+    
+    enemyAtk.textContent = statLabel("atk", enemyAtkVal || 10);
+    enemyDef.textContent = statLabel("def", enemyDefVal || 10);
+    const enemyDodgeChance = calculateDodgeChance(enemySpeedVal || 10);
+    enemySpeed.textContent = statLabel("speed", enemySpeedVal || 10) + ` (回避${enemyDodgeChance}%)`;
     enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
 }
 
@@ -1366,6 +1392,8 @@ function generateBotQuestion() {
                 }, 3000);
             });
             return;
+        } else {
+            console.warn('[BotBattle] Boss questions not available, falling back to regular questions');
         }
     }
     

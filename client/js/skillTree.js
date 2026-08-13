@@ -26,6 +26,12 @@ const SKILL_TREE = {
             { id: "gs_cleave", name: "クリーブ", description: "次の攻撃のダメージ1.4倍、ただし自身の防御-10", cost: 4, x: -9, y: -4, requires: "gs_power_1", type: "active", effect: { type: "active", damageMultiplier: 1.4, selfDefDebuff: 10 } },
             { id: "atk_mastery", name: "攻撃の極意", description: "常時攻撃+10%", cost: 5, x: -7, y: -5, requires: "gs_power_1", type: "passive", effect: { atkPercent: 0.1 } },
             { id: "atk_path_3", name: "速さ+", description: "速さ+5", cost: 1, x: -4, y: 0, requires: "atk_path_1", type: "stat", effect: { speed: 5 } },
+            // Extended attack path (far left)
+            { id: "atk_extreme_1", name: "破壊衝動", description: "攻撃+20, HP+10", cost: 4, x: -11, y: -5, requires: "gs_cleave", type: "stat", effect: { atk: 20, maxHp: 10 } },
+            { id: "atk_extreme_2", name: "殺戮の舞", description: "次の攻撃3連撃(0.5倍ダメージ)", cost: 5, x: -13, y: -6, requires: "atk_extreme_1", type: "active", effect: { type: "active", multiStrike: 3, multiStrikeMultiplier: 0.5 } },
+            { id: "atk_path_4", name: "攻撃IV", description: "攻撃+25", cost: 3, x: -9, y: -6, requires: "gs_power_1", type: "stat", effect: { atk: 25 } },
+            { id: "atk_path_5", name: "攻撃V", description: "攻撃+30", cost: 3, x: -11, y: -3, requires: "atk_path_4", type: "stat", effect: { atk: 30 } },
+            { id: "berserker", name: "狂戦士", description: "常時攻撃+15%, 防御-10%", cost: 6, x: -13, y: -4, requires: "atk_path_5", type: "passive", effect: { atkPercent: 0.15, defPercent: -0.1 } },
 
             // --- 右上: 防御・盾ルート ---
             { id: "def_path_1", name: "防御II", description: "防御+10", cost: 2, x: 3, y: -1, requires: "core_def_1", type: "stat", effect: { def: 10 } },
