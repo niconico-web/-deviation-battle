@@ -1,282 +1,260 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>School Battle</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/ability-popup.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="School Battle">
-    <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
-    <meta name="theme-color" content="#212529">
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>School Battle</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/ability-popup.css">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="School Battle">
+<link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
+<meta name="theme-color" content="#212529">
 </head>
 <body>
-    <div id="install-popup" class="install-popup" style="display: none;">
-        <p>アプリをホーム画面に追加して、より快適にプレイしましょう！</p>
-        <button id="install-button" class="btn btn-primary">インストール</button>
-        <button id="close-install-popup" class="btn btn-secondary">閉じる</button>
-    </div>
-
-    <div class="app-container">
-        <aside class="sidebar">
-            <button id="mobileMenuToggle" class="mobile-menu-toggle">?</button>
-            <nav class="main-menu">
-                <button class="menu-btn active" data-section="stats"><span>?</span> ステータス</button>
-                <button class="menu-btn" data-section="study"><span>?</span> 勉強</button>
-                <button class="menu-btn" data-section="shop"><span>?</span> ショップ</button>
-                <button class="menu-btn" data-section="inventory"><span>?</span> インベントリ</button>
-                <button class="menu-btn" data-section="skill-tree"><span>?</span> スキルツリー</button>
-                <button class="menu-btn" data-section="online"><span>?</span> オンライン</button>
-                <button class="menu-btn" data-section="party"><span>?</span> パーティ</button>
-                <button class="menu-btn" data-section="boss-battle"><span>?</span> ボスバトル</button>
-                <button class="menu-btn" data-section="help"><span>?</span> ヘルプ</button>
-            </nav>
-        </aside>
-
-        <main class="main-content">
-            <section id="section-stats" class="content-section active">
-                <h2>ステータス</h2>
-                <div class="setting-box">
-                    <h3>キャラクター作成</h3>
-                    <label class="field-label" for="playerName">プレイヤー名</label>
-                    <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
-                    <div class="stat-allocation">
-                        <h3>ステータス配分</h3>
-                        <p id="statAllocationDesc">持ち点200ポイントを自由に振り分けてください。</p>
-                        <div class="stat-inputs">
-                            <label>HP: <input id="statMaxHp" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>攻撃: <input id="statAtk" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>防御: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>速さ: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>学年: <input id="statGrade" type="number" value="1" min="1" max="12" step="1"></label>
-                        </div>
-                        <p id="remainingPoints" class="remaining-points">残り持ち点：0 / 200</p>
-                    </div>
-                    <button type="button" class="btn btn-primary" id="createCharBtn">キャラクター作成</button>
-                </div>
-                <div id="status" class="status-box">
-                    <h2>ステータス</h2>
-                    <p>まだキャラクターが作成されていません。</p>
-                </div>
-                <div id="dataManagement" class="setting-box">
-                    <!-- Data management UI will be injected here by script.js -->
-                </div>
-                <button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">プレイヤー削除</button>
-            </section>
-
-            <section id="section-study" class="content-section">
-                <h2>勉強</h2>
-                <div class="setting-box">
-                    <h3>勉強タイマー</h3>
-                    <p class="study-desc">勉強時間が長いほど経験値が増えます。1分ごとに選んだステータスが1ポイント上昇します。</p>
-                    <label class="field-label" for="studyFocus">強化するステータス</label>
-                    <select id="studyFocus">
-                        <option value="jp">国語（HP・防御）</option>
-                        <option value="math">算数・数学（攻撃・速さ）</option>
-                        <option value="eng">英語（防御・速さ）</option>
-                        <option value="sci">理科（攻撃・HP）</option>
-                        <option value="soc">社会（HP・防御）</option>
-                    </select>
-                    <div id="statGrowthInfo" class="help-text"></div>
-                    <p id="studyTimer" class="study-timer">00:00:00</p>
-                    <p id="xpDisplay" class="xp-display">経験値：0</p>
-                    <div class="study-buttons">
-                        <button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
-                        <button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
-                    </div>
-                </div>
-            </section>
-
-            <section id="section-shop" class="content-section">
-                <h2>ショップ</h2>
-                <div class="setting-box">
-                    <p>所持コイン: <span id="coinDisplay">0</span></p>
-                    <button id="refreshShop" class="btn btn-secondary">ショップを更新</button>
-                </div>
-                <h3>武器ショップ</h3>
-                <div id="shopList" class="shop-list">
-                    <!-- Shop items will be rendered here -->
-                </div>
-                <h3>オリジナル武器作成</h3>
-                <div class="setting-box">
-                    <p>オリジナル武器を作成して、自分だけの最強武器を手に入れよう！</p>
-                    <button id="createOriginalWeaponBtn" class="btn btn-primary">オリジナル武器作成</button>
-                </div>
-                <h3>オーブ合成</h3>
-                <div class="setting-box">
-                    <p>低ティアのオーブを合成して、高ティアのオーブを作成できます。</p>
-                    <button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
-                </div>
-                <div id="orbSynthesisModal" class="modal">
-                    <div class="modal-content">
-                        <h3>オーブ合成</h3>
-                        <p>Tier1オーブ: <span id="tier1OrbCount">0</span>個</p>
-                        <p>Tier2オーブ: <span id="tier2OrbCount">0</span>個</p>
-                        <p>Tier3オーブ: <span id="tier3OrbCount">0</span>個</p>
-                        <button id="synthesizeTier2Btn" class="btn btn-primary">Tier1オーブ5個でTier2オーブを合成</button>
-                        <button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5個でTier3オーブを合成</button>
-                        <button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4オーブを合成</button>
-                        <button id="closeOrbSynthesisBtn" class="btn btn-secondary">閉じる</button>
-                    </div>
-                </div>
-            </section>
-
-            <section id="section-inventory" class="content-section">
-                <h2>インベントリ</h2>
-                <h3>所持武器</h3>
-                <div id="inventoryList" class="inventory-list">
-                    <!-- Inventory items will be rendered here -->
-                </div>
-                <h3>オリジナル武器</h3>
-                <div id="originalWeaponList" class="original-weapon-list">
-                    <!-- Original weapons will be rendered here -->
-                </div>
-                <h3>オーブ</h3>
-                <div id="orbInventory" class="orb-inventory-list">
-                    <!-- Orbs will be rendered here -->
-                </div>
-            </section>
-
-            <section id="section-skill-tree" class="content-section">
-                <h2>スキルツリー</h2>
-                <div class="setting-box">
-                    <p>総スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
-                </div>
-                <div class="skill-tree-container">
-                    <div id="skillTreeCanvas" class="skill-tree-canvas">
-                        <!-- Skill tree nodes and connections will be rendered here -->
-                    </div>
-                    <div id="skillDescriptionArea" class="skill-description-area">
-                        <h3>スキル詳細</h3>
-                        <p id="skillNodeName">スキルを選択してください</p>
-                        <p id="skillNodeDescription"></p>
-                        <p id="skillNodeCost"></p>
-                        <button id="unlockSkillBtn" class="btn btn-primary" disabled>スキル解放</button>
-                    </div>
-                </div>
-                <h3>アクティブスキル装備</h3>
-                <div id="skillSlotsContainer" class="skill-slots-container">
-                    <!-- Skill slots will be rendered here -->
-                </div>
-                <h3>利用可能なアクティブスキル</h3>
-                <div id="availableSkillsList" class="available-skills-list">
-                    <!-- Available active skills will be rendered here -->
-                </div>
-                <h3>オリジナルスキル作成</h3>
-                <div class="setting-box">
-                    <p>自分だけのオリジナルスキルを作成しよう！</p>
-                    <label class="field-label" for="customSkillName">スキル名</label>
-                    <input type="text" id="customSkillName" placeholder="スキル名を入力">
-                    <label class="field-label" for="customSkillDescription">スキルの内容</label>
-                    <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に火傷付与"></textarea>
-                    <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
-                </div>
-                <h3>オリジナルスキルリスト</h3>
-                <div id="customSkillList" class="custom-skill-list">
-                    <!-- Custom skills will be rendered here -->
-                </div>
-            </section>
-
-            <section id="section-online" class="content-section">
-                <h2>オンライン</h2>
-                <div class="setting-box">
-                    <h3>ランダムマッチ</h3>
-                    <button type="button" id="randomMatch" class="btn btn-primary">ランダムマッチ</button>
-                </div>
-                <div class="setting-box">
-                    <h3>ルームマッチ</h3>
-                    <button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
-                    <label class="field-label" for="roomInput">ルームコード</label>
-                    <input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
-                    <button type="button" id="joinRoom" class="btn btn-secondary">ルーム参加</button>
-                </div>
-                <div class="setting-box">
-                    <h3>ボットバトル</h3>
-                    <button type="button" id="botMatch" class="btn btn-info">ボットと対戦</button>
-                </div>
-            </section>
-
-            <section id="section-party" class="content-section">
-                <h2>パーティ</h2>
-                <div id="party-info" class="setting-box" style="display: none;">
-                    <!-- Party details will be rendered here by JavaScript -->
-                </div>
-                <div id="party-controls" class="setting-box">
-                    <button type="button" id="createPartyBtn" class="btn btn-secondary">パーティ作成</button>
-                    <div id="joinPartyControls">
-                        <label class="field-label" for="partyCodeInput">パーティコード</label>
-                        <input type="text" id="partyCodeInput" placeholder="コードを入力" maxlength="6" autocapitalize="characters" autocomplete="off">
-                        <button type="button" id="joinPartyBtn" class="btn btn-secondary">パーティ参加</button>
-                    </div>
-                    <button type="button" id="leavePartyBtn" class="btn btn-danger" style="display: none;">パーティを抜ける</button>
-                    <button type="button" id="partyReadyBtn" class="btn btn-primary" style="display: none;">準備OK</button>
-                </div>
-            </section>
-
-            <section id="section-boss-battle" class="content-section">
-                <h2>ボスバトル</h2>
-                <div id="soloBossBattleControls" class="setting-box">
-                    <h3>ソロでボスに挑戦</h3>
-                    <label class="field-label" for="soloBossSelect">ボス選択</label>
-                    <select id="soloBossSelect"></select>
-                    <label class="field-label" for="soloBossDifficulty">難易度</label>
-                    <select id="soloBossDifficulty">
-                        <option value="easy">イージー</option>
-                        <option value="medium">ノーマル</option>
-                        <option value="hard">ハード</option>
-                    </select>
-                    <button type="button" id="startSoloBossBattleBtn" class="btn btn-danger">ソロで挑戦開始</button>
-                </div>
-                <div id="startBossBattleControls" class="setting-box" style="display: none;">
-                    <h3>パーティでボスに挑戦 (ホストのみ)</h3>
-                    <label class="field-label" for="bossSelect">ボス選択</label>
-                    <select id="bossSelect"></select>
-                    <label class="field-label" for="bossDifficulty">難易度</label>
-                    <select id="bossDifficulty">
-                        <option value="easy">イージー</option>
-                        <option value="medium">ノーマル</option>
-                        <option value="hard">ハード</option>
-                    </select>
-                    <button type="button" id="startBossBattleBtn" class="btn btn-danger">パーティで挑戦開始</button>
-                </div>
-            </section>
-
-            <section id="section-help" class="content-section">
-                <h2>ヘルプ</h2>
-                <div class="setting-box">
-                    <h3>ユニーク能力一覧</h3>
-                    <div id="unique-abilities-list" class="ability-list">
-                        <!-- Unique abilities will be rendered here by help.js -->
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script src="js/i18n.js"></script>
-    <script src="js/stats.js"></script>
-    <script src="js/weapons.js"></script>
-    <script src="js/skillTree.js"></script>
-    <script src="js/shop.js"></script>
-    <script src="js/boss.js"></script>
-    <script src="js/online.js"></script>
-    <script src="js/help.js"></script>
-    <script src="js/script.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').then(registration => {
-                    console.log('ServiceWorker registered: ', registration);
-                }).catch(registrationError => {
-                    console.log('ServiceWorker registration failed: ', registrationError);
-                });
-            });
-        }
-    </script>
+<div id="install-popup" class="install-popup" style="display: none;">
+<p>アプリをホーム画面に追加して、より快適にプレイしましょう！</p>
+<button id="install-button" class="btn btn-primary">インストール</button>
+<button id="close-install-popup" class="btn btn-secondary">閉じる</button>
+</div>
+<div class="app-container">
+<aside class="sidebar">
+<button id="mobileMenuToggle" class="mobile-menu-toggle">?</button>
+<nav class="main-menu">
+<button class="menu-btn active" data-section="stats"><span>?</span> ステータス</button>
+<button class="menu-btn" data-section="study"><span>?</span> 勉強</button>
+<button class="menu-btn" data-section="shop"><span>?</span> ショップ</button>
+<button class="menu-btn" data-section="inventory"><span>?</span> インベントリ</button>
+<button class="menu-btn" data-section="skill-tree"><span>?</span> スキルツリー</button>
+<button class="menu-btn" data-section="online"><span>?</span> オンライン</button>
+<button class="menu-btn" data-section="party"><span>?</span> パーティ</button>
+<button class="menu-btn" data-section="boss-battle"><span>?</span> ボスバトル</button>
+<button class="menu-btn" data-section="help"><span>?</span> ヘルプ</button>
+</nav>
+</aside>
+<main class="main-content">
+<section id="section-stats" class="content-section active">
+<h2>ステータス</h2>
+<div class="setting-box">
+<h3>キャラクター作成</h3>
+<label class="field-label" for="playerName">プレイヤー名</label>
+<input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
+<div class="stat-allocation">
+<h3>ステータス配分</h3>
+<p id="statAllocationDesc">持ち点200ポイントを自由に振り分けてください。</p>
+<div class="stat-inputs">
+<label>HP: <input id="statMaxHp" type="number" value="50" min="10" max="100" step="1"></label>
+<label>攻撃: <input id="statAtk" type="number" value="50" min="10" max="100" step="1"></label>
+<label>防御: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
+<label>速さ: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
+<label>学年: <input id="statGrade" type="number" value="1" min="1" max="12" step="1"></label>
+</div>
+<p id="remainingPoints" class="remaining-points">残り持ち点：0 / 200</p>
+</div>
+<button type="button" class="btn btn-primary" id="createCharBtn">キャラクター作成</button>
+</div>
+<div id="status" class="status-box">
+<h2>ステータス</h2>
+<p>まだキャラクターが作成されていません。</p>
+</div>
+<div id="dataManagement" class="setting-box">
+</div>
+<button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">プレイヤー削除</button>
+</section>
+<section id="section-study" class="content-section">
+<h2>勉強</h2>
+<div class="setting-box">
+<h3>勉強タイマー</h3>
+<p class="study-desc">勉強時間が長いほど経験値が増えます。1分ごとに選んだステータスが1ポイント上昇します。</p>
+<label class="field-label" for="studyFocus">強化するステータス</label>
+<select id="studyFocus">
+<option value="jp">国語（HP・防御）</option>
+<option value="math">算数・数学（攻撃・速さ）</option>
+<option value="eng">英語（防御・速さ）</option>
+<option value="sci">理科（攻撃・HP）</option>
+<option value="soc">社会（HP・防御）</option>
+</select>
+<div id="statGrowthInfo" class="help-text"></div>
+<p id="studyTimer" class="study-timer">00:00:00</p>
+<p id="xpDisplay" class="xp-display">経験値：0</p>
+<div class="study-buttons">
+<button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
+<button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
+</div>
+</div>
+</section>
+<section id="section-shop" class="content-section">
+<h2>ショップ</h2>
+<div class="setting-box">
+<p>所持コイン: <span id="coinDisplay">0</span></p>
+<button id="refreshShop" class="btn btn-secondary">ショップを更新</button>
+</div>
+<h3>武器ショップ</h3>
+<div id="shopList" class="shop-list">
+</div>
+<h3>オリジナル武器作成</h3>
+<div class="setting-box">
+<p>オリジナル武器を作成して、自分だけの最強武器を手に入れよう！</p>
+<button id="createOriginalWeaponBtn" class="btn btn-primary">オリジナル武器作成</button>
+</div>
+<h3>オーブ合成</h3>
+<div class="setting-box">
+<p>低ティアのオーブを合成して、高ティアのオーブを作成できます。</p>
+<button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
+</div>
+<div id="orbSynthesisModal" class="modal">
+<div class="modal-content">
+<h3>オーブ合成</h3>
+<p>Tier1オーブ: <span id="tier1OrbCount">0</span>個</p>
+<p>Tier2オーブ: <span id="tier2OrbCount">0</span>個</p>
+<p>Tier3オーブ: <span id="tier3OrbCount">0</span>個</p>
+<button id="synthesizeTier2Btn" class="btn btn-primary">Tier1オーブ5個でTier2オーブを合成</button>
+<button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5個でTier3オーブを合成</button>
+<button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4オーブを合成</button>
+<button id="closeOrbSynthesisBtn" class="btn btn-secondary">閉じる</button>
+</div>
+</div>
+</section>
+<section id="section-inventory" class="content-section">
+<h2>インベントリ</h2>
+<h3>所持武器</h3>
+<div id="inventoryList" class="inventory-list">
+</div>
+<h3>オリジナル武器</h3>
+<div id="originalWeaponList" class="original-weapon-list">
+</div>
+<h3>オーブ</h3>
+<div id="orbInventory" class="orb-inventory-list">
+</div>
+</section>
+<section id="section-skill-tree" class="content-section">
+<h2>スキルツリー</h2>
+<div class="setting-box">
+<p>総スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
+</div>
+<div class="skill-tree-container">
+<div id="skillTreeCanvas" class="skill-tree-canvas">
+</div>
+<div id="skillDescriptionArea" class="skill-description-area">
+<h3>スキル詳細</h3>
+<p id="skillNodeName">スキルを選択してください</p>
+<p id="skillNodeDescription"></p>
+<p id="skillNodeCost"></p>
+<button id="unlockSkillBtn" class="btn btn-primary" disabled>スキル解放</button>
+</div>
+</div>
+<h3>アクティブスキル装備</h3>
+<div id="skillSlotsContainer" class="skill-slots-container">
+</div>
+<h3>利用可能なアクティブスキル</h3>
+<div id="availableSkillsList" class="available-skills-list">
+</div>
+<h3>オリジナルスキル作成</h3>
+<div class="setting-box">
+<p>自分だけのオリジナルスキルを作成しよう！</p>
+<label class="field-label" for="customSkillName">スキル名</label>
+<input type="text" id="customSkillName" placeholder="スキル名を入力">
+<label class="field-label" for="customSkillDescription">スキルの内容</label>
+<textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に火傷付与"></textarea>
+<button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
+</div>
+<h3>オリジナルスキルリスト</h3>
+<div id="customSkillList" class="custom-skill-list">
+</div>
+</section>
+<section id="section-online" class="content-section">
+<h2>オンライン</h2>
+<div class="setting-box">
+<h3>ランダムマッチ</h3>
+<button type="button" id="randomMatch" class="btn btn-primary">ランダムマッチ</button>
+</div>
+<div class="setting-box">
+<h3>ルームマッチ</h3>
+<button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
+<label class="field-label" for="roomInput">ルームコード</label>
+<input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
+<button type="button" id="joinRoom" class="btn btn-secondary">ルーム参加</button>
+</div>
+<div class="setting-box">
+<h3>ボットバトル</h3>
+<button type="button" id="botMatch" class="btn btn-info">ボットと対戦</button>
+</div>
+</section>
+<section id="section-party" class="content-section">
+<h2>パーティ</h2>
+<div id="party-info" class="setting-box" style="display: none;">
+</div>
+<div id="party-controls" class="setting-box">
+<button type="button" id="createPartyBtn" class="btn btn-secondary">パーティ作成</button>
+<div id="joinPartyControls">
+<label class="field-label" for="partyCodeInput">パーティコード</label>
+<input type="text" id="partyCodeInput" placeholder="コードを入力" maxlength="6" autocapitalize="characters" autocomplete="off">
+<button type="button" id="joinPartyBtn" class="btn btn-secondary">パーティ参加</button>
+</div>
+<button type="button" id="leavePartyBtn" class="btn btn-danger" style="display: none;">パーティを抜ける</button>
+<button type="button" id="partyReadyBtn" class="btn btn-primary" style="display: none;">準備OK</button>
+</div>
+</section>
+<section id="section-boss-battle" class="content-section">
+<h2>ボスバトル</h2>
+<div id="soloBossBattleControls" class="setting-box">
+<h3>ソロでボスに挑戦</h3>
+<label class="field-label" for="soloBossSelect">ボス選択</label>
+<select id="soloBossSelect"></select>
+<label class="field-label" for="soloBossDifficulty">難易度</label>
+<select id="soloBossDifficulty">
+<option value="easy">イージー</option>
+<option value="medium">ノーマル</option>
+<option value="hard">ハード</option>
+</select>
+<button type="button" id="startSoloBossBattleBtn" class="btn btn-danger">ソロで挑戦開始</button>
+</div>
+<div id="startBossBattleControls" class="setting-box" style="display: none;">
+<h3>パーティでボスに挑戦 (ホストのみ)</h3>
+<label class="field-label" for="bossSelect">ボス選択</label>
+<select id="bossSelect"></select>
+<label class="field-label" for="bossDifficulty">難易度</label>
+<select id="bossDifficulty">
+<option value="easy">イージー</option>
+<option value="medium">ノーマル</option>
+<option value="hard">ハード</option>
+</select>
+<button type="button" id="startBossBattleBtn" class="btn btn-danger">パーティで挑戦開始</button>
+</div>
+</section>
+<section id="section-help" class="content-section">
+<h2>ヘルプ</h2>
+<div class="setting-box">
+<h3>ユニーク能力一覧</h3>
+<div id="unique-abilities-list" class="ability-list">
+</div>
+</div>
+</section>
+</main>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/skillTree.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/online.js"></script>
+<script src="js/help.js"></script>
+<script src="js/script.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+window.addEventListener('load', () => {
+navigator.serviceWorker.register('/sw.js').then(registration => {
+console.log('ServiceWorker registered: ', registration);
+}).catch(registrationError => {
+console.log('ServiceWorker registration failed: ', registrationError);
+});
+});
+}
+</script>
 </body>
 </html>
