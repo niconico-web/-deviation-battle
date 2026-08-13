@@ -713,20 +713,6 @@ function setupDOMEventHandlers() {
     const sidebar = document.querySelector('.sidebar');
     const menuButtons = document.querySelectorAll('.menu-btn');
 
-    // スキルツリーのメニュー項目を動的に追加
-    const skillTreeBtn = document.createElement('button');
-    skillTreeBtn.className = 'menu-btn';
-    skillTreeBtn.dataset.section = 'skill-tree';
-    skillTreeBtn.innerHTML = '<span>🔧</span> スキルツリー';
-    sidebar.insertBefore(skillTreeBtn, document.querySelector('.menu-btn[data-section="help"]'));
-
-    // スキルツリーのセクションを動的に追加
-    const skillTreeSection = document.createElement('section');
-    skillTreeSection.id = 'section-skill-tree';
-    skillTreeSection.className = 'content-section';
-    skillTreeSection.innerHTML = `<h2>スキルツリー</h2><div id="skillTreeContainer"></div>`;
-    document.querySelector('main').appendChild(skillTreeSection);
-
     if (mobileMenuToggle && sidebar) {
         // Listener for the main toggle button
         mobileMenuToggle.addEventListener('click', (e) => {
@@ -1019,8 +1005,8 @@ function switchSection(section) {
     if (activeSection) {
         activeSection.classList.add('active');
         // スキルツリーセクションが表示されるときに再描画
-        if (section === 'skills' && typeof renderSkillTreeUI === 'function') {
-            console.log('switchSection: calling renderSkillTreeUI for skills section');
+        if (section === 'skill-tree' && typeof renderSkillTreeUI === 'function') {
+            console.log('switchSection: calling renderSkillTreeUI for skill-tree section');
             setTimeout(() => renderSkillTreeUI(), 100); // 少し遅延させてDOMが確実にレンダリングされるように
         }
     }
@@ -1222,3 +1208,33 @@ function lockStatInputs(locked) {
         createBtn.textContent = locked ? I18N.statsLocked : I18N.createChar;
     }
 }
+
+/**
+ * デバッグ用の超強力な武器を入手する関数。
+ * ブラウザのコンソールで `getDebugWeapon()` を実行すると入手できます。
+ */
+window.getDebugWeapon = function() {
+    let player = getPlayerData();
+    if (!player) {
+        console.log("デバッグ: プレイヤーデータが見つかりません。");
+        return;
+    }
+    const debugWeapon = {
+        id: "debug_weapon_" + Date.now(),
+        name: "デバッグソード『終焉』",
+        type: "剣",
+        isOriginal: true,
+        multiplier: 3.0,
+        statBonuses: { atk: 99999 }, // 非常に高い攻撃力ボーナス
+        uniqueAbilities: [],
+        ultimateName: "コード・デストラクション",
+        isDebugWeapon: true // この武器がデバッグ用であることを示すフラグ
+    };
+    player = addWeaponToPlayer(player, debugWeapon);
+    localStorage.setItem("player", JSON.stringify(player));
+    console.log("デバッグ武器「デバッグソード『終焉』」を入手しました。インベントリを確認してください。");
+    if (typeof renderInventory === 'function') {
+        renderInventory();
+    }
+    updateStatus(player);
+};

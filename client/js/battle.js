@@ -238,10 +238,10 @@ function updateStats() {
     mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
     myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
     
-    // Handle enemy stats - use enemy.stats if available, otherwise use direct properties
-    const enemyAtkVal = enemy.stats ? enemy.stats.atk : enemy.atk;
-    const enemyDefVal = enemy.stats ? enemy.stats.def : enemy.def;
-    const enemySpeedVal = enemy.stats ? enemy.stats.speed : enemy.speed;
+    // ボスと通常のボットでステータスの持ち方が違うため、直接プロパティを参照する
+    const enemyAtkVal = enemy.atk;
+    const enemyDefVal = enemy.def;
+    const enemySpeedVal = enemy.speed;
     
     enemyAtk.textContent = statLabel("atk", enemyAtkVal || 10);
     enemyDef.textContent = statLabel("def", enemyDefVal || 10);
@@ -1449,12 +1449,51 @@ function generateBotQuestion() {
                     if (isBossBattle) {
                         if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
                         bossAutoAnswerTimer = setTimeout(() => {
-                            if (!battleEnd && currentQuestion) {
-                                console.log('[Boss Auto-Answer] Boss auto-answer triggered');
-                                // ボスが正解する
-                                const bossCorrectAnswer = currentQuestion.answer;
-                                addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
-                                handleChoiceClick(bossCorrectAnswer);
+                            if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
+                                console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
+                                addLog(`時間切れ！ ${enemy.name} の攻撃！`);
+                                
+                                // 選択肢を無効化
+                                const buttons = choicesContainer.querySelectorAll('.choice-btn');
+                                buttons.forEach(btn => btn.disabled = true);
+                                
+                                // ボスの攻撃処理
+                                let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
+                                let botAtk = enemy.atk;
+                        
+                                // ボススキル使用
+                                let bossUsedSkill = null;
+                                if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+                                    if (Math.random() < 0.5) { // 50%の確率でスキル使用
+                                        bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+                                    }
+                                }
+                                
+                                const defReduction = Math.floor(myDef * 0.1);
+                                let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
+                        
+                                if (bossUsedSkill) {
+                                    damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+                                }
+                        
+                                // 鉄壁適用
+                                if (hasUniqueAbility(me, 'damage_cut_half')) {
+                                    damage = Math.floor(damage * 0.5);
+                                    addLog("鉄壁発動！ダメージ50%カット");
+                                }
+                                
+                                // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
+                                me.hp = Math.max(0, me.hp - damage);
+                                showDamage("myDamage", damage);
+                                addLog(`${enemy.name}から ${damage} のダメージ！`);
+                                
+                                updateHP();
+                                
+                                if (me.hp <= 0) {
+                                    finishBotBattle("lose");
+                                } else {
+                                    setTimeout(generateBotQuestion, 1000);
+                                }
                             }
                         }, BOSS_AUTO_ANSWER_TIMEOUT);
                     }
@@ -2209,11 +2248,11 @@ function finishBotBattle(result) {
     addLog(win ? I18N.victory : I18N.defeat);
 
     console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}, isBossBattle=${isBossBattle}`);
-
+    
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
-    // デバッグ武器のみ奪えない
+    // デバッグ武器は奪えない
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
@@ -2339,7 +2378,7 @@ function finishBattle(winner) {
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
 
-    // デバッグ武器のみ奪えない
+    // デバッグ武器は奪えない
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
