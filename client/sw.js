@@ -78,6 +78,19 @@ self.addEventListener('fetch', (event) => {
               cache.put(event.request, networkResponse.clone());
             }
             return networkResponse;
+          }).catch((error) => {
+            console.error('[SW] Fetch error for manifest.json:', error);
+            // Return a basic manifest as fallback
+            return new Response(JSON.stringify({
+              "name": "School Battle",
+              "short_name": "SchoolBattle",
+              "start_url": "/",
+              "display": "standalone",
+              "background_color": "#ffffff",
+              "theme_color": "#000000"
+            }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
           });
         });
       })
@@ -95,6 +108,13 @@ self.addEventListener('fetch', (event) => {
             cache.put(event.request, networkResponse.clone());
           }
           return networkResponse;
+        }).catch((error) => {
+          console.error('[SW] Fetch error:', error, event.request.url);
+          // Return cached response if available on network error
+          if (response) {
+            return response;
+          }
+          throw error;
         });
         // キャッシュがあればそれを返し、なければネットワークの結果を待つ
         return response || fetchPromise;

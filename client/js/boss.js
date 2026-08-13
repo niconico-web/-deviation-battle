@@ -11,9 +11,9 @@ const BOSS_DATA = {
             { name: "知恵の恩恵", description: "全ステータスを一時的に強化する", effect: { damageMultiplier: 1.5, damageReduction: 0.3 } }
         ],
         difficulties: {
-            easy: { hp: 5000, atk: 100, def: 100, speed: 100, totalStats: 5300 },
-            medium: { hp: 10000, atk: 200, def: 200, speed: 200, totalStats: 10600 },
-            hard: { hp: 20000, atk: 400, def: 400, speed: 400, totalStats: 21200 }
+            easy: { hp: 25000, atk: 500, def: 500, speed: 500, totalStats: 26500 },
+            medium: { hp: 50000, atk: 1000, def: 1000, speed: 1000, totalStats: 53000 },
+            hard: { hp: 100000, atk: 2000, def: 2000, speed: 2000, totalStats: 106000 }
         }
     },
     boss2: {
@@ -25,9 +25,9 @@ const BOSS_DATA = {
             { name: "戦士の咆哮", description: "敵の攻撃力を下げる", effect: { enemyAtkDebuff: 0.3 } }
         ],
         difficulties: {
-            easy: { hp: 6000, atk: 120, def: 120, speed: 120, totalStats: 6360 },
-            medium: { hp: 12000, atk: 240, def: 240, speed: 240, totalStats: 12720 },
-            hard: { hp: 24000, atk: 480, def: 480, speed: 480, totalStats: 25440 }
+            easy: { hp: 30000, atk: 600, def: 600, speed: 600, totalStats: 31800 },
+            medium: { hp: 60000, atk: 1200, def: 1200, speed: 1200, totalStats: 63600 },
+            hard: { hp: 120000, atk: 2400, def: 2400, speed: 2400, totalStats: 127200 }
         }
     },
     boss3: {
@@ -39,9 +39,9 @@ const BOSS_DATA = {
             { name: "時空切断剣", description: "時空を裂く一撃を放つ", effect: { damageMultiplier: 3.0, sureHit: true, multiHit: 2 } }
         ],
         difficulties: {
-            easy: { hp: 7000, atk: 140, def: 140, speed: 200, totalStats: 7480 },
-            medium: { hp: 14000, atk: 280, def: 280, speed: 400, totalStats: 14960 },
-            hard: { hp: 28000, atk: 560, def: 560, speed: 800, totalStats: 29920 }
+            easy: { hp: 35000, atk: 700, def: 700, speed: 1000, totalStats: 37400 },
+            medium: { hp: 70000, atk: 1400, def: 1400, speed: 2000, totalStats: 74800 },
+            hard: { hp: 140000, atk: 2800, def: 2800, speed: 4000, totalStats: 149600 }
         }
     },
     boss4: {
@@ -53,9 +53,9 @@ const BOSS_DATA = {
             { name: "賢者の智慧", description: "回復と強化を同時に行う", effect: { heal: 100, damageMultiplier: 1.3 } }
         ],
         difficulties: {
-            easy: { hp: 8000, atk: 160, def: 160, speed: 160, totalStats: 8480 },
-            medium: { hp: 16000, atk: 320, def: 320, speed: 320, totalStats: 16960 },
-            hard: { hp: 32000, atk: 640, def: 640, speed: 640, totalStats: 33920 }
+            easy: { hp: 40000, atk: 800, def: 800, speed: 800, totalStats: 42400 },
+            medium: { hp: 80000, atk: 1600, def: 1600, speed: 1600, totalStats: 84800 },
+            hard: { hp: 160000, atk: 3200, def: 3200, speed: 3200, totalStats: 169600 }
         }
     },
     boss5: {
@@ -67,9 +67,9 @@ const BOSS_DATA = {
             { name: "破壊の宴", description: "全体に大ダメージを与える", effect: { damageMultiplier: 2.5, areaDamage: true } }
         ],
         difficulties: {
-            easy: { hp: 9000, atk: 180, def: 180, speed: 180, totalStats: 9540 },
-            medium: { hp: 18000, atk: 360, def: 360, speed: 360, totalStats: 19080 },
-            hard: { hp: 36000, atk: 720, def: 720, speed: 720, totalStats: 38160 }
+            easy: { hp: 45000, atk: 900, def: 900, speed: 900, totalStats: 47700 },
+            medium: { hp: 90000, atk: 1800, def: 1800, speed: 1800, totalStats: 95400 },
+            hard: { hp: 180000, atk: 3600, def: 3600, speed: 3600, totalStats: 190800 }
         }
     },
     boss6: {
@@ -81,9 +81,9 @@ const BOSS_DATA = {
             { name: "絶望の再臨", description: "戦闘不能になっても復活する", effect: { revive: true, damageMultiplier: 2.0 } }
         ],
         difficulties: {
-            easy: { hp: 10000, atk: 200, def: 200, speed: 200, totalStats: 10600 },
-            medium: { hp: 20000, atk: 400, def: 400, speed: 400, totalStats: 21200 },
-            hard: { hp: 40000, atk: 800, def: 800, speed: 800, totalStats: 42400 }
+            easy: { hp: 50000, atk: 1000, def: 1000, speed: 1000, totalStats: 53000 },
+            medium: { hp: 100000, atk: 2000, def: 2000, speed: 2000, totalStats: 106000 },
+            hard: { hp: 200000, atk: 4000, def: 4000, speed: 4000, totalStats: 212000 }
         }
     },
     boss7: {
@@ -95,9 +95,9 @@ const BOSS_DATA = {
             { name: "頂点の断末魔", description: "最強の一撃を放つ", effect: { damageMultiplier: 4.0, defenseIgnore: true, sureHit: true, critChance: 1.0 } }
         ],
         difficulties: {
-            easy: { hp: 15000, atk: 300, def: 300, speed: 300, totalStats: 15900 },
-            medium: { hp: 30000, atk: 600, def: 600, speed: 600, totalStats: 31800 },
-            hard: { hp: 60000, atk: 1200, def: 1200, speed: 1200, totalStats: 63600 }
+            easy: { hp: 75000, atk: 1500, def: 1500, speed: 1500, totalStats: 79500 },
+            medium: { hp: 150000, atk: 3000, def: 3000, speed: 3000, totalStats: 159000 },
+            hard: { hp: 300000, atk: 6000, def: 6000, speed: 6000, totalStats: 318000 }
         }
     }
 };
