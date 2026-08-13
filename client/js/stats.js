@@ -112,7 +112,11 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         return raw ? JSON.parse(raw) : null;
     }
 
-    const raw = localStorage.getItem("player"); if (!raw) return null;
+    const raw = localStorage.getItem("player");
+    if (!raw) {
+        console.error("[Stats] applyBattleRewards failed: 'player' not found in localStorage.");
+        return null;
+    }
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);

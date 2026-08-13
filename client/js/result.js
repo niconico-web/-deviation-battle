@@ -14,16 +14,19 @@ const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
 const lostWeapon = lostWeaponRaw ? JSON.parse(lostWeaponRaw) : null;
 
 console.log(`[Result] Result page loaded: result=${result}, won=${won}`);
-console.log(`[Result] battleXpGain exists:`, !!localStorage.getItem("battleXpGain"));
 
 // 強制的にバトル報酬を適用（デバッグ用）
-console.log(`[Result] Force calling applyBattleRewards for debugging`);
+console.log(`[Result] Player data before rewards:`, localStorage.getItem("player"));
 const updatedPlayer = applyBattleRewards(won, turn, damage, {
     stolenWeapon: won && !enemy?.isBoss ? stolenWeapon : null,
     lostWeapon: !won && !enemy?.isBoss ? lostWeapon : null,
     enemy: enemy
 });
-console.log(`[Result] Updated player:`, updatedPlayer);
+if (!updatedPlayer) {
+    console.error("[Result] applyBattleRewards returned null. Player data might be lost or not updated.");
+} else {
+    console.log(`[Result] Player data after rewards:`, JSON.stringify(updatedPlayer));
+}
 
 const xpGain = localStorage.getItem("battleXpGain") || "0";
 const coinGain = localStorage.getItem("battleCoinGain") || "0";
