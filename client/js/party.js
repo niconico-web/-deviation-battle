@@ -1,7 +1,7 @@
 // Party System for Boss Battles
 // Allows up to 4 players to form a party and fight bosses together
 
-const MAX_PARTY_SIZE = 4;
+var MAX_PARTY_SIZE = 4; // constからvarに変更し、再宣言エラーを回避
 
 // Party data structure
 function createPartyData(hostPlayerId) {
