@@ -71,6 +71,6 @@ localStorage.removeItem("lostWeapon");
 localStorage.removeItem("battleCoinGain");
 localStorage.removeItem("droppedOrb");
 localStorage.removeItem("isBotBattle");
-localStorage.removeItem("isBossBattle");
+localStorage.removeItem("isBossBattle"); // Clear boss battle flag
 
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";

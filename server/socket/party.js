@@ -9,6 +9,7 @@ module.exports = function(io) {
 
         // Party creation
         socket.on('party:create', (player) => {
+            console.log(`[Party Server] party:create received from socket ${socket.id} with player:`, player);
             if (!player) {
                 return socket.emit('party:error', { message: 'Player not found on server. Please create a character first.' });
             }
@@ -26,6 +27,7 @@ module.exports = function(io) {
         });
 
         socket.on('party:join', ({ partyId, player }) => {
+            console.log(`[Party Server] party:join received from socket ${socket.id} for party ${partyId} with player:`, player);
             if (!player) {
                 return socket.emit('party:error', { message: 'Player not found on server.' });
             }
