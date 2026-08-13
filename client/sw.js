@@ -59,6 +59,11 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // chrome-extensionからのリクエストはService Workerで処理しない
+  if (event.request.url.startsWith('chrome-extension://')) {
+    return;
+  }
+
   // APIとSocket.IOポーリングリクエストはネットワークに直接アクセス
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/?')) {
     event.respondWith(fetch(event.request));
