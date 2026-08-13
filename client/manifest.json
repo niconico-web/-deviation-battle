@@ -1,7 +1,7 @@
 {
   "name": "SchoolBattle",
   "short_name": "SchoolBattle",
-  "start_url": "/index.html",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#1c1e22",
   "theme_color": "#3498db",
