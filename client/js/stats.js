@@ -167,7 +167,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         grade: player.grade,
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
-        customSkills: player.customSkills
+        customSkills: player.customSkills,
         bossDefeats: player.bossDefeats || {}
     });
 
@@ -267,3 +267,8 @@ function buildPlayer(name, stats, xp, options = {}) {
 }
 
 function formatTime(s) { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60; return [h, m, sec].map(v => String(v).padStart(2, "0")).join(":"); }
+
+function getPlayerData() {
+    const raw = localStorage.getItem("player");
+    return raw ? migratePlayer(JSON.parse(raw)) : null;
+}
