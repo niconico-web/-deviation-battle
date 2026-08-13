@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v12';
+const CACHE_NAME = 'school-battle-cache-v16';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -23,6 +23,8 @@ const urlsToCache = [
   '/js/ability-popup.js',
   '/js/result.js',
   '/js/help.js',
+  '/js/boss.js',
+  '/js/party.js',
   '/socket.io/socket.io.js',
   // アイコンのパスを修正
   '/images/icons/icon-192x192.png',
@@ -68,16 +70,59 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Handle manifest.json requests specifically
+  if (event.request.url.includes('manifest.json')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch((error) => {
+            console.error('[SW] Fetch error for manifest.json:', error);
+            // Return a basic manifest as fallback
+            return new Response(JSON.stringify({
+              "name": "School Battle",
+              "short_name": "SchoolBattle",
+              "start_url": "/",
+              "display": "standalone",
+              "background_color": "#ffffff",
+              "theme_color": "#000000"
+            }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          });
+        });
+      })
+    );
+    return;
+  }
+
   // Stale-While-Revalidate 戦略
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((response) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // 有効なレスポンスのみキャッシュ
+          // 有効なレスポンスのみキャッシュ（chrome-extensionを除外）
           if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
+            // chrome-extension URLはキャッシュしない
+            if (!event.request.url.startsWith('chrome-extension://')) {
+              cache.put(event.request, networkResponse.clone());
+            }
           }
           return networkResponse;
+        }).catch((error) => {
+          console.error('[SW] Fetch error:', error, event.request.url);
+          // Return cached response if available on network error
+          if (response) {
+            return response;
+          }
+          throw error;
         });
         // キャッシュがあればそれを返し、なければネットワークの結果を待つ
         return response || fetchPromise;
