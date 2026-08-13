@@ -373,11 +373,6 @@ function updateXpDisplay(player) {
     el.textContent = I18N.xp + I18N.colon + xp + " (Lv." + lv + " -> " + I18N.xpNext + " " + xpToNextLevel(lv) + " XP)";
 }
 
-function getPlayerData() {
-    const raw = localStorage.getItem("player");
-    return raw ? migratePlayer(JSON.parse(raw)) : null;
-}
-
 function startStudy() {
     if (studyStartTime !== null) return;
     if (!getPlayerData()) { alert(I18N.needChar); return; }
@@ -848,6 +843,13 @@ function setupDOMEventHandlers() {
     const leavePartyBtn = document.getElementById('leavePartyBtn');
     if (leavePartyBtn) leavePartyBtn.onclick = leaveParty;
 
+    // Stat input event listeners
+    STAT_KEYS.forEach(key => {
+        const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
+        const el = document.getElementById(inputId);
+        if (el) el.addEventListener("input", updateRemainingPoints);
+    });
+
     const partyReadyBtn = document.getElementById('partyReadyBtn');
     if (partyReadyBtn) partyReadyBtn.onclick = setPartyReady;
 }
@@ -905,12 +907,6 @@ function switchSection(section) {
     const activeButton = document.querySelector(`.menu-btn[data-section="${section}"]`);
     if (activeButton) activeButton.classList.add('active');
 }
-
-STAT_KEYS.forEach(key => {
-    const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
-    const el = document.getElementById(inputId);
-    if (el) el.addEventListener("input", updateRemainingPoints);
-});
 
 function initializeI18nTexts() {
     // Set all i18n text elements
