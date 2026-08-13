@@ -1,0 +1,29 @@
+/* Global Styles - Readable Font and Contrast */
+body {
+  font-family: "Meiryo", "Hiragino Kaku Gothic Pro", sans-serif;
+  color: #ffffff;
+  background-color: #212529;
+  margin: 0;
+  padding: 0;
+}
+
+/* Improve Japanese text rendering */
+html {
+  font-family: "Meiryo", "Hiragino Kaku Gothic Pro", sans-serif;
+}
+
+/* Basic link styling */
+a {
+  color: #00ffe0;
+  text-decoration: none;
+}
+
+/* Hover effect for better visibility */
+a:hover {
+  text-decoration: underline;
+}
+
+/* Ensure proper spacing for content */
+.container {
+  padding: 20px;
+}
