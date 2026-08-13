@@ -882,6 +882,13 @@ function setupDOMEventHandlers() {
 
     const partyReadyBtn = document.getElementById('partyReadyBtn');
     if (partyReadyBtn) partyReadyBtn.onclick = setPartyReady;
+
+    const botMatchBtn = document.getElementById('botMatch');
+    if (botMatchBtn) botMatchBtn.onclick = () => {
+        if (typeof startBotBattle_fromScript === "function") {
+            startBotBattle_fromScript();
+        }
+    };
 }
 
 function createParty() {
@@ -1143,6 +1150,7 @@ window.onload = () => {
                 localStorage.setItem("isBotBattle", "true"); // ボス戦はボット戦の仕組みを流用
                 localStorage.setItem("battlePlayer", JSON.stringify(data.player));
                 localStorage.setItem("enemy", JSON.stringify(data.boss)); // サーバーから送られたボスデータ
+                 localStorage.setItem("isBossBattle", "true");
                 location.href = "battle.html";
             });
         }
