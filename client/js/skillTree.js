@@ -32,6 +32,22 @@ const SKILL_TREE = {
             { id: "atk_path_4", name: "攻撃IV", description: "攻撃+25", cost: 3, x: -9, y: -6, requires: "gs_power_1", type: "stat", effect: { atk: 25 } },
             { id: "atk_path_5", name: "攻撃V", description: "攻撃+30", cost: 3, x: -11, y: -3, requires: "atk_path_4", type: "stat", effect: { atk: 30 } },
             { id: "berserker", name: "狂戦士", description: "常時攻撃+15%, 防御-10%", cost: 6, x: -13, y: -4, requires: "atk_path_5", type: "passive", effect: { atkPercent: 0.15, defPercent: -0.1 } },
+            // More attack extensions
+            { id: "atk_path_6", name: "攻撃VI", description: "攻撃+35", cost: 4, x: -15, y: -5, requires: "atk_path_5", type: "stat", effect: { atk: 35 } },
+            { id: "atk_path_7", name: "攻撃VII", description: "攻撃+40", cost: 4, x: -17, y: -6, requires: "atk_path_6", type: "stat", effect: { atk: 40 } },
+            { id: "atk_path_8", name: "攻撃VIII", description: "攻撃+45", cost: 4, x: -19, y: -7, requires: "atk_path_7", type: "stat", effect: { atk: 45 } },
+            { id: "atyramid_1", name: "攻撃の金字塔I", description: "攻撃+50, HP+20", cost: 5, x: -21, y: -8, requires: "atk_path_8", type: "stat", effect: { atk: 50, maxHp: 20 } },
+            { id: "atyramid_2", name: "攻撃の金字塔II", description: "攻撃+60, HP+25", cost: 5, x: -23, y: -9, requires: "atyramid_1", type: "stat", effect: { atk: 60, maxHp: 25 } },
+            { id: "atyramid_3", name: "攻撃の金字塔III", description: "攻撃+70, HP+30", cost: 5, x: -25, y: -10, requires: "atyramid_2", type: "stat", effect: { atk: 70, maxHp: 30 } },
+            { id: "atyramid_top", name: "攻撃の頂点", description: "常時攻撃+25%, HP+15%", cost: 7, x: -27, y: -11, requires: "atyramid_3", type: "passive", effect: { atkPercent: 0.25, maxHpPercent: 0.15 } },
+            // Attack branch down
+            { id: "atk_branch_1", name: "精密打撃", description: "攻撃+15, クリティカル率+1%", cost: 3, x: -10, y: -8, requires: "atk_path_4", type: "stat", effect: { atk: 15, critChance: 0.01 } },
+            { id: "atk_branch_2", name: "重撃", description: "攻撃+20, クリティカルダメージ+10%", cost: 3, x: -12, y: -9, requires: "atk_branch_1", type: "stat", effect: { atk: 20, critMultiplier: 0.1 } },
+            { id: "death_blow", name: "致命の一撃", description: "次の攻撃3倍ダメージ、防御無視", cost: 6, x: -14, y: -10, requires: "atk_branch_2", type: "active", effect: { type: "active", damageMultiplier: 3.0, defenseIgnore: true } },
+            // Attack branch up
+            { id: "atk_branch_up_1", name: "狂暴", description: "攻撃+25, 速さ+10", cost: 3, x: -12, y: -3, requires: "atk_path_4", type: "stat", effect: { atk: 25, speed: 10 } },
+            { id: "atk_branch_up_2", name: "暴虐", description: "攻撃+30, 速さ+15", cost: 3, x: -14, y: -2, requires: "atk_branch_up_1", type: "stat", effect: { atk: 30, speed: 15 } },
+            { id: "frenzy", name: "フレンジー", description: "常時攻撃+20%, 速さ+10%", cost: 6, x: -16, y: -1, requires: "atk_branch_up_2", type: "passive", effect: { atkPercent: 0.2, speedPercent: 0.1 } },
 
             // --- 右上: 防御・盾ルート ---
             { id: "def_path_1", name: "防御II", description: "防御+10", cost: 2, x: 3, y: -1, requires: "core_def_1", type: "stat", effect: { def: 10 } },
@@ -40,6 +56,28 @@ const SKILL_TREE = {
             { id: "ss_guard_stance", name: "ガードスタンス", description: "次に受けるダメージを30%軽減", cost: 4, x: 9, y: -4, requires: "ss_tough_1", type: "active", effect: { type: "active", damageReduction: 0.3 } },
             { id: "def_mastery", name: "防御の極意", description: "常時防御+10%", cost: 5, x: 7, y: -5, requires: "ss_tough_1", type: "passive", effect: { defPercent: 0.1 } },
             { id: "def_path_3", name: "HP+", description: "HP+10", cost: 1, x: 4, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 10 } },
+            // Extended defense path (far right)
+            { id: "def_extreme_1", name: "鉄壁II", description: "防御+20, HP+15", cost: 4, x: 11, y: -5, requires: "ss_guard_stance", type: "stat", effect: { def: 20, maxHp: 15 } },
+            { id: "def_extreme_2", name: "絶対防御", description: "次の攻撃を完全無効化", cost: 5, x: 13, y: -6, requires: "def_extreme_1", type: "active", effect: { type: "active", invincible: true } },
+            { id: "def_path_4", name: "防御IV", description: "防御+25", cost: 3, x: 9, y: -6, requires: "ss_tough_1", type: "stat", effect: { def: 25 } },
+            { id: "def_path_5", name: "防御V", description: "防御+30", cost: 3, x: 11, y: -3, requires: "def_path_4", type: "stat", effect: { def: 30 } },
+            { id: "fortress", name: "要塞", description: "常時防御+15%, HP+10%", cost: 6, x: 13, y: -4, requires: "def_path_5", type: "passive", effect: { defPercent: 0.15, maxHpPercent: 0.1 } },
+            // More defense extensions
+            { id: "def_path_6", name: "防御VI", description: "防御+35", cost: 4, x: 15, y: -5, requires: "def_path_5", type: "stat", effect: { def: 35 } },
+            { id: "def_path_7", name: "防御VII", description: "防御+40", cost: 4, x: 17, y: -6, requires: "def_path_6", type: "stat", effect: { def: 40 } },
+            { id: "def_path_8", name: "防御VIII", description: "防御+45", cost: 4, x: 19, y: -7, requires: "def_path_7", type: "stat", effect: { def: 45 } },
+            { id: "dpyramid_1", name: "防御の金字塔I", description: "防御+50, HP+20", cost: 5, x: 21, y: -8, requires: "def_path_8", type: "stat", effect: { def: 50, maxHp: 20 } },
+            { id: "dpyramid_2", name: "防御の金字塔II", description: "防御+60, HP+25", cost: 5, x: 23, y: -9, requires: "dpyramid_1", type: "stat", effect: { def: 60, maxHp: 25 } },
+            { id: "dpyramid_3", name: "防御の金字塔III", description: "防御+70, HP+30", cost: 5, x: 25, y: -10, requires: "dpyramid_2", type: "stat", effect: { def: 70, maxHp: 30 } },
+            { id: "dpyramid_top", name: "防御の頂点", description: "常時防御+25%, HP+15%", cost: 7, x: 27, y: -11, requires: "dpyramid_3", type: "passive", effect: { defPercent: 0.25, maxHpPercent: 0.15 } },
+            // Defense branch down
+            { id: "def_branch_1", name: "堅固", description: "防御+15, HP+15", cost: 3, x: 10, y: -8, requires: "def_path_4", type: "stat", effect: { def: 15, maxHp: 15 } },
+            { id: "def_branch_2", name: "不滅", description: "防御+20, HP+20", cost: 3, x: 12, y: -9, requires: "def_branch_1", type: "stat", effect: { def: 20, maxHp: 20 } },
+            { id: "immortal", name: "不死身", description: "戦闘不能時HP50%で復活(1回のみ)", cost: 6, x: 14, y: -10, requires: "def_branch_2", type: "active", effect: { type: "active", revive: true, revivePercent: 0.5 } },
+            // Defense branch up
+            { id: "def_branch_up_1", name: "守護", description: "防御+25, 速さ+10", cost: 3, x: 12, y: -3, requires: "def_path_4", type: "stat", effect: { def: 25, speed: 10 } },
+            { id: "def_branch_up_2", name: "庇護", description: "防御+30, 速さ+15", cost: 3, x: 14, y: -2, requires: "def_branch_up_1", type: "stat", effect: { def: 30, speed: 15 } },
+            { id: "guardian", name: "守護者", description: "常時防御+20%, 速さ+10%", cost: 6, x: 16, y: -1, requires: "def_branch_up_2", type: "passive", effect: { defPercent: 0.2, speedPercent: 0.1 } },
 
             // --- 左下: 速さ・双剣ルート ---
             { id: "speed_path_1", name: "速さII", description: "速さ+10", cost: 2, x: -3, y: 2, requires: "core_speed_1", type: "stat", effect: { speed: 10 } },
@@ -48,6 +86,28 @@ const SKILL_TREE = {
             { id: "ds_twin_strike", name: "ツインスラッシュ", description: "次の攻撃が2回攻撃になる(1回のダメージは0.6倍)", cost: 4, x: -9, y: 5, requires: "ds_agile_1", type: "active", effect: { type: "active", multiStrike: 2, multiStrikeMultiplier: 0.6 } },
             { id: "speed_mastery", name: "速さの極意", description: "常時速さ+10%", cost: 5, x: -7, y: 6, requires: "ds_agile_1", type: "passive", effect: { speedPercent: 0.1 } },
             { id: "speed_path_3", name: "攻撃+", description: "攻撃+5", cost: 1, x: -4, y: 1, requires: "speed_path_1", type: "stat", effect: { atk: 5 } },
+            // Extended speed path (far left)
+            { id: "speed_extreme_1", name: "疾風", description: "速さ+20, 攻撃+10", cost: 4, x: -11, y: 5, requires: "ds_twin_strike", type: "stat", effect: { speed: 20, atk: 10 } },
+            { id: "speed_extreme_2", name: "閃光", description: "次の攻撃必中、ダメージ1.5倍", cost: 5, x: -13, y: 6, requires: "speed_extreme_1", type: "active", effect: { type: "active", sureHit: true, damageMultiplier: 1.5 } },
+            { id: "speed_path_4", name: "速さIV", description: "速さ+25", cost: 3, x: -9, y: 6, requires: "ds_agile_1", type: "stat", effect: { speed: 25 } },
+            { id: "speed_path_5", name: "速さV", description: "速さ+30", cost: 3, x: -11, y: 3, requires: "speed_path_4", type: "stat", effect: { speed: 30 } },
+            { id: "windrunner", name: "風歩き", description: "常時速さ+15%, 回避率+5%", cost: 6, x: -13, y: 4, requires: "speed_path_5", type: "passive", effect: { speedPercent: 0.15, dodgeChance: 0.05 } },
+            // More speed extensions
+            { id: "speed_path_6", name: "速さVI", description: "速さ+35", cost: 4, x: -15, y: 5, requires: "speed_path_5", type: "stat", effect: { speed: 35 } },
+            { id: "speed_path_7", name: "速さVII", description: "速さ+40", cost: 4, x: -17, y: 6, requires: "speed_path_6", type: "stat", effect: { speed: 40 } },
+            { id: "speed_path_8", name: "速さVIII", description: "速さ+45", cost: 4, x: -19, y: 7, requires: "speed_path_7", type: "stat", effect: { speed: 45 } },
+            { id: "spyramid_1", name: "速さの金字塔I", description: "速さ+50, 攻撃+20", cost: 5, x: -21, y: 8, requires: "speed_path_8", type: "stat", effect: { speed: 50, atk: 20 } },
+            { id: "spyramid_2", name: "速さの金字塔II", description: "速さ+60, 攻撃+25", cost: 5, x: -23, y: 9, requires: "spyramid_1", type: "stat", effect: { speed: 60, atk: 25 } },
+            { id: "spyramid_3", name: "速さの金字塔III", description: "速さ+70, 攻撃+30", cost: 5, x: -25, y: 10, requires: "spyramid_2", type: "stat", effect: { speed: 70, atk: 30 } },
+            { id: "spyramid_top", name: "速さの頂点", description: "常時速さ+25%, 攻撃+15%", cost: 7, x: -27, y: 11, requires: "spyramid_3", type: "passive", effect: { speedPercent: 0.25, atkPercent: 0.15 } },
+            // Speed branch down
+            { id: "speed_branch_1", name: "軽足", description: "速さ+15, 回避率+2%", cost: 3, x: -10, y: 8, requires: "speed_path_4", type: "stat", effect: { speed: 15, dodgeChance: 0.02 } },
+            { id: "speed_branch_2", name: "神速", description: "速さ+20, 回避率+3%", cost: 3, x: -12, y: 9, requires: "speed_branch_1", type: "stat", effect: { speed: 20, dodgeChance: 0.03 } },
+            { id: "phantom", name: "幻影", description: "次のターン、完全回避状態", cost: 6, x: -14, y: 10, requires: "speed_branch_2", type: "active", effect: { type: "active", dodgeChance: 1.0 } },
+            // Speed branch up
+            { id: "speed_branch_up_1", name: "疾走", description: "速さ+25, 攻撃+15", cost: 3, x: -12, y: 3, requires: "speed_path_4", type: "stat", effect: { speed: 25, atk: 15 } },
+            { id: "speed_branch_up_2", name: "飛翔", description: "速さ+30, 攻撃+20", cost: 3, x: -14, y: 2, requires: "speed_branch_up_1", type: "stat", effect: { speed: 30, atk: 20 } },
+            { id: "skywalker", name: "天空の行者", description: "常時速さ+20%, 攻撃+10%", cost: 6, x: -16, y: 1, requires: "speed_branch_up_2", type: "passive", effect: { speedPercent: 0.2, atkPercent: 0.1 } },
 
             // --- 右下: HP・鎌ルート ---
             { id: "hp_path_1", name: "体力II", description: "HP+15", cost: 2, x: 3, y: 2, requires: "core_hp_1", type: "stat", effect: { maxHp: 15 } },
@@ -56,6 +116,28 @@ const SKILL_TREE = {
             { id: "sc_life_hunt", name: "ライフハント", description: "次の攻撃で与えたダメージの30%を吸収する", cost: 4, x: 9, y: 5, requires: "sc_vitality_1", type: "active", effect: { type: "active", lifeSteal: 0.3 } },
             { id: "hp_mastery", name: "体力の極意", description: "常時HP+10%", cost: 5, x: 7, y: 6, requires: "sc_vitality_1", type: "passive", effect: { maxHpPercent: 0.1 } },
             { id: "hp_path_3", name: "防御+", description: "防御+5", cost: 1, x: 4, y: 1, requires: "hp_path_1", type: "stat", effect: { def: 5 } },
+            // Extended HP path (far right)
+            { id: "hp_extreme_1", name: "生命力II", description: "HP+25, 防御+10", cost: 4, x: 11, y: 5, requires: "sc_life_hunt", type: "stat", effect: { maxHp: 25, def: 10 } },
+            { id: "hp_extreme_2", name: "再生", description: "ターン開始時HP10%回復", cost: 5, x: 13, y: 6, requires: "hp_extreme_1", type: "passive", effect: { type: "passive", hpRegen: 0.1 } },
+            { id: "hp_path_4", name: "体力IV", description: "HP+25", cost: 3, x: 9, y: 6, requires: "sc_vitality_1", type: "stat", effect: { maxHp: 25 } },
+            { id: "hp_path_5", name: "体力V", description: "HP+30", cost: 3, x: 11, y: 3, requires: "hp_path_4", type: "stat", effect: { maxHp: 30 } },
+            { id: "undying", name: "不死鳥", description: "常時HP+15%, 防御+5%", cost: 6, x: 13, y: 4, requires: "hp_path_5", type: "passive", effect: { maxHpPercent: 0.15, defPercent: 0.05 } },
+            // More HP extensions
+            { id: "hp_path_6", name: "体力VI", description: "HP+35", cost: 4, x: 15, y: 5, requires: "hp_path_5", type: "stat", effect: { maxHp: 35 } },
+            { id: "hp_path_7", name: "体力VII", description: "HP+40", cost: 4, x: 17, y: 6, requires: "hp_path_6", type: "stat", effect: { maxHp: 40 } },
+            { id: "hp_path_8", name: "体力VIII", description: "HP+45", cost: 4, x: 19, y: 7, requires: "hp_path_7", type: "stat", effect: { maxHp: 45 } },
+            { id: "hppyramid_1", name: "体力の金字塔I", description: "HP+50, 防御+20", cost: 5, x: 21, y: 8, requires: "hp_path_8", type: "stat", effect: { maxHp: 50, def: 20 } },
+            { id: "hppyramid_2", name: "体力の金字塔II", description: "HP+60, 防御+25", cost: 5, x: 23, y: 9, requires: "hppyramid_1", type: "stat", effect: { maxHp: 60, def: 25 } },
+            { id: "hppyramid_3", name: "体力の金字塔III", description: "HP+70, 防御+30", cost: 5, x: 25, y: 10, requires: "hppyramid_2", type: "stat", effect: { maxHp: 70, def: 30 } },
+            { id: "hppyramid_top", name: "体力の頂点", description: "常時HP+25%, 防御+15%", cost: 7, x: 27, y: 11, requires: "hppyramid_3", type: "passive", effect: { maxHpPercent: 0.25, defPercent: 0.15 } },
+            // HP branch down
+            { id: "hp_branch_1", name: "健壮", description: "HP+15, 攻撃+10", cost: 3, x: 10, y: 8, requires: "hp_path_4", type: "stat", effect: { maxHp: 15, atk: 10 } },
+            { id: "hp_branch_2", name: "強健", description: "HP+20, 攻撃+15", cost: 3, x: 12, y: 9, requires: "hp_branch_1", type: "stat", effect: { maxHp: 20, atk: 15 } },
+            { id: "vampire", name: "吸血鬼", description: "常時ライフスティール15%", cost: 6, x: 14, y: 10, requires: "hp_branch_2", type: "passive", effect: { lifeSteal: 0.15 } },
+            // HP branch up
+            { id: "hp_branch_up_1", name: "活力", description: "HP+25, 速さ+10", cost: 3, x: 12, y: 3, requires: "hp_path_4", type: "stat", effect: { maxHp: 25, speed: 10 } },
+            { id: "hp_branch_up_2", name: "活力増進", description: "HP+30, 速さ+15", cost: 3, x: 14, y: 2, requires: "hp_branch_up_1", type: "stat", effect: { maxHp: 30, speed: 15 } },
+            { id: "regenerator", name: "再生者", description: "常時HP+15%, ライフスティール5%", cost: 6, x: 16, y: 1, requires: "hp_branch_up_2", type: "passive", effect: { maxHpPercent: 0.15, lifeSteal: 0.05 } },
 
             // --- 遠距離・魔法ルート (上部) ---
             { id: "magic_path_1", name: "魔力", description: "攻撃+5, 速さ+5", cost: 2, x: 0, y: -3, requires: "core_hp_1", type: "stat", effect: { atk: 5, speed: 5 } },
@@ -63,18 +145,54 @@ const SKILL_TREE = {
             { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", cost: 3, x: 2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.2, burn: true } },
             { id: "mw_ice_lance", name: "アイスランス", description: "次の攻撃のダメージ1.1倍、敵の速さを低下", cost: 3, x: -2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.1, speedDebuff: 0.2 } },
             { id: "magic_mastery", name: "魔力の極意", description: "常時 攻撃+5%, 速さ+5%", cost: 5, x: 0, y: -8, requires: ["mw_fireball", "mw_ice_lance"], type: "passive", effect: { atkPercent: 0.05, speedPercent: 0.05 } },
+            // Extended magic path (far up)
+            { id: "magic_path_3", name: "魔力III", description: "攻撃+15", cost: 3, x: 0, y: -10, requires: "magic_mastery", type: "stat", effect: { atk: 15 } },
+            { id: "magic_path_4", name: "魔力IV", description: "攻撃+20", cost: 3, x: 0, y: -12, requires: "magic_path_3", type: "stat", effect: { atk: 20 } },
+            { id: "arcane_blast", name: "アークaneブラスト", description: "次の攻撃2.0倍ダメージ", cost: 5, x: 0, y: -14, requires: "magic_path_4", type: "active", effect: { type: "active", damageMultiplier: 2.0 } },
+            { id: "archmage", name: "大魔導士", description: "常時攻撃+20%, 次の攻撃30%で毒付与", cost: 6, x: 0, y: -16, requires: "arcane_blast", type: "passive", effect: { atkPercent: 0.2, poisonChance: 0.3 } },
+            // Magic branch left
+            { id: "magic_branch_1", name: "火魔法", description: "攻撃+15, 火傷付与率+5%", cost: 3, x: -3, y: -11, requires: "magic_path_3", type: "stat", effect: { atk: 15, burnChance: 0.05 } },
+            { id: "magic_branch_2", name: "炎の嵐", description: "攻撃+20, 火傷付与率+10%", cost: 3, x: -5, y: -12, requires: "magic_branch_1", type: "stat", effect: { atk: 20, burnChance: 0.1 } },
+            { id: "inferno", name: "地獄", description: "次の攻撃2.5倍、敵に火傷3ターン", cost: 6, x: -7, y: -13, requires: "magic_branch_2", type: "active", effect: { type: "active", damageMultiplier: 2.5, burn: true, burnTurns: 3 } },
+            // Magic branch right
+            { id: "magic_branch_r1", name: "氷魔法", description: "攻撃+15, 敵速さ低下率+5%", cost: 3, x: 3, y: -11, requires: "magic_path_3", type: "stat", effect: { atk: 15, speedDebuff: 0.05 } },
+            { id: "magic_branch_r2", name: "絶対零度", description: "攻撃+20, 敵速さ低下率+10%", cost: 3, x: 5, y: -12, requires: "magic_branch_r1", type: "stat", effect: { atk: 20, speedDebuff: 0.1 } },
+            { id: "blizzard", name: "ブリザード", description: "次の攻撃2.0倍、敵速さ3ターン低下", cost: 6, x: 7, y: -13, requires: "magic_branch_r2", type: "active", effect: { type: "active", damageMultiplier: 2.0, speedDebuff: 0.3, speedDebuffTurns: 3 } },
 
             // --- 特殊・クリティカルルート (左側) ---
             { id: "crit_path_1", name: "精密", description: "クリティカル率+2%", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
             { id: "crit_path_2", name: "痛撃", description: "クリティカルダメージ+10%", cost: 2, x: -10, y: 0, requires: "crit_path_1", type: "passive", effect: { critMultiplier: 0.1 } },
             { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
             { id: "active_crit", name: "狙い澄まし", description: "次の攻撃は必ずクリティカルになる", cost: 4, x: -14, y: 0, requires: "crit_mastery", type: "active", effect: { type: "active", nextAttackCrit: true } },
+            // Extended critical path
+            { id: "crit_extreme_1", name: "殺戮者", description: "クリティカル率+8%, クリティカルダメージ+15%", cost: 4, x: -16, y: 0, requires: "active_crit", type: "passive", effect: { critChance: 0.08, critMultiplier: 0.15 } },
+            { id: "crit_extreme_2", name: "処刑人", description: "クリティカル率+10%, クリティカルダメージ+20%", cost: 4, x: -18, y: 0, requires: "crit_extreme_1", type: "passive", effect: { critChance: 0.1, critMultiplier: 0.2 } },
+            { id: "crit_path_3", name: "クリティカル率+", description: "クリティカル率+3%", cost: 2, x: -14, y: -2, requires: "crit_mastery", type: "passive", effect: { critChance: 0.03 } },
+            { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
+            { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
+            { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
+            { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP50%以上残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.5 } },
 
             // --- タンク・防御ルート (右側) ---
             { id: "tank_path_1", name: "頑健", description: "HP+20", cost: 2, x: 8, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 20 } },
             { id: "tank_path_2", name: "鉄壁", description: "防御+15", cost: 2, x: 10, y: 0, requires: "tank_path_1", type: "stat", effect: { def: 15 } },
             { id: "tank_mastery", name: "不落の要塞", description: "常時 HP+5%, 防御+5%", cost: 5, x: 12, y: 0, requires: "tank_path_2", type: "passive", effect: { maxHpPercent: 0.05, defPercent: 0.05 } },
             { id: "active_unbreakable", name: "不動", description: "次のターン、受けるダメージを80%軽減するが、行動できない", cost: 4, x: 14, y: 0, requires: "tank_mastery", type: "active", effect: { type: "active", damageReduction: 0.8, skipNextTurn: true } },
+            // Extended tank path
+            { id: "tank_extreme_1", name: "要塞II", description: "HP+30, 防御+20", cost: 4, x: 16, y: 0, requires: "active_unbreakable", type: "stat", effect: { maxHp: 30, def: 20 } },
+            { id: "tank_extreme_2", name: "絶対防御", description: "次のターン、ダメージを95%軽減", cost: 5, x: 18, y: 0, requires: "tank_extreme_1", type: "active", effect: { type: "active", damageReduction: 0.95, skipNextTurn: true } },
+            { id: "tank_path_3", name: "頑健II", description: "HP+25", cost: 3, x: 14, y: -2, requires: "tank_path_2", type: "stat", effect: { maxHp: 25 } },
+            { id: "tank_path_4", name: "頑健III", description: "HP+30", cost: 3, x: 16, y: -3, requires: "tank_path_3", type: "stat", effect: { maxHp: 30 } },
+            { id: "tank_path_5", name: "頑健IV", description: "HP+35", cost: 3, x: 18, y: -4, requires: "tank_path_4", type: "stat", effect: { maxHp: 35 } },
+            { id: "immortal_guard", name: "不死の守護者", description: "常時HP+20%, 防御+10%", cost: 6, x: 20, y: -5, requires: "tank_path_5", type: "passive", effect: { maxHpPercent: 0.2, defPercent: 0.1 } },
+            // Tank branch up
+            { id: "tank_branch_1", name: "守護者", description: "HP+20, 防御+15", cost: 3, x: 16, y: -6, requires: "tank_path_3", type: "stat", effect: { maxHp: 20, def: 15 } },
+            { id: "tank_branch_2", name: "守護神", description: "HP+25, 防御+20", cost: 3, x: 18, y: -7, requires: "tank_branch_1", type: "stat", effect: { maxHp: 25, def: 20 } },
+            { id: "sacrifice", name: "献身", description: "次の攻撃自身HP30%消費してダメージ2倍", cost: 6, x: 20, y: -8, requires: "tank_branch_2", type: "active", effect: { type: "active", damageMultiplier: 2.0, selfHpCost: 0.3 } },
+            // Tank branch down
+            { id: "tank_branch_d1", name: "硬直", description: "防御+20, 攻撃+5", cost: 3, x: 14, y: 2, requires: "tank_path_3", type: "stat", effect: { def: 20, atk: 5 } },
+            { id: "tank_branch_d2", name: "重装甲", description: "防御+25, 攻撃+10", cost: 3, x: 16, y: 3, requires: "tank_branch_d1", type: "stat", effect: { def: 25, atk: 10 } },
+            { id: "shield_wall", name: "シールドウォール", description: "次の攻撃を無効化、1ターン反撃不能", cost: 6, x: 18, y: 4, requires: "tank_branch_d2", type: "active", effect: { type: "active", invincible: true, skipNextTurn: true } },
 
             // --- 下部中央: ユーティリティ ---
             { id: "util_path_1", name: "熟練", description: "スキルコスト-1", cost: 3, x: 0, y: 4, requires: "core_speed_1", type: "passive", effect: { skillCostReduction: 1 } },
