@@ -751,12 +751,17 @@ function setupDOMEventHandlers() {
             if (partyId) {
                 const player = getPlayerData();
                 if (player) {
-                    const result = joinParty(player.id, partyId);
-                    if (result.success) {
-                        alert('パーティに参加しました');
-                        showPartyModal();
+                    // Use the global function from party.js
+                    if (typeof window.joinParty === 'function') {
+                        const result = window.joinParty(player.id, partyId);
+                        if (result.success) {
+                            alert('パーティに参加しました');
+                            showPartyModal();
+                        } else {
+                            alert(result.message);
+                        }
                     } else {
-                        alert(result.message);
+                        alert('パーティシステムが読み込まれていません');
                     }
                 }
             }
@@ -921,7 +926,10 @@ function showBossList() {
     const bossModal = document.getElementById('bossModal');
     const bossList = document.getElementById('bossList');
     
-    if (!bossModal || !bossList) return;
+    if (!bossModal || !bossList) {
+        console.error('Boss modal or boss list element not found');
+        return;
+    }
     
     const player = getPlayerData();
     if (!player) {
@@ -930,11 +938,23 @@ function showBossList() {
     }
     
     const bossIds = getAllBossIds();
+    console.log('Boss IDs:', bossIds);
+    
+    if (!bossIds || bossIds.length === 0) {
+        bossList.innerHTML = '<p>ボスデータが見つかりません</p>';
+        bossModal.style.display = 'flex';
+        return;
+    }
+    
     let html = '';
     
     bossIds.forEach((bossId, index) => {
+        console.log('Processing boss:', bossId);
         const boss = getBossData(bossId);
-        if (!boss) return;
+        if (!boss) {
+            console.error('Boss data not found for:', bossId);
+            return;
+        }
         
         const defeatStatus = hasDefeatedBoss(player, bossId, 'hard') ? '★ハードクリア★' :
                             hasDefeatedBoss(player, bossId, 'medium') ? '★ミディアムクリア★' :
@@ -954,6 +974,10 @@ function showBossList() {
         `;
     });
     
+    if (html === '') {
+        html = '<p>ボスデータが見つかりません</p>';
+    }
+    
     bossList.innerHTML = html;
     bossModal.style.display = 'flex';
 }
@@ -972,13 +996,21 @@ function startBossBattle(bossId, difficulty) {
         return;
     }
     
+    console.log('Starting boss battle:', bossId, difficulty);
+    
     // Check if player is in a party
-    const party = getPlayerParty(player.id);
+    let party = null;
+    if (typeof window.getPlayerParty === 'function') {
+        party = window.getPlayerParty(player.id);
+    }
+    
     if (party && party.members.length > 1) {
         // Party boss battle
+        console.log('Starting party boss battle');
         startPartyBossBattle(party, bossId, difficulty);
     } else {
         // Solo boss battle
+        console.log('Starting solo boss battle');
         startSoloBossBattle(player, bossId, difficulty);
     }
     
@@ -991,6 +1023,8 @@ function startSoloBossBattle(player, bossId, difficulty) {
         alert('ボスデータが見つかりません');
         return;
     }
+    
+    console.log('Boss stats:', bossStats);
     
     // Create boss enemy
     const boss = getBossData(bossId);
@@ -1008,12 +1042,15 @@ function startSoloBossBattle(player, bossId, difficulty) {
         difficulty: difficulty
     };
     
+    console.log('Boss enemy created:', enemy);
+    
     // Store battle data
     localStorage.setItem('enemy', JSON.stringify(enemy));
     localStorage.setItem('isBossBattle', 'true');
     localStorage.setItem('bossDifficulty', difficulty);
     
     // Navigate to battle
+    console.log('Navigating to battle...');
     window.location.href = 'battle.html';
 }
 
@@ -1045,10 +1082,12 @@ function updatePartyUI(party) {
     const partyMembers = document.getElementById('partyMembers');
     const partyActions = document.getElementById('partyActions');
     
+    const player = getPlayerData();
+    
     if (!party) {
         partyInfo.innerHTML = '<p>パーティに参加していません</p>';
         partyMembers.innerHTML = '';
-        partyActions.innerHTML = '<button class="btn" onclick="createNewParty()">パーティ作成</button>';
+        partyActions.innerHTML = '<button class="btn" onclick="handleCreateParty()">パーティ作成</button>';
         return;
     }
     
@@ -1073,25 +1112,47 @@ function updatePartyUI(party) {
     }
 }
 
-function createNewParty() {
+function handleCreateParty() {
     const player = getPlayerData();
-    if (!player) return;
+    if (!player) {
+        alert('キャラクターを作成してください');
+        return;
+    }
     
-    const result = createNewParty(player.id);
-    if (result.success) {
-        alert('パーティを作成しました');
-        updatePartyUI(result.party);
+    console.log('Creating new party for player:', player.id);
+    
+    // Call the party.js function
+    if (typeof window.createNewParty === 'function') {
+        const result = window.createNewParty(player.id);
+        if (result.success) {
+            alert('パーティを作成しました');
+            updatePartyUI(result.party);
+        } else {
+            alert('パーティ作成に失敗しました');
+        }
+    } else {
+        alert('パーティシステムが読み込まれていません');
     }
 }
 
 function leaveParty() {
     const player = getPlayerData();
-    if (!player) return;
+    if (!player) {
+        alert('キャラクターを作成してください');
+        return;
+    }
     
-    const result = leaveParty(player.id);
-    if (result.success) {
-        alert('パーティを脱退しました');
-        updatePartyUI(null);
+    // Use the global function from party.js
+    if (typeof window.leaveParty === 'function') {
+        const result = window.leaveParty(player.id);
+        if (result.success) {
+            alert('パーティを脱退しました');
+            updatePartyUI(null);
+        } else {
+            alert(result.message);
+        }
+    } else {
+        alert('パーティシステムが読み込まれていません');
     }
 }
 
@@ -1108,7 +1169,7 @@ window.closeBossModal = closeBossModal;
 window.startBossBattle = startBossBattle;
 window.showPartyModal = showPartyModal;
 window.closePartyModal = closePartyModal;
-window.createNewParty = createNewParty;
+window.handleCreateParty = handleCreateParty;
 window.leaveParty = leaveParty;
 window.inviteToParty = inviteToParty;
 window.updatePartyUI = updatePartyUI;
