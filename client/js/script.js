@@ -28,6 +28,80 @@ let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
 
+// 勉強タイマーの状態をスリープ時にも保持するための処理
+const STUDY_TIMER_STORAGE_KEY = 'studyTimerState';
+
+function saveStudyTimerState() {
+    if (studyStartTime !== null) {
+        const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+        const state = {
+            elapsed: elapsed,
+            subject: document.getElementById("studySubject")?.value || 'jp',
+            timestamp: Date.now()
+        };
+        localStorage.setItem(STUDY_TIMER_STORAGE_KEY, JSON.stringify(state));
+        console.log('Study timer state saved:', state);
+    }
+}
+
+function loadStudyTimerState() {
+    const savedState = localStorage.getItem(STUDY_TIMER_STORAGE_KEY);
+    if (savedState) {
+        try {
+            const state = JSON.parse(savedState);
+            // 最後の保存から24時間以内ならタイマーを復元（長時間の勉強に対応）
+            if (Date.now() - state.timestamp < 86400000) {
+                console.log('Study timer state loaded:', state);
+                return state;
+            } else {
+                console.log('Study timer state too old, clearing');
+                localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
+            }
+        } catch (e) {
+            console.error('Failed to load study timer state:', e);
+            localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
+        }
+    }
+    return null;
+}
+
+function clearStudyTimerState() {
+    localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
+}
+
+// Page Visibility API - スリープ/復帰検出
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        // ページが非表示になったらタイマー状態を保存
+        saveStudyTimerState();
+    } else {
+        // ページが再表示されたらタイマー状態を復元
+        const savedState = loadStudyTimerState();
+        if (savedState && studyStartTime === null) {
+            // タイマーが停止中なら復元
+            const subjectSelect = document.getElementById("studySubject");
+            if (subjectSelect) {
+                subjectSelect.value = savedState.subject;
+            }
+            // スリープ中に経過した時間を加算して新しい開始時間を設定
+            const sleepElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
+            studyElapsedBefore = savedState.elapsed + sleepElapsed;
+            studyStartTime = Date.now(); // 現在時刻から再開
+            document.getElementById("studyStart").disabled = true;
+            document.getElementById("studyStop").disabled = false;
+            document.getElementById("studyFocus").disabled = true;
+            studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
+            updateStudyTimerDisplay();
+            console.log('Study timer restored from sleep state. Sleep elapsed:', sleepElapsed, 'Total elapsed:', studyElapsedBefore);
+        }
+    }
+});
+
+// アプリが完全に閉じられる前にタイマー状態を保存
+window.addEventListener('beforeunload', () => {
+    saveStudyTimerState();
+});
+
 // 複数タブ防止（改善版）
 const tabId = 'tab_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 let heartbeatInterval = null;
@@ -320,6 +394,9 @@ function stopStudy() {
     const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
     studyStartTime = null;
     studyElapsedBefore = 0;
+    
+    // 保存されたタイマー状態をクリア
+    clearStudyTimerState();
     
     // ボタンの状態を確実に更新
     const studyStartBtn = document.getElementById("studyStart");
