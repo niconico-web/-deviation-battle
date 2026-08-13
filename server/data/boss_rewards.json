@@ -1,29 +1,29 @@
 {
-    "boss1": {
+    "goblin_king": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss2": {
+    "orc_warlord": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss3": {
+    "shadow_serpent": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss4": {
+    "ice_golem": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss5": {
+    "flame_dragon": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss6": {
+    "abyssal_knight": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     },
-    "boss7": {
+    "celestial_guardian": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
     }

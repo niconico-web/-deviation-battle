@@ -243,10 +243,10 @@ function updateStats() {
     const enemyDefVal = enemy.def;
     const enemySpeedVal = enemy.speed;
     
-    enemyAtk.textContent = statLabel("atk", enemyAtkVal || 10);
-    enemyDef.textContent = statLabel("def", enemyDefVal || 10);
-    const enemyDodgeChance = calculateDodgeChance(enemySpeedVal || 10);
-    enemySpeed.textContent = statLabel("speed", enemySpeedVal || 10) + ` (回避${enemyDodgeChance}%)`;
+    enemyAtk.textContent = statLabel("atk", enemyAtkVal);
+    enemyDef.textContent = statLabel("def", enemyDefVal);
+    const enemyDodgeChance = calculateDodgeChance(enemySpeedVal);
+    enemySpeed.textContent = statLabel("speed", enemySpeedVal) + ` (回避${enemyDodgeChance}%)`;
     enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
 }
 
@@ -2248,7 +2248,7 @@ function finishBotBattle(result) {
     addLog(win ? I18N.victory : I18N.defeat);
 
     console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}, isBossBattle=${isBossBattle}`);
-    
+
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
@@ -2257,7 +2257,7 @@ function finishBotBattle(result) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
     localStorage.removeItem("isBotBattle");
-    localStorage.removeItem("isBossBattle");
+    localStorage.removeItem("isBossBattle"); // Clear boss battle flag
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
     setTimeout(() => location.href = "result.html", 2000);
@@ -2377,7 +2377,6 @@ function finishBattle(winner) {
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
-
     // デバッグ武器は奪えない
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
