@@ -69,7 +69,7 @@ function createBossForBattle(bossId, difficulty) {
     
     // Add battle-specific properties
     bossInstance.isBoss = true;
-    bossInstance.difficulty = difficulty;
+    bossInstance.difficulty = difficulty; // 難易度をインスタンスに保持
     bossInstance.skills = bossTemplate.skills; // Ensure skills are included
 
     // Remove difficulty structure as it's not needed in battle

@@ -1,107 +1,156 @@
 [
     {
-        "id": "boss1",
-        "name": "ガーディアン",
-        "description": "忘れ去られた図書館の奥深くで、禁断の知識を守り続ける存在。その魔法は世界の理を歪める。",
-        "skills": [
-            { "name": "知識の光", "description": "光の魔法で敵に大ダメージを与える", "effect": { "damageMultiplier": 2.0, "sureHit": true } },
-            { "name": "守護の盾", "description": "強力な防御シールドを展開する", "effect": { "shield": 100, "damageReduction": 0.5 } },
-            { "name": "知恵の波動", "description": "全ステータスを一時的に強化する", "effect": { "damageMultiplier": 1.5, "damageReduction": 0.3 } }
-        ],
+        "id": "goblin_king",
+        "name": "狡猾なるゴブリンの覇王",
+        "description": "ゴブリンの群れを率いる狡猾な王。手下を呼び、トリッキーな攻撃を仕掛けてくる。",
         "difficulties": {
-            "easy": { "hp": 5000, "atk": 1000, "def": 1000, "speed": 1000 },
-            "medium": { "hp": 10000, "atk": 2000, "def": 2000, "speed": 2000 },
-            "hard": { "hp": 20000, "atk": 4000, "def": 4000, "speed": 4000 }
-        }
+            "easy": { "hp": 5000, "atk": 300, "def": 250, "speed": 200 },
+            "medium": { "hp": 20000, "atk": 800, "def": 600, "speed": 500 },
+            "hard": { "hp": 75000, "atk": 2500, "def": 2000, "speed": 1800 }
+        },
+        "skills": [
+            {
+                "name": "キングス・ラッシュ",
+                "description": "素早い連続攻撃を仕掛ける。",
+                "effect": { "damageMultiplier": 1.2, "multiHit": 2 }
+            },
+            {
+                "name": "覇王の号令",
+                "description": "自身の攻撃力を一時的に上昇させる。",
+                "effect": { "selfBuff": { "type": "atk", "amount": 1.2, "turns": 2 } }
+            }
+        ]
     },
     {
-        "id": "boss2",
-        "name": "リヴァイアサン",
-        "description": "挑戦者の魂を試すために存在する次元の管理者であり災害をつかさどる神。その一撃は空間そのものを断ち切る。",
-        "skills": [
-            { "name": "空間の破壊", "description": "物理攻撃で敵を粉砕する", "effect": { "damageMultiplier": 2.5, "defenseIgnore": true } },
-            { "name": "鱗形成", "description": "防御力を大幅に上昇させる", "effect": { "damageReduction": 0.7, "selfDefDebuff": -20 } },
-            { "name": "試練の咆哮", "description": "敵の攻撃力を下げる", "effect": { "enemyAtkDebuff": 0.3 } }
-        ],
+        "id": "orc_warlord",
+        "name": "破壊のオーク・ウォーロード",
+        "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は盾をも砕く。",
         "difficulties": {
-            "easy": { "hp": 6000, "atk": 1200, "def": 1200, "speed": 1200 },
-            "medium": { "hp": 12000, "atk": 2400, "def": 2400, "speed": 2400 },
-            "hard": { "hp": 24000, "atk": 4800, "def": 4800, "speed": 4800 }
-        }
+            "easy": { "hp": 8000, "atk": 500, "def": 400, "speed": 150 },
+            "medium": { "hp": 30000, "atk": 1200, "def": 1000, "speed": 400 },
+            "hard": { "hp": 100000, "atk": 3000, "def": 2500, "speed": 1000 }
+        },
+        "skills": [
+            {
+                "name": "デストロイ・ハンマー",
+                "description": "防御を一部無視する強力な一撃。",
+                "effect": { "damageMultiplier": 1.5, "pierceDef": 0.3 }
+            },
+            {
+                "name": "バーサーカー・クライ",
+                "description": "雄叫びをあげ、相手を恐怖させ防御力を低下させる。",
+                "effect": { "debuff": { "type": "def", "reduction": 0.2, "turns": 3 } }
+            }
+        ]
     },
     {
-        "id": "boss3",
-        "name": "タイムマスター",
-        "description": "過去、現在、未来の全てを見通す時の皇帝。その前では、光さえも歩みを止める。",
-        "skills": [
-            { "name": "時間停止", "description": "敵の行動を1ターン封じる", "effect": { "skipNextTurn": true } },
-            { "name": "加速", "description": "自分の速度を大幅に上昇させる", "effect": { "dodgeChance": 0.5, "speedBoost": 50 } },
-            { "name": "時空斬り", "description": "時空を裂く一撃を放つ", "effect": { "damageMultiplier": 3.0, "sureHit": true, "multiHit": 2 } }
-        ],
+        "id": "shadow_serpent",
+        "name": "深淵の影蛇 ヨルムンガンド",
+        "description": "影に潜み、毒と呪いで獲物を弱らせる巨大な蛇。その姿を捉えることすら困難。",
         "difficulties": {
-            "easy": { "hp": 7000, "atk": 1400, "def": 1400, "speed": 2000 },
-            "medium": { "hp": 14000, "atk": 2800, "def": 2800, "speed": 4000 },
-            "hard": { "hp": 28000, "atk": 5600, "def": 5600, "speed": 8000 }
-        }
+            "easy": { "hp": 7000, "atk": 400, "def": 300, "speed": 600 },
+            "medium": { "hp": 25000, "atk": 1000, "def": 800, "speed": 1400 },
+            "hard": { "hp": 90000, "atk": 2800, "def": 2200, "speed": 3000 }
+        },
+        "skills": [
+            {
+                "name": "ヴェノム・バイト",
+                "description": "猛毒の牙で噛みつき、継続ダメージを与える。",
+                "effect": { "poison": { "damage": 0.05, "turns": 3 } }
+            },
+            {
+                "name": "アビス・ダイブ",
+                "description": "影に潜み、次の攻撃を回避する。",
+                "effect": { "evasionBoost": 1.0, "turns": 1 }
+            }
+        ]
     },
     {
-        "id": "boss4",
-        "name": "スターアルケミー",
-        "description": "星々の運行から世界の真理を読み解く賢者。その魔法障壁は神々の攻撃すら弾き返すという。",
-        "skills": [
-            { "name": "古代魔法", "description": "古代の強力な魔法を放つ", "effect": { "damageMultiplier": 2.2, "heal": 50 } },
-            { "name": "魔法障壁", "description": "魔法ダメージを大幅に軽減する", "effect": { "damageReduction": 0.8, "shield": 150 } },
-            { "name": "賢者の叡智", "description": "回復と強化を同時に行う", "effect": { "heal": 100, "damageMultiplier": 1.3 } }
-        ],
+        "id": "ice_golem",
+        "name": "絶対零度の氷結巨像",
+        "description": "万年氷から生まれた魔法生物。絶対零度の冷気で相手の動きを封じる。",
         "difficulties": {
-            "easy": { "hp": 8000, "atk": 1600, "def": 1600, "speed": 1600 },
-            "medium": { "hp": 16000, "atk": 3200, "def": 3200, "speed": 3200 },
-            "hard": { "hp": 32000, "atk": 6400, "def": 6400, "speed": 6400 }
-        }
+            "easy": { "hp": 12000, "atk": 350, "def": 600, "speed": 100 },
+            "medium": { "hp": 45000, "atk": 900, "def": 1600, "speed": 200 },
+            "hard": { "hp": 150000, "atk": 2500, "def": 4000, "speed": 500 }
+        },
+        "skills": [
+            {
+                "name": "コキュートス・プリズン",
+                "description": "相手を氷に閉じ込め、速さを大幅に低下させる。",
+                "effect": { "debuff": { "type": "speed", "reduction": 0.5, "turns": 3 } }
+            },
+            {
+                "name": "ダイヤモンドダスト・ブレス",
+                "description": "全体を襲う極低温の吹雪。",
+                "effect": { "damageMultiplier": 1.8 }
+            }
+        ]
     },
     {
-        "id": "boss5",
-        "name": "プラウラー",
-        "description": "人間により生まれた混沌の化身。その体は機械でできており、高度な計算で想像を超えた一撃を叩き込んでくる。",
-        "skills": [
-            { "name": "混沌の渦", "description": "混沌の渦巻きで敵を巻き込む", "effect": { "damageMultiplier": 2.0, "multiHit": 3, "poison": true } },
-            { "name": "狂乱の舞", "description": "ランダムな効果を発動する", "effect": { "damageMultiplier": 1.8, "dodgeChance": 0.3, "counter": true } },
-            { "name": "破壊の宴", "description": "全体に大ダメージを与える", "effect": { "damageMultiplier": 2.5, "areaDamage": true } }
-        ],
+        "id": "flame_dragon",
+        "name": "煉獄の焔竜 イグニート",
+        "description": "灼熱の炎を吐く古代の竜。その翼は空を焼き、怒りは大地を焦がす。",
         "difficulties": {
-            "easy": { "hp": 9000, "atk": 1800, "def": 1800, "speed": 1800 },
-            "medium": { "hp": 18000, "atk": 3600, "def": 3600, "speed": 3600 },
-            "hard": { "hp": 36000, "atk": 7200, "def": 7200, "speed": 7200 }
-        }
+            "easy": { "hp": 15000, "atk": 600, "def": 500, "speed": 400 },
+            "medium": { "hp": 50000, "atk": 1400, "def": 1000, "speed": 800 },
+            "hard": { "hp": 200000, "atk": 4000, "def": 3000, "speed": 1600 }
+        },
+        "skills": [
+            {
+                "name": "プロミネンス・フレア",
+                "description": "全てを焼き尽くす業火。相手に火傷の継続ダメージを与える。",
+                "effect": { "damageMultiplier": 1.5, "burn": { "damage": 0.1, "turns": 3 } }
+            },
+            {
+                "name": "ドラゴニック・ロア",
+                "description": "竜の咆哮で相手の攻撃力と防御力を低下させる。",
+                "effect": { "debuff": { "type": "atk_def", "reduction": 0.2, "turns": 3 } }
+            }
+        ]
     },
     {
-        "id": "boss6",
-        "name": "アビスナイト",
-        "description": "奈落の底で、深淵の闇が溢れ出さぬよう永遠に監視を続ける孤独な戦士。その瞳に見つめられた者は絶望に囚われる。",
-        "skills": [
-            { "name": "絶望の視線", "description": "敵に強力なデバフを与える", "effect": { "enemyAtkDebuff": 0.4, "enemyDefDebuff": 0.4, "enemyAccuracyDebuff": 0.4 } },
-            { "name": "ヴォイド・クラッシュ", "description": "虚空の力で敵を粉砕し、防御を無視する", "effect": { "damageMultiplier": 3.0, "defenseIgnore": true, "sureHit": true } },
-            { "name": "深淵の再臨", "description": "戦闘不能になっても一度だけ復活し、さらに強力になる", "effect": { "revive": true, "damageMultiplier": 2.0 } }
-        ],
+        "id": "abyssal_knight",
+        "name": "奈落の騎士 アゼロス",
+        "description": "深淵より現れた闇の騎士。生命力を吸い取る魔剣を操る。",
         "difficulties": {
-            "easy": { "hp": 10000, "atk": 2000, "def": 2000, "speed": 2000 },
-            "medium": { "hp": 20000, "atk": 4000, "def": 4000, "speed": 4000 },
-            "hard": { "hp": 40000, "atk": 8000, "def": 8000, "speed": 8000 }
-        }
+            "easy": { "hp": 20000, "atk": 700, "def": 700, "speed": 600 },
+            "medium": { "hp": 70000, "atk": 1600, "def": 1600, "speed": 1200 },
+            "hard": { "hp": 300000, "atk": 5000, "def": 5000, "speed": 2400 }
+        },
+        "skills": [
+            {
+                "name": "ソウル・イーター",
+                "description": "与えたダメージの一部を吸収し、自身のHPを回復する。",
+                "effect": { "damageMultiplier": 1.2, "lifeSteal": 0.5 }
+            },
+            {
+                "name": "ヴォイド・エッジ",
+                "description": "空間を切り裂く一撃。相手の防御と回避を無視する。",
+                "effect": { "damageMultiplier": 2.0, "ignoreDef": true, "sureHit": true }
+            }
+        ]
     },
     {
-        "id": "boss7",
-        "name": "アカシック・ガーディアン",
-        "description": "宇宙の全ての知識が記録されているという「アカシックレコード」そのもの。存在自体が究極の魔法であり、頂点に立つ者。",
-        "skills": [
-            { "name": "究極の知識", "description": "全てのステータスを最大化する", "effect": { "damageMultiplier": 2.0, "damageReduction": 0.5, "dodgeChance": 0.3, "critChance": 0.5 } },
-            { "name": "学問の極意", "description": "複数の強力な効果を同時に発動", "effect": { "damageMultiplier": 2.5, "multiHit": 2, "sureHit": true, "heal": 100 } },
-            { "name": "頂点の断末魔", "description": "最強の一撃を放つ", "effect": { "damageMultiplier": 4.0, "defenseIgnore": true, "sureHit": true, "critChance": 1.0 } }
-        ],
+        "id": "celestial_guardian",
+        "name": "天穹の守護者 セラフィエル",
+        "description": "天界の秩序を守る究極の存在。聖なる力であらゆる攻撃を無効化し、神の裁きを下す。",
         "difficulties": {
-            "easy": { "hp": 30000, "atk": 3000, "def": 3000, "speed": 3000 },
-            "medium": { "hp": 60000, "atk": 6000, "def": 6000, "speed": 6000 },
-            "hard": { "hp": 99999, "atk": 9999, "def": 9999, "speed": 9999 }
-        }
+            "easy": { "hp": 50000, "atk": 1000, "def": 1000, "speed": 1000 },
+            "medium": { "hp": 250000, "atk": 4000, "def": 4000, "speed": 3000 },
+            "hard": { "hp": 9999999, "atk": 99999, "def": 99999, "speed": 99999 }
+        },
+        "skills": [
+            {
+                "name": "ホーリープロテクション",
+                "description": "聖なる光のバリアを展開し、あらゆるダメージを大幅に軽減する。",
+                "effect": { "damageReduction": 0.8, "turns": 1 }
+            },
+            {
+                "name": "ジャッジメント",
+                "description": "神の裁き。回避不能の聖なる光で敵を討つ、絶大な威力を持つ攻撃。",
+                "effect": { "damageMultiplier": 3.0, "sureHit": true }
+            }
+        ]
     }
 ]

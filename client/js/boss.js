@@ -1,6 +1,6 @@
 /**
  * Applies rewards for defeating a boss.
- * @param {object} player - The player object.
+ * @param {object} player - The player object. 
  * @param {object} boss - The defeated boss object from the battle.
  * @returns {object} The updated player object.
  */
@@ -95,7 +95,7 @@ function getBossSkillAsCustomSkill(boss) {
 
     return {
         id: `boss_skill_${boss.id}_${Date.now()}`,
-        name: `[秘技] ${bossSkill.name}`,
+        name: `[秘技] ${bossSkill.name}`, 
         description: bossSkill.description,
         effect: bossSkill.effect,
         strength: 'tier15', // Boss skills are very powerful
@@ -136,7 +136,7 @@ function generateBossWeapon(boss) {
     // Create a powerful original weapon
     const weapon = {
         id: `boss_weapon_${boss.id}_${Date.now()}`,
-        name: `${boss.name}の魂魄`,
+        name: `${boss.name}の魂魄`, 
         type: randomType,
         isOriginal: true,
         multiplier: 3.0, // Fully upgraded state as per request
