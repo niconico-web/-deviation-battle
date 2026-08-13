@@ -1,0 +1,156 @@
+[
+    {
+        "id": "goblin_king",
+        "name": "ゴブリンキング",
+        "description": "ゴブリンの群れを率いる狡猾な王。手下を呼び、トリッキーな攻撃を仕掛けてくる。",
+        "difficulties": {
+            "easy": { "hp": 500, "atk": 80, "def": 60, "speed": 70 },
+            "medium": { "hp": 1500, "atk": 150, "def": 120, "speed": 130 },
+            "hard": { "hp": 4000, "atk": 300, "def": 250, "speed": 280 }
+        },
+        "skills": [
+            {
+                "name": "ゴブリンラッシュ",
+                "description": "素早い連続攻撃を仕掛ける。",
+                "effect": { "damageMultiplier": 1.2, "multiHit": 2 }
+            },
+            {
+                "name": "王の号令",
+                "description": "自身の攻撃力を一時的に上昇させる。",
+                "effect": { "selfBuff": { "type": "atk", "amount": 1.2, "turns": 2 } }
+            }
+        ]
+    },
+    {
+        "id": "orc_warlord",
+        "name": "オークの戦将",
+        "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は盾をも砕く。",
+        "difficulties": {
+            "easy": { "hp": 800, "atk": 120, "def": 80, "speed": 50 },
+            "medium": { "hp": 2500, "atk": 220, "def": 160, "speed": 100 },
+            "hard": { "hp": 6000, "atk": 450, "def": 350, "speed": 200 }
+        },
+        "skills": [
+            {
+                "name": "ウォーハンマー",
+                "description": "防御を一部無視する強力な一撃。",
+                "effect": { "damageMultiplier": 1.5, "pierceDef": 0.3 }
+            },
+            {
+                "name": "ウォークライ",
+                "description": "雄叫びをあげ、相手を恐怖させ防御力を低下させる。",
+                "effect": { "debuff": { "type": "def", "reduction": 0.2, "turns": 3 } }
+            }
+        ]
+    },
+    {
+        "id": "shadow_serpent",
+        "name": "シャドウサーペント",
+        "description": "影に潜み、毒と呪いで獲物を弱らせる巨大な蛇。その姿を捉えることすら困難。",
+        "difficulties": {
+            "easy": { "hp": 700, "atk": 100, "def": 70, "speed": 150 },
+            "medium": { "hp": 2200, "atk": 180, "def": 140, "speed": 300 },
+            "hard": { "hp": 5500, "atk": 380, "def": 300, "speed": 500 }
+        },
+        "skills": [
+            {
+                "name": "ポイズンバイト",
+                "description": "猛毒の牙で噛みつき、継続ダメージを与える。",
+                "effect": { "poison": { "damage": 0.05, "turns": 3 } }
+            },
+            {
+                "name": "シャドウダイブ",
+                "description": "影に潜み、次の攻撃を回避する。",
+                "effect": { "evasionBoost": 1.0, "turns": 1 }
+            }
+        ]
+    },
+    {
+        "id": "ice_golem",
+        "name": "アイスゴーレム",
+        "description": "万年氷から生まれた魔法生物。絶対零度の冷気で相手の動きを封じる。",
+        "difficulties": {
+            "easy": { "hp": 1000, "atk": 90, "def": 150, "speed": 30 },
+            "medium": { "hp": 3500, "atk": 170, "def": 300, "speed": 60 },
+            "hard": { "hp": 8000, "atk": 350, "def": 600, "speed": 120 }
+        },
+        "skills": [
+            {
+                "name": "アイスプリズン",
+                "description": "相手を氷に閉じ込め、速さを大幅に低下させる。",
+                "effect": { "debuff": { "type": "speed", "reduction": 0.5, "turns": 3 } }
+            },
+            {
+                "name": "ブリザードブレス",
+                "description": "全体を襲う極低温の吹雪。",
+                "effect": { "damageMultiplier": 1.8 }
+            }
+        ]
+    },
+    {
+        "id": "flame_dragon",
+        "name": "フレイムドラゴン",
+        "description": "灼熱の炎を吐く古代の竜。その翼は空を焼き、怒りは大地を焦がす。",
+        "difficulties": {
+            "easy": { "hp": 1200, "atk": 150, "def": 100, "speed": 120 },
+            "medium": { "hp": 4000, "atk": 300, "def": 200, "speed": 250 },
+            "hard": { "hp": 10000, "atk": 600, "def": 400, "speed": 450 }
+        },
+        "skills": [
+            {
+                "name": "インフェルノ",
+                "description": "全てを焼き尽くす業火。相手に火傷の継続ダメージを与える。",
+                "effect": { "damageMultiplier": 1.5, "burn": { "damage": 0.1, "turns": 3 } }
+            },
+            {
+                "name": "ドラゴニックロア",
+                "description": "竜の咆哮で相手の攻撃力と防御力を低下させる。",
+                "effect": { "debuff": { "type": "atk_def", "reduction": 0.2, "turns": 3 } }
+            }
+        ]
+    },
+    {
+        "id": "abyssal_knight",
+        "name": "アビサルナイト",
+        "description": "深淵より現れた闇の騎士。生命力を吸い取る魔剣を操る。",
+        "difficulties": {
+            "easy": { "hp": 1500, "atk": 180, "def": 180, "speed": 180 },
+            "medium": { "hp": 5000, "atk": 350, "def": 350, "speed": 350 },
+            "hard": { "hp": 12000, "atk": 700, "def": 700, "speed": 700 }
+        },
+        "skills": [
+            {
+                "name": "ソウルドレイン",
+                "description": "与えたダメージの一部を吸収し、自身のHPを回復する。",
+                "effect": { "damageMultiplier": 1.2, "lifeSteal": 0.5 }
+            },
+            {
+                "name": "ヴォイドスラッシュ",
+                "description": "空間を切り裂く一撃。相手の防御と回避を無視する。",
+                "effect": { "damageMultiplier": 2.0, "ignoreDef": true, "sureHit": true }
+            }
+        ]
+    },
+    {
+        "id": "celestial_guardian",
+        "name": "セレスティアルガーディアン",
+        "description": "天界の秩序を守る究極の存在。聖なる力であらゆる攻撃を無効化し、神の裁きを下す。",
+        "difficulties": {
+            "easy": { "hp": 2000, "atk": 250, "def": 250, "speed": 250 },
+            "medium": { "hp": 7500, "atk": 500, "def": 500, "speed": 500 },
+            "hard": { "hp": 20000, "atk": 999, "def": 999, "speed": 999 }
+        },
+        "skills": [
+            {
+                "name": "ホーリープロテクション",
+                "description": "聖なる光のバリアを展開し、あらゆるダメージを大幅に軽減する。",
+                "effect": { "damageReduction": 0.8, "turns": 1 }
+            },
+            {
+                "name": "ジャッジメント",
+                "description": "神の裁き。回避不能の聖なる光で敵を討つ、絶大な威力を持つ攻撃。",
+                "effect": { "damageMultiplier": 3.0, "sureHit": true }
+            }
+        ]
+    }
+]

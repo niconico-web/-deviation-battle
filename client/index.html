@@ -245,6 +245,26 @@ if ('serviceWorker' in navigator) {
 
                 <h3 style="margin-top: 20px;">ボス戦</h3>
                 <div id="bossBattleSection">
+                    
+                    <div id="partySection" class="section">
+                        <h4>パーティ (最大4人)</h4>
+                        <div id="party-controls">
+                            <button type="button" class="btn" id="createPartyBtn">パーティ作成</button>
+                            <div class="input-group">
+                                <input type="text" id="partyCodeInput" placeholder="パーティコード" maxlength="15">
+                                <button type="button" class="btn" id="joinPartyBtn">パーティ参加</button>
+                            </div>
+                        </div>
+                        <div id="party-info" style="display: none;">
+                            <p>パーティコード: <strong id="partyCodeDisplay"></strong></p>
+                            <div id="party-members" class="party-members-list"></div>
+                            <div id="party-actions">
+                                <button type="button" class="btn btn-primary" id="partyReadyBtn">準備OK</button>
+                                <button type="button" class="btn btn-danger" id="leavePartyBtn">パーティ脱退</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="input-group">
                         <label for="bossSelect">ボス選択:</label>
                         <select id="bossSelect" class="input-field"></select>

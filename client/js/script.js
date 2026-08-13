@@ -206,6 +206,9 @@ function initializeSocket() {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
             window.socket.emit("requestRandomMatch", pendingRandomMatchPlayer);
         }
+        
+        // Request boss list from server
+        window.socket.emit('bosses:get');
     });
 
     window.socket.on("disconnect", () => {
@@ -589,6 +592,39 @@ function setupSocketEventHandlers() {
     
     console.log("Setting up socket event handlers...");
 
+    // Boss list handler
+    window.socket.on('bosses:list', (bosses) => {
+        const bossSelect = document.getElementById('bossSelect');
+        if (bossSelect) {
+            bossSelect.innerHTML = ''; // Clear existing options
+            bosses.forEach(boss => {
+                const option = document.createElement('option');
+                option.value = boss.id;
+                option.textContent = boss.name;
+                bossSelect.appendChild(option);
+            });
+            console.log('Boss list updated from server.');
+        }
+    });
+
+    // Party handlers
+    window.socket.on('party:update', (party) => {
+        if (party) {
+            if (typeof updatePartyUI === 'function') {
+                updatePartyUI(party);
+            }
+        } else {
+            // Null party object means we left or the party was disbanded
+            if (typeof resetPartyUI === 'function') {
+                resetPartyUI();
+            }
+        }
+    });
+
+    window.socket.on('party:error', (error) => {
+        alert(`パーティエラー: ${error.message}`);
+    });
+
     // データ保存・読み込み関連のイベント
     window.socket.on("dataSaved", (info) => {
         localStorage.removeItem('pendingSave'); // 保存成功したので保留フラグを削除
@@ -790,32 +826,63 @@ function setupDOMEventHandlers() {
     }
 
     // --- Boss Battle UI ---
-    const bossSelect = document.getElementById('bossSelect');
     const startBossBattleBtn = document.getElementById('startBossBattleBtn');
-
-    if (bossSelect && typeof getAllBossIds === 'function' && typeof getBossData === 'function') {
-        const bossIds = getAllBossIds();
-        bossIds.forEach(id => {
-            const boss = getBossData(id);
-            if (boss) {
-                const option = document.createElement('option');
-                option.value = id;
-                option.textContent = boss.name;
-                bossSelect.appendChild(option);
-            }
-        });
-    }
-
     if (startBossBattleBtn) {
         startBossBattleBtn.onclick = () => {
             const bossId = document.getElementById('bossSelect').value;
             const difficulty = document.getElementById('bossDifficulty').value;
-            console.log(`Starting boss battle: ${bossId}, ${difficulty}`);
-            // ここでサーバーにボス戦開始を通知する (例)
-            // window.socket.emit('startBossBattle', { bossId, difficulty, player: getMatchPlayer() });
-            alert(`ボス戦機能は現在開発中です。\nサーバー側の 'startBossBattle' イベントを実装してください。`);
+            
+            // This needs to be integrated with the party system.
+            // For now, we can have the party host initiate the battle.
+            window.socket.emit('party:startBossBattle', { bossId, difficulty });
         };
     }
+
+    // Party UI Handlers
+    const createPartyBtn = document.getElementById('createPartyBtn');
+    if (createPartyBtn) createPartyBtn.onclick = createParty;
+
+    const joinPartyBtn = document.getElementById('joinPartyBtn');
+    if (joinPartyBtn) joinPartyBtn.onclick = joinParty;
+
+    const leavePartyBtn = document.getElementById('leavePartyBtn');
+    if (leavePartyBtn) leavePartyBtn.onclick = leaveParty;
+
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    if (partyReadyBtn) partyReadyBtn.onclick = setPartyReady;
+}
+
+function createParty() {
+    const player = getMatchPlayer();
+    if (!player) {
+        alert('キャラクターを作成してください。');
+        return;
+    }
+    window.socket.emit('party:create');
+}
+
+function joinParty() {
+    const player = getMatchPlayer();
+    if (!player) {
+        alert('キャラクターを作成してください。');
+        return;
+    }
+    const partyCode = document.getElementById('partyCodeInput').value.trim();
+    if (!partyCode) {
+        alert('パーティコードを入力してください。');
+        return;
+    }
+    window.socket.emit('party:join', { partyId: partyCode });
+}
+
+function leaveParty() {
+    window.socket.emit('party:leave');
+}
+
+function setPartyReady() {
+    const partyReadyBtn = document.getElementById('partyReadyBtn');
+    const isReady = !partyReadyBtn.classList.contains('ready');
+    window.socket.emit('party:setReady', { isReady });
 }
 
 function switchSection(section) {

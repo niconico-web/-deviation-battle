@@ -1,6 +1,8 @@
 const result = localStorage.getItem("battleResult");
 const turn = Number(localStorage.getItem("battleTurn") || "0");
 const playerHP = localStorage.getItem("playerHP") || "0";
+const enemyData = localStorage.getItem("enemy");
+const enemy = enemyData ? JSON.parse(enemyData) : null;
 const damage = Number(localStorage.getItem("totalDamage") || "0");
 const critical = localStorage.getItem("criticalCount") || "0";
 const title = document.getElementById("resultTitle");
@@ -17,8 +19,9 @@ console.log(`[Result] battleXpGain exists:`, !!localStorage.getItem("battleXpGai
 // 強制的にバトル報酬を適用（デバッグ用）
 console.log(`[Result] Force calling applyBattleRewards for debugging`);
 const updatedPlayer = applyBattleRewards(won, turn, damage, {
-    stolenWeapon: won ? stolenWeapon : null,
-    lostWeapon: !won ? lostWeapon : null
+    stolenWeapon: won && !enemy?.isBoss ? stolenWeapon : null,
+    lostWeapon: !won && !enemy?.isBoss ? lostWeapon : null,
+    enemy: enemy
 });
 console.log(`[Result] Updated player:`, updatedPlayer);
 

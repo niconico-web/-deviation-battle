@@ -1,0 +1,11 @@
+{
+    "medium": {
+        "tier4Abilities": 3,
+        "multiplier": 3.0,
+        "weaponName": "深淵の刃"
+    },
+    "hard": {
+        "customSkill": true,
+        "skillName": "ヴォイド・クラッシュ"
+    }
+}

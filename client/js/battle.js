@@ -1290,6 +1290,41 @@ function applySkillEffect(damage, attacker, defender, skill) {
     return modifiedDamage;
 }
 
+// ボススキル効果の適用
+function applyBossSkillEffect(damage, attacker, defender, skill) {
+    if (!skill || !skill.effect) return damage;
+
+    let modifiedDamage = damage;
+    const effect = skill.effect;
+
+    addLog(`ボスがスキル「${skill.name}」を使用！`);
+
+    // ダメージ倍率
+    if (effect.damageMultiplier) {
+        modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
+        addLog(`ボススキル効果: ダメージが${effect.damageMultiplier}倍になった！`);
+    }
+
+    // ライフスティール
+    if (effect.lifeSteal) {
+        const healAmount = Math.floor(modifiedDamage * effect.lifeSteal);
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+        addLog(`ボススキル効果: ボスがHPを${healAmount}吸収した！`);
+    }
+
+    // プレイヤーへのデバフ
+    if (effect.debuff) {
+        switch (effect.debuff.type) {
+            case 'atk':
+                me.atk = Math.floor(me.atk * (1 - effect.debuff.reduction));
+                addLog(`ボススキル効果: ${me.name}の攻撃力が低下！`);
+                break;
+            // ... 他のデバフタイプもここに追加 ...
+        }
+    }
+    return modifiedDamage;
+}
+
 // スキル使用後の処理
 function afterSkillUse(skill) {
     if (skill && skill.id) {
@@ -2096,6 +2131,16 @@ function handleBotAnswer(userAnswer) {
                 const defReduction = Math.floor(myDef * 0.1);
                 let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
                 
+                // Boss skill usage logic
+                let bossUsedSkill = null;
+                if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+                    // 50% chance to use a skill
+                    if (Math.random() < 0.5) {
+                        bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+                        damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+                    }
+                }
+
                 // 素早さによる補正（ボット側）
                 const enemyDodgeChance = calculateDodgeChance(enemy.speed);
                 

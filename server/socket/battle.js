@@ -1,5 +1,7 @@
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
+const BossManager = require('../managers/BossManager');
+const PlayerManager = require('../managers/PlayerManager');
 
 module.exports = function(io){
 
@@ -175,6 +177,53 @@ module.exports = function(io){
             // Notify both players to join new room
             io.to(roomId).emit("rematchConfirmed", { newRoomId });
 
+        });
+
+        // -----------------------------
+        // ボス戦
+        // -----------------------------
+        socket.on('boss:getList', () => {
+            try {
+                const bosses = BossManager.getAllBosses();
+                socket.emit('boss:list', bosses);
+            } catch (error) {
+                console.error("Error getting boss list:", error);
+                socket.emit('battleError', { message: 'Failed to get boss list.' });
+            }
+        });
+
+        socket.on('boss:startBattle', (data) => {
+            try {
+                const { bossId, difficulty, player } = data;
+                if (!bossId || !difficulty || !player) {
+                    return socket.emit('battleError', { message: 'Invalid request for boss battle.' });
+                }
+
+                PlayerManager.addPlayer(socket.id, player);
+                const playerForBattle = PlayerManager.getPlayer(socket.id);
+
+                if (!playerForBattle) {
+                    return socket.emit('battleError', { message: 'Player data not found for battle.' });
+                }
+
+                const boss = BossManager.createBossForBattle(bossId, difficulty);
+                if (!boss) {
+                    return socket.emit('battleError', { message: 'Boss not found.' });
+                }
+
+                const roomId = `BOSS_${socket.id.substring(0, 5)}_${Date.now()}`;
+                const battle = BattleManager.createBattle(roomId, playerForBattle, boss, true); // isBossBattle = true
+
+                if (!battle) {
+                    return socket.emit('battleError', { message: 'Failed to create boss battle.' });
+                }
+
+                socket.join(roomId);
+                socket.emit('battleCreated', { roomId });
+            } catch (error) {
+                console.error("Error starting boss battle:", error);
+                socket.emit('battleError', { message: 'An unexpected error occurred while starting the boss battle.' });
+            }
         });
 
     });
