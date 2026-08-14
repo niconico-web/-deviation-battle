@@ -1,0 +1,6 @@
+# Force LF for all project files
+* text=auto eol=lf
+
+# Force CRLF for Windows-specific files
+*.bat text eol=crlf
+*.ps1 text eol=crlf
