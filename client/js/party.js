@@ -48,6 +48,8 @@ function setupPartyEventListeners() {
             const bossId = document.getElementById('bossSelect').value;
             const difficulty = document.getElementById('bossDifficulty').value;
             if (bossId && difficulty && window.socket) {
+                // Save difficulty for result screen
+                localStorage.setItem("battleDifficulty", difficulty);
                 window.socket.emit('party:startBossBattle', { bossId, difficulty });
             }
         });

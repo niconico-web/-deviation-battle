@@ -527,8 +527,22 @@ function applyStudyRewards(seconds) {
     updateXpDisplay(updated);
     if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
     syncPlayerToServer(true);
-    const subjectLabel = { jp: I18N.hpDef, math: I18N.mathAtk, eng: I18N.engDefSpeed, sci: I18N.sciAtk, soc: I18N.socHp }[subject];
-    let msg = I18N.studyDone + "\n" + I18N.time + I18N.colon + formatTime(seconds) + "\n" + I18N.xp + " +" + gainedXp + "\n" + subjectLabel + I18N.statUp + " +" + statGain;
+    // 翻訳データを安全に参照
+    const I18N = window.I18N || {};
+    const subjectMap = {
+        jp: I18N.hpDef || "HP・防御",
+        math: I18N.mathAtk || "攻撃・速さ",
+        eng: I18N.engDefSpeed || "防御・速さ",
+        sci: I18N.sciAtk || "攻撃・HP",
+        soc: I18N.socHp || "HP・防御"
+    };
+    const subjectLabel = subjectMap[subject] || "";
+
+    let msg = (I18N.studyDone || "勉強を終了しました。") + "\n" +
+              (I18N.time || "時間") + (I18N.colon || ": ") + formatTime(seconds) + "\n" +
+              (I18N.xp || "XP") + " +" + gainedXp + "\n" +
+              subjectLabel + (I18N.statUp || "の能力") + " +" + statGain;
+
     if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
     if (gainedCoins > 0) msg += `\n30分以上の勉強ボーナス +${gainedCoins}コイン`;
     if (droppedOrb && typeof getOrbDisplayName === "function") {
@@ -540,16 +554,6 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
-}
-
-// Online event handlers are now in online.js
-
-function getMatchPlayer() {
-    const p = getPlayerData();
-    if (!p) return null;
-    const battleStats = getBattleStats(p);
-    // 武器補正後のmaxHpをHPとして設定（常にフルHPで開始）
-    return { ...p, ...battleStats, hp: battleStats.maxHp, battleStats };
 }
 
 // プレイヤーIDの正規化（大文字・空白・全角の揺れを吸収）
@@ -727,6 +731,59 @@ function updateOnlineButtons(isConnected) {
     }
 }
 
+// プレイヤーデータをlocalStorageから取得・移行する
+function getPlayerData() {
+    const raw = localStorage.getItem("player");
+    if (!raw) return null;
+    try {
+        const player = JSON.parse(raw);
+        // migratePlayer関数（stats.jsにある想定）で古いデータ構造を新しいものに変換
+        return typeof migratePlayer === "function" ? migratePlayer(player) : player;
+    } catch (e) {
+        console.error("プレイヤーデータの解析に失敗しました:", e);
+        localStorage.removeItem("player");
+        return null;
+    }
+}
+
+// 対戦用のプレイヤーデータを取得する
+function getMatchPlayer() {
+    const p = getPlayerData();
+    if (!p) return null;
+    const battleStats = getBattleStats(p);
+    // 武器補正後のmaxHpをHPとして設定（常にフルHPで開始）
+    return { ...p, ...battleStats, hp: battleStats.maxHp, battleStats };
+}
+
+// ステータス入力欄などをロック/アンロックする
+function lockStatInputs(locked) {
+    const statKeys = ["maxHp", "atk", "def", "speed"]; // STAT_KEYSがグローバルにない場合を想定
+    statKeys.forEach(key => {
+        const inputId = key === "maxHp" ? "statMaxHp" : "stat" + key.charAt(0).toUpperCase() + key.slice(1);
+        const el = document.getElementById(inputId);
+        if (el) {
+            el.disabled = locked;
+            el.readOnly = locked;
+        }
+    });
+    const gradeSelect = document.getElementById("statGrade");
+    if (gradeSelect) gradeSelect.disabled = locked;
+
+    const playerNameInput = document.getElementById("playerName");
+    if (playerNameInput) {
+        playerNameInput.disabled = locked;
+        playerNameInput.readOnly = locked;
+    }
+
+    const createBtn = document.getElementById("createCharBtn");
+    if (createBtn) {
+        createBtn.disabled = locked;
+        if (window.I18N) {
+            createBtn.textContent = locked ? I18N.statsLocked : I18N.createChar;
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocket();
     if (typeof setupPartyEventListeners === 'function') {
@@ -796,7 +853,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('ボスを選択してください。');
                 return;
             }
+            // Save difficulty for result screen
+            localStorage.setItem("battleDifficulty", difficulty);
             window.socket.emit('bosses:getDetails', { bossId, difficulty });
         });
     }
+
+    // --- ページの初期化処理 ---
+
+    // 勉強関連のイベントハンドラ
+    const studyStartBtn = document.getElementById("studyStart");
+    if (studyStartBtn) {
+        studyStartBtn.addEventListener('click', startStudy);
+    }
+    const studyStopBtn = document.getElementById("studyStop");
+    if (studyStopBtn) {
+        studyStopBtn.addEventListener('click', stopStudy);
+    }
+    const studyFocusSelect = document.getElementById("studyFocus");
+    if (studyFocusSelect) {
+        studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
+        updateStatGrowthInfo(); // 初期表示
+    }
+
+    // キャラクター作成・削除ボタン
+    const createCharBtn = document.getElementById("createCharBtn");
+    if (createCharBtn) {
+        createCharBtn.addEventListener('click', createCharacter);
+    }
+    const deletePlayerBtn = document.getElementById("deletePlayerBtn");
+    if (deletePlayerBtn) {
+        deletePlayerBtn.addEventListener('click', () => {
+            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
+            if (studyStartTime !== null) stopStudy();
+            localStorage.clear();
+            alert(I18N.deleted);
+            location.reload();
+        });
+    }
+
+    // プレイヤーデータの読み込みとUIの初期化
+    const player = getPlayerData();
+    if (player) {
+        updateStatus(player);
+        updateXpDisplay(player);
+        document.getElementById("playerName").value = player.name;
+        if (typeof getStatsFromPlayer === "function") {
+            setStatsToInputs(getStatsFromPlayer(player));
+        }
+        lockStatInputs(true);
+        const statDesc = document.getElementById("statAllocationDesc");
+        if (statDesc) {
+            statDesc.textContent = (window.I18N ? I18N.fixedStats : "ステータスは固定されています。");
+        }
+    } else {
+        // 新規作成時の処理
+        if (typeof updateRemainingPoints === "function") {
+            updateRemainingPoints();
+        }
+        lockStatInputs(false);
+    }
+
+    // スキルツリーの初期描画
+    if (typeof renderSkillTreeUI === "function") {
+        renderSkillTreeUI();
+    }
+    
+    // ステータス入力欄のイベントリスナー
+    const statInputs = document.querySelectorAll('#stat-allocation-box input, #stat-allocation-box select');
+    statInputs.forEach(input => {
+        input.addEventListener('input', updateRemainingPoints);
+    });
 });
