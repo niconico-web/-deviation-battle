@@ -72,6 +72,26 @@ if (orbEl) {
     }
 }
 
+// ボス報酬の表示
+const battleResultDataRaw = localStorage.getItem("battleResultData");
+const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) : null;
+
+if (battleResultData && battleResultData.rewards) {
+    const bossWeaponDropText = document.getElementById('bossWeaponDropText');
+    const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
+
+    if (battleResultData.rewards.bossWeapon) {
+        bossWeaponDropText.textContent = `[NEW WEAPON] ${battleResultData.rewards.bossWeapon.name} を手に入れた！`;
+        bossWeaponDropText.style.display = 'block';
+    }
+
+    if (battleResultData.rewards.limitBreakMaterial) {
+        const material = battleResultData.rewards.limitBreakMaterial;
+        limitBreakMaterialText.textContent = `[MATERIAL] ${material.name} x${material.count} を手に入れた！`;
+        limitBreakMaterialText.style.display = 'block';
+    }
+}
+
 localStorage.removeItem("stolenWeapon");
 localStorage.removeItem("lostWeapon");
 localStorage.removeItem("battleCoinGain");
@@ -79,3 +99,4 @@ localStorage.removeItem("droppedOrb");
 localStorage.removeItem("isBotBattle");
 localStorage.removeItem("isBossBattle"); // Clear boss battle flag
 localStorage.removeItem("battleDifficulty"); // Clear difficulty
+localStorage.removeItem("battleResultData"); // Clear boss reward data

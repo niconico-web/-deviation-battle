@@ -117,6 +117,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         console.error("[Stats] applyBattleRewards failed: 'player' not found in localStorage.");
         return null;
     }
+    // 新しい報酬データを保存するためのオブジェクトを初期化
+    localStorage.setItem('battleResultData', JSON.stringify({}));
+
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);
