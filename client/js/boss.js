@@ -10,6 +10,16 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
+    // Ensure window.bosses is populated, if not, load from localStorage
+    if (!window.bosses) {
+        const bossesData = localStorage.getItem('bosses');
+        if (bossesData) {
+            window.bosses = JSON.parse(bossesData);
+        } else {
+            console.error("Boss data not found. Cannot process boss rewards.");
+            return player;
+        }
+    }
     // Find the full boss data from bosses.json to get drop info
     const fullBossData = window.bosses.find(b => b.id === boss.id);
     if (!fullBossData) {
