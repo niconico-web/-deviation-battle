@@ -1627,7 +1627,7 @@ function renderCustomSkillList(player) {
                     player.customSkills.splice(skillIndex, 1);
                     
                     localStorage.setItem("player", JSON.stringify(player));
-                    renderSkillTreeUI();
+                    renderCustomSkillList();
                 }
             }
         };
