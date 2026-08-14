@@ -20,6 +20,37 @@ function addMaterialToPlayer(player, materialId, materialName, count) {
 }
 
 /**
+ * Creates a custom skill from a boss's skill.
+ * @param {object} bossData - The full data object for the boss.
+ * @param {string} skillName - The name of the skill to get.
+ * @returns {object|null} A custom skill object or null.
+ */
+function getBossSkillAsCustomSkill(bossData, skillName) {
+    if (!bossData || !bossData.skills || !skillName) return null;
+
+    const bossSkill = bossData.skills.find(s => s.name === skillName);
+    if (!bossSkill) {
+        console.error(`Skill '${skillName}' not found on boss '${bossData.name}'`);
+        return null;
+    }
+
+    // The skill effect must be a valid object to function correctly.
+    if (!bossSkill.effect || typeof bossSkill.effect !== 'object') {
+        console.error(`Skill '${skillName}' has an invalid or missing effect object.`);
+        return null;
+    }
+
+    return {
+        id: `boss_skill_${bossData.id}_${Date.now()}`,
+        name: `[秘技] ${bossSkill.name}`,
+        description: bossSkill.description,
+        effect: bossSkill.effect, // Copy the effect object directly
+        strength: 'tier15', // Boss skills are powerful
+        createdAt: Date.now(),
+        type: 'active'
+    };
+}
+/**
  * Applies rewards for defeating a boss.
  * This function now returns the updated player object and saves rewards to sessionStorage
  * for the result screen to display.
@@ -57,20 +88,34 @@ function applyBossRewards(player, boss) {
     let newPlayer = { ...player };
     let rewardsForDisplay = {};
 
-    // 1. Weapon Drop: On 'medium' (Normal) difficulty, first clear only.
-    if (difficulty === 'medium' && !hasDefeatedBoss(player, boss.id, 'medium')) {
+    // 1. Weapon Drop: On 'medium' (Normal) difficulty, if player doesn't have the weapon yet.
+    // This is more robust than only checking for first clear.
+    const playerDoesNotHaveWeapon = !(player.weapons || []).some(w => w.bossId === boss.id);
+    if (difficulty === 'medium' && playerDoesNotHaveWeapon) {
         const weaponName = bossRewardsInfo.weaponName || `${fullBossData.name}の武器`;
         const weapon = generateBossWeapon(fullBossData, weaponName);
         if (weapon) {
-            // Assume addWeaponToPlayer is a global function.
             newPlayer = addWeaponToPlayer(newPlayer, weapon);
             rewardsForDisplay.bossWeapon = weapon;
             // Mark this difficulty as cleared to prevent getting the weapon again.
             newPlayer = markBossDefeated(newPlayer, boss.id, 'medium');
         }
     }
+    
+    // 2. Skill Drop: On 'hard' difficulty, first clear only.
+    if (difficulty === 'hard' && !hasDefeatedBoss(player, boss.id, 'hard')) {
+        if (bossRewardsInfo.skillName) {
+            const skill = getBossSkillAsCustomSkill(fullBossData, bossRewardsInfo.skillName);
+            if (skill) {
+                if (!newPlayer.customSkills) newPlayer.customSkills = [];
+                newPlayer.customSkills.push(skill);
+                rewardsForDisplay.bossSkill = skill; // For result screen display
+                newPlayer = markBossDefeated(newPlayer, boss.id, 'hard');
+            }
+        }
+    }
 
-    // 2. Limit Break Material Drop: On 'medium' (Normal) or 'hard' difficulty.
+    // 3. Limit Break Material Drop: On 'medium' (Normal) or 'hard' difficulty.
     if ((difficulty === 'medium' || difficulty === 'hard')) {
         const material = bossRewardsInfo.material;
         if (material && material.id && material.name) {
@@ -80,7 +125,7 @@ function applyBossRewards(player, boss) {
         }
     }
 
-    // Save rewards to sessionStorage for result.js to display.
+    // Save rewards to localStorage for result.js to display.
     if (Object.keys(rewardsForDisplay).length > 0) {
         const battleResult = JSON.parse(localStorage.getItem('battleResultData') || '{}');
         battleResult.rewards = { ...battleResult.rewards, ...rewardsForDisplay };
