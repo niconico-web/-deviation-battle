@@ -18,7 +18,7 @@ function setupPartyEventListeners() {
 
     if (joinPartyBtn) {
         joinPartyBtn.addEventListener('click', () => {
-            const partyId = document.getElementById('partyCodeInput').value;
+            const partyId = document.getElementById('partyCodeInput').value.trim().toUpperCase();
             const player = getPlayerData();
             if (partyId && player && window.socket) {
                 window.socket.emit('party:join', { partyId, player });
