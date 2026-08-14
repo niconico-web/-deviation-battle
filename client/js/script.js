@@ -954,7 +954,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // ステータス入力欄のイベントリスナー
-    const statInputs = document.querySelectorAll('#stat-allocation-box input, #stat-allocation-box select');
+    const statInputs = document.querySelectorAll('.stat-allocation input, .stat-allocation select');
     statInputs.forEach(input => {
         input.addEventListener('input', updateRemainingPoints);
     });
