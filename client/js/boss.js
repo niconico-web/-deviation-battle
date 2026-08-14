@@ -78,26 +78,27 @@ function applyBossRewards(player, boss) {
 
     // 1. Weapon Drop: On 'medium' (Normal) difficulty, if player doesn't have the weapon yet.
     // This is more robust than only checking for first clear.
-    if (difficulty === 'medium' && !hasDefeatedBoss(player, boss.id, 'medium')) {
+    const playerDoesNotHaveWeapon = !(player.weapons || []).some(w => w.bossId === boss.id);
+    if (difficulty === 'medium' && playerDoesNotHaveWeapon) {
         const weaponName = bossRewardsInfo.weaponName || `${boss.name}の武器`;
         const weapon = generateBossWeapon(boss, weaponName);
         if (weapon) {
             newPlayer = addWeaponToPlayer(newPlayer, weapon);
             rewardsForDisplay.bossWeapon = weapon;
-            // Mark this difficulty as cleared.
-            newPlayer = markBossDefeated(newPlayer, boss.id, 'medium');
         }
     }
     
     // 2. Skill Drop: On 'hard' difficulty, first clear only.
-    if (difficulty === 'hard' && !hasDefeatedBoss(player, boss.id, 'hard')) {
-        if (bossRewardsInfo.skillName) {
-            const skill = getBossSkillAsCustomSkill(boss, bossRewardsInfo.skillName);
+    const skillName = bossRewardsInfo.skillName;
+    if (difficulty === 'hard' && skillName) {
+        const expectedSkillName = `[秘技] ${skillName}`;
+        const playerDoesNotHaveSkill = !(player.customSkills || []).some(s => s.name === expectedSkillName);
+        if (playerDoesNotHaveSkill) {
+            const skill = getBossSkillAsCustomSkill(boss, skillName);
             if (skill) {
                 if (!newPlayer.customSkills) newPlayer.customSkills = [];
                 newPlayer.customSkills.push(skill);
                 rewardsForDisplay.bossSkill = skill; // For result screen display
-                newPlayer = markBossDefeated(newPlayer, boss.id, 'hard');
             }
         }
     }
