@@ -20,10 +20,14 @@
                 "effect": { "selfBuff": { "type": "atk", "amount": 1.4, "turns": 2 } }
             }
         ],
-        "drops": [
-            { "name": "ゴブリンの大剣", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ゴブリンラッシュ", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "ゴブリンの大剣",
+            "skillName": "ゴブリンラッシュ",
+            "material": {
+                "id": "goblin_king_core",
+                "name": "ゴブリン王の核"
+            }
+        }
     },
     {
         "id": "orc_warlord",
@@ -46,10 +50,14 @@
                 "effect": { "debuff": { "type": "def", "reduction": 0.2, "turns": 3 } }
             }
         ],
-        "drops": [
-            { "name": "ウォーロードの盾剣", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ウォークライ", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "ウォーロードの盾剣",
+            "skillName": "ウォークライ",
+            "material": {
+                "id": "orc_warlord_tusk",
+                "name": "戦将の牙"
+            }
+        }
     },
     {
         "id": "shadow_serpent",
@@ -72,10 +80,14 @@
                 "effect": { "evasionBoost": 1.0, "turns": 1 }
             }
         ],
-        "drops": [
-            { "name": "ファングアセント", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ポイズンバイト", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "ファングアセント",
+            "skillName": "ポイズンバイト",
+            "material": {
+                "id": "shadow_serpent_scale",
+                "name": "ヨルムンガンドの鱗"
+            }
+        }
     },
     {
         "id": "ice_golem",
@@ -98,10 +110,14 @@
                 "effect": { "damageMultiplier": 1.8 }
             }
         ],
-        "drops": [
-            { "name": "クリスタルハンマー", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "アイスプリズン", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "クリスタルハンマー",
+            "skillName": "アイスプリズン",
+            "material": {
+                "id": "ice_golem_heart",
+                "name": "氷結の心臓"
+            }
+        }
     },
     {
         "id": "flame_dragon",
@@ -124,10 +140,14 @@
                 "effect": { "debuff": { "type": "atk_def", "reduction": 0.2, "turns": 3 } }
             }
         ],
-        "drops": [
-            { "name": "ドラゴンスケイルワンド", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "インフェルノ", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "ドラゴンスケイルワンド",
+            "skillName": "インフェルノ",
+            "material": {
+                "id": "flame_dragon_gem",
+                "name": "炎竜の宝玉"
+            }
+        }
     },
     {
         "id": "abyssal_knight",
@@ -150,10 +170,14 @@
                 "effect": { "damageMultiplier": 2.0, "ignoreDef": true, "sureHit": true }
             }
         ],
-        "drops": [
-            { "name": "アビサルサイス", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ヴォイドスラッシュ", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "アビサルサイス",
+            "skillName": "ヴォイドスラッシュ",
+            "material": {
+                "id": "abyssal_fragment",
+                "name": "深淵の欠片"
+            }
+        }
     },
     {
         "id": "celestial_guardian",
@@ -181,10 +205,13 @@
                 "effect": { "partyBuff": { "type": "all_stats", "amount": 1.2, "turns": 3 } }
             }
         ],
-        "drops": [
-            { "name": "セレスティアソード", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "神聖なる盾", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "スターアルケミー", "type": "skill", "difficulty": ["hard"] }
-        ]
+        "rewards": {
+            "weaponName": "セレスティアソード",
+            "skillName": "スターアルケミー",
+            "material": {
+                "id": "celestial_feather",
+                "name": "天界の羽根"
+            }
+        }
     }
 ]

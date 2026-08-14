@@ -78,14 +78,13 @@ function applyBossRewards(player, boss) {
 
     // 1. Weapon Drop: On 'medium' (Normal) difficulty, if player doesn't have the weapon yet.
     // This is more robust than only checking for first clear.
-    const playerDoesNotHaveWeapon = !(player.weapons || []).some(w => w.bossId === boss.id);
-    if (difficulty === 'medium' && playerDoesNotHaveWeapon) {
+    if (difficulty === 'medium' && !hasDefeatedBoss(player, boss.id, 'medium')) {
         const weaponName = bossRewardsInfo.weaponName || `${boss.name}の武器`;
         const weapon = generateBossWeapon(boss, weaponName);
         if (weapon) {
             newPlayer = addWeaponToPlayer(newPlayer, weapon);
             rewardsForDisplay.bossWeapon = weapon;
-            // Mark this difficulty as cleared to prevent getting the weapon again.
+            // Mark this difficulty as cleared.
             newPlayer = markBossDefeated(newPlayer, boss.id, 'medium');
         }
     }
@@ -165,24 +164,33 @@ function markBossDefeated(player, bossId, difficulty) {
 function generateBossWeapon(bossData, weaponName) {
     if (!bossData || !weaponName) return null;
 
-    // Use a random weapon type if not specified in boss data
+    // Use a weapon type from rewards, or a random one as fallback
     const weaponTypes = (typeof WEAPON_TYPES !== 'undefined') ? Object.keys(WEAPON_TYPES) : ["大剣"];
     const weaponType = bossData.rewards?.weaponType || weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
+
+    // Get all available unique abilities from weapons.js
+    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
+    let selectedAbilities = [];
+    if (allAbilities.length > 0) {
+        // Shuffle and pick 3
+        const shuffled = allAbilities.sort(() => 0.5 - Math.random());
+        selectedAbilities = shuffled.slice(0, 3);
+    }
 
     // Create a boss weapon compatible with the limit break system
     const weapon = {
         id: `boss_weapon_${bossData.id}_${Date.now()}`,
         name: weaponName,
         type: weaponType,
-        isOriginal: true, // Allows upgrading
+        isOriginal: true, // Allows upgrading and limit breaking
         isBossWeapon: true, // Special flag for boss weapons
         bossId: bossData.id, // Link to the boss for material matching
-        multiplier: 1.6, // A strong base multiplier
+        multiplier: 2.0,  // Set multiplier to 2.0 as requested
         maxMultiplier: 2.0,  // Initial max multiplier, can be increased by limit breaking
         limitBreakCount: 0,
-        upgradeCount: 0,
+        upgradeCount: 999, // Mark as fully upgraded
         statBonuses: bossData.rewards?.statBonuses || {}, // Use defined bonuses or empty
-        uniqueAbilities: bossData.rewards?.uniqueAbilities || [], // Use defined abilities or empty
+        uniqueAbilities: selectedAbilities, // Set 3 random unique abilities
         ultimateName: `${bossData.name}の魂`,
     };
 
