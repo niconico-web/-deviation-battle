@@ -47,7 +47,7 @@ function applyBossRewards(player, boss) {
                     rewardMessage += `討伐報酬として、ユニーク武器「${weapon.name}」を獲得した！\n`;
                 }
             } else if (drop.type === 'skill') {
-                const skill = getBossSkillAsCustomSkill(boss, drop.name);
+                const skill = getBossSkillAsCustomSkill(fullBossData, drop.name);
                 if (skill) {
                     if (!newPlayer.customSkills) newPlayer.customSkills = [];
                     newPlayer.customSkills.push(skill);
