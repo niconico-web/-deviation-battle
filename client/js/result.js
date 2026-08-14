@@ -79,6 +79,7 @@ const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) :
 if (battleResultData && battleResultData.rewards) {
     const bossWeaponDropText = document.getElementById('bossWeaponDropText');
     const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
+    const bossSkillDropText = document.getElementById('bossSkillDropText');
 
     if (battleResultData.rewards.bossWeapon) {
         bossWeaponDropText.textContent = `[NEW WEAPON] ${battleResultData.rewards.bossWeapon.name} を手に入れた！`;
@@ -89,6 +90,11 @@ if (battleResultData && battleResultData.rewards) {
         const material = battleResultData.rewards.limitBreakMaterial;
         limitBreakMaterialText.textContent = `[MATERIAL] ${material.name} x${material.count} を手に入れた！`;
         limitBreakMaterialText.style.display = 'block';
+    }
+
+    if (battleResultData.rewards.bossSkill) {
+        bossSkillDropText.textContent = `[NEW SKILL] ${battleResultData.rewards.bossSkill.name} を習得した！`;
+        bossSkillDropText.style.display = 'block';
     }
 }
 
