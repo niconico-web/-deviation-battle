@@ -82,9 +82,9 @@ function applyBossRewards(player, boss) {
 
     // Save rewards to sessionStorage for result.js to display.
     if (Object.keys(rewardsForDisplay).length > 0) {
-        const battleResult = JSON.parse(sessionStorage.getItem('battleResult') || '{}');
+        const battleResult = JSON.parse(localStorage.getItem('battleResultData') || '{}');
         battleResult.rewards = { ...battleResult.rewards, ...rewardsForDisplay };
-        sessionStorage.setItem('battleResult', JSON.stringify(battleResult));
+        localStorage.setItem('battleResultData', JSON.stringify(battleResult));
     }
 
     return newPlayer;
