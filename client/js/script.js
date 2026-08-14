@@ -593,6 +593,9 @@ function setupSocketEventHandlers() {
 
     // Boss list handler
     window.socket.on('bosses:list', (bosses) => {
+        window.bosses = bosses; // Store bosses globally
+        localStorage.setItem('bosses', JSON.stringify(bosses)); // And in localStorage for persistence
+
         const bossSelects = [
             document.getElementById('bossSelect'),       // For party
             document.getElementById('soloBossSelect')    // For solo
@@ -637,18 +640,20 @@ function setupSocketEventHandlers() {
         alert(`Party Error: ${error.message}`);
     });
 
-    window.socket.on('bossBattle:start', ({ boss, party }) => {
+    window.socket.on('bossBattle:start', ({ boss, party, roomId }) => {
         const player = getMatchPlayer();
         if (!player) {
             alert('Character not created.');
             return;
         }
         localStorage.setItem("isBossBattle", "true");
-        // If party data is present, it's a multiplayer boss battle.
-        // Otherwise, it's a solo boss battle using the bot flow.
+        // If party data is present, it's a multiplayer boss battle
         if (party && party.members.length > 1) {
             localStorage.setItem("isBotBattle", "false");
             localStorage.setItem("partyData", JSON.stringify(party));
+            if (roomId) {
+                localStorage.setItem("roomId", roomId);
+            }
         } else {
             localStorage.setItem("isBotBattle", "true"); // Use bot battle flow for solo/fallback
         }

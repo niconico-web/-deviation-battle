@@ -157,6 +157,18 @@ function initialize() {
         enemy.maxHp = 100;
     }
 
+    // ボス戦でstatsオブジェクトがない場合、トップレベルのプロパティから作成する
+    if (isBossBattle && !enemy.stats) {
+        console.warn("Boss enemy.stats is missing, creating from top-level properties.");
+        enemy.stats = {
+            maxHp: enemy.maxHp || enemy.hp,
+            atk: enemy.atk,
+            def: enemy.def,
+            speed: enemy.speed
+        };
+        if (!enemy.maxHp) enemy.maxHp = enemy.hp;
+    }
+
     // 武器補正が適用されたmaxHpに合わせて現在のHPを調整
     // 武器による補正が減少する場合でもHPはmaxHpを超えないようにする
     if (me.hp > me.maxHp) {

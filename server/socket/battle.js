@@ -226,6 +226,42 @@ module.exports = function(io){
             }
         });
 
+        // マルチプレイヤーレイドバトル用の参加ハンドラ
+        socket.on('battle:join', ({ roomId }) => {
+            const player = PlayerManager.getPlayer(socket.id);
+            if (!player || !roomId) {
+                return socket.emit('battleError', { message: 'Invalid join request.' });
+            }
+
+            const battle = BattleManager.getBattle(roomId);
+            if (!battle) {
+                return socket.emit('battleError', { message: 'Battle room not found.' });
+            }
+
+            // プレイヤーがこのバトルに参加しているか確認
+            if (!battle.players[player.id]) {
+                return socket.emit('battleError', { message: 'You are not part of this battle.' });
+            }
+            
+            BattleManager.remapPlayerSocket(roomId, player.id, socket.id);
+            socket.join(roomId);
+
+            console.log(`[Raid Battle] Player ${player.name} (${player.id}) joined battle room ${roomId}`);
+
+            // このプレイヤーのための初期状態を準備
+            const allies = Object.values(battle.players)
+                .filter(p => p.id !== player.id && p.id !== battle.enemy.id)
+                .map(p => ({ ...p, hp: p.maxHp, maxHp: p.maxHp }));
+
+            const initialState = {
+                me: battle.players[player.id],
+                enemy: battle.enemy,
+                allies: allies,
+                question: BattleEngine.generateQuestionForPlayer(player) // このプレイヤー用の問題を生成
+            };
+
+            socket.emit('battle:initialState', initialState);
+        });
     });
 
 };
