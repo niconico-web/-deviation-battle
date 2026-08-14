@@ -637,14 +637,21 @@ function setupSocketEventHandlers() {
         alert(`Party Error: ${error.message}`);
     });
 
-    window.socket.on('bossBattle:start', ({ boss }) => {
+    window.socket.on('bossBattle:start', ({ boss, party }) => {
         const player = getMatchPlayer();
         if (!player) {
             alert('Character not created.');
             return;
         }
         localStorage.setItem("isBossBattle", "true");
-        localStorage.setItem("isBotBattle", "true"); // Use bot battle flow for now
+        // If party data is present, it's a multiplayer boss battle.
+        // Otherwise, it's a solo boss battle using the bot flow.
+        if (party && party.members.length > 1) {
+            localStorage.setItem("isBotBattle", "false");
+            localStorage.setItem("partyData", JSON.stringify(party));
+        } else {
+            localStorage.setItem("isBotBattle", "true"); // Use bot battle flow for solo/fallback
+        }
         localStorage.setItem("battlePlayer", JSON.stringify(player));
         localStorage.setItem("enemy", JSON.stringify(boss));
         localStorage.removeItem("rewardsApplied");
@@ -786,6 +793,33 @@ function lockStatInputs(locked) {
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocket();
+
+    // PWAインストールボタンのイベントリスナー
+    const installButton = document.getElementById('install-button');
+    if (installButton) {
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to the install prompt: ${outcome}`);
+                deferredPrompt = null;
+                const installPopup = document.getElementById('install-popup');
+                if (installPopup) {
+                    installPopup.style.display = 'none';
+                }
+            }
+        });
+    }
+    const closeInstallPopup = document.getElementById('close-install-popup');
+    if (closeInstallPopup) {
+        closeInstallPopup.addEventListener('click', () => {
+            const installPopup = document.getElementById('install-popup');
+            if (installPopup) {
+                installPopup.style.display = 'none';
+            }
+        });
+    }
+
     if (typeof setupPartyEventListeners === 'function') {
         setupPartyEventListeners();
     }
@@ -834,6 +868,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // --- ページの初期化処理 ---
+
+    // 勉強関連のイベントハンドラ
+    const studyStartBtn = document.getElementById("studyStart");
+    if (studyStartBtn) {
+        studyStartBtn.addEventListener('click', startStudy);
+    }
+    const studyStopBtn = document.getElementById("studyStop");
+    if (studyStopBtn) {
+        studyStopBtn.addEventListener('click', stopStudy);
+    }
+    const studyFocusSelect = document.getElementById("studyFocus");
+    if (studyFocusSelect) {
+        studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
+        updateStatGrowthInfo(); // 初期表示
+    }
+
     // ソロボスバトル開始ボタン
     const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
     if (startSoloBossBattleBtn) {
@@ -857,23 +908,6 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem("battleDifficulty", difficulty);
             window.socket.emit('bosses:getDetails', { bossId, difficulty });
         });
-    }
-
-    // --- ページの初期化処理 ---
-
-    // 勉強関連のイベントハンドラ
-    const studyStartBtn = document.getElementById("studyStart");
-    if (studyStartBtn) {
-        studyStartBtn.addEventListener('click', startStudy);
-    }
-    const studyStopBtn = document.getElementById("studyStop");
-    if (studyStopBtn) {
-        studyStopBtn.addEventListener('click', stopStudy);
-    }
-    const studyFocusSelect = document.getElementById("studyFocus");
-    if (studyFocusSelect) {
-        studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
-        updateStatGrowthInfo(); // 初期表示
     }
 
     // キャラクター作成・削除ボタン
