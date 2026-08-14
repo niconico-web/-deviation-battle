@@ -56,6 +56,16 @@ function getSubjectDisplayName(subject) {
     return subjectNames[subject] || subject;
 }
 
+/**
+ * ボス戦用の問題をローカルから取得する（暫定的なダミー関数）
+ * @param {string} bossSubject - ボスの教科
+ * @returns {Array} 問題の配列（現在は空）
+ */
+function getLocalBossQuestions(bossSubject) {
+    console.warn(`[TEMP] getLocalBossQuestions for ${bossSubject} is not implemented. Returning empty array.`);
+    return [];
+}
+
 function initialize() {
     if (!me || !enemy) {
         alert(I18N.noBattleData);
@@ -868,6 +878,33 @@ function generateBotQuestion() {
     updateStats();
     updateHP();
     
+    // ボス戦の場合、ボス用の問題を使用
+    if (isBotBattle && localStorage.getItem("isBossBattle") === "true") {
+        console.log('[BotBattle] Using boss question system');
+        const bossSubjects = ['math', 'jp', 'eng', 'sci', 'soc'];
+        const bossSubject = bossSubjects[Math.floor(Math.random() * bossSubjects.length)];
+
+        // Use local boss questions for bot battles
+        const bossQuestions = getLocalBossQuestions(bossSubject);
+        console.log(`[BotBattle] Got ${bossQuestions.length} boss questions for subject=${bossSubject}`);
+
+        if (bossQuestions && bossQuestions.length > 0) {
+            const randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+            currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+            console.log('[BotBattle] Selected boss question:', currentQuestion);
+
+            showCountdown(() => {
+                questionDisplay.textContent = currentQuestion.question;
+                generateChoices(currentQuestion);
+                startTimer();
+                addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+            });
+            return;
+        } else {
+            console.warn('[BotBattle] Boss questions not available, falling back to regular questions');
+        }
+    }
+
     // 学年に応じた問題を生成
     const playerGrade = me.grade || 1;
     const enemyGrade = enemy.grade || 1;
