@@ -1,5 +1,28 @@
 /**
+ * Adds a specified amount of a material to the player's inventory.
+ * @param {object} player - The player object.
+ * @param {string} materialId - The unique ID of the material.
+ * @param {string} materialName - The display name of the material.
+ * @param {number} count - The number of materials to add.
+ * @returns {object} The updated player object.
+ */
+function addMaterialToPlayer(player, materialId, materialName, count) {
+    if (!player.materials) {
+        player.materials = [];
+    }
+    let material = player.materials.find(m => m.id === materialId);
+    if (material) {
+        material.count = (material.count || 0) + count;
+    } else {
+        player.materials.push({ id: materialId, name: materialName, count: count });
+    }
+    return player;
+}
+
+/**
  * Applies rewards for defeating a boss.
+ * This function now returns the updated player object and saves rewards to sessionStorage
+ * for the result screen to display.
  * @param {object} player - The player object.
  * @param {object} boss - The defeated boss object from the battle.
  * @returns {object} The updated player object.
@@ -10,7 +33,7 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
-    // Ensure window.bosses is populated, if not, load from localStorage
+    // Ensure window.bosses is populated
     if (!window.bosses) {
         const bossesData = localStorage.getItem('bosses');
         if (bossesData) {
@@ -20,52 +43,52 @@ function applyBossRewards(player, boss) {
             return player;
         }
     }
-    // Find the full boss data from bosses.json to get drop info
+
     const fullBossData = window.bosses.find(b => b.id === boss.id);
-    if (!fullBossData) {
-        console.error("Full boss data not found for ID:", boss.id);
+    // The old code crashed because `fullBossData.drops` was undefined.
+    // The new logic checks for `fullBossData.rewards` instead.
+    if (!fullBossData || !fullBossData.rewards) {
+        console.log(`Boss ${boss.id} has no rewards defined. Skipping.`);
         return player;
     }
+
     const difficulty = boss.difficulty;
+    const bossRewardsInfo = fullBossData.rewards;
+    let newPlayer = { ...player };
+    let rewardsForDisplay = {};
 
-    // Check if reward was already claimed
-    if (hasDefeatedBoss(player, boss.id, difficulty)) {
-        console.log(`Reward for ${boss.id} (${difficulty}) already claimed.`);
-        return player;
+    // 1. Weapon Drop: On 'medium' (Normal) difficulty, first clear only.
+    if (difficulty === 'medium' && !hasDefeatedBoss(player, boss.id, 'medium')) {
+        const weaponName = bossRewardsInfo.weaponName || `${fullBossData.name}の武器`;
+        const weapon = generateBossWeapon(fullBossData, weaponName);
+        if (weapon) {
+            // Assume addWeaponToPlayer is a global function.
+            newPlayer = addWeaponToPlayer(newPlayer, weapon);
+            rewardsForDisplay.bossWeapon = weapon;
+            // Mark this difficulty as cleared to prevent getting the weapon again.
+            newPlayer = markBossDefeated(newPlayer, boss.id, 'medium');
+        }
     }
 
-    let newPlayer = { ...player };
-    let rewardMessage = "";
-
-    // Process drops based on the difficulty
-    fullBossData.drops.forEach(drop => {
-        if (drop.difficulty.includes(difficulty)) {
-            if (drop.type === 'weapon') {
-                const weapon = generateBossWeapon(boss, drop.name);
-                if (weapon) {
-                    newPlayer = addWeaponToPlayer(newPlayer, weapon);
-                    rewardMessage += `討伐報酬として、ユニーク武器「${weapon.name}」を獲得した！\n`;
-                }
-            } else if (drop.type === 'skill') {
-                const skill = getBossSkillAsCustomSkill(fullBossData, drop.name);
-                if (skill) {
-                    if (!newPlayer.customSkills) newPlayer.customSkills = [];
-                    newPlayer.customSkills.push(skill);
-                    rewardMessage += `討伐報酬として、ボススキル「${skill.name}」を習得した！\n`;
-                }
-            }
+    // 2. Limit Break Material Drop: On 'medium' (Normal) or 'hard' difficulty.
+    if ((difficulty === 'medium' || difficulty === 'hard')) {
+        const material = bossRewardsInfo.material;
+        if (material && material.id && material.name) {
+            const amount = (difficulty === 'hard') ? 2 : 1;
+            newPlayer = addMaterialToPlayer(newPlayer, material.id, material.name, amount);
+            rewardsForDisplay.limitBreakMaterial = { name: material.name, count: amount };
         }
-    });
+    }
 
-    if (rewardMessage.trim()) {
-        // Use a timeout to show the message after the result screen has settled.
-        setTimeout(() => alert(rewardMessage), 500);
-        newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
+    // Save rewards to sessionStorage for result.js to display.
+    if (Object.keys(rewardsForDisplay).length > 0) {
+        const battleResult = JSON.parse(sessionStorage.getItem('battleResult') || '{}');
+        battleResult.rewards = { ...battleResult.rewards, ...rewardsForDisplay };
+        sessionStorage.setItem('battleResult', JSON.stringify(battleResult));
     }
 
     return newPlayer;
 }
-
 /**
  * Checks if a player has already defeated a boss at a specific difficulty.
  * @param {object} player - The player object.
@@ -101,72 +124,33 @@ function markBossDefeated(player, bossId, difficulty) {
 }
 
 /**
- * Creates a custom skill from a boss's skill for the 'hard' difficulty reward.
- * @param {object} boss - The defeated boss object.
- * @returns {object|null} A custom skill object or null.
- */
-function getBossSkillAsCustomSkill(boss, skillName) {
-    if (!boss || !boss.skills || boss.skills.length === 0 || !skillName) return null;
-
-    // Find the specific skill from the boss's skill list
-    const bossSkill = boss.skills.find(s => s.name === skillName);
-
-    if (!bossSkill) {
-        console.error(`Skill '${skillName}' not found on boss '${boss.name}'`);
-        return null;
-    }
-
-    return {
-        id: `boss_skill_${boss.id}_${Date.now()}`,
-        name: `[秘技] ${bossSkill.name}`,
-        description: bossSkill.description,
-        effect: bossSkill.effect,
-        strength: 'tier15', // Boss skills are very powerful
-        createdAt: Date.now(),
-        type: 'active'
-    };
-}
-
-/**
- * Generates a fully-upgraded weapon with 3 random unique abilities for the 'medium' difficulty reward.
- * @param {object} boss - The defeated boss object.
+ * Generates a boss weapon, ready for the limit break system.
+ * @param {object} bossData - The full data object for the boss.
+ * @param {string} weaponName - The name for the new weapon.
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(boss, weaponName) {
-    if (!boss || !weaponName) return null;
+function generateBossWeapon(bossData, weaponName) {
+    if (!bossData || !weaponName) return null;
 
-    // Get all available unique abilities from weapons.js
-    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
-    if (allAbilities.length === 0) {
-        console.error("ORB_UNIQUE_ABILITIES not found or empty. Cannot generate boss weapon.");
-        return null;
-    }
-    // Shuffle and pick 3
-    const shuffled = allAbilities.sort(() => 0.5 - Math.random());
-    const selectedAbilities = shuffled.slice(0, 3);
+    // Use a random weapon type if not specified in boss data
+    const weaponTypes = (typeof WEAPON_TYPES !== 'undefined') ? Object.keys(WEAPON_TYPES) : ["大剣"];
+    const weaponType = bossData.rewards?.weaponType || weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
 
-    // Randomly select a weapon type
-    const weaponTypes = (typeof WEAPON_TYPES !== 'undefined') ? Object.keys(WEAPON_TYPES) : ["剣"];
-    const randomType = weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
-
-    // Give a significant boost to two random stats
-    const statBonuses = {};
-    const statsToBoost = ["atk", "def", "speed", "maxHp"];
-    const shuffledStats = statsToBoost.sort(() => 0.5 - Math.random());
-    statBonuses[shuffledStats[0]] = 0.25; // +25%
-    statBonuses[shuffledStats[1]] = 0.25; // +25%
-
-    // Create a powerful original weapon
+    // Create a boss weapon compatible with the limit break system
     const weapon = {
-        id: `boss_weapon_${boss.id}_${Date.now()}`,
+        id: `boss_weapon_${bossData.id}_${Date.now()}`,
         name: weaponName,
-        type: randomType,
-        isOriginal: true,
-        multiplier: 3.0, // Fully upgraded state as per request
-        statBonuses: statBonuses,
-        upgradeCount: 999, // Indicates max upgrade
-        uniqueAbilities: selectedAbilities,
-        ultimateName: `${boss.name}の魂`,
+        type: weaponType,
+        isOriginal: true, // Allows upgrading
+        isBossWeapon: true, // Special flag for boss weapons
+        bossId: bossData.id, // Link to the boss for material matching
+        multiplier: 1.6, // A strong base multiplier
+        maxMultiplier: 2.0,  // Initial max multiplier, can be increased by limit breaking
+        limitBreakCount: 0,
+        upgradeCount: 0,
+        statBonuses: bossData.rewards?.statBonuses || {}, // Use defined bonuses or empty
+        uniqueAbilities: bossData.rewards?.uniqueAbilities || [], // Use defined abilities or empty
+        ultimateName: `${bossData.name}の魂`,
     };
 
     return weapon;
