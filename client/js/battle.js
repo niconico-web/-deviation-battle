@@ -1399,6 +1399,26 @@ function afterSkillUse(skill) {
     }
 }
 
+/**
+ * 選択されたスキルを取得し、使用済みとしてマークする準備をします。
+ * @returns {object|null} 選択されたスキルオブジェクト、または何も選択されていない場合はnull。
+ */
+function consumeSelectedSkill() {
+    const skillToUse = selectedSkill;
+    selectedSkill = null; // 次のターンのために選択をリセット
+    // 実際の「使用済み」マーキングは、ターン解決後に行われる afterSkillUse で処理されます。
+    return skillToUse;
+}
+
+/**
+ * スキルの即時効果を適用します（プレースホルダー）。
+ * @param {object} skillEffect - スキルの効果オブジェクト。
+ */
+function applyInstantSkillEffects(skillEffect) {
+    // この関数は参照エラーを解決するためのプレースホルダーです。
+    // 将来的に、攻撃計算の前に適用されるべき効果（自己ヒール、シールドなど）をここに実装できます。
+}
+
 function handleChoiceClick(selectedOption) {
     // Clear boss auto-answer timer if active
     if (bossAutoAnswerTimer) {
