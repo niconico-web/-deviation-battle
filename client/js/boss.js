@@ -1,6 +1,6 @@
 /**
  * Applies rewards for defeating a boss.
- * @param {object} player - The player object. 
+ * @param {object} player - The player object.
  * @param {object} boss - The defeated boss object from the battle.
  * @returns {object} The updated player object.
  */
@@ -10,7 +10,12 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
-    const bossId = boss.id;
+    // Find the full boss data from bosses.json to get drop info
+    const fullBossData = window.bosses.find(b => b.id === boss.id);
+    if (!fullBossData) {
+        console.error("Full boss data not found for ID:", boss.id);
+        return player;
+    }
     const difficulty = boss.difficulty;
 
     // Check if reward was already claimed
@@ -22,24 +27,27 @@ function applyBossRewards(player, boss) {
     let newPlayer = { ...player };
     let rewardMessage = "";
 
-    if (difficulty === 'medium') {
-        const weapon = generateBossWeapon(boss);
-        if (weapon) {
-            newPlayer = addWeaponToPlayer(newPlayer, weapon);
-            rewardMessage = `討伐報酬として、ユニーク武器「${weapon.name}」を獲得した！`;
-        }
-    } else if (difficulty === 'hard') {
-        const skill = getBossSkillAsCustomSkill(boss);
-        if (skill) {
-            if (!newPlayer.customSkills) {
-                newPlayer.customSkills = [];
+    // Process drops based on the difficulty
+    fullBossData.drops.forEach(drop => {
+        if (drop.difficulty.includes(difficulty)) {
+            if (drop.type === 'weapon') {
+                const weapon = generateBossWeapon(boss, drop.name);
+                if (weapon) {
+                    newPlayer = addWeaponToPlayer(newPlayer, weapon);
+                    rewardMessage += `討伐報酬として、ユニーク武器「${weapon.name}」を獲得した！\n`;
+                }
+            } else if (drop.type === 'skill') {
+                const skill = getBossSkillAsCustomSkill(boss, drop.name);
+                if (skill) {
+                    if (!newPlayer.customSkills) newPlayer.customSkills = [];
+                    newPlayer.customSkills.push(skill);
+                    rewardMessage += `討伐報酬として、ボススキル「${skill.name}」を習得した！\n`;
+                }
             }
-            newPlayer.customSkills.push(skill);
-            rewardMessage = `討伐報酬として、ボススキル「${skill.name}」を習得した！`;
         }
-    }
+    });
 
-    if (rewardMessage) {
+    if (rewardMessage.trim()) {
         // Use a timeout to show the message after the result screen has settled.
         setTimeout(() => alert(rewardMessage), 500);
         newPlayer = markBossDefeated(newPlayer, bossId, difficulty);
@@ -87,15 +95,20 @@ function markBossDefeated(player, bossId, difficulty) {
  * @param {object} boss - The defeated boss object.
  * @returns {object|null} A custom skill object or null.
  */
-function getBossSkillAsCustomSkill(boss) {
-    if (!boss || !boss.skills || boss.skills.length === 0) return null;
+function getBossSkillAsCustomSkill(boss, skillName) {
+    if (!boss || !boss.skills || boss.skills.length === 0 || !skillName) return null;
 
-    // Use the last (presumably most powerful) skill of the boss
-    const bossSkill = boss.skills[boss.skills.length - 1];
+    // Find the specific skill from the boss's skill list
+    const bossSkill = boss.skills.find(s => s.name === skillName);
+
+    if (!bossSkill) {
+        console.error(`Skill '${skillName}' not found on boss '${boss.name}'`);
+        return null;
+    }
 
     return {
         id: `boss_skill_${boss.id}_${Date.now()}`,
-        name: `[秘技] ${bossSkill.name}`, 
+        name: `[秘技] ${bossSkill.name}`,
         description: bossSkill.description,
         effect: bossSkill.effect,
         strength: 'tier15', // Boss skills are very powerful
@@ -109,8 +122,8 @@ function getBossSkillAsCustomSkill(boss) {
  * @param {object} boss - The defeated boss object.
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(boss) {
-    if (!boss) return null;
+function generateBossWeapon(boss, weaponName) {
+    if (!boss || !weaponName) return null;
 
     // Get all available unique abilities from weapons.js
     const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
@@ -136,7 +149,7 @@ function generateBossWeapon(boss) {
     // Create a powerful original weapon
     const weapon = {
         id: `boss_weapon_${boss.id}_${Date.now()}`,
-        name: `${boss.name}の魂魄`, 
+        name: weaponName,
         type: randomType,
         isOriginal: true,
         multiplier: 3.0, // Fully upgraded state as per request
