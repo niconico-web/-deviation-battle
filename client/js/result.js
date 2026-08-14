@@ -1,3 +1,6 @@
+// Set up home button immediately so it works even if other scripts fail.
+document.getElementById("homeBtn").onclick = () => location.href = "index.html";
+
 const result = localStorage.getItem("battleResult");
 const turn = Number(localStorage.getItem("battleTurn") || "0");
 const playerHP = localStorage.getItem("playerHP") || "0";
@@ -76,5 +79,3 @@ localStorage.removeItem("droppedOrb");
 localStorage.removeItem("isBotBattle");
 localStorage.removeItem("isBossBattle"); // Clear boss battle flag
 localStorage.removeItem("battleDifficulty"); // Clear difficulty
-
-document.getElementById("homeBtn").onclick = () => location.href = "index.html";

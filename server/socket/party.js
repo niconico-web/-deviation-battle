@@ -100,13 +100,22 @@ module.exports = function(io) {
                 return socket.emit('party:error', { message: 'Invalid boss selection.' });
             }
 
-            // For now, start a 1v1 battle for each player against the same boss
+            // The host starts the battle, other members are notified.
+            const hostSocket = io.sockets.sockets.get(party.members.find(m => m.id === party.hostId)?.socketId);
+            if (hostSocket) {
+                hostSocket.emit('bossBattle:start', { boss });
+            }
+
+            // Notify other members that the battle has started.
             party.members.forEach(member => {
-                const targetSocket = io.sockets.sockets.get(member.socketId);
-                if (targetSocket) {
-                    targetSocket.emit('bossBattle:start', { boss });
+                if (member.id !== party.hostId) {
+                    const memberSocket = io.sockets.sockets.get(member.socketId);
+                    if (memberSocket) {
+                        memberSocket.emit('party:notification', { message: `ホストの${player.name}がボスバトルを開始しました。観戦機能は開発中です。` });
+                    }
                 }
             });
+
             console.log(`[Party] Boss battle started for party ${party.id} against ${boss.name}`);
         });
     });
