@@ -64,27 +64,15 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
-    // Ensure window.bosses is populated
-    if (!window.bosses) {
-        const bossesData = localStorage.getItem('bosses');
-        if (bossesData) {
-            window.bosses = JSON.parse(bossesData);
-        } else {
-            console.error("Boss data not found. Cannot process boss rewards.");
-            return player;
-        }
-    }
-
-    const fullBossData = window.bosses.find(b => b.id === boss.id);
-    // The old code crashed because `fullBossData.drops` was undefined.
-    // The new logic checks for `fullBossData.rewards` instead.
-    if (!fullBossData || !fullBossData.rewards) {
-        console.log(`Boss ${boss.id} has no rewards defined. Skipping.`);
+    // The 'boss' object from the battle now contains all necessary data (skills, rewards).
+    // We no longer need to look up data in the (potentially incomplete) window.bosses list.
+    if (!boss.rewards) {
+        console.log(`Boss ${boss.id} has no rewards defined in its battle data. Skipping.`);
         return player;
     }
 
     const difficulty = boss.difficulty;
-    const bossRewardsInfo = fullBossData.rewards;
+    const bossRewardsInfo = boss.rewards;
     let newPlayer = { ...player };
     let rewardsForDisplay = {};
 
@@ -92,8 +80,8 @@ function applyBossRewards(player, boss) {
     // This is more robust than only checking for first clear.
     const playerDoesNotHaveWeapon = !(player.weapons || []).some(w => w.bossId === boss.id);
     if (difficulty === 'medium' && playerDoesNotHaveWeapon) {
-        const weaponName = bossRewardsInfo.weaponName || `${fullBossData.name}の武器`;
-        const weapon = generateBossWeapon(fullBossData, weaponName);
+        const weaponName = bossRewardsInfo.weaponName || `${boss.name}の武器`;
+        const weapon = generateBossWeapon(boss, weaponName);
         if (weapon) {
             newPlayer = addWeaponToPlayer(newPlayer, weapon);
             rewardsForDisplay.bossWeapon = weapon;
@@ -105,7 +93,7 @@ function applyBossRewards(player, boss) {
     // 2. Skill Drop: On 'hard' difficulty, first clear only.
     if (difficulty === 'hard' && !hasDefeatedBoss(player, boss.id, 'hard')) {
         if (bossRewardsInfo.skillName) {
-            const skill = getBossSkillAsCustomSkill(fullBossData, bossRewardsInfo.skillName);
+            const skill = getBossSkillAsCustomSkill(boss, bossRewardsInfo.skillName);
             if (skill) {
                 if (!newPlayer.customSkills) newPlayer.customSkills = [];
                 newPlayer.customSkills.push(skill);
