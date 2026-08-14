@@ -2033,7 +2033,14 @@ function tickBotBattleStatus() {
 }
 
 function handleBotAnswer(userAnswer) {
-    const usedSkill = consumeSelectedSkill();
+    let usedSkill = null;
+    // consumeSelectedSkill が定義されているか確認し、未定義の場合は警告を出す
+    if (typeof consumeSelectedSkill === 'function') {
+        usedSkill = consumeSelectedSkill();
+    } else {
+        // このエラーは、古いJSファイルがキャッシュされている場合に発生する可能性が高いです
+        console.error("Critical Error: consumeSelectedSkill() is not defined. This might be a caching issue. Please clear your browser cache and reload (Ctrl+Shift+R).");
+    }
     const skillEffect = (usedSkill && usedSkill.effect) || {};
     applyInstantSkillEffects(skillEffect);
 
