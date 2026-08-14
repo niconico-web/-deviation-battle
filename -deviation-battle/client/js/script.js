@@ -783,8 +783,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // スキルツリーの初期描画
+    // renderSkillTreeUIはskillTree.jsで定義されていると想定されるが、
+    // 読み込まれていないか問題がある可能性があるため、フォールバック処理を追加。
     if (typeof renderSkillTreeUI === "function") {
         renderSkillTreeUI();
+    } else {
+        // 少なくともスキルポイントとカスタムスキルリストは表示を試みる
+        console.warn("renderSkillTreeUI() is not defined. Attempting to render skill points and custom skills list as a fallback.");
+        if (typeof updateSkillPointsDisplay === "function") updateSkillPointsDisplay();
+        if (typeof renderCustomSkillList === "function") renderCustomSkillList();
     }
     
     // ステータス入力欄のイベントリスナー
