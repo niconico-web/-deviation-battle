@@ -130,6 +130,12 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     if (won) {
         // Boss battle rewards are handled separately
         if (isBossBattle && options.enemy) {
+            // Ensure difficulty is present on the enemy object for reward logic
+            if (!options.enemy.difficulty) {
+                const savedDifficulty = localStorage.getItem("battleDifficulty");
+                if (savedDifficulty) options.enemy.difficulty = savedDifficulty;
+                console.log(`[Stats] Restored difficulty '${savedDifficulty}' for boss rewards.`);
+            }
             if (typeof applyBossRewards === 'function') {
                 player = applyBossRewards(player, options.enemy);
             }

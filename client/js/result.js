@@ -75,5 +75,6 @@ localStorage.removeItem("battleCoinGain");
 localStorage.removeItem("droppedOrb");
 localStorage.removeItem("isBotBattle");
 localStorage.removeItem("isBossBattle"); // Clear boss battle flag
+localStorage.removeItem("battleDifficulty"); // Clear difficulty
 
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";
