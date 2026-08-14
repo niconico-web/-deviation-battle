@@ -30,9 +30,9 @@
         "name": "オークの戦将",
         "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は驚異的な力を持つ。",
         "difficulties": {
-            "easy": { "hp": 30000, "atk": 6000, "def": 100, "speed": 50 },
-            "medium": { "hp": 60000, "atk": 12000, "def": 160, "speed": 100 },
-            "hard": { "hp": 120000, "atk": 24000, "def": 350, "speed": 200 }
+            "easy": { "hp": 300000, "atk": 6000, "def": 10000, "speed": 5000 },
+            "medium": { "hp": 600000, "atk": 12000, "def": 16000, "speed": 10000 },
+            "hard": { "hp": 1200000, "atk": 24000, "def": 20000, "speed": 20000 }
         },
         "skills": [
             {
