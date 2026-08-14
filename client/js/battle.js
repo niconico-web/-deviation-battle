@@ -91,6 +91,16 @@ function getSubjectDisplayName(subject) {
     return subjectNames[subject] || subject;
 }
 
+/**
+ * ボス戦用の問題をローカルから取得する（暫定的なダミー関数）
+ * @param {string} bossSubject - ボスの教科
+ * @returns {Array} 問題の配列（現在は空）
+ */
+function getLocalBossQuestions(bossSubject) {
+    console.warn(`[TEMP] getLocalBossQuestions for ${bossSubject} is not implemented. Returning empty array.`);
+    return [];
+}
+
 function renderPartyStatus() {
     let container = document.getElementById('ally-status-container');
     if (!container) {

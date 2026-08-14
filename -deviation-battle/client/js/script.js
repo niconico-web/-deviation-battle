@@ -173,6 +173,18 @@ function createCharacter() {
 }
 
 /**
+ * 武器の表示名を取得する（暫定的なダミー関数）
+ * この関数が見つからないためにUI表示エラーが発生している可能性があります。
+ * @param {object} weapon - 武器オブジェクト
+ * @returns {string} 武器の表示名
+ */
+function getWeaponDisplayName(weapon) {
+    if (!weapon) return 'なし';
+    // 本来は武器の強化状態などに応じて名前を装飾する
+    return weapon.name || '名称不明の武器';
+}
+
+/**
  * 装備中の武器詳細をHTMLで整形して返す
  * @param {object} weapon - 武器オブジェクト
  * @returns {string} 武器詳細のHTML文字列
