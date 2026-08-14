@@ -251,16 +251,21 @@ function updateStats() {
 }
 
 function updateHP() {
-    // Ensure HP values are defined
-    const myHp = me.hp || me.maxHp || 100;
+    // HPが0の場合にmaxHpが代入されるのを防ぐ
+    const myHp = (me.hp !== null && me.hp !== undefined) ? me.hp : (me.maxHp || 100);
     const myMaxHp = me.maxHp || 100;
-    const enemyHp = enemy.hp || enemy.maxHp || 100;
+    const enemyHp = (enemy.hp !== null && enemy.hp !== undefined) ? enemy.hp : (enemy.maxHp || 100);
     const enemyMaxHp = enemy.maxHp || 100;
     
     myHPText.textContent = "HP " + myHp + " / " + myMaxHp;
     enemyHPText.textContent = "HP " + enemyHp + " / " + enemyMaxHp;
-    myHPBar.style.width = (myHp / myMaxHp * 100) + "%";
-    enemyHPBar.style.width = (enemyHp / enemyMaxHp * 100) + "%";
+
+    // HPが0未満にならないようにし、パーセンテージを計算
+    const myHpPercentage = Math.max(0, (myHp / myMaxHp) * 100);
+    const enemyHpPercentage = Math.max(0, (enemyHp / enemyMaxHp) * 100);
+
+    myHPBar.style.width = myHpPercentage + "%";
+    enemyHPBar.style.width = enemyHpPercentage + "%";
 }
 
 function updateUltimateGauge() {
@@ -1443,7 +1448,7 @@ function generateBotQuestion() {
                     // 選択肢を生成
                     generateChoices(currentQuestion);
                     startTimer();
-                    addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+                    addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
                     
                     // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
                     if (isBossBattle) {
@@ -1724,7 +1729,7 @@ function generateBotQuestion() {
                     { question: "sin 30° = ?", answer: "0.5" }
                 ],
                 jp: [
-                    { question: "「係り結び」の例は？", answer: "～けれども,～ので" },
+                    { question: "「係り結び」の例は？", answer: "～けれども、～ので" },
                     { question: "「受動態」の例は？", answer: "彼に褒められた" },
                     { question: "「使役態」の例は？", answer: "彼を行かせた" },
                     { question: "「尊敬語」の例は？", answer: "いらっしゃる,おっしゃる" },
@@ -1853,7 +1858,7 @@ function generateBotQuestion() {
             // 選択肢を生成
             generateChoices(currentQuestion);
             startTimer();
-            addLog("問題が出されました！（" + currentQuestion.subjectDisplayName + "）");
+            addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
             
             // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
             if (isBossBattle) {

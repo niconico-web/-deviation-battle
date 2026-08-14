@@ -4,8 +4,20 @@ const parties = new Map();
 const playerToParty = new Map();
 const MAX_PARTY_SIZE = 4;
 
+function generatePartyId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 function createParty(hostId, hostSocketId, hostPlayer) {
-    const partyId = `party_${Date.now()}`;
+    let partyId;
+    do {
+        partyId = generatePartyId();
+    } while (parties.has(partyId)); // Ensure ID is unique
     const party = {
         id: partyId,
         hostId: hostId,

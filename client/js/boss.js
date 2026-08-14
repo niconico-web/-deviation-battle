@@ -19,8 +19,8 @@ function applyBossRewards(player, boss) {
     const difficulty = boss.difficulty;
 
     // Check if reward was already claimed
-    if (hasDefeatedBoss(player, bossId, difficulty)) {
-        console.log(`Reward for ${bossId} (${difficulty}) already claimed.`);
+    if (hasDefeatedBoss(player, boss.id, difficulty)) {
+        console.log(`Reward for ${boss.id} (${difficulty}) already claimed.`);
         return player;
     }
 
@@ -50,7 +50,7 @@ function applyBossRewards(player, boss) {
     if (rewardMessage.trim()) {
         // Use a timeout to show the message after the result screen has settled.
         setTimeout(() => alert(rewardMessage), 500);
-        newPlayer = markBossDefeated(newPlayer, bossId, difficulty);
+        newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
     }
 
     return newPlayer;
