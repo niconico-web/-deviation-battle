@@ -1,11 +1,15 @@
 const isBotBattle = localStorage.getItem("isBotBattle") === "true";
 const isBossBattle = localStorage.getItem("isBossBattle") === "true";
+const partyDataJSON = localStorage.getItem("partyData");
+const partyData = partyDataJSON && !isBotBattle ? JSON.parse(partyDataJSON) : null;
 const socket = isBotBattle ? null : io();
 const roomId = localStorage.getItem("roomId");
 const battlePlayerData = localStorage.getItem("battlePlayer");
 const enemyData = localStorage.getItem("enemy");
 let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
+let allies = []; // 自分以外のパーティメンバー
+
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
 let activeSkills = [];
 let selectedSkill = null;
@@ -87,6 +91,39 @@ function getSubjectDisplayName(subject) {
     return subjectNames[subject] || subject;
 }
 
+function renderPartyStatus() {
+    let container = document.getElementById('ally-status-container');
+    if (!container) {
+        const myStatusBox = document.getElementById('my-status');
+        if (myStatusBox && myStatusBox.parentElement) {
+            container = document.createElement('div');
+            container.id = 'ally-status-container';
+            container.className = 'ally-status-container';
+            // my-status の前に挿入して、味方・自分・敵の順にする
+            myStatusBox.parentElement.insertBefore(container, myStatusBox);
+        } else {
+            console.error("Could not find a parent for 'my-status' to append ally statuses.");
+            return;
+        }
+    }
+    container.innerHTML = '';
+
+    allies.forEach(ally => {
+        const allyDiv = document.createElement('div');
+        allyDiv.className = 'ally-status-box status-box'; // 既存のスタイルを流用
+        allyDiv.id = `ally-status-${ally.id}`;
+        allyDiv.innerHTML = `
+            <h3 class="ally-name">${ally.name}</h3>
+            <div class="damage-display" id="allyDamage-${ally.id}"></div>
+            <div class="hp-bar-container">
+                <div class="hp-bar" id="allyHPBar-${ally.id}" style="width: 100%; background-color: #28a745;"></div>
+            </div>
+            <div class="hp-text" id="allyHPText-${ally.id}">${ally.hp} / ${ally.maxHp}</div>
+        `;
+        container.appendChild(allyDiv);
+    });
+}
+
 function initialize() {
     if (!me || !enemy) {
         alert(I18N.noBattleData);
@@ -94,7 +131,7 @@ function initialize() {
         return;
     }
 
-    console.log("Battle initialize:", { me, enemy, roomId, isBotBattle, isBossBattle });
+    console.log("Battle initialize:", { me, enemy, roomId, isBotBattle, isBossBattle, partyData, allies });
     console.log("Enemy stats:", enemy.stats);
     console.log("Enemy maxHp:", enemy.maxHp);
     console.log("Socket exists:", !!socket);
@@ -155,6 +192,14 @@ function initialize() {
     // 相手から自分へ
     applyReMiserable(enemy, me);
 
+    // パーティメンバーがいる場合、UIを初期化
+    if (partyData) {
+        allies = partyData.members
+            .filter(member => member.id !== me.id)
+            .map(member => ({ ...member.player, hp: member.player.maxHp, maxHp: member.player.maxHp }));
+        renderPartyStatus();
+    }
+
     updateStats();
     updateHP();
     updateUltimateGauge();
@@ -179,7 +224,7 @@ function initialize() {
             addLog("サーバー接続待機中...");
             socket.once("connect", () => {
                 console.log("Socket connected, starting battle");
-                startOnlineBattle();
+                joinOnlineBattle();
             });
             
             // 接続タイムアウト
@@ -190,39 +235,16 @@ function initialize() {
                 }
             }, 5000);
         } else {
-            startOnlineBattle();
+            joinOnlineBattle();
         }
     }
 }
 
-function startOnlineBattle() {
-    console.log("Starting online battle for room:", roomId);
-    console.log("Player data:", { me: me.id, enemy: enemy ? enemy.id : 'undefined' });
-    
-    // ボット戦の場合はオンラインバトルを開始しない
-    if (isBotBattle) {
-        console.log("This is a bot battle, skipping online battle start");
-        return;
-    }
-    
-    addLog("バトル開始をリクエスト中...");
-    
-    // プレイヤー情報を含めてバトル開始をリクエスト
-    socket.emit("requestBattleStart", { 
-        roomId,
-        playerId: me.id,
-        playerName: me.name
-    });
-    
-    // タイムアウト処理（オンラインバトルのみ）
-    if (!isBotBattle) {
-        setTimeout(() => {
-            if (!currentQuestion) {
-                addLog("エラー: バトル開始の応答がありません");
-                console.error("No battleStarted response received");
-            }
-        }, 10000);
-    }
+function joinOnlineBattle() {
+    console.log("Joining online battle for room:", roomId);
+    addLog("バトルに参加中...");
+    // サーバーにバトル参加を通知し、初期状態を要求
+    socket.emit("battle:join", { roomId });
 }
 
 function calculateDodgeChance(speed) {
@@ -266,6 +288,22 @@ function updateHP() {
 
     myHPBar.style.width = myHpPercentage + "%";
     enemyHPBar.style.width = enemyHpPercentage + "%";
+
+    // 味方のHP更新
+    allies.forEach(ally => {
+        const allyHp = (ally.hp !== null && ally.hp !== undefined) ? ally.hp : (ally.maxHp || 100);
+        const allyMaxHp = ally.maxHp || 100;
+        const hpBar = document.getElementById(`allyHPBar-${ally.id}`);
+        const hpText = document.getElementById(`allyHPText-${ally.id}`);
+
+        if (hpBar) {
+            const percentage = Math.max(0, (allyHp / allyMaxHp) * 100);
+            hpBar.style.width = percentage + "%";
+        }
+        if (hpText) {
+            hpText.textContent = `${allyHp} / ${allyMaxHp}`;
+        }
+    });
 }
 
 function updateUltimateGauge() {
@@ -1354,11 +1392,15 @@ function handleChoiceClick(selectedOption) {
     if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
-        socket.emit("submitAnswer", {
-            roomId,
+        // サーバーに回答を送信
+        socket.emit("battle:submitAnswer", {
             answer: selectedOption,
-            skill: selectedSkill
+            // 将来的にスキル使用を実装する場合
+            // skillId: selectedSkill ? selectedSkill.id : null
         });
+        // 次の問題が表示されるまで待機
+        questionDisplay.textContent = "回答送信済み。次の問題を待っています...";
+        choicesContainer.innerHTML = '';
     }
 }
 
@@ -1877,6 +1919,23 @@ function generateBotQuestion() {
     });
 }
 
+function displayQuestion(question) {
+    if (!question || !question.question) {
+        console.error("Invalid question data:", question);
+        addLog("エラー: 無効な問題データです。");
+        return;
+    }
+    currentQuestion = question;
+
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        generateChoices(currentQuestion);
+        startTimer();
+        const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+        addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+    });
+}
+
 // ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
 function tickBotBattleStatus() {
     if (enemyBurnTurns > 0) {
@@ -2300,46 +2359,29 @@ function stopTimer() {
     }
 }
 
-function syncBattleState(players) {
-    console.log("syncBattleState called with players:", players);
-    const playerIds = Object.keys(players);
-    console.log("Player IDs:", playerIds, "My ID:", me.id);
+function syncBattleState(stateUpdate) {
+    console.log("syncBattleState called with stateUpdate:", stateUpdate);
 
-    const myData = players[me.id];
-    
-    // データが見つからない場合の警告
-    if (!myData) {
-        console.error("Could not find my data in syncBattleState. My ID:", me.id, "Server players:", players);
-        return;
-    }
-
-    const enemyId = playerIds.find(id => id !== me.id);
-    const enemyData = enemyId ? players[enemyId] : null;
-
-    if (!enemyData) {
-        console.warn("Could not find enemy data in syncBattleState");
-        return;
-    }
-    
-    // HPとステータスを同期
-    if (myData.hp !== undefined) {
-        me.hp = myData.hp;
-    }
-    if (myData.maxHp !== undefined) {
-        me.maxHp = myData.maxHp;
-    }
-    if (myData.ultimateGauge !== undefined) {
-        me.ultimateGauge = myData.ultimateGauge;
-    }
-    
-    if (enemyData.hp !== undefined) {
-        enemy.hp = enemyData.hp;
-    }
-    if (enemyData.maxHp !== undefined) {
-        enemy.maxHp = enemyData.maxHp;
-    }
-    if (enemyData.ultimateGauge !== undefined) {
-        enemy.ultimateGauge = enemyData.ultimateGauge;
+    for (const id in stateUpdate) {
+        const data = stateUpdate[id];
+        if (id === me.id) {
+            // 自分
+            if (data.hp !== undefined) me.hp = data.hp;
+            if (data.maxHp !== undefined) me.maxHp = data.maxHp;
+            if (data.ultimateGauge !== undefined) me.ultimateGauge = data.ultimateGauge;
+        } else if (id === enemy.id) {
+            // 敵
+            if (data.hp !== undefined) enemy.hp = data.hp;
+            if (data.maxHp !== undefined) enemy.maxHp = data.maxHp;
+            if (data.ultimateGauge !== undefined) enemy.ultimateGauge = data.ultimateGauge;
+        } else {
+            // 味方
+            const ally = allies.find(a => a.id === id);
+            if (ally) {
+                if (data.hp !== undefined) ally.hp = data.hp;
+                if (data.maxHp !== undefined) ally.maxHp = data.maxHp;
+            }
+        }
     }
     
     console.log("Synced me.hp:", me.hp, "me.maxHp:", me.maxHp);
@@ -2352,17 +2394,8 @@ function syncBattleState(players) {
     
     // HPが0になった場合は即座にバトル終了チェック
     if (me.hp <= 0 || enemy.hp <= 0) {
-        console.log("HP reached zero, checking battle end");
-        if (!battleEnd) {
-            // 自分が負けた場合
-            if (me.hp <= 0) {
-                finishBattle(enemyData.id);
-            } 
-            // 敵が負けた場合
-            else if (enemy.hp <= 0) {
-                finishBattle(myData.id);
-            }
-        }
+        // 終了処理はサーバーからの'battle:finished'イベントに任せる
+        console.log("HP reached zero, waiting for server to finish battle.");
     }
 }
 
@@ -2380,7 +2413,8 @@ function finishBattle(winner) {
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
-    // デバッグ武器は奪えない
+
+    // デバッグ武器のみ奪えない
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
@@ -2470,186 +2504,69 @@ if (!isBotBattle && socket) {
         location.href = "index.html";
     });
 
-    socket.on("battleStarted", data => {
-        console.log("battleStarted received:", data);
-        addLog("バトル開始信号を受信...");
+    // サーバーからの初期状態を受け取る
+    socket.on('battle:initialState', (data) => {
+        console.log('battle:initialState received', data);
+        me = data.me;
+        enemy = data.enemy;
+        allies = data.allies || [];
         
-        // プレイヤーデータを同期
-        if (data.players) {
-            const playerIds = Object.keys(data.players);
-            console.log("Syncing player data:", playerIds);
-            console.log("My current ID:", me.id, "My Name:", me.name);
-            console.log("Enemy current ID:", enemy.id, "Enemy Name:", enemy.name);
-            console.log("Received players data:", JSON.stringify(data.players));
-
-            const myData = data.players[me.id];
-
-            // データが見つからない場合のエラーハンドリング
-            if (!myData) {
-                console.error("Could not find my data in battleStarted! My ID:", me.id, "Server players:", data.players);
-                addLog("エラー: プレイヤーデータの同期に失敗しました");
-                return;
-            }
-
-            const enemyId = playerIds.find(id => id !== me.id);
-            const enemyData = enemyId ? data.players[enemyId] : null;
-
-            if (!enemyData) {
-                console.error("Could not find enemy data in battleStarted!");
-                addLog("エラー: 敵データの同期に失敗しました");
-                return;
-            }
-
-            // データを更新
-            me = { ...me, ...myData };
-            enemy = { ...enemy, ...enemyData };
-            
-            console.log("Updated me:", me);
-            console.log("Updated enemy:", enemy);
-            
-            // 必殺技ゲージ初期化
-            if (!me.ultimateGauge) {
-                me.ultimateGauge = { current: 0, max: 100 };
-            }
-            if (!enemy.ultimateGauge) {
-                enemy.ultimateGauge = { current: 0, max: 100 };
-            }
-            
-            localStorage.setItem("battlePlayer", JSON.stringify(me));
-            localStorage.setItem("enemy", JSON.stringify(enemy));
-            
-            updateStats();
-            updateHP();
-            updateUltimateGauge();
-            
-            // UIを更新
-            myName.textContent = me.name;
-            enemyName.textContent = enemy.name;
-        }
+        // UIを初期化
+        renderPartyStatus();
+        updateStats();
+        updateHP();
+        updateUltimateGauge();
         
-        currentQuestion = data.initialQuestion;
-        
-        if (!currentQuestion || !currentQuestion.question) {
-            console.error("Invalid question data:", currentQuestion);
-            addLog("エラー: 問題データが無効です");
-            addLog("受信データ: " + JSON.stringify(data));
-            return;
-        }
-        
-        showCountdown(() => {
-            questionDisplay.textContent = currentQuestion.question;
-            generateChoices(currentQuestion);
-            startTimer();
-            const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-            addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
-
-            // 3秒間のスキル選択タイム
-            setTimeout(() => {
-                addLog("3秒以内にスキルを選択してください！");
-                enableSkillButtons(true);
-                setTimeout(() => {
-                    enableSkillButtons(false);
-                }, 3000);
-            }, 500);
-        });
+        // 最初の問題を表示
+        displayQuestion(data.question);
     });
 
-    socket.on("answerResult", data => {
-        // スキルが使用されたら使用済みリストに追加し、ボタンを無効化
-        if (data.skillUsed && data.playerId === me.id) {
-            usedSkills.push(data.skillUsed.id);
-            const usedButton = document.querySelector(`.skill-btn[data-skill-id="${data.skillUsed.id}"]`);
-            if (usedButton) {
-                usedButton.disabled = true;
-                usedButton.classList.add('used');
-                usedButton.classList.remove('selected');
-            }
-            addLog(`スキル「${data.skillUsed.name}」が発動！`);
-        }
-        if (data.playerId === me.id) {
-            clearSkillSelection(); // スキル選択をリセット
-        }
-        console.log("answerResult received:", data);
-        const answererIsMe = data.playerId === me.id;
+    // サーバーからのリアルタイム更新を受け取る
+    socket.on('battle:update', (data) => {
+        console.log('battle:update received', data);
 
-        // 誰かが先に正解した場合、即座に選択肢を無効化
-        if (data.firstCorrect) {
-            const buttons = choicesContainer.querySelectorAll('.choice-btn');
-            buttons.forEach(btn => btn.disabled = true);
+        if (data.logs && Array.isArray(data.logs)) {
+            data.logs.forEach(logMsg => addLog(logMsg));
         }
 
-        // Display logs and effects based on the immediate result
-        if (data.isCorrect) {
-            addLog(`${data.playerName}が正解！`);
-            if (answererIsMe) showCorrectEffect();
-            if (data.ultimateActivated) {
-                const ultimateName = getWeaponUltimateName(answererIsMe ? me.equippedWeapon : enemy.equippedWeapon);
-                addLog(`${data.playerName}の必殺技「${ultimateName}」発動！`);
-                showUltimateEffect();
-            }
-        } else {
-            addLog(`${data.playerName}は不正解...`);
+        if (data.damageEvents && Array.isArray(data.damageEvents)) {
+            data.damageEvents.forEach(event => {
+                let damageElId;
+                if (event.targetId === me.id) {
+                    damageElId = 'myDamage';
+                } else if (event.targetId === enemy.id) {
+                    damageElId = 'enemyDamage';
+                } else {
+                    damageElId = `allyDamage-${event.targetId}`;
+                }
+                showDamage(damageElId, event.dodged ? 0 : event.damage);
+            });
+        }
+        
+        if (data.effectEvents && Array.isArray(data.effectEvents)) {
+            data.effectEvents.forEach(event => {
+                if (event.type === 'ultimate' && (event.playerId === me.id || event.playerId === enemy.id || allies.some(a => a.id === event.playerId))) {
+                    showUltimateEffect();
+                }
+                if (event.type === 'correct' && event.playerId === me.id) {
+                    showCorrectEffect();
+                }
+            });
         }
 
-        // Display damage/dodge info
-        let animationDelay = 0;
-        if (data.damage !== undefined) {
-            // ダメージアニメーションが発生する場合、両プレイヤーに遅延を設定して同期
-            animationDelay = 1500; // 1.5秒
-
-            // ダメージを受ける側が自分かどうかを判定
-            // 1. 回答者が自分で、不正解だった場合
-            // 2. 回答者が相手で、正解だった場合
-            const targetIsMe = (answererIsMe && !data.isCorrect) || (!answererIsMe && data.isCorrect);
-            const targetId = targetIsMe ? "my" : "enemy";
-            const targetName = targetIsMe ? "自分" : "相手";
-
-            if(data.dodged) {
-                addLog(`${targetName}が回避！`);
-                showDamage(`${targetId}Damage`, 0);
-            } else {
-                addLog(`${targetName}に${data.damage}のダメージ！`);
-                showDamage(`${targetId}Damage`, data.damage);
-            }
+        if (data.stateUpdate) {
+            syncBattleState(data.stateUpdate);
         }
 
-        // Authoritative state update from the server
-        if (data.battleState) {
-            syncBattleState(data.battleState.players);
-        }
-
-        // Handle next question
-        if (data.nextQuestion) {
-            // ダメージアニメーションが終わるのを待ってから次の問題のカウントダウンを開始
-            setTimeout(() => {
-                currentQuestion = data.nextQuestion;
-                showCountdown(() => {
-                    questionDisplay.textContent = "スキルを選択してください (3秒)";
-                    choicesContainer.innerHTML = '';
-                    startSkillActivationWindow();
-
-                    setTimeout(() => {
-                        questionDisplay.textContent = currentQuestion.question;
-                        generateChoices(currentQuestion);
-                        startTimer();
-                        const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-                        addLog("次の問題！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
-                    }, 3000);
-                });
-            }, animationDelay);
-        }
-
-        // Check for a winner from the result payload
-        if (data.winner) {
-            finishBattle(data.winner);
+        if (data.nextQuestion && data.nextQuestion.forPlayerId === me.id) {
+            displayQuestion(data.nextQuestion.question);
         }
     });
 
-    socket.on("battleFinished", data => {
+    socket.on('battle:finished', (data) => {
         if (data.draw) {
             addLog("引き分け！");
             localStorage.setItem("battleResult", "draw");
-            setTimeout(() => location.href = "result.html", 2500);
         } else {
             finishBattle(data.winner);
         }
@@ -2677,327 +2594,6 @@ if (!isBotBattle && socket) {
     });
 }
 
-// Local boss questions for bot battles
-function getLocalBossQuestions(subject, grade) {
-    const bossQuestions = {
-        math: [
-            { question: "√144 = ?", answer: "12" },
-            { question: "2^6 = ?", answer: "64" },
-            { question: "15 × 7 = ?", answer: "105" },
-            { question: "√225 = ?", answer: "15" },
-            { question: "3^4 = ?", answer: "81" },
-            { question: "24 × 5 = ?", answer: "120" },
-            { question: "√256 = ?", answer: "16" },
-            { question: "2^8 = ?", answer: "256" },
-            { question: "18 × 6 = ?", answer: "108" },
-            { question: "√324 = ?", answer: "18" },
-            { question: "5^3 = ?", answer: "125" },
-            { question: "32 × 4 = ?", answer: "128" },
-            { question: "√400 = ?", answer: "20" },
-            { question: "4^4 = ?", answer: "256" },
-            { question: "14 × 9 = ?", answer: "126" },
-            { question: "√576 = ?", answer: "24" },
-            { question: "6^3 = ?", answer: "216" },
-            { question: "27 × 3 = ?", answer: "81" },
-            { question: "√625 = ?", answer: "25" },
-            { question: "7^3 = ?", answer: "343" },
-            { question: "35 × 2 = ?", answer: "70" },
-            { question: "√729 = ?", answer: "27" },
-            { question: "8^3 = ?", answer: "512" },
-            { question: "45 × 2 = ?", answer: "90" },
-            { question: "√841 = ?", answer: "29" },
-            { question: "9^3 = ?", answer: "729" },
-            { question: "56 × 2 = ?", answer: "112" },
-            { question: "√961 = ?", answer: "31" },
-            { question: "10^3 = ?", answer: "1000" },
-            { question: "48 × 3 = ?", answer: "144" },
-            { question: "√1024 = ?", answer: "32" }
-        ],
-        jp: [
-            { question: "「梅」の読み方は？", answer: "うめ" },
-            { question: "「桜」の読み方は？", answer: "さくら" },
-            { question: "「富士」の読み方は？", answer: "ふじ" },
-            { question: "「海」の読み方は？", answer: "うみ" },
-            { question: "「山」の読み方は？", answer: "やま" },
-            { question: "「空」の読み方は？", answer: "そら" },
-            { question: "「川」の読み方は？", answer: "かわ" },
-            { question: "「風」の読み方は？", answer: "かぜ" },
-            { question: "「雨」の読み方は？", answer: "あめ" },
-            { question: "「雪」の読み方は？", answer: "ゆき" },
-            { question: "「月」の読み方は？", answer: "つき" },
-            { question: "「星」の読み方は？", answer: "ほし" },
-            { question: "「花」の読み方は？", answer: "はな" },
-            { question: "「草」の読み方は？", answer: "くさ" },
-            { question: "「木」の読み方は？", answer: "き" },
-            { question: "「火」の読み方は？", answer: "ひ" },
-            { question: "「水」の読み方は？", answer: "みず" },
-            { question: "「土」の読み方は？", answer: "つち" },
-            { question: "「金」の読み方は？", answer: "きん" },
-            { question: "「銀」の読み方は？", answer: "ぎん" },
-            { question: "「銅」の読み方は？", answer: "どう" },
-            { question: "「鉄」の読み方は？", answer: "てつ" },
-            { question: "「石」の読み方は？", answer: "いし" },
-            { question: "「岩」の読み方は？", answer: "いわ" },
-            { question: "「砂」の読み方は？", answer: "すな" },
-            { question: "「泥」の読み方は？", answer: "どろ" },
-            { question: "「雲」の読み方は？", answer: "くも" },
-            { question: "「虹」の読み方は？", answer: "にじ" },
-            { question: "「光」の読み方は？", answer: "ひかり" },
-            { question: "「影」の読み方は？", answer: "かげ" }
-        ],
-        eng: [
-            { question: "What is the past tense of 'go'?", answer: "went" },
-            { question: "What is the past tense of 'eat'?", answer: "ate" },
-            { question: "What is the past tense of 'see'?", answer: "saw" },
-            { question: "What is the past tense of 'take'?", answer: "took" },
-            { question: "What is the past tense of 'make'?", answer: "made" },
-            { question: "What is the past tense of 'come'?", answer: "came" },
-            { question: "What is the past tense of 'give'?", answer: "gave" },
-            { question: "What is the past tense of 'write'?", answer: "wrote" },
-            { question: "What is the past tense of 'read'?", answer: "read" },
-            { question: "What is the past tense of 'know'?", answer: "knew" },
-            { question: "What is the past tense of 'think'?", answer: "thought" },
-            { question: "What is the past tense of 'bring'?", answer: "brought" },
-            { question: "What is the past tense of 'buy'?", answer: "bought" },
-            { question: "What is the past tense of 'catch'?", answer: "caught" },
-            { question: "What is the past tense of 'teach'?", answer: "taught" },
-            { question: "What is the past tense of 'fight'?", answer: "fought" },
-            { question: "What is the past tense of 'feel'?", answer: "felt" },
-            { question: "What is the past tense of 'leave'?", answer: "left" },
-            { question: "What is the past tense of 'keep'?", answer: "kept" },
-            { question: "What is the past tense of 'sleep'?", answer: "slept" },
-            { question: "What is the past tense of 'speak'?", answer: "spoke" },
-            { question: "What is the past tense of 'break'?", answer: "broke" },
-            { question: "What is the past tense of 'choose'?", answer: "chose" },
-            { question: "What is the past tense of 'drive'?", answer: "drove" },
-            { question: "What is the past tense of 'wear'?", answer: "wore" },
-            { question: "What is the past tense of 'win'?", answer: "won" },
-            { question: "What is the past tense of 'lose'?", answer: "lost" },
-            { question: "What is the past tense of 'find'?", answer: "found" },
-            { question: "What is the past tense of 'send'?", answer: "sent" },
-            { question: "What is the past tense of 'spend'?", answer: "spent" }
-        ],
-        sci: [
-            { question: "水の化学式は？", answer: "H2O" },
-            { question: "酸素の化学式は？", answer: "O2" },
-            { question: "二酸化炭素の化学式は？", answer: "CO2" },
-            { question: "水素の化学式は？", answer: "H2" },
-            { question: "窒素の化学式は？", answer: "N2" },
-            { question: "ナトリウムの化学式は？", answer: "Na" },
-            { question: "塩素の化学式は？", answer: "Cl" },
-            { question: "カリウムの化学式は？", answer: "K" },
-            { question: "カルシウムの化学式は？", answer: "Ca" },
-            { question: "鉄の化学式は？", answer: "Fe" },
-            { question: "銅の化学式は？", answer: "Cu" },
-            { question: "亜鉛の化学式は？", answer: "Zn" },
-            { question: "銀の化学式は？", answer: "Ag" },
-            { question: "金の化学式は？", answer: "Au" },
-            { question: "光合成の化学式は？", answer: "6CO2+6H2O" },
-            { question: "光合成で生成されるものは？", answer: "グルコース" },
-            { question: "光合成で消費されるものは？", answer: "CO2" },
-            { question: "光合成で放出されるものは？", answer: "O2" },
-            { question: "植物の光合成を行う器官は？", answer: "葉緑体" },
-            { question: "葉緑体に含まれる色素は？", answer: "クロロフィル" },
-            { question: "光合成の光反応で生成されるものは？", answer: "ATP" },
-            { question: "光合成の暗反応で生成されるものは？", answer: "グルコース" },
-            { question: "呼吸で消費されるものは？", answer: "O2" },
-            { question: "呼吸で生成されるものは？", answer: "CO2" },
-            { question: "呼吸でエネルギーを生成する細胞器官は？", answer: "ミトコンドリア" },
-            { question: "DNAの基本構成単位は？", answer: "ヌクレオチド" },
-            { question: "DNAの二重らせん構造を発見したのは？", answer: "ワトソン" },
-            { question: "RNAの基本構成単位は？", answer: "リボヌクレオチド" },
-            { question: "タンパク質の基本構成単位は？", answer: "アミノ酸" },
-            { question: "細胞膜の主成分は？", answer: "リン脂質" }
-        ],
-        soc: [
-            { question: "日本の首都は？", answer: "東京" },
-            { question: "アメリカの首都は？", answer: "ワシントン" },
-            { question: "イギリスの首都は？", answer: "ロンドン" },
-            { question: "フランスの首都は？", answer: "パリ" },
-            { question: "ドイツの首都は？", answer: "ベルリン" },
-            { question: "中国の首都は？", answer: "北京" },
-            { question: "韓国の首都は？", answer: "ソウル" },
-            { question: "ロシアの首都は？", answer: "モスクワ" },
-            { question: "イタリアの首都は？", answer: "ローマ" },
-            { question: "スペインの首都は？", answer: "マドリード" },
-            { question: "カナダの首都は？", answer: "オタワ" },
-            { question: "オーストラリアの首都は？", answer: "キャンベラ" },
-            { question: "インドの首都は？", answer: "ニューデリー" },
-            { question: "ブラジルの首都は？", answer: "ブラジリア" },
-            { question: "アルゼンチンの首都は？", answer: "ブエノスアイレス" },
-            { question: "メキシコの首都は？", answer: "メキシコシティ" },
-            { question: "エジプトの首都は？", answer: "カイロ" },
-            { question: "南アフリカの首都は？", answer: "プレトリア" },
-            { question: "タイの首都は？", answer: "バンコク" },
-            { question: "ベトナムの首都は？", answer: "ハノイ" },
-            { question: "シンガポールの首都は？", answer: "シンガポール" },
-            { question: "マレーシアの首都は？", answer: "クアラルンプール" },
-            { question: "インドネシアの首都は？", answer: "ジャカルタ" },
-            { question: "フィリピンの首都は？", answer: "マニラ" },
-            { question: "北朝鮮の首都は？", answer: "ピョンヤン" },
-            { question: "モンゴルの首都は？", answer: "ウランバートル" },
-            { question: "カザフスタンの首都は？", answer: "アスタナ" },
-            { question: "トルコの首都は？", answer: "アンカラ" },
-            { question: "ギリシャの首都は？", answer: "アテネ" },
-            { question: "ポルトガルの首都は？", answer: "リスボン" }
-        ]
-    };
-    
-    return bossQuestions[subject] || [];
-}
-
-function renderSkills() {
-    if (!skillsContainer) return;
-
-    if (!activeSkills || activeSkills.length === 0) {
-        skillsContainer.innerHTML = '<p class="no-skill-text">アクティブスキル未装備（メニューの「スキルツリー」でスロットに装備できます）</p>';
-        return;
-    }
-
-    skillsContainer.innerHTML = '';
-    activeSkills.forEach((skill) => {
-        if (!skill) return;
-        const isUsed = usedSkills.includes(skill.id);
-        const skillButton = document.createElement('button');
-        skillButton.className = 'skill-btn';
-        skillButton.dataset.skillId = skill.id;
-        skillButton.textContent = skill.name;
-        skillButton.title = skill.description || "";
-        skillButton.disabled = true; // 初期状態は無効
-
-        if (isUsed) {
-            skillButton.disabled = true;
-            skillButton.classList.add('used');
-        }
-
-        if (selectedSkill && selectedSkill.id === skill.id) {
-            skillButton.classList.add('selected');
-        }
-
-        skillButton.onclick = () => selectSkill(skill, skillButton);
-        skillsContainer.appendChild(skillButton);
-    });
-}
-
-function selectSkill(skill, button) {
-    document.querySelectorAll('.skill-btn.selected').forEach(btn => {
-        if (btn !== button) btn.classList.remove('selected');
-    });
-
-    button.classList.toggle('selected');
-
-    if (button.classList.contains('selected')) {
-        selectedSkill = skill;
-        addLog(`スキル「${skill.name}」を選択しました。`);
-    } else {
-        selectedSkill = null;
-        addLog(`スキル「${skill.name}」の選択を解除しました。`);
-    }
-}
-
-// スキル選択をリセットする（回答が確定したあとに呼ぶ）
-function clearSkillSelection() {
-    selectedSkill = null;
-    document.querySelectorAll('.skill-btn.selected').forEach(btn => btn.classList.remove('selected'));
-}
-
-// 選択中のスキルを消費する（発動条件を満たさない場合は null を返す）
-function consumeSelectedSkill() {
-    if (!selectedSkill) return null;
-    const skill = selectedSkill;
-    const effect = skill.effect || {};
-
-    if (effect.condition && effect.condition.type === 'hp_below') {
-        if (me.maxHp > 0 && me.hp / me.maxHp > effect.condition.value) {
-            addLog(`スキル「${skill.name}」は発動条件（HP${Math.round(effect.condition.value * 100)}%以下）を満たしていません。`);
-            clearSkillSelection();
-            return null;
-        }
-    }
-
-    // スキルを使用済みとしてマーク
-    usedSkills.push(skill.id);
-    selectedSkill = null;
-    
-    // スキルボタンの状態を更新
-    renderSkills();
-    
-    addLog(`スキル「${skill.name}」発動！`);
-    return skill;
-}
-
-// 攻撃を伴わないスキル効果を即時適用する（ボット戦用）
-function applyInstantSkillEffects(effect) {
-    if (!effect) return;
-
-    if (effect.damageReduction) {
-        myPendingDamageReduction = Math.min(0.9, effect.damageReduction);
-        addLog(`次に受けるダメージを${Math.round(myPendingDamageReduction * 100)}%軽減！`);
-    }
-    if (effect.skipNextTurn) {
-        mySkipThisTurn = true;
-    }
-    if (effect.selfDefDebuff) {
-        myDefDebuff = effect.selfDefDebuff;
-        myDefDebuffTurns = 2;
-        addLog(`代償として防御が${effect.selfDefDebuff}低下…`);
-    }
-    if (effect.heal) {
-        const healAmount = Math.floor(me.maxHp * effect.heal);
-        me.hp = Math.min(me.maxHp, me.hp + healAmount);
-        addLog(`HPを${healAmount}回復した！`);
-        updateHP();
-    }
-    if (effect.selfDamage) {
-        const selfDmg = Math.floor(me.maxHp * effect.selfDamage);
-        me.hp = Math.max(1, me.hp - selfDmg);
-        addLog(`代償として${selfDmg}のダメージを受けた…`);
-        updateHP();
-    }
-    if (effect.resetUsedSkill) {
-        let restored = 0;
-        while (restored < effect.resetUsedSkill && usedSkills.length > 0) {
-            const restoredId = usedSkills.shift();
-            const btn = document.querySelector(`.skill-btn[data-skill-id="${restoredId}"]`);
-            if (btn) btn.classList.remove('used');
-            restored++;
-        }
-        if (restored > 0) addLog(`使用済みスキルを${restored}個再使用可能にした！`);
-    }
-    if (effect.speedDebuff) {
-        enemy.speed = Math.max(1, Math.floor(enemy.speed * (1 - effect.speedDebuff)));
-        addLog(`${enemy.name}の速さが低下した！`);
-        updateStats();
-    }
-    if (effect.burn) {
-        enemyBurnTurns = 3;
-        addLog(`${enemy.name}を火傷状態にした！`);
-    }
-}
-
-// 自分が受けるダメージにスキルの軽減効果を適用する
-function applyIncomingDamageReduction(damage) {
-    if (myPendingDamageReduction > 0) {
-        const reduced = Math.max(1, Math.floor(damage * (1 - myPendingDamageReduction)));
-        addLog(`ダメージ軽減発動！ ${damage} → ${reduced}`);
-        myPendingDamageReduction = 0;
-        return reduced;
-    }
-    return damage;
-}
-
-function enableSkillButtons(enable) {
-    document.querySelectorAll('.skill-btn').forEach(btn => {
-        if (!btn.classList.contains('used')) {
-            btn.disabled = !enable;
-        }
-    });
-    // 選択時間が終了しても選択済みスキルは保持する（回答時に発動させるため）
-    if (!enable && selectedSkill) {
-        addLog(`スキル「${selectedSkill.name}」は次の回答で発動します。`);
-    }
-}
-
 function getSavedPlayer() {
     const raw = localStorage.getItem("player");
     if (!raw) return null;
@@ -3008,12 +2604,6 @@ function getSavedPlayer() {
     if (!player.weapons) player.weapons = [];
     if (!player.weaponWins) player.weaponWins = {};
     if (!player.orbs) player.orbs = [];
-    
-    // スキルデータを初期化
-    if (typeof initializeSkillData === 'function') {
-        return initializeSkillData(player);
-    }
-    
     return player;
 }
 
