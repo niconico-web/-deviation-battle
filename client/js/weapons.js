@@ -449,6 +449,11 @@ const ORB_UNIQUE_ABILITIES = {
         name: 'デュアルウェポン',
         description: 'これを使って武器を作るとき、もう一つ武器の種類を選択できる。その選んだ武器の種類のバフ、デバフの倍率がその武器に乗るようになる。（例：大剣を作成し、デュアルウェポンで双剣を選択すると、大剣に双剣のバフ・デバフ効果も付与される）',
         effect: 'dual_weapon'
+    },
+    one_shot_kill: {
+        name: "一撃必殺",
+        description: "相手を一撃で倒す。この能力は必中効果も持つ。",
+        effect: "one_shot_kill"
     }
 };
 
@@ -744,15 +749,24 @@ function createOriginalWeapon(name, type, statBonuses, ultimateName) {
     };
 }
 
+function getWeaponMaxMultiplier(weapon) {
+    return (weapon && weapon.maxMultiplier != null) ? weapon.maxMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function getWeaponBaseMultiplierForProgress(weapon) {
+    return (weapon && weapon.baseMultiplier != null) ? weapon.baseMultiplier : ORIGINAL_WEAPON_BASE_MULTIPLIER;
+}
+
 function upgradeOriginalWeapon(weapon) {
     if (!weapon.isOriginal) return weapon;
-    if (weapon.multiplier >= ORIGINAL_WEAPON_MAX_MULTIPLIER) return weapon;
-    
+    const max = getWeaponMaxMultiplier(weapon);
+    if (weapon.multiplier >= max) return weapon;
+
     const newMultiplier = Math.min(
-        ORIGINAL_WEAPON_MAX_MULTIPLIER,
+        max,
         weapon.multiplier + ORIGINAL_WEAPON_UPGRADE_INCREMENT
     );
-    
+
     return {
         ...weapon,
         multiplier: newMultiplier,
@@ -761,7 +775,7 @@ function upgradeOriginalWeapon(weapon) {
 }
 
 function canUpgradeOriginalWeapon(weapon) {
-    return weapon.isOriginal && weapon.multiplier < ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    return weapon.isOriginal && weapon.multiplier < getWeaponMaxMultiplier(weapon);
 }
 
 function getOriginalWeaponUpgradeCost(weapon) {
@@ -942,6 +956,138 @@ function applyWeaponStats(baseStats, weapon) {
 
 function playerOwnsWeapon(player, weaponId) {
     return (player.weapons || []).some(w => w.id === weaponId);
+}
+
+// ============================================
+// デバッグ用「必中・即死」武器
+// 開発中の動作確認用。ブラウザのコンソールから
+// giveDebugInstantKillWeapon() を実行すると、現在のプレイヤーに
+// 追加・装備される（script.js からグローバル公開）。
+// ============================================
+
+const DEBUG_INSTANT_KILL_WEAPON_ID = "debug_instant_kill_weapon";
+
+/**
+ * 必中・一撃必殺のデバッグ用武器を生成する。
+ * battle.js側で weapon.debugInstantKill を見て、回避判定を無視し
+ * 確実にトドメを刺す処理をしている。
+ * @returns {object}
+ */
+function createDebugInstantKillWeapon() {
+    return {
+        id: DEBUG_INSTANT_KILL_WEAPON_ID,
+        type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
+        name: "【デバッグ】絶対撃破の剣",
+        isOriginal: true,
+        isDebugWeapon: true,
+        debugInstantKill: true, // battle.js: 必中・確定撃破フラグ
+        multiplier: 1,
+        baseMultiplier: 1,
+        maxMultiplier: 1,
+        statBonuses: {},
+        upgradeCount: 0,
+        uniqueAbilities: [],
+        ultimateName: "デバッグ・絶対撃破"
+    };
+}
+
+/**
+ * デバッグ用の必中即死武器を、現在のプレイヤーに追加して装備する。
+ * ブラウザのコンソールから `giveDebugInstantKillWeapon()` として実行する想定。
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugInstantKillWeapon(player) {
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    let updated = p;
+    if (!playerOwnsWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID)) {
+        updated = addWeaponToPlayer(updated, createDebugInstantKillWeapon());
+    }
+    const equipResult = equipWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID);
+    if (equipResult.ok) {
+        updated = equipResult.player;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log("[Debug] 必中即死のデバッグ武器を装備しました。ページを再読み込みすると反映されます。");
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
+// 素材・限界突破システム
+// ============================================
+
+function getMaterialCount(player, materialId) {
+    return (player && player.materials && player.materials[materialId]) || 0;
+}
+
+function addMaterialToPlayer(player, materialId, amount = 1) {
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = (materials[materialId] || 0) + amount;
+    return { ...player, materials };
+}
+
+/**
+ * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakWeapon(weapon) {
+    if (!weapon || !weapon.sourceBossId) return false;
+    const level = weapon.limitBreakLevel || 0;
+    const max = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+    return level < max;
+}
+
+/**
+ * 限界突破素材を1個消費して、対象武器の上限倍率を0.5伸ばす。
+ * （実際の倍率を上限まで伸ばすには、別途「強化」を行う必要がある）
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (!weapon.sourceBossId) return { ok: false, message: "この武器は限界突破できません" };
+    if (!canLimitBreakWeapon(weapon)) return { ok: false, message: "既に限界突破の上限に達しています" };
+
+    const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+    const have = getMaterialCount(player, materialId);
+    if (have < 1) return { ok: false, message: "限界突破素材が足りません" };
+
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = have - 1;
+
+    const updatedWeapon = {
+        ...weapon,
+        limitBreakLevel: (weapon.limitBreakLevel || 0) + 1,
+        maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
+    };
+
+    const weapons = player.weapons.map(w => w.id === weaponId ? updatedWeapon : w);
+    let updatedPlayer = { ...player, weapons, materials };
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
 }
 
 function addWeaponToPlayer(player, weapon) {

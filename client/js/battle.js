@@ -236,8 +236,7 @@ function initialize() {
     } else {
         console.log("Online battle detected, waiting for server");
         if (!socket) {
-            addLog("エラー: ソケットが初期化されていません");
-            alert("ソケット接続エラーが発生しました。ページを再読み込みしてください。");
+            addLog("エラー: ソケット接続エラーが発生しました。ページを再読み込みしてください。");
             return;
         }
         
@@ -249,13 +248,21 @@ function initialize() {
                 joinOnlineBattle();
             });
             
-            // 接続タイムアウト
+            // 接続に時間がかかっている場合の通知（ブロッキングしない）
+            // ※ サーバーがスリープ状態から復帰する場合など、接続確立までに時間がかかることがあるため、
+            //    ここでは alert() を使わず、ログ表示のみで待機を継続する（socket.io側は自動で再接続を試み続ける）
             setTimeout(() => {
                 if (!socket.connected) {
-                    addLog("エラー: サーバーに接続できませんでした");
-                    alert("サーバーに接続できませんでした。ページを再読み込みしてください。");
+                    addLog("サーバーへの接続に時間がかかっています。しばらくお待ちください...");
                 }
-            }, 5000);
+            }, 8000);
+
+            // それでも長時間接続できない場合のみ、ユーザーに再読み込みを促す
+            setTimeout(() => {
+                if (!socket.connected) {
+                    addLog("エラー: サーバーに接続できませんでした。ページを再読み込みしてください。");
+                }
+            }, 30000);
         } else {
             joinOnlineBattle();
         }
@@ -549,7 +556,10 @@ function generateOptionsForQuestion(question) {
         }
         
         // まだ足りない場合は従来の方法で追加
-        while (options.length < 4) {
+        // ※ 万が一候補が尽きて無限ループにならないよう、試行回数の上限と保険のフォールバックを設ける
+        let numAttempts = 0;
+        while (options.length < 4 && numAttempts < 50) {
+            numAttempts++;
             let offset;
             if (Math.random() < 0.5) {
                 offset = Math.floor(Math.random() * 5) + 1;
@@ -562,6 +572,16 @@ function generateOptionsForQuestion(question) {
                 usedNumbers.add(wrongAnswer);
                 options.push(String(wrongAnswer));
             }
+        }
+        // それでも足りない場合は、確実に一意な数値を足して埋める（無限ループ防止の保険）
+        let fallbackOffset = 6;
+        while (options.length < 4) {
+            const wrongAnswer = numAnswer + fallbackOffset;
+            if (!usedNumbers.has(wrongAnswer) && wrongAnswer >= 0) {
+                usedNumbers.add(wrongAnswer);
+                options.push(String(wrongAnswer));
+            }
+            fallbackOffset++;
         }
     } else {
         // 文字列の場合は意味のある誤答を生成
@@ -578,12 +598,37 @@ function generateOptionsForQuestion(question) {
         // 文学的技法の問題の場合は、類似した文字列を生成しない
         if (!isLiteraryTechniqueQuestion(question.answer)) {
             // まだ足りない場合は類似した文字列を生成
-            while (options.length < 4) {
+            // ※ generateSimilarString は短い文字列（特に1文字）だと毎回同じ結果を返すことがあり、
+            //   無限ループでブラウザが完全にフリーズする原因になっていた。試行回数の上限を設ける。
+            let attempts = 0;
+            while (options.length < 4 && attempts < 30) {
+                attempts++;
                 const similar = generateSimilarString(question.answer);
                 if (!usedAnswers.has(similar)) {
                     usedAnswers.add(similar);
                     options.push(similar);
                 }
+            }
+            // それでも足りない場合は、記号を付加して確実に選択肢を埋める（無限ループ防止の保険）
+            let fallbackSuffix = 1;
+            while (options.length < 4) {
+                const filler = `${question.answer}${"？".repeat(fallbackSuffix)}`;
+                if (!usedAnswers.has(filler)) {
+                    usedAnswers.add(filler);
+                    options.push(filler);
+                }
+                fallbackSuffix++;
+            }
+        } else {
+            // 文学的技法の問題で、かつ誤答候補が3つに満たない場合も保険で埋める
+            let fallbackSuffix = 1;
+            while (options.length < 4) {
+                const filler = `${question.answer}${"？".repeat(fallbackSuffix)}`;
+                if (!usedAnswers.has(filler)) {
+                    usedAnswers.add(filler);
+                    options.push(filler);
+                }
+                fallbackSuffix++;
             }
         }
     }
@@ -2043,6 +2088,10 @@ function handleBotAnswer(userAnswer) {
     }
     const skillEffect = (usedSkill && usedSkill.effect) || {};
     applyInstantSkillEffects(skillEffect);
+    // このスキルを使用済みとして記録し、戦闘中は再度使用できないようにする
+    if (usedSkill) {
+        afterSkillUse(usedSkill);
+    }
 
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
@@ -2104,6 +2153,13 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
+        // ★★★デバッグ武器のチェック★★★
+        if (hasUniqueAbility(me, 'one_shot_kill')) {
+            addLog(`デバッグ武器の効果発動！「${me.equippedWeapon.name}」！`);
+            damage = enemy.maxHp * 999; // 相手の最大HP以上のダメージを与える
+            skillEffect.sureHit = true; // 必中効果を強制
+        }
+
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         const mySpeed = me.speed || 0;
         const dodgeChance = calculateDodgeChance(mySpeed);
@@ -2160,19 +2216,26 @@ function handleBotAnswer(userAnswer) {
         }
         
         // 回避判定（敵の回避率）
+        // デバッグ用「必中・即死」武器を装備している場合は、回避判定を無視して確実にトドメを刺す
+        const isDebugInstantKill = me.equippedWeapon && me.equippedWeapon.debugInstantKill;
+        if (isDebugInstantKill) {
+            damage = Math.max(damage, enemy.hp, enemy.maxHp || enemy.hp, 1);
+        }
         const enemyDodgeChance = calculateDodgeChance(enemy.speed);
         const dodgeRoll = Math.random() * 100;
         if (damage <= 0) {
             showDamage("enemyDamage", 0);
-        } else if (!skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+        } else if (!isDebugInstantKill && !skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
             addLog("回避！ダメージなし");
             damage = 0;
         } else {
-            if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+            if (isDebugInstantKill) {
+                addLog("【デバッグ】必中・即死効果で確実にトドメを刺した！");
+            } else if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
                 addLog("必中効果で回避を許さなかった！");
             }
-            if (enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+            if (!isDebugInstantKill && enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
                 enemy.hp = 1;
                 addLog(`${enemy.name}は根性で持ちこたえた！`);
             } else {
@@ -2607,8 +2670,12 @@ if (!isBotBattle && socket) {
             syncBattleState(data.stateUpdate);
         }
 
-        if (data.nextQuestion && data.nextQuestion.forPlayerId === me.id) {
-            displayQuestion(data.nextQuestion.question);
+        // サーバーは「そのバトル共有の次の問題」をそのまま送ってくる（forPlayerIdは付与されない）。
+        // 以前は data.nextQuestion.forPlayerId === me.id という常に偽になる条件と、
+        // displayQuestion(data.nextQuestion.question) という誤った参照になっており、
+        // 最初の問題以降は永遠に次の問題が表示されなかった。
+        if (data.nextQuestion) {
+            displayQuestion(data.nextQuestion);
         }
     });
 
