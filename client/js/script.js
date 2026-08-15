@@ -1026,3 +1026,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+/**
+ * デバッグ用の一撃必殺武器をプレイヤーに付与するコマンド
+ */
+function giveOneShotWeapon() {
+    const player = getPlayerData();
+    if (!player) {
+        console.error("プレイヤーが存在しません。");
+        return;
+    }
+
+    // デバッグ武器の定義
+    const debugWeapon = {
+        id: `debug_one_shot_${Date.now()}`,
+        name: "デバッガーズ・ジェノサイド",
+        type: "spear", // どの武器種でも良い
+        isOriginal: true, // オリジナル武器として扱うと管理が楽
+        multiplier: 999,
+        statBonuses: { atk: 999 },
+        uniqueAbilities: [
+            ORB_UNIQUE_ABILITIES.one_shot_kill, // 一撃必殺
+            ORB_UNIQUE_ABILITIES.sure_hit      // 必中
+        ],
+        ultimateName: "コード・デストラクション"
+    };
+
+    const updatedPlayer = addWeaponToPlayer(player, debugWeapon);
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+
+    alert(`デバッグ武器「${debugWeapon.name}」を付与しました。インベントリを確認し、装備してください。`);
+    // UIを更新
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof renderOriginalWeapons === 'function') renderOriginalWeapons();
+    if (typeof updateStatus === 'function') updateStatus(updatedPlayer);
+}
+// コンソールからアクセスできるようにグローバルに公開
+window.giveOneShotWeapon = giveOneShotWeapon;
