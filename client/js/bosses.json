@@ -44,6 +44,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ã‚´ãƒ–ãƒªãƒ³ã®å¤§å‰£",
@@ -60,6 +61,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒSƒuƒŠƒ“‚Ì‘åŒ•",
+            "skillName": "ƒSƒuƒŠƒ“ƒ‰ƒbƒVƒ…",
+            "material": {
+                "id": "goblin_king_core",
+                "name": "ƒSƒuƒŠƒ“‰¤‚ÌŠj"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "orc_warlord",
@@ -106,6 +117,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ã‚¦ã‚©ãƒ¼ãƒ­ãƒ¼ãƒ‰ã®ç›¾å‰£",
@@ -122,6 +134,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒEƒH[ƒ[ƒh‚Ì‚Œ•",
+            "skillName": "ƒEƒH[ƒNƒ‰ƒC",
+            "material": {
+                "id": "orc_warlord_tusk",
+                "name": "í«‚Ì‰å"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "shadow_serpent",
@@ -167,6 +189,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ãƒ•ã‚¡ãƒ³ã‚°ã‚¢ã‚»ãƒ³ãƒˆ",
@@ -183,6 +206,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒtƒ@ƒ“ƒOƒAƒZƒ“ƒg",
+            "skillName": "ƒ|ƒCƒYƒ“ƒoƒCƒg",
+            "material": {
+                "id": "shadow_serpent_scale",
+                "name": "ƒˆƒ‹ƒ€ƒ“ƒKƒ“ƒh‚Ì—Ø"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "ice_golem",
@@ -228,6 +261,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ã‚¯ãƒªã‚¹ã‚¿ãƒ«ãƒãƒ³ãƒžãƒ¼",
@@ -244,6 +278,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒNƒŠƒXƒ^ƒ‹ƒnƒ“ƒ}[",
+            "skillName": "ƒAƒCƒXƒvƒŠƒYƒ“",
+            "material": {
+                "id": "ice_golem_heart",
+                "name": "•XŒ‹‚ÌS‘Ÿ"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "flame_dragon",
@@ -293,6 +337,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ãƒ‰ãƒ©ã‚´ãƒ³ã‚¹ã‚±ã‚¤ãƒ«ãƒ¯ãƒ³ãƒ‰",
@@ -309,6 +354,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒhƒ‰ƒSƒ“ƒXƒPƒCƒ‹ƒƒ“ƒh",
+            "skillName": "ƒCƒ“ƒtƒFƒ‹ƒm",
+            "material": {
+                "id": "flame_dragon_gem",
+                "name": "‰Š—³‚Ì•ó‹Ê"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "abyssal_knight",
@@ -353,6 +408,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ã‚¢ãƒ“ã‚µãƒ«ã‚µã‚¤ã‚¹",
@@ -369,6 +425,16 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒAƒrƒTƒ‹ƒTƒCƒX",
+            "skillName": "ƒ”ƒHƒCƒhƒXƒ‰ƒbƒVƒ…",
+            "material": {
+                "id": "abyssal_fragment",
+                "name": "[•£‚ÌŒ‡•Ð"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "celestial_guardian",
@@ -423,6 +489,7 @@
                 }
             }
         ],
+<<<<<<< HEAD
         "drops": [
             {
                 "name": "ã‚»ãƒ¬ã‚¹ãƒ†ã‚£ã‚¢ã‚½ãƒ¼ãƒ‰",
@@ -446,5 +513,15 @@
                 ]
             }
         ]
+=======
+        "rewards": {
+            "weaponName": "ƒZƒŒƒXƒeƒBƒAƒ\[ƒh",
+            "skillName": "ƒXƒ^[ƒAƒ‹ƒPƒ~[",
+            "material": {
+                "id": "celestial_feather",
+                "name": "“VŠE‚Ì‰Hª"
+            }
+        }
+>>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     }
 ]

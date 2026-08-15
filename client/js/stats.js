@@ -120,6 +120,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         console.error("[Stats] applyBattleRewards failed: 'player' not found in localStorage.");
         return null;
     }
+    // 新しい報酬データを保存するためのオブジェクトを初期化
+    localStorage.setItem('battleResultData', JSON.stringify({}));
+
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);
@@ -223,7 +226,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 function getStatsFromPlayer(player, withPassives = false) {
     const p = player || {};
 
-    if (withPassives && typeof getSkillNodeEffects === 'function') {
+    // Apply passives only if requested, the function exists, and the player object has a skill tree.
+    if (withPassives && typeof getSkillNodeEffects === 'function' && p.skillTree) {
         const baseStats = {
             maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
             atk: Number(p.atk) || DEFAULT_STATS.atk,
