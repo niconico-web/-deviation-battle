@@ -59,6 +59,21 @@ function migratePlayer(player) {
         player = initializeSkillData(player);
     }
     if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
+    // 限界突破素材は { materialId: 個数 } の辞書形式で管理する。
+    // 過去バージョンで配列形式 [{id, name, count}, ...] として保存されたデータがあれば辞書形式に変換する。
+    if (Array.isArray(player.materials)) {
+        const materialsDict = {};
+        player.materials.forEach(m => {
+            if (m && m.id) {
+                materialsDict[m.id] = (materialsDict[m.id] || 0) + (m.count || 0);
+            }
+        });
+        player.materials = materialsDict;
+    } else if (!player.materials) {
+        player.materials = {};
+    }
+    if (player.pvpWins == null) player.pvpWins = 0; // 対人戦の勝利数
+    if (player.bossRunCount == null) player.bossRunCount = 0; // ボス戦の周回回数
 
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
@@ -117,11 +132,24 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         console.error("[Stats] applyBattleRewards failed: 'player' not found in localStorage.");
         return null;
     }
+    // 新しい報酬データを保存するためのオブジェクトを初期化
+    localStorage.setItem('battleResultData', JSON.stringify({}));
+
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);
     let gainedCoins = 0;
     const isBossBattle = localStorage.getItem("isBossBattle") === "true";
+    const isBotBattle = localStorage.getItem("isBotBattle") === "true";
+
+    // ボス戦は勝敗にかかわらず「周回」としてカウントする
+    if (isBossBattle) {
+        player.bossRunCount = (player.bossRunCount || 0) + 1;
+    }
+    // 対人戦（ボット戦・ボス戦以外）に勝利した場合はランキング用の勝利数を加算する
+    if (won && !isBossBattle && !isBotBattle) {
+        player.pvpWins = (player.pvpWins || 0) + 1;
+    }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
@@ -179,7 +207,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
         customSkills: player.customSkills,
-        bossDefeats: player.bossDefeats || {}
+        bossDefeats: player.bossDefeats || {},
+        materials: player.materials || {},
+        pvpWins: player.pvpWins || 0,
+        bossRunCount: player.bossRunCount || 0
     });
 
     // オーブを追加
@@ -207,7 +238,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 function getStatsFromPlayer(player, withPassives = false) {
     const p = player || {};
 
-    if (withPassives && typeof getSkillNodeEffects === 'function') {
+    // Apply passives only if requested, the function exists, and the player object has a skill tree.
+    if (withPassives && typeof getSkillNodeEffects === 'function' && p.skillTree) {
         const baseStats = {
             maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
             atk: Number(p.atk) || DEFAULT_STATS.atk,
@@ -273,7 +305,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         skillTree: options.skillTree || { unlockedNodes: [], availablePoints: 0 },
         skillSlots: options.skillSlots || [null, null, null],
         customSkills: options.customSkills || [],
-        bossDefeats: options.bossDefeats || {}
+        bossDefeats: options.bossDefeats || {},
+        materials: options.materials || {},
+        pvpWins: options.pvpWins || 0,
+        bossRunCount: options.bossRunCount || 0
     };
 }
 

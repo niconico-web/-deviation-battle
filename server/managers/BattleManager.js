@@ -241,7 +241,7 @@ function createBattle(roomId, player1, player2, isBossBattle = false) {
 }
 
 // -----------------------------
-// ?????
+// バトル取得
 // -----------------------------
 
 function getBattle(roomId){
@@ -251,7 +251,7 @@ function getBattle(roomId){
 }
 
 // -----------------------------
-// ???????
+// プレイヤー取得
 // -----------------------------
 
 function getPlayer(roomId,id){
@@ -265,7 +265,7 @@ function getPlayer(roomId,id){
 }
 
 // -----------------------------
-// ????
+// 敵取得
 // -----------------------------
 
 function getEnemy(roomId,id){
@@ -285,7 +285,7 @@ function getEnemy(roomId,id){
 }
 
 // -----------------------------
-// ????
+// ターン交代
 // -----------------------------
 
 function nextTurn(roomId){
@@ -303,7 +303,7 @@ function nextTurn(roomId){
 }
 
 // -----------------------------
-// ????
+// バトル終了
 // -----------------------------
 
 function finishBattle(roomId){
@@ -315,7 +315,7 @@ function finishBattle(roomId){
 }
 
 // -----------------------------
-// ソケ�?�?IDの付け替え（�?��?�ジ遷移後�?�再接続用?�?
+// ソケットIDの付け替え（ページ遷移後の再接続用）
 // -----------------------------
 
 function findPlayerIdBySocket(battle, socketId) {
@@ -337,7 +337,7 @@ function remapPlayerSocket(roomId, oldPlayerId, newSocketId){
 }
 
 // -----------------------------
-// ????
+// バトル削除
 // -----------------------------
 
 function deleteBattle(roomId){

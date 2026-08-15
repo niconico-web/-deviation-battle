@@ -26,8 +26,8 @@
 .ability-popup {
     background: white;
     border-radius: 15px;
-    padding: 30px;
-    max-width: 500px;
+    padding: 20px;
+    max-width: 440px;
     width: 90%;
     box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
     animation: slideUp 0.3s ease-in-out;
@@ -46,14 +46,14 @@
 
 .ability-popup-header {
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 14px;
     border-bottom: 3px solid #667eea;
-    padding-bottom: 15px;
+    padding-bottom: 10px;
 }
 
 .ability-popup-icon {
-    font-size: 3em;
-    margin-bottom: 10px;
+    font-size: 2.25em;
+    margin-bottom: 6px;
     display: inline-block;
     animation: bounce 0.5s ease-in-out;
 }
@@ -69,9 +69,9 @@
 
 .ability-popup-title {
     color: #667eea;
-    font-size: 1.8em;
+    font-size: 1.4em;
     font-weight: bold;
-    margin: 10px 0;
+    margin: 6px 0;
 }
 
 .ability-popup-tier {
@@ -81,36 +81,36 @@
 }
 
 .ability-popup-content {
-    margin: 20px 0;
+    margin: 12px 0;
 }
 
 .ability-popup-label {
     color: #764ba2;
     font-weight: bold;
-    font-size: 1.1em;
-    margin-bottom: 8px;
+    font-size: 1em;
+    margin-bottom: 5px;
     display: block;
 }
 
 .ability-popup-effect {
     background: linear-gradient(135deg, #667eea15, #764ba215);
     border-left: 4px solid #667eea;
-    padding: 15px;
+    padding: 10px 12px;
     border-radius: 5px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     color: #333;
-    line-height: 1.6;
-    font-size: 1em;
+    line-height: 1.5;
+    font-size: 0.9375em;
 }
 
 .ability-popup-tactic {
     background: #fff3cd;
     border-left: 4px solid #ffc107;
-    padding: 15px;
+    padding: 10px 12px;
     border-radius: 5px;
     color: #856404;
-    line-height: 1.6;
-    font-size: 0.95em;
+    line-height: 1.5;
+    font-size: 0.875em;
 }
 
 .ability-popup-tactic-label {
@@ -121,8 +121,8 @@
 
 .ability-popup-footer {
     text-align: center;
-    margin-top: 25px;
-    padding-top: 15px;
+    margin-top: 14px;
+    padding-top: 10px;
     border-top: 1px solid #eee;
 }
 
@@ -130,9 +130,9 @@
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
     border: none;
-    padding: 12px 30px;
+    padding: 9px 22px;
     border-radius: 5px;
-    font-size: 1em;
+    font-size: 0.9375em;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -151,14 +151,14 @@
 /* 新規取得通知 */
 .tier4-popup-notification {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 14px;
+    right: 14px;
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    padding: 20px;
+    padding: 14px;
     border-radius: 10px;
     box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
-    max-width: 300px;
+    max-width: 260px;
     z-index: 9998;
     animation: slideInRight 0.5s ease-in-out;
 }
