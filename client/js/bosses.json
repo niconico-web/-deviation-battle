@@ -1,8 +1,8 @@
 [
     {
         "id": "goblin_king",
-        "name": "ゴブリンキング",
-        "description": "ゴブリンの群れを率いる狡猾な王。素早く動き、トリッキーな攻撃を仕掛けてくる。",
+        "name": "�S�u�����L���O",
+        "description": "�S�u�����̉��𖼏�����ςȉ��B�m�\�������A�g���b�L�[�ȍU�����d�|���Ă���B",
         "difficulties": {
             "easy": {
                 "hp": 200000,
@@ -25,16 +25,16 @@
         },
         "skills": [
             {
-                "name": "ゴブリンラッシュ",
-                "description": "素早い連続攻撃を仕掛ける。",
+                "name": "�S�u�������b�V��",
+                "description": "������U�����d�|����B",
                 "effect": {
                     "damageMultiplier": 1.2,
                     "multiHit": 2
                 }
             },
             {
-                "name": "王の号令",
-                "description": "自身の攻撃力を一時的に上昇させる。",
+                "name": "���̈Ќ�",
+                "description": "���g�̍U���͂��ꎞ�I�ɏ㏸������B",
                 "effect": {
                     "selfBuff": {
                         "type": "atk",
@@ -44,24 +44,6 @@
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "ゴブリンの大剣",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "ゴブリンラッシュ",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�S�u�����̑匕",
             "skillName": "�S�u�������b�V��",
@@ -70,12 +52,11 @@
                 "name": "�S�u�������̊j"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "orc_warlord",
-        "name": "オークの戦将",
-        "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は驚異的な力を持つ。",
+        "name": "�I�[�N�̐폫",
+        "description": "���|�I�ȃp���[�őS�Ă����W����I�[�N�̃��[�_�[�B���̈ꌂ�͒v���I�ȗ͂����B",
         "difficulties": {
             "easy": {
                 "hp": 300000,
@@ -98,16 +79,16 @@
         },
         "skills": [
             {
-                "name": "ウォーハンマー",
-                "description": "防御力を一部無視する強力な一撃。",
+                "name": "�E�H�[�n���}�[",
+                "description": "�h��͂��ꕔ�������鋭�͂Ȉꌂ�B",
                 "effect": {
                     "damageMultiplier": 2.0,
                     "pierceDef": 0.3
                 }
             },
             {
-                "name": "ウォークライ",
-                "description": "雄叫びをあげ、敵全体の防御力を低下させる。",
+                "name": "�E�H�[�N���C",
+                "description": "�Y���т������A�G�S�̖̂h��͂�ቺ������B",
                 "effect": {
                     "debuff": {
                         "type": "def",
@@ -117,24 +98,6 @@
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "ウォーロードの盾剣",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "ウォークライ",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�E�H�[���[�h�̏���",
             "skillName": "�E�H�[�N���C",
@@ -143,12 +106,11 @@
                 "name": "�폫�̉�"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "shadow_serpent",
-        "name": "ヨルムンガンド",
-        "description": "影に潜み、毒と呪いで獲物を仕留める巨大な蛇。その姿を見ることは難しい。",
+        "name": "���������K���h",
+        "description": "�e�ɐ��݁A�łƑ����Ŋl�����d���߂鋐��ȎցB���̎p�����邱�Ƃ͓���B",
         "difficulties": {
             "easy": {
                 "hp": 500000,
@@ -171,8 +133,8 @@
         },
         "skills": [
             {
-                "name": "ポイズンバイト",
-                "description": "猛毒の牙で噛みつき、継続ダメージを与える。",
+                "name": "�|�C�Y���o�C�g",
+                "description": "���͂ȓłŊ��݂��A�p���_���[�W��^����B",
                 "effect": {
                     "poison": {
                         "damage": 0.1,
@@ -181,32 +143,14 @@
                 }
             },
             {
-                "name": "シャドウダイブ",
-                "description": "影に潜み、次の攻撃を完全に回避する。",
+                "name": "�V���h�E�_�C�u",
+                "description": "�e�ɐ��݁A���̍U�������S�ɉ������B",
                 "effect": {
                     "evasionBoost": 1.0,
                     "turns": 1
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "ファングアセント",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "ポイズンバイト",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�t�@���O�A�Z���g",
             "skillName": "�|�C�Y���o�C�g",
@@ -215,12 +159,11 @@
                 "name": "���������K���h�̗�"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "ice_golem",
-        "name": "アイスゴーレム",
-        "description": "極寒の氷から生まれた魔法生物。絶対零度の冷気で全ての者の動きを封じる。",
+        "name": "�A�C�X�S�[����",
+        "description": "�X��̊j���琶�܂ꂽ���@�����́B��Η�x�̗�C�őS�Ă̎҂̓������~�߂�B",
         "difficulties": {
             "easy": {
                 "hp": 1000000,
@@ -243,8 +186,8 @@
         },
         "skills": [
             {
-                "name": "アイスプリズン",
-                "description": "氷の牢獄に閉じ込め、行動速度を大幅に低下させる。",
+                "name": "�A�C�X�v���Y��",
+                "description": "�X�̘S���ɕ����߁A�s�����x��啝�ɒቺ������B",
                 "effect": {
                     "debuff": {
                         "type": "speed",
@@ -254,31 +197,13 @@
                 }
             },
             {
-                "name": "ブリザードブレス",
-                "description": "全てを凍てつかせる低温の息吹。",
+                "name": "�u���U�[�h�u���X",
+                "description": "�S�Ă𓀂Ă����鐁��̑����B",
                 "effect": {
                     "damageMultiplier": 1.8
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "クリスタルハンマー",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "アイスプリズン",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�N���X�^���n���}�[",
             "skillName": "�A�C�X�v���Y��",
@@ -287,12 +212,11 @@
                 "name": "�X���̐S��"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "flame_dragon",
-        "name": "フレイムドラゴン",
-        "description": "灼熱の炎を操る伝説の竜。そのブレスは全てを焼き、吐息は大地を焦がす。",
+        "name": "�t���C���h���S��",
+        "description": "�ܔM�̉����i��`���̗��B���̃u���X�͑S�Ă��Ă��A���K�͑�n��h�邪���B",
         "difficulties": {
             "easy": {
                 "hp": 1200000,
@@ -315,8 +239,8 @@
         },
         "skills": [
             {
-                "name": "インフェルノ",
-                "description": "全てを焼き尽くす業火。敵全体に火傷の継続ダメージを与える。",
+                "name": "�C���t�F���m",
+                "description": "�S�Ă��Ă��s�����Ɖ΁B�G�S�̂ɉΏ��̌p���_���[�W��^����B",
                 "effect": {
                     "damageMultiplier": 1.5,
                     "burn": {
@@ -326,8 +250,8 @@
                 }
             },
             {
-                "name": "ドラゴニックロア",
-                "description": "竜の咆哮で敵全体の攻撃力と防御力を低下させる。",
+                "name": "�h���S�j�b�N���A",
+                "description": "���̙��K�œG�S�̂̍U���͂Ɩh��͂�ቺ������B",
                 "effect": {
                     "debuff": {
                         "type": "atk_def",
@@ -337,24 +261,6 @@
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "ドラゴンスケイルワンド",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "インフェルノ",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�h���S���X�P�C�������h",
             "skillName": "�C���t�F���m",
@@ -363,12 +269,11 @@
                 "name": "�����̕��"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "abyssal_knight",
-        "name": "アビサルナイト",
-        "description": "深淵より現れし闇の騎士。その剣は魂を喰らい、力を奪う。",
+        "name": "�A�r�T���i�C�g",
+        "description": "�[�����h�肵�ł̋R�m�B���̌��͍�����炢�A�͂�D���B",
         "difficulties": {
             "easy": {
                 "hp": 1000000,
@@ -391,16 +296,16 @@
         },
         "skills": [
             {
-                "name": "ソウルドレイン",
-                "description": "与えたダメージの一部を吸収し、自身のHPを回復する。",
+                "name": "�\�E���h���C��",
+                "description": "�^�����_���[�W�̈ꕔ���z�����A���g��HP���񕜂���B",
                 "effect": {
                     "damageMultiplier": 1.2,
                     "lifeSteal": 0.5
                 }
             },
             {
-                "name": "ヴォイドスラッシュ",
-                "description": "空間を切り裂く一撃。敵の防御と回避を無視する。",
+                "name": "���H�C�h�X���b�V��",
+                "description": "��Ԃ�؂�􂭈ꌂ�B�G�̖h��Ɖ���𖳎�����B",
                 "effect": {
                     "damageMultiplier": 2.0,
                     "ignoreDef": true,
@@ -408,24 +313,6 @@
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "アビサルサイス",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "ヴォイドスラッシュ",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�A�r�T���T�C�X",
             "skillName": "���H�C�h�X���b�V��",
@@ -434,12 +321,11 @@
                 "name": "�[���̌���"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     },
     {
         "id": "celestial_guardian",
-        "name": "セレスティアルガーディアン",
-        "description": "神殿を守護する天空の使者。聖なる力で全ての不浄を浄化し、神の裁きを下す。",
+        "name": "�Z���X�e�B�A���K�[�f�B�A��",
+        "description": "�V�E����삷����̎g�ҁB���Ȃ�͂őS�Ă̈����򉻂��A�_�̍ق��������B",
         "difficulties": {
             "easy": {
                 "hp": 2000000,
@@ -462,24 +348,24 @@
         },
         "skills": [
             {
-                "name": "ホーリープロテクション",
-                "description": "聖なるバリアを展開し、全てのダメージを大幅に軽減する。",
+                "name": "�z�[���[�v���e�N�V����",
+                "description": "���Ȃ�o���A��W�J���A�S�Ẵ_���[�W��啝�Ɍy������B",
                 "effect": {
                     "damageReduction": 0.8,
                     "turns": 1
                 }
             },
             {
-                "name": "ジャッジメント",
-                "description": "神の裁き。聖なる光の力で敵を討つ、絶大な威力を持つ攻撃。",
+                "name": "�W���b�W�����g",
+                "description": "�_�̍ق��B���Ȃ���̗͂œG�𓢂��A���Ȕj��͂����U���B",
                 "effect": {
                     "damageMultiplier": 3.0,
                     "sureHit": true
                 }
             },
             {
-                "name": "スターアルケミー",
-                "description": "星の力を用いて、味方全体の能力を飛躍的に向上させる。",
+                "name": "�X�^�[�A���P�~�[",
+                "description": "���̗͂�p���āA�����S�̂̔\�͂����I�Ɍ��コ����B",
                 "effect": {
                     "partyBuff": {
                         "type": "all_stats",
@@ -489,31 +375,6 @@
                 }
             }
         ],
-<<<<<<< HEAD
-        "drops": [
-            {
-                "name": "セレスティアソード",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "神聖なる盾",
-                "type": "weapon",
-                "difficulty": [
-                    "medium"
-                ]
-            },
-            {
-                "name": "スターアルケミー",
-                "type": "skill",
-                "difficulty": [
-                    "hard"
-                ]
-            }
-        ]
-=======
         "rewards": {
             "weaponName": "�Z���X�e�B�A�\�[�h",
             "skillName": "�X�^�[�A���P�~�[",
@@ -522,6 +383,5 @@
                 "name": "�V�E�̉H��"
             }
         }
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     }
 ]
