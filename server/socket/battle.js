@@ -369,6 +369,9 @@ module.exports = function(io){
                 enemy: enemy,
                 allies: allies,
                 // このバトルの現在の問題を使う（未生成なら生成する）
+                // このバトルの現在の問題を使う（未生成なら生成する）。
+                // ※以前は存在しない BattleEngine.generateQuestionForPlayer を呼んでおり、
+                //   例外が発生して初期状態が一切送られず「読み込み中」のまま止まっていた。
                 question: battle.currentQuestion || BattleEngine.generateQuestion(battle)
             };
 
