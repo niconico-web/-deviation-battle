@@ -128,3 +128,29 @@ a:hover {
     background-color: #004d40;
     font-weight: bold;
 }
+
+/* Limit Break Styles */
+.limit-break-container {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #444;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.limit-break-info {
+    font-size: 0.9em;
+    color: #ffc107; /* Amber color */
+}
+.btn-warning {
+    background-color: #ffc107;
+    color: #212529;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-warning:hover {
+    background-color: #ffca2c;
+}

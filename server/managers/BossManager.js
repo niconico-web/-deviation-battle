@@ -55,7 +55,7 @@ function createBossForBattle(bossId, difficulty) {
     
     // Add battle-specific properties
     bossInstance.isBoss = true;
-    bossInstance.difficulty = difficulty; // ????x???C???X?^???X????
+    bossInstance.difficulty = difficulty; // 難易度をインスタンスに保持
     bossInstance.skills = bossTemplate.skills; // Ensure skills are included
     
     // Add rewards data from the main boss template so the client has it
