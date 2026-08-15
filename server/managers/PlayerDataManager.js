@@ -23,7 +23,7 @@ function loadDataFromFile() {
         }
     } catch (error) {
         console.error('[PlayerDataManager] Error loading player data:', error);
-        playerData = {}; // ƒGƒ‰[‚Í‹óƒf[ƒ^‚Å‰Šú‰»
+        playerData = {}; // ƒGƒ‰[‚Í‹óƒf[ƒ^‚ÅŠJn
     }
 }
 
@@ -51,14 +51,13 @@ function getPlayer(playerId) {
     return playerData[playerId] || null;
 }
 
-// ‰Šúƒ[ƒh
-loadDataFromFile();
-
-
-// å…¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—ï¼ˆãƒ©ãƒ³ã‚­ãƒ³ã‚°é›†è¨ˆç”¨ï¼‰
+// ‘SƒvƒŒƒCƒ„[ƒf[ƒ^‚ğæ“¾
 function getAllPlayers() {
     return Object.values(playerData);
 }
+
+// ‹N“®ƒ[ƒh
+loadDataFromFile();
 
 module.exports = {
     savePlayer,
