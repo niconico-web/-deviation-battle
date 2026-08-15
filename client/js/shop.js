@@ -209,7 +209,11 @@ function renderOriginalWeapons() {
         
         const canUpgrade = canUpgradeOriginalWeapon(weapon);
         const upgradeCost = getOriginalWeaponUpgradeCost(weapon);
-        const progress = ((weapon.multiplier - ORIGINAL_WEAPON_BASE_MULTIPLIER) / (ORIGINAL_WEAPON_MAX_MULTIPLIER - ORIGINAL_WEAPON_BASE_MULTIPLIER) * 100).toFixed(1);
+        const baseMult = getWeaponBaseMultiplierForProgress(weapon);
+        const maxMult = getWeaponMaxMultiplier(weapon);
+        const progress = maxMult > baseMult
+            ? ((weapon.multiplier - baseMult) / (maxMult - baseMult) * 100).toFixed(1)
+            : "100.0";
         
         let bonusText = "";
         if (weapon.statBonuses) {
@@ -239,6 +243,16 @@ function renderOriginalWeapons() {
             secondaryTypeText = `<span class="quest-progress">二個目武器種: ${getWeaponTypeLabel(weapon.secondaryType)}</span>`;
         }
 
+        // 限界突破情報表示（ボス武器のみ）
+        let limitBreakText = "";
+        if (weapon.sourceBossId) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const level = weapon.limitBreakLevel || 0;
+            const maxLevel = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+            limitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x） / 素材所持: ${materialCount}個</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
@@ -246,6 +260,7 @@ function renderOriginalWeapons() {
                 <span class="quest-progress">${bonusText || "補正なし"}</span>
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
                 ${secondaryTypeText}
+                ${limitBreakText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
@@ -277,52 +292,24 @@ function renderOriginalWeapons() {
             upgradeWithMaterialBtn.textContent = "素材で強化";
             upgradeWithMaterialBtn.onclick = () => upgradeOriginalWeaponWithMaterialUI(weapon);
             item.appendChild(upgradeWithMaterialBtn);
-        } else {
+        } else if (!weapon.sourceBossId || !canLimitBreakWeapon(weapon)) {
             const maxLabel = document.createElement("span");
             maxLabel.className = "owned-label";
             maxLabel.textContent = "MAX";
             item.appendChild(maxLabel);
         }
 
-    // 限界突破ボタンの追加
-    if (weapon.isBossWeapon) {
-        const lbContainer = document.createElement('div');
-        lbContainer.className = 'limit-break-container';
-        
-        const currentLbCount = weapon.limitBreakCount || 0;
-        const maxLbCount = (typeof BOSS_WEAPON_MAX_LIMIT_BREAK !== 'undefined') ? BOSS_WEAPON_MAX_LIMIT_BREAK : 4;
-        
-        let lbInfo = `限界突破: ${currentLbCount} / ${maxLbCount}`;
-        lbContainer.innerHTML = `<span class="limit-break-info">${lbInfo}</span>`;
-
-        if (currentLbCount < maxLbCount) {
-            const lbButton = document.createElement('button');
-            lbButton.className = 'btn btn-small btn-warning';
-            lbButton.textContent = '限界突破';
-            lbButton.onclick = () => {
-                if (typeof getLimitBreakCost !== 'function' || typeof limitBreakBossWeapon !== 'function') {
-                    alert('限界突破機能の読み込みに失敗しました。');
-                    return;
-                }
-                const cost = getLimitBreakCost(currentLbCount);
-                const materialName = weapon.rewards?.material?.name || '専用素材';
-                if (confirm(`${weapon.name} を限界突破しますか？\n必要素材: ${materialName} x${cost}`)) {
-                    const result = limitBreakBossWeapon(getPlayerData(), weapon.id);
-                    if (result.success) {
-                        localStorage.setItem("player", JSON.stringify(result.player));
-                        alert('限界突破に成功しました！');
-                        renderOriginalWeapons();
-                        renderMaterialsInventory();
-                        updateStatus(result.player);
-                    } else {
-                        alert(`限界突破に失敗しました:\n${result.error}`);
-                    }
-                }
-            };
-            lbContainer.appendChild(lbButton);
+        // 限界突破ボタン（ボス武器のみ、上限回数に達していなければ表示）
+        if (weapon.sourceBossId && canLimitBreakWeapon(weapon)) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const limitBreakBtn = document.createElement("button");
+            limitBreakBtn.className = "btn btn-small btn-danger";
+            limitBreakBtn.textContent = `限界突破 (素材${materialCount}個)`;
+            limitBreakBtn.disabled = materialCount < 1;
+            limitBreakBtn.onclick = () => limitBreakWeaponUI(weapon);
+            item.appendChild(limitBreakBtn);
         }
-        item.appendChild(lbContainer);
-    }
 
         container.appendChild(item);
     }
@@ -414,6 +401,23 @@ function discardOrb(orbIndex) {
         updateStatus(player);
         alert(`${orbName} を捨てました`);
     }
+}
+
+function limitBreakWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const result = limitBreakWeapon(player, weapon.id);
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    localStorage.setItem("player", JSON.stringify(result.player));
+    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(result.player);
 }
 
 function upgradeOriginalWeaponUI(weapon) {

@@ -58,9 +58,19 @@ function migratePlayer(player) {
     if (typeof initializeSkillData === 'function') {
         player = initializeSkillData(player);
     }
-    if (!player.bossDefeats) player.bossDefeats = {};
-    if (!player.materials || !Array.isArray(player.materials)) {
-        player.materials = []; // 限界突破素材などは配列で管理
+    if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
+    // 限界突破素材は { materialId: 個数 } の辞書形式で管理する。
+    // 過去バージョンで配列形式 [{id, name, count}, ...] として保存されたデータがあれば辞書形式に変換する。
+    if (Array.isArray(player.materials)) {
+        const materialsDict = {};
+        player.materials.forEach(m => {
+            if (m && m.id) {
+                materialsDict[m.id] = (materialsDict[m.id] || 0) + (m.count || 0);
+            }
+        });
+        player.materials = materialsDict;
+    } else if (!player.materials) {
+        player.materials = {};
     }
     if (player.pvpWins == null) player.pvpWins = 0; // 対人戦の勝利数
     if (player.bossRunCount == null) player.bossRunCount = 0; // ボス戦の周回回数
@@ -198,7 +208,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillSlots: player.skillSlots,
         customSkills: player.customSkills,
         bossDefeats: player.bossDefeats || {},
-        materials: (player.materials && Array.isArray(player.materials)) ? player.materials : [],
+        materials: player.materials || {},
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0
     });
@@ -296,7 +306,7 @@ function buildPlayer(name, stats, xp, options = {}) {
         skillSlots: options.skillSlots || [null, null, null],
         customSkills: options.customSkills || [],
         bossDefeats: options.bossDefeats || {},
-        materials: (options.materials && Array.isArray(options.materials)) ? options.materials : [],
+        materials: options.materials || {},
         pvpWins: options.pvpWins || 0,
         bossRunCount: options.bossRunCount || 0
     };

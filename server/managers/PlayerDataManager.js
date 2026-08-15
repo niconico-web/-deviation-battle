@@ -6,12 +6,12 @@ const DATA_DIR = path.dirname(DATA_FILE);
 
 let playerData = {};
 
-// ƒf[ƒ^ƒfƒBƒŒƒNƒgƒŠ‚ª‘¶İ‚µ‚È‚¢ê‡‚Íì¬
+// ãƒ‡ãƒ¼ã‚¿ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªãŒå­˜åœ¨ã—ãªã„å ´åˆã¯ä½œæˆ
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// ‹N“®‚Éƒtƒ@ƒCƒ‹‚©‚çƒf[ƒ^‚ğ“Ç‚İ‚Ş
+// èµ·å‹•æ™‚ã«ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ãƒ‡ãƒ¼ã‚¿ã‚’èª­ã¿è¾¼ã‚€
 function loadDataFromFile() {
     try {
         if (fs.existsSync(DATA_FILE)) {
@@ -23,11 +23,11 @@ function loadDataFromFile() {
         }
     } catch (error) {
         console.error('[PlayerDataManager] Error loading player data:', error);
-        playerData = {}; // ƒGƒ‰[‚Í‹óƒf[ƒ^‚ÅŠJn
+        playerData = {}; // ã‚¨ãƒ©ãƒ¼æ™‚ã¯ç©ºãƒ‡ãƒ¼ã‚¿ã§é–‹å§‹
     }
 }
 
-// ƒtƒ@ƒCƒ‹‚Éƒf[ƒ^‚ğ‘‚«‚Ş
+// ãƒ•ã‚¡ã‚¤ãƒ«ã«ãƒ‡ãƒ¼ã‚¿ã‚’æ›¸ãè¾¼ã‚€
 function saveDataToFile() {
     try {
         fs.writeFileSync(DATA_FILE, JSON.stringify(playerData, null, 2), 'utf-8');
@@ -36,7 +36,7 @@ function saveDataToFile() {
     }
 }
 
-// ƒvƒŒƒCƒ„[ƒf[ƒ^‚ğ•Û‘¶
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ‡ãƒ¼ã‚¿ã‚’ä¿å­˜
 function savePlayer(player) {
     if (!player || !player.id) {
         return false;
@@ -46,17 +46,17 @@ function savePlayer(player) {
     return true;
 }
 
-// ƒvƒŒƒCƒ„[ƒf[ƒ^‚ğæ“¾
+// ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—
 function getPlayer(playerId) {
     return playerData[playerId] || null;
 }
 
-// ‘SƒvƒŒƒCƒ„[ƒf[ƒ^‚ğæ“¾
+// å…¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãƒ‡ãƒ¼ã‚¿ã‚’å–å¾—ï¼ˆãƒ©ãƒ³ã‚­ãƒ³ã‚°é›†è¨ˆç”¨ï¼‰
 function getAllPlayers() {
     return Object.values(playerData);
 }
 
-// ‹N“®ƒ[ƒh
+// èµ·å‹•æ™‚ãƒ­ãƒ¼ãƒ‰
 loadDataFromFile();
 
 module.exports = {

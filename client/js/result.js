@@ -105,7 +105,7 @@ if (retryBtn) {
     }
 }
 
-// ボス報酬の表示
+// ボス報酬の表示（武器・スキル・限界突破素材）
 const battleResultDataRaw = localStorage.getItem("battleResultData");
 const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) : null;
 
@@ -114,19 +114,19 @@ if (battleResultData && battleResultData.rewards) {
     const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
     const bossSkillDropText = document.getElementById('bossSkillDropText');
 
-    if (bossWeaponDropText && battleResultData.rewards.bossWeapon) {
-        bossWeaponDropText.textContent = `[NEW WEAPON] ${battleResultData.rewards.bossWeapon.name} を手に入れた！`;
+    if (battleResultData.rewards.bossWeapon && bossWeaponDropText) {
+        bossWeaponDropText.textContent = `★武器を入手！ ${battleResultData.rewards.bossWeapon.name}★`;
         bossWeaponDropText.style.display = 'block';
     }
 
-    if (limitBreakMaterialText && battleResultData.rewards.limitBreakMaterial) {
+    if (battleResultData.rewards.limitBreakMaterial && limitBreakMaterialText) {
         const material = battleResultData.rewards.limitBreakMaterial;
-        limitBreakMaterialText.textContent = `[MATERIAL] ${material.name} x${material.count} を手に入れた！`;
+        limitBreakMaterialText.textContent = `★限界突破素材を入手！ ${material.name} ×${material.count}★`;
         limitBreakMaterialText.style.display = 'block';
     }
 
-    if (bossSkillDropText && battleResultData.rewards.bossSkill) {
-        bossSkillDropText.textContent = `[NEW SKILL] ${battleResultData.rewards.bossSkill.name} を習得した！`;
+    if (battleResultData.rewards.bossSkill && bossSkillDropText) {
+        bossSkillDropText.textContent = `★スキルを習得！ ${battleResultData.rewards.bossSkill.name}★`;
         bossSkillDropText.style.display = 'block';
     }
 }

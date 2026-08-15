@@ -25,33 +25,13 @@ function getBossLimitBreakMaterialName(bossName) {
 
 /**
  * プレイヤーが指定したボスをモチーフにした武器を既に所持しているか判定する。
+ * （過去バージョンで bossId フィールドとして保存されたデータも念のため見る）
  * @param {object} player
  * @param {string} bossId
  * @returns {boolean}
  */
 function playerOwnsBossWeapon(player, bossId) {
     return (player.weapons || []).some(w => w.sourceBossId === bossId || w.bossId === bossId);
-}
-
-/**
- * Adds a specified amount of a material to the player's inventory.
- * @param {object} player - The player object.
- * @param {string} materialId - The unique ID of the material.
- * @param {string} materialName - The display name of the material.
- * @param {number} count - The number of materials to add.
- * @returns {object} The updated player object.
- */
-function addMaterialToPlayer(player, materialId, materialName, count) {
-    if (!player.materials) {
-        player.materials = [];
-    }
-    let material = player.materials.find(m => m.id === materialId);
-    if (material) {
-        material.count = (material.count || 0) + count;
-    } else {
-        player.materials.push({ id: materialId, name: materialName, count: count });
-    }
-    return player;
 }
 
 /**
@@ -85,12 +65,15 @@ function getBossSkillAsCustomSkill(bossData, skillName) {
         type: 'active'
     };
 }
+
 /**
  * Applies rewards for defeating a boss.
- * This function now returns the updated player object and saves rewards to localStorage
- * for the result screen to display.
+ * ・「ノーマル(medium)」を初めて攻略：ボスをモチーフにした武器（基礎倍率2.0倍）をドロップ
+ * ・「ハード(hard)」を初めて攻略：ボスのスキルを習得
+ * ・武器を入手済みの状態で「ノーマル」か「ハード」を周回：限界突破素材をドロップ（何度でも）
+ * 報酬はリザルト画面で表示できるよう、localStorageの battleResultData にも保存する。
  * @param {object} player - The player object.
- * @param {object} boss - The defeated boss object from the battle (with rewards info).
+ * @param {object} boss - The defeated boss object from the battle (drops/skillsを含む).
  * @returns {object} The updated player object.
  */
 function applyBossRewards(player, boss) {
@@ -99,62 +82,81 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
-    // The 'boss' object from the battle now contains all necessary data (skills, rewards).
-    if (!boss.rewards) {
-        console.log(`Boss ${boss.id} has no rewards defined in its battle data. Skipping.`);
+    // 戦闘用に生成されたbossオブジェクトには drops/skills が含まれているので、まずそれを使う。
+    // （古いセーブデータ等で欠けている場合のみ、簡易版のwindow.bossesにフォールバックする）
+    let fullBossData = boss;
+    if (!fullBossData.drops) {
+        if (!window.bosses) {
+            const bossesData = localStorage.getItem('bosses');
+            if (bossesData) {
+                window.bosses = JSON.parse(bossesData);
+            }
+        }
+        const found = (window.bosses || []).find(b => b.id === boss.id);
+        if (found && found.drops) {
+            fullBossData = found;
+        }
+    }
+    if (!fullBossData.drops) {
+        console.error("Boss drop data not found for ID:", boss.id);
         return player;
     }
 
     const difficulty = boss.difficulty;
-    const bossRewardsInfo = boss.rewards;
+    // 武器を持っているかどうかは、今回の報酬を適用する「前」の状態で判定する
+    // （＝武器を初めて手に入れたその周では、まだ限界突破素材は出さない）
+    const alreadyOwnsWeapon = playerOwnsBossWeapon(player, boss.id);
+
     let newPlayer = { ...player };
-    let rewardsForDisplay = {};
+    const rewardsForDisplay = {};
 
-    // 1. Weapon Drop: On 'medium' (Normal) difficulty, if player doesn't have the weapon yet.
-    const playerDoesNotHaveWeapon = !playerOwnsBossWeapon(player, boss.id);
-    if (difficulty === 'medium' && playerDoesNotHaveWeapon) {
-        const weaponName = bossRewardsInfo.weaponName || `${boss.name}の武器`;
-        const weapon = generateBossWeapon(boss, weaponName);
-        if (weapon) {
-            newPlayer = addWeaponToPlayer(newPlayer, weapon);
-            rewardsForDisplay.bossWeapon = weapon;
-        }
-    }
-    
-    // 2. Skill Drop: On 'hard' difficulty, if player doesn't have the skill yet.
-    const skillName = bossRewardsInfo.skillName;
-    if (difficulty === 'hard' && skillName) {
-        const expectedSkillName = `[秘技] ${skillName}`;
-        const playerDoesNotHaveSkill = !(player.customSkills || []).some(s => s.name === expectedSkillName);
-        if (playerDoesNotHaveSkill) {
-            const skill = getBossSkillAsCustomSkill(boss, skillName);
-            if (skill) {
-                if (!newPlayer.customSkills) newPlayer.customSkills = [];
-                newPlayer.customSkills.push(skill);
-                rewardsForDisplay.bossSkill = skill; // For result screen display
+    // ---- 初回討伐報酬（武器・スキル） ----
+    if (!hasDefeatedBoss(player, boss.id, difficulty)) {
+        fullBossData.drops.forEach(drop => {
+            if (drop.difficulty.includes(difficulty)) {
+                if (drop.type === 'weapon') {
+                    const weapon = generateBossWeapon(fullBossData, drop.name);
+                    if (weapon) {
+                        newPlayer = addWeaponToPlayer(newPlayer, weapon);
+                        rewardsForDisplay.bossWeapon = weapon;
+                    }
+                } else if (drop.type === 'skill') {
+                    const skill = getBossSkillAsCustomSkill(fullBossData, drop.name);
+                    if (skill) {
+                        if (!newPlayer.customSkills) newPlayer.customSkills = [];
+                        newPlayer.customSkills.push(skill);
+                        rewardsForDisplay.bossSkill = skill;
+                    }
+                }
             }
+        });
+
+        if (Object.keys(rewardsForDisplay).length > 0) {
+            newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
         }
     }
 
-    // 3. Limit Break Material Drop: On 'medium' (Normal) or 'hard' difficulty.
-    if ((difficulty === 'medium' || difficulty === 'hard')) {
-        const material = bossRewardsInfo.material;
-        if (material && material.id && material.name) {
-            const amount = (difficulty === 'hard') ? 2 : 1;
-            newPlayer = addMaterialToPlayer(newPlayer, material.id, material.name, amount);
-            rewardsForDisplay.limitBreakMaterial = { name: material.name, count: amount };
-        }
+    // ---- 周回報酬（限界突破素材） ----
+    // 既にこのボスの武器を所持していて、ノーマルかハードを攻略した場合は毎回もらえる
+    if ((difficulty === 'medium' || difficulty === 'hard') && alreadyOwnsWeapon) {
+        const materialId = getBossLimitBreakMaterialId(boss.id);
+        const materialName = getBossLimitBreakMaterialName(fullBossData.name);
+        const materials = { ...(newPlayer.materials || {}) };
+        materials[materialId] = (materials[materialId] || 0) + 1;
+        newPlayer.materials = materials;
+        rewardsForDisplay.limitBreakMaterial = { name: materialName, count: 1 };
     }
 
-    // Save rewards to localStorage for result.js to display.
+    // リザルト画面で表示できるよう保存
     if (Object.keys(rewardsForDisplay).length > 0) {
         const battleResult = JSON.parse(localStorage.getItem('battleResultData') || '{}');
-        battleResult.rewards = { ...battleResult.rewards, ...rewardsForDisplay };
+        battleResult.rewards = { ...(battleResult.rewards || {}), ...rewardsForDisplay };
         localStorage.setItem('battleResultData', JSON.stringify(battleResult));
     }
 
     return newPlayer;
 }
+
 /**
  * Checks if a player has already defeated a boss at a specific difficulty.
  * @param {object} player - The player object.
@@ -190,113 +192,54 @@ function markBossDefeated(player, bossId, difficulty) {
 }
 
 /**
- * Generates a boss weapon, ready for the limit break system.
- * @param {object} bossData - The full data object for the boss.
+ * Generates a boss-themed weapon with 3 random unique abilities for the 'medium' difficulty reward.
+ * 基礎倍率は BOSS_WEAPON_BASE_MULTIPLIER で、限界突破するまではこれが上限。
+ * 限界突破素材を使うことで上限倍率が0.5ずつ伸び、その分「強化」でさらに鍛えられるようになる。
+ * @param {object} boss - The defeated boss object.
  * @param {string} weaponName - The name for the new weapon.
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(bossData, weaponName) {
-    if (!bossData || !weaponName) return null;
-
-    // Use a weapon type from rewards, or a random one as fallback
-    const weaponTypes = (typeof WEAPON_TYPES !== 'undefined') ? Object.keys(WEAPON_TYPES) : ["大剣"];
-    const weaponType = bossData.rewards?.weaponType || weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
+function generateBossWeapon(boss, weaponName) {
+    if (!boss || !weaponName) return null;
 
     // Get all available unique abilities from weapons.js
     const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
-    let selectedAbilities = [];
-    if (allAbilities.length > 0) {
-        // Shuffle and pick 3
-        const shuffled = allAbilities.sort(() => 0.5 - Math.random());
-        selectedAbilities = shuffled.slice(0, 3);
+    if (allAbilities.length === 0) {
+        console.error("ORB_UNIQUE_ABILITIES not found or empty. Cannot generate boss weapon.");
+        return null;
     }
+    // Shuffle and pick 3
+    const shuffled = allAbilities.sort(() => 0.5 - Math.random());
+    const selectedAbilities = shuffled.slice(0, 3);
 
-    // Create a boss weapon compatible with the limit break system
+    // Randomly select a weapon type
+    const weaponTypes = (typeof WEAPON_TYPES !== 'undefined') ? Object.keys(WEAPON_TYPES) : ["剣"];
+    const randomType = weaponTypes[Math.floor(Math.random() * weaponTypes.length)];
+
+    // Give a significant boost to two random stats
+    const statBonuses = {};
+    const statsToBoost = ["atk", "def", "speed", "maxHp"];
+    const shuffledStats = statsToBoost.sort(() => 0.5 - Math.random());
+    statBonuses[shuffledStats[0]] = 0.25; // +25%
+    statBonuses[shuffledStats[1]] = 0.25; // +25%
+
+    // Create a powerful original weapon (base state — 限界突破と強化で伸ばしていく)
     const weapon = {
-        id: `boss_weapon_${bossData.id}_${Date.now()}`,
+        id: `boss_weapon_${boss.id}_${Date.now()}`,
         name: weaponName,
-        type: weaponType,
-        isOriginal: true, // Allows upgrading and limit breaking
-        isBossWeapon: true, // Special flag for boss weapons
-        bossId: bossData.id, // Link to the boss for material matching
-        rewards: bossData.rewards, // 限界突破のために報酬情報を保持
-        multiplier: 2.0,  // Set multiplier to 2.0 as requested
-        maxMultiplier: 2.0,  // Initial max multiplier, can be increased by limit breaking
-        limitBreakCount: 0,
-        upgradeCount: 999, // Mark as fully upgraded
-        statBonuses: bossData.rewards?.statBonuses || {}, // Use defined bonuses or empty
-        uniqueAbilities: selectedAbilities, // Set 3 random unique abilities
-        ultimateName: `${bossData.name}の魂`,
+        type: randomType,
+        isOriginal: true,
+        multiplier: BOSS_WEAPON_BASE_MULTIPLIER,
+        baseMultiplier: BOSS_WEAPON_BASE_MULTIPLIER, // 強化進捗率の計算に使う基準値
+        maxMultiplier: BOSS_WEAPON_BASE_MULTIPLIER, // 限界突破前はこれが上限（＝まだ強化はできない）
+        statBonuses: statBonuses,
+        upgradeCount: 0,
+        uniqueAbilities: selectedAbilities,
+        ultimateName: `${boss.name}の魂`,
+        sourceBossId: boss.id, // どのボスをモチーフにした武器か（限界突破の判定に使用）
+        limitBreakLevel: 0,
+        maxLimitBreak: BOSS_WEAPON_MAX_LIMIT_BREAK,
     };
 
     return weapon;
-}
-
-/**
- * Calculates the material cost for the next limit break.
- * @param {number} currentLimitBreakCount 
- * @returns {number}
- */
-function getLimitBreakCost(currentLimitBreakCount) {
-    // 限界突破レベルに応じたコストテーブル
-    // 0 -> 1回目: 1個
-    // 1 -> 2回目: 3個
-    // 2 -> 3回目: 5個
-    // 3 -> 4回目: 10個
-    const costs = [1, 3, 5, 10];
-    const count = currentLimitBreakCount || 0;
-
-    if (count < costs.length) {
-        return costs[count];
-    }
-    // 予期しないカウントに対するフォールバック
-    return 99;
-}
-
-/**
- * Performs a limit break on a boss weapon.
- * @param {object} player 
- * @param {string} weaponId 
- * @returns {{success: boolean, player: object|null, error: string|null}}
- */
-function limitBreakBossWeapon(player, weaponId) {
-    const weaponIndex = player.weapons.findIndex(w => w.id === weaponId);
-    if (weaponIndex === -1) {
-        return { success: false, error: "指定された武器が見つかりません。" };
-    }
-
-    const weapon = player.weapons[weaponIndex];
-
-    if (!weapon.isBossWeapon) {
-        return { success: false, error: "ボス武器ではありません。" };
-    }
-
-    const currentLbCount = weapon.limitBreakCount || 0;
-    if (currentLbCount >= BOSS_WEAPON_MAX_LIMIT_BREAK) {
-        return { success: false, error: "この武器は既に最大まで限界突破しています。" };
-    }
-
-    const materialId = weapon.rewards?.material?.id;
-    if (!materialId) {
-         return { success: false, error: "限界突破に必要な素材情報が見つかりません。" };
-    }
-    
-    const requiredCost = getLimitBreakCost(currentLbCount);
-    const playerMaterial = (player.materials || []).find(m => m.id === materialId);
-
-    if (!playerMaterial || playerMaterial.count < requiredCost) {
-        const materialName = weapon.rewards?.material?.name || "不明な素材";
-        return { success: false, error: `素材が不足しています。(${materialName}が${requiredCost}個必要)` };
-    }
-
-    playerMaterial.count -= requiredCost;
-
-    weapon.limitBreakCount = currentLbCount + 1;
-    weapon.maxMultiplier = (weapon.maxMultiplier || BOSS_WEAPON_BASE_MULTIPLIER) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT;
-    weapon.multiplier = weapon.maxMultiplier;
-
-    player.weapons[weaponIndex] = weapon;
-    if (player.equippedWeapon && player.equippedWeapon.id === weaponId) player.equippedWeapon = weapon;
-
-    return { success: true, player: player };
 }
