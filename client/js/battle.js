@@ -236,8 +236,7 @@ function initialize() {
     } else {
         console.log("Online battle detected, waiting for server");
         if (!socket) {
-            addLog("エラー: ソケットが初期化されていません");
-            alert("ソケット接続エラーが発生しました。ページを再読み込みしてください。");
+            addLog("エラー: ソケット接続エラーが発生しました。ページを再読み込みしてください。");
             return;
         }
         
@@ -249,13 +248,21 @@ function initialize() {
                 joinOnlineBattle();
             });
             
-            // 接続タイムアウト
+            // 接続に時間がかかっている場合の通知（ブロッキングしない）
+            // ※ サーバーがスリープ状態から復帰する場合など、接続確立までに時間がかかることがあるため、
+            //    ここでは alert() を使わず、ログ表示のみで待機を継続する（socket.io側は自動で再接続を試み続ける）
             setTimeout(() => {
                 if (!socket.connected) {
-                    addLog("エラー: サーバーに接続できませんでした");
-                    alert("サーバーに接続できませんでした。ページを再読み込みしてください。");
+                    addLog("サーバーへの接続に時間がかかっています。しばらくお待ちください...");
                 }
-            }, 5000);
+            }, 8000);
+
+            // それでも長時間接続できない場合のみ、ユーザーに再読み込みを促す
+            setTimeout(() => {
+                if (!socket.connected) {
+                    addLog("エラー: サーバーに接続できませんでした。ページを再読み込みしてください。");
+                }
+            }, 30000);
         } else {
             joinOnlineBattle();
         }
@@ -2043,6 +2050,10 @@ function handleBotAnswer(userAnswer) {
     }
     const skillEffect = (usedSkill && usedSkill.effect) || {};
     applyInstantSkillEffects(skillEffect);
+    // このスキルを使用済みとして記録し、戦闘中は再度使用できないようにする
+    if (usedSkill) {
+        afterSkillUse(usedSkill);
+    }
 
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;

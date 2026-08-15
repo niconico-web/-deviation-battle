@@ -59,6 +59,9 @@ function migratePlayer(player) {
         player = initializeSkillData(player);
     }
     if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
+    if (!player.materials) player.materials = {}; // 限界突破素材など
+    if (player.pvpWins == null) player.pvpWins = 0; // 対人戦の勝利数
+    if (player.bossRunCount == null) player.bossRunCount = 0; // ボス戦の周回回数
 
     if (player.subjects && typeof calcStatsFromSubjects === "function") {
         const derived = calcStatsFromSubjects(player.subjects);
@@ -122,6 +125,16 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     const gainedXp = calcBattleXp(won, turns, damage);
     let gainedCoins = 0;
     const isBossBattle = localStorage.getItem("isBossBattle") === "true";
+    const isBotBattle = localStorage.getItem("isBotBattle") === "true";
+
+    // ボス戦は勝敗にかかわらず「周回」としてカウントする
+    if (isBossBattle) {
+        player.bossRunCount = (player.bossRunCount || 0) + 1;
+    }
+    // 対人戦（ボット戦・ボス戦以外）に勝利した場合はランキング用の勝利数を加算する
+    if (won && !isBossBattle && !isBotBattle) {
+        player.pvpWins = (player.pvpWins || 0) + 1;
+    }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
@@ -179,7 +192,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
         customSkills: player.customSkills,
-        bossDefeats: player.bossDefeats || {}
+        bossDefeats: player.bossDefeats || {},
+        materials: player.materials || {},
+        pvpWins: player.pvpWins || 0,
+        bossRunCount: player.bossRunCount || 0
     });
 
     // オーブを追加
@@ -273,7 +289,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         skillTree: options.skillTree || { unlockedNodes: [], availablePoints: 0 },
         skillSlots: options.skillSlots || [null, null, null],
         customSkills: options.customSkills || [],
-        bossDefeats: options.bossDefeats || {}
+        bossDefeats: options.bossDefeats || {},
+        materials: options.materials || {},
+        pvpWins: options.pvpWins || 0,
+        bossRunCount: options.bossRunCount || 0
     };
 }
 
