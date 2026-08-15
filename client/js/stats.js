@@ -58,8 +58,8 @@ function migratePlayer(player) {
     if (typeof initializeSkillData === 'function') {
         player = initializeSkillData(player);
     }
-    if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
-    if (!player.materials) player.materials = {}; // 限界突破素材など
+    if (!player.bossDefeats) player.bossDefeats = {};
+    if (!player.materials) player.materials = []; // 限界突破素材などは配列で管理
     if (player.pvpWins == null) player.pvpWins = 0; // 対人戦の勝利数
     if (player.bossRunCount == null) player.bossRunCount = 0; // ボス戦の周回回数
 
