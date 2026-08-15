@@ -78,7 +78,6 @@ if (orbEl) {
     }
 }
 
-<<<<<<< HEAD
 // 「もう一度戦う」ボタン（ボット戦・ソロボス戦のみ対応。オンライン対戦やパーティボス戦は再戦不可）
 const retryBtn = document.getElementById("retryBtn");
 if (retryBtn) {
@@ -103,7 +102,9 @@ if (retryBtn) {
         };
     } else {
         retryBtn.style.display = "none";
-=======
+    }
+}
+
 // ボス報酬の表示
 const battleResultDataRaw = localStorage.getItem("battleResultData");
 const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) : null;
@@ -113,21 +114,20 @@ if (battleResultData && battleResultData.rewards) {
     const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
     const bossSkillDropText = document.getElementById('bossSkillDropText');
 
-    if (battleResultData.rewards.bossWeapon) {
+    if (bossWeaponDropText && battleResultData.rewards.bossWeapon) {
         bossWeaponDropText.textContent = `[NEW WEAPON] ${battleResultData.rewards.bossWeapon.name} を手に入れた！`;
         bossWeaponDropText.style.display = 'block';
     }
 
-    if (battleResultData.rewards.limitBreakMaterial) {
+    if (limitBreakMaterialText && battleResultData.rewards.limitBreakMaterial) {
         const material = battleResultData.rewards.limitBreakMaterial;
         limitBreakMaterialText.textContent = `[MATERIAL] ${material.name} x${material.count} を手に入れた！`;
         limitBreakMaterialText.style.display = 'block';
     }
 
-    if (battleResultData.rewards.bossSkill) {
+    if (bossSkillDropText && battleResultData.rewards.bossSkill) {
         bossSkillDropText.textContent = `[NEW SKILL] ${battleResultData.rewards.bossSkill.name} を習得した！`;
         bossSkillDropText.style.display = 'block';
->>>>>>> 1dd16d5105284553dd0cc792a037b077593ba0fa
     }
 }
 
