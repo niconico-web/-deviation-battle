@@ -2115,6 +2115,13 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
+        // ★★★デバッグ武器のチェック★★★
+        if (hasUniqueAbility(me, 'one_shot_kill')) {
+            addLog(`デバッグ武器の効果発動！「${me.equippedWeapon.name}」！`);
+            damage = enemy.maxHp * 999; // 相手の最大HP以上のダメージを与える
+            skillEffect.sureHit = true; // 必中効果を強制
+        }
+
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         const mySpeed = me.speed || 0;
         const dodgeChance = calculateDodgeChance(mySpeed);
