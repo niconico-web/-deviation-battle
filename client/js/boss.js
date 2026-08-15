@@ -1,5 +1,7 @@
-// ボス武器の基礎倍率（討伐直後の状態）。ここから限界突破で上限を伸ばして「強化」で近づけていく。
+// ボス武器の基礎倍率（最弱ボスの討伐直後の状態）。ここから限界突破で上限を伸ばして「強化」で近づけていく。
 const BOSS_WEAPON_BASE_MULTIPLIER = 2.0;
+// ボスの強さ（bosses.json内の並び順 = 弱い順）が1段階上がるごとに、ドロップする武器の基礎倍率が伸びる量
+const BOSS_WEAPON_TIER_MULTIPLIER_STEP = 0.25;
 // 限界突破1回あたりの上限倍率の増加量
 const BOSS_WEAPON_LIMIT_BREAK_INCREMENT = 0.5;
 // 限界突破できる最大回数
@@ -35,6 +37,28 @@ function playerOwnsBossWeapon(player, bossId) {
 }
 
 /**
+ * プレイヤーが指定したボスのスキルを既に習得しているか判定する。
+ * @param {object} player
+ * @param {string} bossId
+ * @returns {boolean}
+ */
+function playerOwnsBossSkill(player, bossId) {
+    return (player.customSkills || []).some(s => s.sourceBossId === bossId);
+}
+
+/**
+ * bosses.json内での並び順（0始まり）から、ボスの「強さティア」を求める。
+ * bosses.jsonは弱い順に並んでいる前提。見つからない場合は0。
+ * @param {string} bossId
+ * @returns {number}
+ */
+function getBossTierIndex(bossId) {
+    const list = window.bosses || [];
+    const index = list.findIndex(b => b.id === bossId);
+    return index >= 0 ? index : 0;
+}
+
+/**
  * Creates a custom skill from a boss's skill.
  * @param {object} bossData - The full data object for the boss.
  * @param {string} skillName - The name of the skill to get.
@@ -62,14 +86,16 @@ function getBossSkillAsCustomSkill(bossData, skillName) {
         effect: bossSkill.effect, // Copy the effect object directly
         strength: 'tier15', // Boss skills are powerful
         createdAt: Date.now(),
-        type: 'active'
+        type: 'active',
+        sourceBossId: bossData.id // どのボスのスキルか（再取得判定に使用）
     };
 }
 
 /**
  * Applies rewards for defeating a boss.
- * ・「ノーマル(medium)」を初めて攻略：ボスをモチーフにした武器（基礎倍率2.0倍）をドロップ
- * ・「ハード(hard)」を初めて攻略：ボスのスキルを習得
+ * ・「ノーマル(medium)」を攻略：ボスをモチーフにした武器をまだ持っていなければドロップ
+ *   （討伐済みかどうかではなく、「今持っているか」で判定するので、捨てても再入手できる）
+ * ・「ハード(hard)」を攻略：ボスのスキルをまだ持っていなければ習得
  * ・武器を入手済みの状態で「ノーマル」か「ハード」を周回：限界突破素材をドロップ（何度でも）
  * 報酬はリザルト画面で表示できるよう、localStorageの battleResultData にも保存する。
  * @param {object} player - The player object.
@@ -82,16 +108,18 @@ function applyBossRewards(player, boss) {
         return player;
     }
 
+    // window.bosses（強さティアの判定に使用）を確保しておく
+    if (!window.bosses) {
+        const bossesData = localStorage.getItem('bosses');
+        if (bossesData) {
+            window.bosses = JSON.parse(bossesData);
+        }
+    }
+
     // 戦闘用に生成されたbossオブジェクトには drops/skills が含まれているので、まずそれを使う。
     // （古いセーブデータ等で欠けている場合のみ、簡易版のwindow.bossesにフォールバックする）
     let fullBossData = boss;
     if (!fullBossData.drops) {
-        if (!window.bosses) {
-            const bossesData = localStorage.getItem('bosses');
-            if (bossesData) {
-                window.bosses = JSON.parse(bossesData);
-            }
-        }
         const found = (window.bosses || []).find(b => b.id === boss.id);
         if (found && found.drops) {
             fullBossData = found;
@@ -103,42 +131,46 @@ function applyBossRewards(player, boss) {
     }
 
     const difficulty = boss.difficulty;
-    // 武器を持っているかどうかは、今回の報酬を適用する「前」の状態で判定する
-    // （＝武器を初めて手に入れたその周では、まだ限界突破素材は出さない）
-    const alreadyOwnsWeapon = playerOwnsBossWeapon(player, boss.id);
+    // 武器・スキルを持っているかどうかは、今回の報酬を適用する「前」の状態で判定する
+    const ownedWeaponBefore = playerOwnsBossWeapon(player, boss.id);
+    const ownedSkillBefore = playerOwnsBossSkill(player, boss.id);
 
     let newPlayer = { ...player };
     const rewardsForDisplay = {};
+    let anyOneTimeReward = false;
 
-    // ---- 初回討伐報酬（武器・スキル） ----
-    if (!hasDefeatedBoss(player, boss.id, difficulty)) {
-        fullBossData.drops.forEach(drop => {
-            if (drop.difficulty.includes(difficulty)) {
-                if (drop.type === 'weapon') {
-                    const weapon = generateBossWeapon(fullBossData, drop.name);
-                    if (weapon) {
-                        newPlayer = addWeaponToPlayer(newPlayer, weapon);
-                        rewardsForDisplay.bossWeapon = weapon;
-                    }
-                } else if (drop.type === 'skill') {
-                    const skill = getBossSkillAsCustomSkill(fullBossData, drop.name);
-                    if (skill) {
-                        if (!newPlayer.customSkills) newPlayer.customSkills = [];
-                        newPlayer.customSkills.push(skill);
-                        rewardsForDisplay.bossSkill = skill;
-                    }
-                }
+    // ---- 討伐報酬（武器・スキル） ----
+    // 「一度倒したらもうドロップしない」ではなく「今持っていなければドロップする」。
+    // 武器やスキルを誤って手放してしまった場合でも、再度攻略すれば手に入る。
+    fullBossData.drops.forEach(drop => {
+        if (!drop.difficulty.includes(difficulty)) return;
+
+        if (drop.type === 'weapon' && !ownedWeaponBefore) {
+            const tierIndex = getBossTierIndex(fullBossData.id);
+            const weapon = generateBossWeapon(fullBossData, drop.name, tierIndex);
+            if (weapon) {
+                newPlayer = addWeaponToPlayer(newPlayer, weapon);
+                rewardsForDisplay.bossWeapon = weapon;
+                anyOneTimeReward = true;
             }
-        });
-
-        if (Object.keys(rewardsForDisplay).length > 0) {
-            newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
+        } else if (drop.type === 'skill' && !ownedSkillBefore) {
+            const skill = getBossSkillAsCustomSkill(fullBossData, drop.name);
+            if (skill) {
+                if (!newPlayer.customSkills) newPlayer.customSkills = [];
+                newPlayer.customSkills.push(skill);
+                rewardsForDisplay.bossSkill = skill;
+                anyOneTimeReward = true;
+            }
         }
+    });
+
+    if (anyOneTimeReward) {
+        newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
     }
 
     // ---- 周回報酬（限界突破素材） ----
     // 既にこのボスの武器を所持していて、ノーマルかハードを攻略した場合は毎回もらえる
-    if ((difficulty === 'medium' || difficulty === 'hard') && alreadyOwnsWeapon) {
+    if ((difficulty === 'medium' || difficulty === 'hard') && ownedWeaponBefore) {
         const materialId = getBossLimitBreakMaterialId(boss.id);
         const materialName = getBossLimitBreakMaterialName(fullBossData.name);
         const materials = { ...(newPlayer.materials || {}) };
@@ -159,6 +191,7 @@ function applyBossRewards(player, boss) {
 
 /**
  * Checks if a player has already defeated a boss at a specific difficulty.
+ * （記録用。報酬付与の判定には使用しない -- 実際に持っているかどうかで判定する）
  * @param {object} player - The player object.
  * @param {string} bossId - The ID of the boss.
  * @param {string} difficulty - The difficulty ('easy', 'medium', 'hard').
@@ -193,13 +226,15 @@ function markBossDefeated(player, bossId, difficulty) {
 
 /**
  * Generates a boss-themed weapon with 3 random unique abilities for the 'medium' difficulty reward.
- * 基礎倍率は BOSS_WEAPON_BASE_MULTIPLIER で、限界突破するまではこれが上限。
- * 限界突破素材を使うことで上限倍率が0.5ずつ伸び、その分「強化」でさらに鍛えられるようになる。
+ * 基礎倍率は BOSS_WEAPON_BASE_MULTIPLIER を起点に、ボスの強さティアに応じて上乗せされる。
+ * 限界突破するまではこれが上限。限界突破素材を使うことで上限倍率が0.5ずつ伸び、
+ * その分「強化」でさらに鍛えられるようになる。
  * @param {object} boss - The defeated boss object.
  * @param {string} weaponName - The name for the new weapon.
+ * @param {number} [tierIndex=0] - ボスの強さティア（bosses.json内の並び順、弱い順）。
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(boss, weaponName) {
+function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     if (!boss || !weaponName) return null;
 
     // Get all available unique abilities from weapons.js
@@ -223,20 +258,23 @@ function generateBossWeapon(boss, weaponName) {
     statBonuses[shuffledStats[0]] = 0.25; // +25%
     statBonuses[shuffledStats[1]] = 0.25; // +25%
 
+    // ボスの強さティアに応じて基礎倍率を上乗せする（強いボスほど強い武器がドロップする）
+    const baseMultiplier = Math.round((BOSS_WEAPON_BASE_MULTIPLIER + tierIndex * BOSS_WEAPON_TIER_MULTIPLIER_STEP) * 100) / 100;
+
     // Create a powerful original weapon (base state — 限界突破と強化で伸ばしていく)
     const weapon = {
         id: `boss_weapon_${boss.id}_${Date.now()}`,
         name: weaponName,
         type: randomType,
         isOriginal: true,
-        multiplier: BOSS_WEAPON_BASE_MULTIPLIER,
-        baseMultiplier: BOSS_WEAPON_BASE_MULTIPLIER, // 強化進捗率の計算に使う基準値
-        maxMultiplier: BOSS_WEAPON_BASE_MULTIPLIER, // 限界突破前はこれが上限（＝まだ強化はできない）
+        multiplier: baseMultiplier,
+        baseMultiplier: baseMultiplier, // 強化進捗率の計算に使う基準値
+        maxMultiplier: baseMultiplier, // 限界突破前はこれが上限（＝まだ強化はできない）
         statBonuses: statBonuses,
         upgradeCount: 0,
         uniqueAbilities: selectedAbilities,
         ultimateName: `${boss.name}の魂`,
-        sourceBossId: boss.id, // どのボスをモチーフにした武器か（限界突破の判定に使用）
+        sourceBossId: boss.id, // どのボスをモチーフにした武器か（限界突破・再ドロップ判定に使用）
         limitBreakLevel: 0,
         maxLimitBreak: BOSS_WEAPON_MAX_LIMIT_BREAK,
     };

@@ -760,6 +760,12 @@ function renderRanking(ranking) {
 
 // グローバルにアクセス可能に
 window.normalizePlayerId = normalizePlayerId;
+
+// デバッグ用: ブラウザのコンソールで giveDebugInstantKillWeapon() を実行すると、
+// 必中・一撃必殺の武器を現在のプレイヤーに追加・装備する（テスト用）。
+if (typeof giveDebugInstantKillWeapon === "function") {
+    window.giveDebugInstantKillWeapon = giveDebugInstantKillWeapon;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
@@ -840,6 +846,12 @@ function lockStatInputs(locked) {
 
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocket();
+
+    // ショップ画面（武器作成ボタン・オーブ合成モーダルなど）のイベントを初期化する
+    // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
+    if (typeof initShop === "function") {
+        initShop();
+    }
 
     // PWAインストールボタンのイベントリスナー
     const installButton = document.getElementById('install-button');
@@ -922,6 +934,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (section === 'ranking' && window.socket) {
                 window.socket.emit('ranking:get');
+            }
+
+            // ショップ・インベントリタブを開いたときは最新状態を再描画する
+            // （そうしないと、キャラクター作成直後などは何も表示されないままになる）
+            if (section === 'shop' || section === 'inventory') {
+                if (typeof renderShop === "function") renderShop();
+                if (typeof renderInventory === "function") renderInventory();
+                if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+                if (typeof renderMaterialsInventory === "function") renderMaterialsInventory();
             }
 
             closeMobileMenu();
