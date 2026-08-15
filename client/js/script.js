@@ -713,47 +713,7 @@ function setupSocketEventHandlers() {
         alert(`エラー: ${message}`);
     });
 
-    // 戦力ランキング受信
-    window.socket.on("ranking:list", (ranking) => {
-        renderRanking(ranking);
-    });
-
     console.log("Socket event handlers setup complete");
-}
-
-/**
- * サーバーから受け取った戦力ランキングを画面に描画する。
- * @param {Array<object>} ranking
- */
-function renderRanking(ranking) {
-    const container = document.getElementById("rankingList");
-    if (!container) return;
-
-    if (!Array.isArray(ranking) || ranking.length === 0) {
-        container.innerHTML = "<p>ランキングデータがありません。</p>";
-        return;
-    }
-
-    const myPlayer = getPlayerData();
-    const myId = myPlayer ? myPlayer.id : null;
-
-    container.innerHTML = "";
-    ranking.forEach((entry, index) => {
-        const item = document.createElement("div");
-        item.className = "ranking-item" + (entry.id === myId ? " me" : "");
-
-        const studyHours = (entry.studyMinutes / 60).toFixed(1);
-
-        item.innerHTML =
-            `<div class="ranking-rank">${index + 1}位</div>
-            <div class="ranking-info">
-                <div class="ranking-name">${entry.name}（Lv.${entry.level}）</div>
-                <div class="ranking-breakdown">勉強時間: ${studyHours}時間 / 対人戦勝利: ${entry.pvpWins}勝 / ボス周回: ${entry.bossRunCount}回</div>
-            </div>
-            <div class="ranking-score">${entry.powerScore.toLocaleString()}<br><span style="font-size:0.7em;color:var(--text-secondary);">戦力</span></div>`;
-
-        container.appendChild(item);
-    });
 }
 
 // グローバルにアクセス可能に
@@ -892,15 +852,6 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileMenuToggle.addEventListener('click', toggleMobileMenu);
     }
 
-    const refreshRankingBtn = document.getElementById('refreshRankingBtn');
-    if (refreshRankingBtn) {
-        refreshRankingBtn.addEventListener('click', () => {
-            if (window.socket) {
-                window.socket.emit('ranking:get');
-            }
-        });
-    }
-
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeMobileMenu);
     }
@@ -916,10 +867,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeSection = document.getElementById(`section-${section}`);
             if (activeSection) {
                 activeSection.classList.add('active');
-            }
-
-            if (section === 'ranking' && window.socket) {
-                window.socket.emit('ranking:get');
             }
 
             closeMobileMenu();
@@ -973,16 +920,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (createCharBtn) {
         createCharBtn.addEventListener('click', createCharacter);
     }
-    const deletePlayerBtn = document.getElementById("deletePlayerBtn");
-    if (deletePlayerBtn) {
-        deletePlayerBtn.addEventListener('click', () => {
-            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
-            if (studyStartTime !== null) stopStudy();
-            localStorage.clear();
-            alert(I18N.deleted);
-            location.reload();
-        });
-    }
 
     // プレイヤーデータの読み込みとUIの初期化
     const player = getPlayerData();
@@ -1016,4 +953,21 @@ document.addEventListener('DOMContentLoaded', () => {
     statInputs.forEach(input => {
         input.addEventListener('input', updateRemainingPoints);
     });
+
+    // プレイヤー削除ボタンのイベントリスナーを再設定
+    // UIの動的な書き換えでリスナーが消える問題に対応
+    const deletePlayerBtn = document.getElementById("deletePlayerBtn");
+    if (deletePlayerBtn) {
+        // 既存のリスナーを削除して再設定するために、要素をクローンして置き換える
+        const newBtn = deletePlayerBtn.cloneNode(true);
+        deletePlayerBtn.parentNode.replaceChild(newBtn, deletePlayerBtn);
+
+        newBtn.addEventListener('click', () => {
+            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
+            if (studyStartTime !== null) stopStudy();
+            localStorage.clear();
+            alert(I18N.deleted);
+            location.reload();
+        });
+    }
 });

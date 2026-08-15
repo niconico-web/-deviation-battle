@@ -219,6 +219,7 @@ function generateBossWeapon(bossData, weaponName) {
         isOriginal: true, // Allows upgrading and limit breaking
         isBossWeapon: true, // Special flag for boss weapons
         bossId: bossData.id, // Link to the boss for material matching
+        rewards: bossData.rewards, // 限界突破のために報酬情報を保持
         multiplier: 2.0,  // Set multiplier to 2.0 as requested
         maxMultiplier: 2.0,  // Initial max multiplier, can be increased by limit breaking
         limitBreakCount: 0,
@@ -237,8 +238,19 @@ function generateBossWeapon(bossData, weaponName) {
  * @returns {number}
  */
 function getLimitBreakCost(currentLimitBreakCount) {
-    // Example cost: 1, 2, 3, 4 materials for each level
-    return (currentLimitBreakCount || 0) + 1;
+    // 限界突破レベルに応じたコストテーブル
+    // 0 -> 1回目: 1個
+    // 1 -> 2回目: 3個
+    // 2 -> 3回目: 5個
+    // 3 -> 4回目: 10個
+    const costs = [1, 3, 5, 10];
+    const count = currentLimitBreakCount || 0;
+
+    if (count < costs.length) {
+        return costs[count];
+    }
+    // 予期しないカウントに対するフォールバック
+    return 99;
 }
 
 /**
