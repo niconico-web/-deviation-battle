@@ -230,3 +230,61 @@ function generateBossWeapon(bossData, weaponName) {
 
     return weapon;
 }
+
+/**
+ * Calculates the material cost for the next limit break.
+ * @param {number} currentLimitBreakCount 
+ * @returns {number}
+ */
+function getLimitBreakCost(currentLimitBreakCount) {
+    // Example cost: 1, 2, 3, 4 materials for each level
+    return (currentLimitBreakCount || 0) + 1;
+}
+
+/**
+ * Performs a limit break on a boss weapon.
+ * @param {object} player 
+ * @param {string} weaponId 
+ * @returns {{success: boolean, player: object|null, error: string|null}}
+ */
+function limitBreakBossWeapon(player, weaponId) {
+    const weaponIndex = player.weapons.findIndex(w => w.id === weaponId);
+    if (weaponIndex === -1) {
+        return { success: false, error: "指定された武器が見つかりません。" };
+    }
+
+    const weapon = player.weapons[weaponIndex];
+
+    if (!weapon.isBossWeapon) {
+        return { success: false, error: "ボス武器ではありません。" };
+    }
+
+    const currentLbCount = weapon.limitBreakCount || 0;
+    if (currentLbCount >= BOSS_WEAPON_MAX_LIMIT_BREAK) {
+        return { success: false, error: "この武器は既に最大まで限界突破しています。" };
+    }
+
+    const materialId = weapon.rewards?.material?.id;
+    if (!materialId) {
+         return { success: false, error: "限界突破に必要な素材情報が見つかりません。" };
+    }
+    
+    const requiredCost = getLimitBreakCost(currentLbCount);
+    const playerMaterial = (player.materials || []).find(m => m.id === materialId);
+
+    if (!playerMaterial || playerMaterial.count < requiredCost) {
+        const materialName = weapon.rewards?.material?.name || "不明な素材";
+        return { success: false, error: `素材が不足しています。(${materialName}が${requiredCost}個必要)` };
+    }
+
+    playerMaterial.count -= requiredCost;
+
+    weapon.limitBreakCount = currentLbCount + 1;
+    weapon.maxMultiplier = (weapon.maxMultiplier || BOSS_WEAPON_BASE_MULTIPLIER) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT;
+    weapon.multiplier = weapon.maxMultiplier;
+
+    player.weapons[weaponIndex] = weapon;
+    if (player.equippedWeapon && player.equippedWeapon.id === weaponId) player.equippedWeapon = weapon;
+
+    return { success: true, player: player };
+}
