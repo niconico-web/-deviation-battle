@@ -11,6 +11,12 @@ const critical = localStorage.getItem("criticalCount") || "0";
 const title = document.getElementById("resultTitle");
 const won = result === "win";
 
+// 「もう一度戦う」で使うため、result.js末尾でクリアされる前にバトル種別を控えておく
+const wasBotBattle = localStorage.getItem("isBotBattle");
+const wasBossBattle = localStorage.getItem("isBossBattle");
+const battleDifficultyValue = localStorage.getItem("battleDifficulty");
+const partyDataValue = localStorage.getItem("partyData");
+
 const stolenWeaponRaw = localStorage.getItem("stolenWeapon");
 const lostWeaponRaw = localStorage.getItem("lostWeapon");
 const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
@@ -69,6 +75,33 @@ if (orbEl) {
         orbEl.style.display = "block";
     } else {
         orbEl.style.display = "none";
+    }
+}
+
+// 「もう一度戦う」ボタン（ボット戦・ソロボス戦のみ対応。オンライン対戦やパーティボス戦は再戦不可）
+const retryBtn = document.getElementById("retryBtn");
+if (retryBtn) {
+    if (wasBotBattle === "true" && enemy && !partyDataValue) {
+        retryBtn.style.display = "";
+        retryBtn.onclick = () => {
+            localStorage.setItem("isBotBattle", "true");
+            if (wasBossBattle === "true") {
+                localStorage.setItem("isBossBattle", "true");
+                if (battleDifficultyValue) {
+                    localStorage.setItem("battleDifficulty", battleDifficultyValue);
+                }
+            } else {
+                localStorage.removeItem("isBossBattle");
+                localStorage.removeItem("battleDifficulty");
+            }
+            localStorage.setItem("enemy", JSON.stringify(enemy));
+            localStorage.removeItem("rewardsApplied");
+            localStorage.removeItem("stolenWeapon");
+            localStorage.removeItem("lostWeapon");
+            location.href = "battle.html";
+        };
+    } else {
+        retryBtn.style.display = "none";
     }
 }
 

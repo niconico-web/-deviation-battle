@@ -4,25 +4,61 @@
         "name": "ゴブリンキング",
         "description": "ゴブリンの群れを率いる狡猾な王。素早く動き、トリッキーな攻撃を仕掛けてくる。",
         "difficulties": {
-            "easy": { "hp": 200000, "atk": 5000, "def": 8000, "speed": 12000 },
-            "medium": { "hp": 500000, "atk": 8000, "def": 12000, "speed": 25000 },
-            "hard": { "hp": 1000000, "atk": 15000, "def": 15000, "speed": 40000 }
+            "easy": {
+                "hp": 200000,
+                "atk": 5000,
+                "def": 8000,
+                "speed": 12000
+            },
+            "medium": {
+                "hp": 500000,
+                "atk": 8000,
+                "def": 12000,
+                "speed": 25000
+            },
+            "hard": {
+                "hp": 1000000,
+                "atk": 15000,
+                "def": 15000,
+                "speed": 40000
+            }
         },
         "skills": [
             {
                 "name": "ゴブリンラッシュ",
                 "description": "素早い連続攻撃を仕掛ける。",
-                "effect": { "damageMultiplier": 1.2, "multiHit": 2 }
+                "effect": {
+                    "damageMultiplier": 1.2,
+                    "multiHit": 2
+                }
             },
             {
                 "name": "王の号令",
                 "description": "自身の攻撃力を一時的に上昇させる。",
-                "effect": { "selfBuff": { "type": "atk", "amount": 1.4, "turns": 2 } }
+                "effect": {
+                    "selfBuff": {
+                        "type": "atk",
+                        "amount": 1.4,
+                        "turns": 2
+                    }
+                }
             }
         ],
         "drops": [
-            { "name": "ゴブリンの大剣", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ゴブリンラッシュ", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "ゴブリンの大剣",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ゴブリンラッシュ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -30,25 +66,61 @@
         "name": "オークの戦将",
         "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は驚異的な力を持つ。",
         "difficulties": {
-            "easy": { "hp": 300000, "atk": 6000, "def": 10000, "speed": 5000 },
-            "medium": { "hp": 600000, "atk": 12000, "def": 16000, "speed": 10000 },
-            "hard": { "hp": 1200000, "atk": 24000, "def": 20000, "speed": 20000 }
+            "easy": {
+                "hp": 300000,
+                "atk": 6000,
+                "def": 10000,
+                "speed": 5000
+            },
+            "medium": {
+                "hp": 600000,
+                "atk": 12000,
+                "def": 16000,
+                "speed": 10000
+            },
+            "hard": {
+                "hp": 1200000,
+                "atk": 24000,
+                "def": 20000,
+                "speed": 20000
+            }
         },
         "skills": [
             {
                 "name": "ウォーハンマー",
                 "description": "防御力を一部無視する強力な一撃。",
-                "effect": { "damageMultiplier": 2.0, "pierceDef": 0.3 }
+                "effect": {
+                    "damageMultiplier": 2.0,
+                    "pierceDef": 0.3
+                }
             },
             {
                 "name": "ウォークライ",
                 "description": "雄叫びをあげ、敵全体の防御力を低下させる。",
-                "effect": { "debuff": { "type": "def", "reduction": 0.2, "turns": 3 } }
+                "effect": {
+                    "debuff": {
+                        "type": "def",
+                        "reduction": 0.2,
+                        "turns": 3
+                    }
+                }
             }
         ],
         "drops": [
-            { "name": "ウォーロードの盾剣", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ウォークライ", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "ウォーロードの盾剣",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ウォークライ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -56,25 +128,60 @@
         "name": "ヨルムンガンド",
         "description": "影に潜み、毒と呪いで獲物を仕留める巨大な蛇。その姿を見ることは難しい。",
         "difficulties": {
-            "easy": { "hp": 500000, "atk": 8000, "def": 100, "speed": 50000 },
-            "medium": { "hp": 1000000, "atk": 9500, "def": 140, "speed": 60000 },
-            "hard": { "hp": 1500000, "atk": 12000, "def": 300, "speed": 75000 }
+            "easy": {
+                "hp": 500000,
+                "atk": 8000,
+                "def": 100,
+                "speed": 50000
+            },
+            "medium": {
+                "hp": 1000000,
+                "atk": 9500,
+                "def": 140,
+                "speed": 60000
+            },
+            "hard": {
+                "hp": 1500000,
+                "atk": 12000,
+                "def": 300,
+                "speed": 75000
+            }
         },
         "skills": [
             {
                 "name": "ポイズンバイト",
                 "description": "猛毒の牙で噛みつき、継続ダメージを与える。",
-                "effect": { "poison": { "damage": 0.1, "turns": 3 } }
+                "effect": {
+                    "poison": {
+                        "damage": 0.1,
+                        "turns": 3
+                    }
+                }
             },
             {
                 "name": "シャドウダイブ",
                 "description": "影に潜み、次の攻撃を完全に回避する。",
-                "effect": { "evasionBoost": 1.0, "turns": 1 }
+                "effect": {
+                    "evasionBoost": 1.0,
+                    "turns": 1
+                }
             }
         ],
         "drops": [
-            { "name": "ファングアセント", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ポイズンバイト", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "ファングアセント",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ポイズンバイト",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -82,25 +189,60 @@
         "name": "アイスゴーレム",
         "description": "極寒の氷から生まれた魔法生物。絶対零度の冷気で全ての者の動きを封じる。",
         "difficulties": {
-            "easy": { "hp": 1000000, "atk": 1900, "def": 15000, "speed": 15 },
-            "medium": { "hp": 1350000, "atk": 2100, "def": 30000, "speed": 30 },
-            "hard": { "hp": 1800000, "atk": 3000, "def": 60000, "speed": 60 }
+            "easy": {
+                "hp": 1000000,
+                "atk": 1900,
+                "def": 15000,
+                "speed": 15
+            },
+            "medium": {
+                "hp": 1350000,
+                "atk": 2100,
+                "def": 30000,
+                "speed": 30
+            },
+            "hard": {
+                "hp": 1800000,
+                "atk": 3000,
+                "def": 60000,
+                "speed": 60
+            }
         },
         "skills": [
             {
                 "name": "アイスプリズン",
                 "description": "氷の牢獄に閉じ込め、行動速度を大幅に低下させる。",
-                "effect": { "debuff": { "type": "speed", "reduction": 0.5, "turns": 3 } }
+                "effect": {
+                    "debuff": {
+                        "type": "speed",
+                        "reduction": 0.5,
+                        "turns": 3
+                    }
+                }
             },
             {
                 "name": "ブリザードブレス",
                 "description": "全てを凍てつかせる低温の息吹。",
-                "effect": { "damageMultiplier": 1.8 }
+                "effect": {
+                    "damageMultiplier": 1.8
+                }
             }
         ],
         "drops": [
-            { "name": "クリスタルハンマー", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "アイスプリズン", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "クリスタルハンマー",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "アイスプリズン",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -108,25 +250,64 @@
         "name": "フレイムドラゴン",
         "description": "灼熱の炎を操る伝説の竜。そのブレスは全てを焼き、吐息は大地を焦がす。",
         "difficulties": {
-            "easy": { "hp": 1200000, "atk": 25000, "def": 16000, "speed": 12000 },
-            "medium": { "hp": 1400000, "atk": 33000, "def": 20000, "speed": 25000 },
-            "hard": { "hp": 1900000, "atk": 50000, "def": 40000, "speed": 45000 }
+            "easy": {
+                "hp": 1200000,
+                "atk": 25000,
+                "def": 16000,
+                "speed": 12000
+            },
+            "medium": {
+                "hp": 1400000,
+                "atk": 33000,
+                "def": 20000,
+                "speed": 25000
+            },
+            "hard": {
+                "hp": 1900000,
+                "atk": 50000,
+                "def": 40000,
+                "speed": 45000
+            }
         },
         "skills": [
             {
                 "name": "インフェルノ",
                 "description": "全てを焼き尽くす業火。敵全体に火傷の継続ダメージを与える。",
-                "effect": { "damageMultiplier": 1.5, "burn": { "damage": 0.1, "turns": 3 } }
+                "effect": {
+                    "damageMultiplier": 1.5,
+                    "burn": {
+                        "damage": 0.1,
+                        "turns": 3
+                    }
+                }
             },
             {
                 "name": "ドラゴニックロア",
                 "description": "竜の咆哮で敵全体の攻撃力と防御力を低下させる。",
-                "effect": { "debuff": { "type": "atk_def", "reduction": 0.2, "turns": 3 } }
+                "effect": {
+                    "debuff": {
+                        "type": "atk_def",
+                        "reduction": 0.2,
+                        "turns": 3
+                    }
+                }
             }
         ],
         "drops": [
-            { "name": "ドラゴンスケイルワンド", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "インフェルノ", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "ドラゴンスケイルワンド",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "インフェルノ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -134,25 +315,59 @@
         "name": "アビサルナイト",
         "description": "深淵より現れし闇の騎士。その剣は魂を喰らい、力を奪う。",
         "difficulties": {
-            "easy": { "hp": 1000000, "atk": 180000, "def": 1800, "speed": 18000 },
-            "medium": { "hp": 2000000, "atk": 350000, "def": 3500, "speed": 35000 },
-            "hard": { "hp": 3000000, "atk": 700000, "def": 7000, "speed": 70000}
+            "easy": {
+                "hp": 1000000,
+                "atk": 180000,
+                "def": 1800,
+                "speed": 18000
+            },
+            "medium": {
+                "hp": 2000000,
+                "atk": 350000,
+                "def": 3500,
+                "speed": 35000
+            },
+            "hard": {
+                "hp": 3000000,
+                "atk": 700000,
+                "def": 7000,
+                "speed": 70000
+            }
         },
         "skills": [
             {
                 "name": "ソウルドレイン",
                 "description": "与えたダメージの一部を吸収し、自身のHPを回復する。",
-                "effect": { "damageMultiplier": 1.2, "lifeSteal": 0.5 }
+                "effect": {
+                    "damageMultiplier": 1.2,
+                    "lifeSteal": 0.5
+                }
             },
             {
                 "name": "ヴォイドスラッシュ",
                 "description": "空間を切り裂く一撃。敵の防御と回避を無視する。",
-                "effect": { "damageMultiplier": 2.0, "ignoreDef": true, "sureHit": true }
+                "effect": {
+                    "damageMultiplier": 2.0,
+                    "ignoreDef": true,
+                    "sureHit": true
+                }
             }
         ],
         "drops": [
-            { "name": "アビサルサイス", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "ヴォイドスラッシュ", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "アビサルサイス",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ヴォイドスラッシュ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     },
     {
@@ -160,31 +375,76 @@
         "name": "セレスティアルガーディアン",
         "description": "神殿を守護する天空の使者。聖なる力で全ての不浄を浄化し、神の裁きを下す。",
         "difficulties": {
-            "easy": { "hp": 2000000, "atk": 250000, "def": 25000, "speed": 25000 },
-            "medium": { "hp": 7500000, "atk": 500000, "def": 50000, "speed": 50000 },
-            "hard": { "hp": 99999999, "atk": 9999999, "def": 999999, "speed": 999999 }
+            "easy": {
+                "hp": 2000000,
+                "atk": 250000,
+                "def": 25000,
+                "speed": 25000
+            },
+            "medium": {
+                "hp": 7500000,
+                "atk": 500000,
+                "def": 50000,
+                "speed": 50000
+            },
+            "hard": {
+                "hp": 99999999,
+                "atk": 9999999,
+                "def": 999999,
+                "speed": 999999
+            }
         },
         "skills": [
             {
                 "name": "ホーリープロテクション",
                 "description": "聖なるバリアを展開し、全てのダメージを大幅に軽減する。",
-                "effect": { "damageReduction": 0.8, "turns": 1 }
+                "effect": {
+                    "damageReduction": 0.8,
+                    "turns": 1
+                }
             },
             {
                 "name": "ジャッジメント",
                 "description": "神の裁き。聖なる光の力で敵を討つ、絶大な威力を持つ攻撃。",
-                "effect": { "damageMultiplier": 3.0, "sureHit": true }
+                "effect": {
+                    "damageMultiplier": 3.0,
+                    "sureHit": true
+                }
             },
             {
                 "name": "スターアルケミー",
                 "description": "星の力を用いて、味方全体の能力を飛躍的に向上させる。",
-                "effect": { "partyBuff": { "type": "all_stats", "amount": 1.2, "turns": 3 } }
+                "effect": {
+                    "partyBuff": {
+                        "type": "all_stats",
+                        "amount": 1.2,
+                        "turns": 3
+                    }
+                }
             }
         ],
         "drops": [
-            { "name": "セレスティアソード", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "神聖なる盾", "type": "weapon", "difficulty": ["medium", "hard"] },
-            { "name": "スターアルケミー", "type": "skill", "difficulty": ["hard"] }
+            {
+                "name": "セレスティアソード",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "神聖なる盾",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "スターアルケミー",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
         ]
     }
 ]

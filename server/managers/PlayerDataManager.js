@@ -54,7 +54,14 @@ function getPlayer(playerId) {
 // �������[�h
 loadDataFromFile();
 
+
+// 全プレイヤーデータを取得（ランキング集計用）
+function getAllPlayers() {
+    return Object.values(playerData);
+}
+
 module.exports = {
     savePlayer,
-    getPlayer
+    getPlayer,
+    getAllPlayers
 };

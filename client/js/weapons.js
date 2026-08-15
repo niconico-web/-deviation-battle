@@ -744,15 +744,24 @@ function createOriginalWeapon(name, type, statBonuses, ultimateName) {
     };
 }
 
+function getWeaponMaxMultiplier(weapon) {
+    return (weapon && weapon.maxMultiplier != null) ? weapon.maxMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function getWeaponBaseMultiplierForProgress(weapon) {
+    return (weapon && weapon.baseMultiplier != null) ? weapon.baseMultiplier : ORIGINAL_WEAPON_BASE_MULTIPLIER;
+}
+
 function upgradeOriginalWeapon(weapon) {
     if (!weapon.isOriginal) return weapon;
-    if (weapon.multiplier >= ORIGINAL_WEAPON_MAX_MULTIPLIER) return weapon;
-    
+    const max = getWeaponMaxMultiplier(weapon);
+    if (weapon.multiplier >= max) return weapon;
+
     const newMultiplier = Math.min(
-        ORIGINAL_WEAPON_MAX_MULTIPLIER,
+        max,
         weapon.multiplier + ORIGINAL_WEAPON_UPGRADE_INCREMENT
     );
-    
+
     return {
         ...weapon,
         multiplier: newMultiplier,
@@ -761,7 +770,7 @@ function upgradeOriginalWeapon(weapon) {
 }
 
 function canUpgradeOriginalWeapon(weapon) {
-    return weapon.isOriginal && weapon.multiplier < ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    return weapon.isOriginal && weapon.multiplier < getWeaponMaxMultiplier(weapon);
 }
 
 function getOriginalWeaponUpgradeCost(weapon) {
@@ -942,6 +951,66 @@ function applyWeaponStats(baseStats, weapon) {
 
 function playerOwnsWeapon(player, weaponId) {
     return (player.weapons || []).some(w => w.id === weaponId);
+}
+
+// ============================================
+// 素材・限界突破システム
+// ============================================
+
+function getMaterialCount(player, materialId) {
+    return (player && player.materials && player.materials[materialId]) || 0;
+}
+
+function addMaterialToPlayer(player, materialId, amount = 1) {
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = (materials[materialId] || 0) + amount;
+    return { ...player, materials };
+}
+
+/**
+ * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakWeapon(weapon) {
+    if (!weapon || !weapon.sourceBossId) return false;
+    const level = weapon.limitBreakLevel || 0;
+    const max = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+    return level < max;
+}
+
+/**
+ * 限界突破素材を1個消費して、対象武器の上限倍率を0.5伸ばす。
+ * （実際の倍率を上限まで伸ばすには、別途「強化」を行う必要がある）
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (!weapon.sourceBossId) return { ok: false, message: "この武器は限界突破できません" };
+    if (!canLimitBreakWeapon(weapon)) return { ok: false, message: "既に限界突破の上限に達しています" };
+
+    const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+    const have = getMaterialCount(player, materialId);
+    if (have < 1) return { ok: false, message: "限界突破素材が足りません" };
+
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = have - 1;
+
+    const updatedWeapon = {
+        ...weapon,
+        limitBreakLevel: (weapon.limitBreakLevel || 0) + 1,
+        maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
+    };
+
+    const weapons = player.weapons.map(w => w.id === weaponId ? updatedWeapon : w);
+    let updatedPlayer = { ...player, weapons, materials };
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
 }
 
 function addWeaponToPlayer(player, weapon) {
