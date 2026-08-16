@@ -26,5 +26,10 @@
     "celestial_guardian": {
         "medium": { "weapon": true },
         "hard": { "skill": true }
+    },
+    "abyss_warden":{
+        "medium": { "weapon": true },
+        "hard": { "skill": true} 
     }
+
 }

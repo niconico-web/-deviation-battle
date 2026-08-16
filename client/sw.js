@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v16';
+const CACHE_NAME = 'school-battle-cache-v17';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
