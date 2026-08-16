@@ -1,14 +1,15 @@
-const CACHE_NAME = 'school-battle-cache-v14';
+const CACHE_NAME = 'school-battle-cache-v16';
+// キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json', // 一般的にmanifest.jsonはルートに配置されます。もし '/js/' ディレクトリで正しい場合は元に戻してください。
+  '/manifest.json',
   '/battle.html',
   '/result.html',
   '/help.html',
   '/css/style.css',
-  '/css/battle.css',
   '/css/help.css',
+  '/css/battle.css',
   '/css/result.css',
   '/css/ability-popup.css',
   '/js/script.js',
@@ -22,15 +23,20 @@ const urlsToCache = [
   '/js/ability-popup.js',
   '/js/result.js',
   '/js/help.js',
+  '/js/boss.js',
+  '/js/ranking.js',
+  '/js/party.js',
+  '/socket.io/socket.io.js',
+  // アイコンのパスを修正
   '/images/icons/icon-192x192.png',
   '/images/icons/icon-512x512.png'
-  // '/socket.io/socket.io.js' は動的に生成されるため、プリキャッシュの対象から除外します。
 ];
 
-self.addEventListener('install', event => {
+// installイベント：キャッシュにファイルを追加する
+self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
+      .then((cache) => {
         console.log('ServiceWorker: Caching files');
         return cache.addAll(urlsToCache);
       })
@@ -38,6 +44,7 @@ self.addEventListener('install', event => {
   );
 });
 
+// activateイベント：古いキャッシュを削除する
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -52,24 +59,73 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-self.addEventListener('fetch', event => {
-  // APIリクエストとsocket.io関連のリクエストはキャッシュしない
-  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/?')) {
-    // ネットワークに直接アクセスし、キャッシュは使用しない
-    event.respondWith(fetch(event.request));
-    return; // This is crucial to prevent calling respondWith twice.
+self.addEventListener('fetch', (event) => {
+  // chrome-extensionからのリクエストはService Workerで処理しない
+  if (event.request.url.startsWith('chrome-extension://')) {
+    return;
   }
 
-  // Stale-While-Revalidate 戦略 for other requests
+  // APIとSocket.IOポーリングリクエストはネットワークに直接アクセス
+  if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/?')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Handle manifest.json requests specifically
+  if (event.request.url.includes('manifest.json')) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((response) => {
+          if (response) {
+            return response;
+          }
+          return fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(event.request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch((error) => {
+            console.error('[SW] Fetch error for manifest.json:', error);
+            // Return a basic manifest as fallback
+            return new Response(JSON.stringify({
+              "name": "School Battle",
+              "short_name": "SchoolBattle",
+              "start_url": "/",
+              "display": "standalone",
+              "background_color": "#ffffff",
+              "theme_color": "#000000"
+            }), {
+              headers: { 'Content-Type': 'application/json' }
+            });
+          });
+        });
+      })
+    );
+    return;
+  }
+
+  // Stale-While-Revalidate 戦略
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((response) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
+          // 有効なレスポンスのみキャッシュ（chrome-extensionを除外）
           if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
+            // chrome-extension URLはキャッシュしない
+            if (!event.request.url.startsWith('chrome-extension://')) {
+              cache.put(event.request, networkResponse.clone());
+            }
           }
           return networkResponse;
+        }).catch((error) => {
+          console.error('[SW] Fetch error:', error, event.request.url);
+          // Return cached response if available on network error
+          if (response) {
+            return response;
+          }
+          throw error;
         });
+        // キャッシュがあればそれを返し、なければネットワークの結果を待つ
         return response || fetchPromise;
       });
     })

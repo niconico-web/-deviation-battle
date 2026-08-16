@@ -209,7 +209,11 @@ function renderOriginalWeapons() {
         
         const canUpgrade = canUpgradeOriginalWeapon(weapon);
         const upgradeCost = getOriginalWeaponUpgradeCost(weapon);
-        const progress = ((weapon.multiplier - ORIGINAL_WEAPON_BASE_MULTIPLIER) / (ORIGINAL_WEAPON_MAX_MULTIPLIER - ORIGINAL_WEAPON_BASE_MULTIPLIER) * 100).toFixed(1);
+        const baseMult = getWeaponBaseMultiplierForProgress(weapon);
+        const maxMult = getWeaponMaxMultiplier(weapon);
+        const progress = maxMult > baseMult
+            ? ((weapon.multiplier - baseMult) / (maxMult - baseMult) * 100).toFixed(1)
+            : "100.0";
         
         let bonusText = "";
         if (weapon.statBonuses) {
@@ -239,6 +243,16 @@ function renderOriginalWeapons() {
             secondaryTypeText = `<span class="quest-progress">二個目武器種: ${getWeaponTypeLabel(weapon.secondaryType)}</span>`;
         }
 
+        // 限界突破情報表示（ボス武器のみ）
+        let limitBreakText = "";
+        if (weapon.sourceBossId) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const level = weapon.limitBreakLevel || 0;
+            const maxLevel = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+            limitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x） / 素材所持: ${materialCount}個</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
@@ -246,6 +260,7 @@ function renderOriginalWeapons() {
                 <span class="quest-progress">${bonusText || "補正なし"}</span>
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
                 ${secondaryTypeText}
+                ${limitBreakText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
@@ -277,15 +292,55 @@ function renderOriginalWeapons() {
             upgradeWithMaterialBtn.textContent = "素材で強化";
             upgradeWithMaterialBtn.onclick = () => upgradeOriginalWeaponWithMaterialUI(weapon);
             item.appendChild(upgradeWithMaterialBtn);
-        } else {
+        } else if (!weapon.sourceBossId || !canLimitBreakWeapon(weapon)) {
             const maxLabel = document.createElement("span");
             maxLabel.className = "owned-label";
             maxLabel.textContent = "MAX";
             item.appendChild(maxLabel);
         }
 
+        // 限界突破ボタン（ボス武器のみ、上限回数に達していなければ表示）
+        if (weapon.sourceBossId && canLimitBreakWeapon(weapon)) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const limitBreakBtn = document.createElement("button");
+            limitBreakBtn.className = "btn btn-small btn-danger";
+            limitBreakBtn.textContent = `限界突破 (素材${materialCount}個)`;
+            limitBreakBtn.disabled = materialCount < 1;
+            limitBreakBtn.onclick = () => limitBreakWeaponUI(weapon);
+            item.appendChild(limitBreakBtn);
+        }
+
         container.appendChild(item);
     }
+}
+
+function renderMaterialsInventory() {
+    const container = document.getElementById("materialsInventory");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const player = getPlayerData();
+    if (!player || !player.materials || player.materials.length === 0) {
+        container.innerHTML = "<p>素材を所持していません。</p>";
+        return;
+    }
+
+    let hasMaterials = false;
+    for (const material of player.materials) {
+        if (material.count > 0) {
+            hasMaterials = true;
+            const item = document.createElement("div");
+            item.className = "inventory-item";
+            item.innerHTML = `
+                <div class="inventory-item-info">
+                    <strong>${material.name}</strong>
+                    <span>所持数: ${material.count}</span>
+                </div>`;
+            container.appendChild(item);
+        }
+    }
+    if (!hasMaterials) container.innerHTML = "<p>素材を所持していません。</p>";
 }
 
 function renderOrbInventory() {
@@ -346,6 +401,23 @@ function discardOrb(orbIndex) {
         updateStatus(player);
         alert(`${orbName} を捨てました`);
     }
+}
+
+function limitBreakWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const result = limitBreakWeapon(player, weapon.id);
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    localStorage.setItem("player", JSON.stringify(result.player));
+    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(result.player);
 }
 
 function upgradeOriginalWeaponUI(weapon) {
@@ -692,6 +764,7 @@ function buyWeaponWithOrbs(player, type, tier, selectedOrbs, selectedOrbIndices)
     renderShop();
     renderOriginalWeapons();
     renderInventory();
+    renderMaterialsInventory();
     renderOrbInventory();
     updateStatus(updatedPlayer);
 }
@@ -876,6 +949,7 @@ function initShop() {
     renderShop();
     renderInventory();
     renderOriginalWeapons();
+    renderMaterialsInventory();
     renderOrbInventory();
 
     const refreshBtn = document.getElementById("refreshShop");
@@ -884,6 +958,7 @@ function initShop() {
             renderShop();
             renderInventory();
             renderOriginalWeapons();
+            renderMaterialsInventory();
         };
     }
 

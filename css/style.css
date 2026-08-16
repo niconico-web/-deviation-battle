@@ -100,3 +100,57 @@ a:hover {
   visibility: visible;
   opacity: 1;
 }
+
+/* Ranking Table Styles */
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: #e0e0e0;
+}
+
+.ranking-table th, .ranking-table td {
+    border: 1px solid #444;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.ranking-table th {
+    background-color: #333;
+    color: #00ffe0;
+}
+
+.ranking-table tbody tr:nth-child(odd) {
+    background-color: #2a2d32;
+}
+
+.ranking-table .current-user-rank {
+    background-color: #004d40;
+    font-weight: bold;
+}
+
+/* Limit Break Styles */
+.limit-break-container {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #444;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.limit-break-info {
+    font-size: 0.9em;
+    color: #ffc107; /* Amber color */
+}
+.btn-warning {
+    background-color: #ffc107;
+    color: #212529;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-warning:hover {
+    background-color: #ffca2c;
+}

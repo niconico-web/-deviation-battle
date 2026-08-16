@@ -2,10 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 const bossDataPath = path.join(__dirname, '..', 'data', 'bosses.json');
-const bossRewardsPath = path.join(__dirname, '..', 'data', 'boss_rewards.json');
 
 let bosses = [];
-let rewards = {};
 
 try {
     const bossData = fs.readFileSync(bossDataPath, 'utf8');
@@ -13,14 +11,6 @@ try {
     console.log('Boss data loaded successfully.');
 } catch (error) {
     console.error('Failed to load boss data:', error);
-}
-
-try {
-    const rewardsData = fs.readFileSync(bossRewardsPath, 'utf8');
-    rewards = JSON.parse(rewardsData);
-    console.log('Boss rewards loaded successfully.');
-} catch (error) {
-    console.error('Failed to load boss rewards:', error);
 }
 
 function getAllBosses() {
@@ -34,10 +24,6 @@ function getAllBosses() {
 
 function getBossById(id) {
     return bosses.find(boss => boss.id === id);
-}
-
-function getBossRewards(bossId) {
-    return rewards[bossId] || null;
 }
 
 /**
@@ -69,8 +55,11 @@ function createBossForBattle(bossId, difficulty) {
     
     // Add battle-specific properties
     bossInstance.isBoss = true;
-    bossInstance.difficulty = difficulty; // 難易度をインスタンスに保持
+    bossInstance.difficulty = difficulty; // ????x???C???X?^???X????
     bossInstance.skills = bossTemplate.skills; // Ensure skills are included
+    
+    // Add rewards data from the main boss template so the client has it
+    bossInstance.rewards = bossTemplate.rewards || null;
 
     // Remove difficulty structure as it's not needed in battle
     delete bossInstance.difficulties;
@@ -83,5 +72,4 @@ module.exports = {
     getAllBosses,
     getBossById,
     createBossForBattle,
-    getBossRewards,
 };
