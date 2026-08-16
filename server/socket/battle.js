@@ -149,6 +149,7 @@ module.exports = function(io){
                 return;
             }
 
+
             const result = BattleEngine.processAnswer(battle, playerId, answer, usedSkill);
 
             if (result.error) {
