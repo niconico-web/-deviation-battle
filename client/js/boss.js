@@ -338,14 +338,43 @@ function markBossDefeated(player, bossId, difficulty) {
 
 /**
  * Generates a boss-themed weapon with 3 random unique abilities for the 'medium' difficulty reward.
+<<<<<<< HEAD
  * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+<<<<<<< HEAD
+ * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+<<<<<<< HEAD
+ * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+<<<<<<< HEAD
+ * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+ * 基礎倍率は BOSS_WEAPON_BASE_MULTIPLIER を起点に、ボスの強さティアに応じて上乗せされる。
+>>>>>>> 78d5b0d6a7064766067478d744fb2de115ad1521
+>>>>>>> 0fa794c85af03ea59c7aae2fa76f0c083f1e6af7
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
+>>>>>>> 5ddf6c467335a178cb5f90c5ca9d83f62acd0e2c
  * 限界突破するまではこれが上限。限界突破素材を使うことで上限倍率が0.5ずつ伸び、
  * その分「強化」でさらに鍛えられるようになる。
  * @param {object} boss - The defeated boss object.
  * @param {string} weaponName - The name for the new weapon.
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+ * @param {number} [tierIndex=0] - ボスの強さティア（bosses.json内の並び順、弱い順）。
+>>>>>>> 78d5b0d6a7064766067478d744fb2de115ad1521
+>>>>>>> 0fa794c85af03ea59c7aae2fa76f0c083f1e6af7
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
+>>>>>>> 5ddf6c467335a178cb5f90c5ca9d83f62acd0e2c
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(boss, weaponName) {
+function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     if (!boss || !weaponName) return null;
 
     // Get all available unique abilities from weapons.js
@@ -371,6 +400,13 @@ function generateBossWeapon(boss, weaponName) {
 
     // ボスごとの基礎倍率（強いボスほど強い武器がドロップする）
     const baseMultiplier = getBossWeaponBaseMultiplier(boss.id);
+
+
+    // ボスの強さティアに応じて基礎倍率を上乗せする（強いボスほど強い武器がドロップする）
+    const baseMultiplier = Math.round((BOSS_WEAPON_BASE_MULTIPLIER + tierIndex * BOSS_WEAPON_TIER_MULTIPLIER_STEP) * 100) / 100;
+
+
+
 
     // Create a powerful original weapon (base state — 限界突破と強化で伸ばしていく)
     const weapon = {
