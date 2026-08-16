@@ -95,13 +95,13 @@ function renderInventory() {
         let weaponDetails = "";
         if (weapon.isOriginal) {
             let details = [];
-            
+
             // 倍率表示
             if (weapon.multiplier) {
                 const multPercent = Math.round((weapon.multiplier - 1) * 100);
                 details.push(`倍率: +${multPercent}%`);
             }
-            
+
             // ステータス補正表示
             if (weapon.statBonuses) {
                 const bonusParts = [];
@@ -114,13 +114,43 @@ function renderInventory() {
                     details.push(bonusParts.join(", "));
                 }
             }
-            
+
             // ユニーク能力表示
             if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
                 const abilityNames = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
                 details.push(`★${abilityNames}★`);
             }
-            
+
+            if (details.length > 0) {
+                weaponDetails = `<div class="weapon-details">${details.join("<br>")}</div>`;
+            }
+        } else if (weapon.sourceBossId) {
+            // ボス武器の詳細情報
+            let details = [];
+
+            // 倍率表示
+            if (weapon.multiplier) {
+                const multPercent = Math.round((weapon.multiplier - 1) * 100);
+                details.push(`倍率: +${multPercent}%`);
+            }
+
+            // 上限倍率表示
+            if (weapon.maxMultiplier) {
+                const maxMultPercent = Math.round((weapon.maxMultiplier - 1) * 100);
+                details.push(`上限倍率: +${maxMultPercent}%`);
+            }
+
+            // 限界突破レベル表示
+            const limitBreakLevel = weapon.limitBreakLevel || 0;
+            const maxLimitBreak = weapon.maxLimitBreak || 4;
+            details.push(`限界突破: ${limitBreakLevel}/${maxLimitBreak}`);
+
+            // ユニーク能力表示
+            if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
+                const abilityNames = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
+                details.push(`★${abilityNames}★`);
+            }
+
             if (details.length > 0) {
                 weaponDetails = `<div class="weapon-details">${details.join("<br>")}</div>`;
             }
@@ -137,6 +167,7 @@ function renderInventory() {
                     ? '<span class="equipped-label">装備中</span>'
                     : `<button class="btn btn-small equip-btn" data-id="${weapon.id}">装備</button>`
                 }
+                ${weapon.sourceBossId && !isEquipped ? `<button class="btn btn-small limit-break-btn" data-id="${weapon.id}">限界突破</button>` : ''}
                 ${!isEquipped ? `<button class="btn btn-small btn-danger discard-btn" data-id="${weapon.id}">捨てる</button>` : ''}
             </div>`;
         container.appendChild(item);
@@ -165,6 +196,24 @@ function renderInventory() {
                 return;
             }
             localStorage.setItem("player", JSON.stringify(result.player));
+            renderInventory();
+            updateStatus(result.player);
+        };
+    });
+
+    container.querySelectorAll(".limit-break-btn").forEach(btn => {
+        btn.onclick = () => {
+            const p = getPlayerData();
+            const weapon = (p.weapons || []).find(w => w.id === btn.dataset.id);
+            if (!weapon) return;
+
+            const result = limitBreakWeapon(p, weapon.id);
+            if (!result.ok) {
+                alert(result.message);
+                return;
+            }
+            localStorage.setItem("player", JSON.stringify(result.player));
+            alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
             renderInventory();
             updateStatus(result.player);
         };
@@ -348,8 +397,18 @@ function renderMaterialsInventory() {
             item.className = "inventory-item";
             item.innerHTML = `
                 <div class="inventory-item-info">
+<<<<<<< HEAD
                     <strong>${materialName}</strong>
                     <span>所持数: ${count}</span>
+=======
+<<<<<<< HEAD
+                    <strong>${materialName}</strong>
+                    <span>所持数: ${count}</span>
+=======
+                    <strong>${material.name}</strong>
+                    <span>所持数: ${material.count}</span>
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
+>>>>>>> 5ddf6c467335a178cb5f90c5ca9d83f62acd0e2c
                 </div>`;
             container.appendChild(item);
         }
@@ -359,14 +418,17 @@ function renderMaterialsInventory() {
 
 function renderOrbInventory() {
     const container = document.getElementById("orbInventory");
-    if (!container) return;
+    if (!container) {
+        console.error("orbInventory element not found");
+        return;
+    }
     container.innerHTML = "";
 
     const player = getPlayerData();
     if (!player) return;
 
     const orbs = player.orbs || [];
-    
+
     if (orbs.length === 0) {
         container.innerHTML = "<p>オーブを所持していません。\n勉強タイマーを25分以上使用するか、戦闘で勝利して入手してください。</p>";
         return;
@@ -375,28 +437,38 @@ function renderOrbInventory() {
     for (const orb of orbs) {
         const item = document.createElement("div");
         item.className = `inventory-item orb-item ${orb.tier}`;
-        
+
         const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "不明なオーブ";
+
         const tierName = (typeof ORB_TIERS !== "undefined" && ORB_TIERS[orb.tier]?.name) || orb.tier;
         const statLabel = (typeof ORB_STAT_LABELS !== "undefined" && ORB_STAT_LABELS[orb.statType]) || orb.statType;
+
 
         let abilityInfo = "";
         if (orb.uniqueAbility) {
             abilityInfo = `<div class="orb-unique-ability">★${orb.uniqueAbility.name}★</div>`;
         }
-        
+
         const orbIndex = orbs.indexOf(orb);
-        
+
         item.innerHTML =
             `<div class="inventory-item-info">
                 <strong>${orbName}</strong>
                 <span class="orb-type-badge">種類: ${tierName} / ${statLabel}系</span>
                 ${abilityInfo}
             </div>
-            <button class="btn btn-danger" onclick="discardOrb(${orbIndex})">捨てる</button>`;
-        
+            <button class="btn btn-danger discard-orb-btn" data-index="${orbIndex}">捨てる</button>`;
+
         container.appendChild(item);
     }
+
+    // イベントリスナーを設定
+    container.querySelectorAll(".discard-orb-btn").forEach(btn => {
+        btn.onclick = () => {
+            const orbIndex = parseInt(btn.dataset.index);
+            discardOrb(orbIndex);
+        };
+    });
 }
 
 function discardOrb(orbIndex) {
@@ -431,12 +503,16 @@ function limitBreakWeaponUI(weapon) {
     }
 
     localStorage.setItem("player", JSON.stringify(result.player));
+
     let message = `${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`;
     const gainedTier4 = (result.weapon.uniqueAbilities || []).find(a => a && a.description && a.description.includes("【tier4固有能力】"));
     if (gainedTier4 && result.weapon.limitBreakLevel >= result.weapon.maxLimitBreak && result.weapon.multiplier >= result.weapon.maxMultiplier) {
         message += `\n\n★tier4固有能力「${gainedTier4.name}」を獲得した！★`;
     }
     alert(message);
+
+    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
+
     renderOriginalWeapons();
     renderInventory();
     updateStatus(result.player);
@@ -1018,9 +1094,13 @@ function initShop() {
         });
     }
 
-    document.getElementById('synthesizeTier2Btn').addEventListener('click', () => synthesizeOrb('tier2'));
-    document.getElementById('synthesizeTier3Btn').addEventListener('click', () => synthesizeOrb('tier3'));
-    document.getElementById('synthesizeTier4Btn').addEventListener('click', () => synthesizeOrb('tier4'));
+    const synthesizeTier2Btn = document.getElementById('synthesizeTier2Btn');
+    const synthesizeTier3Btn = document.getElementById('synthesizeTier3Btn');
+    const synthesizeTier4Btn = document.getElementById('synthesizeTier4Btn');
+
+    if (synthesizeTier2Btn) synthesizeTier2Btn.addEventListener('click', () => synthesizeOrb('tier2'));
+    if (synthesizeTier3Btn) synthesizeTier3Btn.addEventListener('click', () => synthesizeOrb('tier3'));
+    if (synthesizeTier4Btn) synthesizeTier4Btn.addEventListener('click', () => synthesizeOrb('tier4'));
 }
 
 function openOrbSynthesisModal() {
