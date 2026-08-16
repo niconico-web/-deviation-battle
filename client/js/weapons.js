@@ -527,9 +527,9 @@ function createOrb(tier) {
         uniqueAbility: null
     };
     
-    // Tier4のみユニーク能力を付与
+    // Tier4のみユニーク能力を付与（ボス能力を除外）
     if (tier === "tier4") {
-        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES);
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
         const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
         orb.uniqueAbility = {
             key: abilityKey,
@@ -1236,11 +1236,11 @@ function limitBreakWeapon(player, weaponId) {
     const updatedWeapon = {
         ...weapon,
         limitBreakLevel: newLimitBreakLevel,
-        maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
+        maxMultiplier: getWeaponMaxMultiplier(weapon) + 0.5
     };
 
     // 限界突破が最大（4回）に達した場合、ボスをモチーフにしたtier4固有能力を3つ付与
-    if (newLimitBreakLevel >= BOSS_WEAPON_MAX_LIMIT_BREAK && !updatedWeapon.bossThemeAbilities) {
+    if (newLimitBreakLevel >= 4 && !updatedWeapon.bossThemeAbilities) {
         const bossThemeAbilities = getBossThemeAbilities(weapon.sourceBossId);
         if (bossThemeAbilities && bossThemeAbilities.length > 0) {
             updatedWeapon.bossThemeAbilities = bossThemeAbilities;

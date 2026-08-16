@@ -212,13 +212,15 @@ function applyBossRewards(player, boss) {
 
     // ---- 周回報酬（限界突破素材） ----
     // 既にこのボスの武器を所持していて、ノーマルかハードを攻略した場合は毎回もらえる
+    // ノーマル: 1個、ハード: 2個
     if ((difficulty === 'medium' || difficulty === 'hard') && ownedWeaponBefore) {
         const materialId = getBossLimitBreakMaterialId(boss.id);
         const materialName = getBossLimitBreakMaterialName(fullBossData.name);
         const materials = { ...(newPlayer.materials || {}) };
-        materials[materialId] = (materials[materialId] || 0) + 1;
+        const materialCount = difficulty === 'hard' ? 2 : 1;
+        materials[materialId] = (materials[materialId] || 0) + materialCount;
         newPlayer.materials = materials;
-        rewardsForDisplay.limitBreakMaterial = { name: materialName, count: 1 };
+        rewardsForDisplay.limitBreakMaterial = { name: materialName, count: materialCount };
     }
 
     // リザルト画面で表示できるよう保存
