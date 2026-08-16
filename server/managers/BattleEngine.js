@@ -366,7 +366,13 @@ function getStatWithDebuffs(player, statName) {
 
 function processAnswer(battle, playerId, answer, usedSkill) {
     const player = battle.players[playerId];
-    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    // ボス戦（レイドで3人以上いる場合を含む）では、常にisBoss:trueのプレイヤーを敵として扱う。
+    // 通常のPvP（1対1）では、自分以外の唯一のプレイヤーが敵になる。
+    // ※以前は「自分以外の最初のプレイヤー」を機械的に敵にしていたため、
+    //   3人以上のレイドバトルでは味方が誤って敵として扱われてしまっていた。
+    const enemyId = battle.isBossBattle
+        ? Object.keys(battle.players).find(id => battle.players[id].isBoss)
+        : Object.keys(battle.players).find(id => id !== playerId);
     const enemy = battle.players[enemyId];
     
     if (!battle.currentQuestion) {

@@ -34,6 +34,7 @@
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="party"><span>🤝</span> パーティ</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
+                <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
                 <button class="menu-btn" data-section="help"><span>❓</span> ヘルプ</button>
             </nav>
         </aside>
@@ -147,7 +148,7 @@
                 <div class="setting-box">
                     <p>総スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
                 </div>
-                <div class="skill-tree-container">
+                <div id="skillTreeContainer" class="skill-tree-container">
                     <div id="skillTreeCanvas" class="skill-tree-canvas">
                         <!-- Skill tree nodes and connections will be rendered here -->
                     </div>
@@ -243,6 +244,17 @@
                         <option value="hard">ハード</option>
                     </select>
                     <button type="button" id="startBossBattleBtn" class="btn btn-danger">パーティで挑戦開始</button>
+                </div>
+            </section>
+
+            <section id="section-ranking" class="content-section">
+                <h2>戦力ランキング</h2>
+                <div class="setting-box">
+                    <p>勉強時間・対人戦の勝利数・ボス戦の周回数から戦力を計算してランキング表示します。</p>
+                    <button type="button" id="refreshRankingBtn" class="btn btn-secondary">更新</button>
+                </div>
+                <div id="rankingList" class="ranking-list">
+                    <p>「更新」を押してランキングを取得してください。</p>
                 </div>
             </section>
 
