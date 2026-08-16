@@ -382,7 +382,8 @@ function validateName(name) {
 const ORIGINAL_WEAPON_COST = 30; // 作成コスト
 const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
 const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
-const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
+const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率（通常）
+const ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4 = 10.0; // Tier4オーブ使用時の最大倍率
 const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
 
 // 必殺技システム
@@ -437,7 +438,7 @@ const ORB_UNIQUE_ABILITIES = {
     },
     critical_hit: {
         name: "必殺",
-        description: "20%の確率で相手への攻撃のダメージ1.5倍",
+        description: "クリティカル率を25%上昇させる（基礎5%＋上昇分で最大30%）",
         effect: "critical_damage"
     },
     guts: {
@@ -454,6 +455,47 @@ const ORB_UNIQUE_ABILITIES = {
         name: "一撃必殺",
         description: "相手を一撃で倒す。この能力は必中効果も持つ。",
         effect: "one_shot_kill"
+    },
+    // Boss theme tier4 abilities
+    boss_goblin_king: {
+        name: "ゴブリン王の威圧",
+        description: "相手の攻撃力を25%低下させる（3ターン継続）",
+        effect: "boss_enemy_atk_debuff_strong"
+    },
+    boss_orc_warlord: {
+        name: "オーク軍団の猛攻",
+        description: "自身の攻撃力が35%上昇し、攻撃時に20%の確率で2連撃",
+        effect: "boss_atk_boost_multi_hit"
+    },
+    boss_shadow_serpent: {
+        name: "影蛇の毒牙",
+        description: "攻撃時に50%の確率で相手に猛毒を付与（毎ターンHP8%減少、4ターン継続）",
+        effect: "boss_poison_on_hit_strong"
+    },
+    boss_ice_golem: {
+        name: "氷の巨人の鎧",
+        description: "受けるダメージを30%軽減し、攻撃を受けた時に30%の確率で相手を凍結（次ターン行動不能）",
+        effect: "boss_damage_reduction_freeze"
+    },
+    boss_flame_dragon: {
+        name: "炎龍の息吹",
+        description: "攻撃時に40%の確率で相手に大火傷を付与（毎ターンHP5%減少、5ターン継続）",
+        effect: "boss_burn_on_hit_strong"
+    },
+    boss_abyssal_knight: {
+        name: "深淵騎士の闘気",
+        description: "HPが50%以下の時、攻撃力が50%上昇し、クリティカル率が15%上昇",
+        effect: "boss_low_hp_atk_boost_crit"
+    },
+    boss_celestial_guardian: {
+        name: "天界守護者の加護",
+        description: "毎ターンHPを8%回復し、受けるダメージを15%軽減",
+        effect: "boss_hp_regen_damage_reduction"
+    },
+    boss_abyss_warden: {
+        name: "深淵の守護者",
+        description: "全ステータスが20%上昇し、受けるダメージを25%軽減、攻撃時に25%の確率で相手の防御を30%低下（2ターン）",
+        effect: "boss_all_stat_boost_damage_reduction_def_break"
     }
 };
 
@@ -531,10 +573,10 @@ function getOrbDisplayName(orb) {
 
 function applyOrbToWeapon(weapon, orbs) {
     if (!weapon || !orbs || orbs.length === 0) return weapon;
-    
+
     const newWeapon = { ...weapon };
     const totalBonus = {};
-    
+
     // オーブの補正を集計
     for (const orb of orbs) {
         if (!totalBonus[orb.statType]) {
@@ -542,44 +584,54 @@ function applyOrbToWeapon(weapon, orbs) {
         }
         totalBonus[orb.statType] += orb.bonus;
     }
-    
+
     // ステータス補正を適用（既存の補正を上書きせず、オーブの補正のみを適用）
     newWeapon.statBonuses = {}; // 新しい武器なので補正をリセット
     for (const [stat, bonus] of Object.entries(totalBonus)) {
         newWeapon.statBonuses[stat] = bonus;
     }
-    
+
     // ユニーク能力を適用（Tier4オーブから）
     const uniqueAbilities = orbs
         .filter(orb => orb.uniqueAbility)
         .map(orb => orb.uniqueAbility);
-    
+
     if (uniqueAbilities.length > 0) {
         newWeapon.uniqueAbilities = uniqueAbilities;
     } else {
         newWeapon.uniqueAbilities = []; // ユニーク能力をリセット
     }
-    
+
     // オーブの合計倍率を計算
     let orbMultiplier = 1.0;
     for (const orb of orbs) {
         const tierMult = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 }[orb.tier] || 1.0;
         orbMultiplier *= tierMult;
     }
-    
+
     newWeapon.multiplier = ORIGINAL_WEAPON_BASE_MULTIPLIER * orbMultiplier; // 基礎倍率から再計算
     newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
     newWeapon.upgradeCount = 0; // 強化回数をリセット
-    
+
+    // Tier4オーブが使用されている場合、倍率上限を10倍に設定
+    const hasTier4Orb = orbs.some(orb => orb.tier === "tier4");
+    if (hasTier4Orb) {
+        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4;
+        newWeapon.hasTier4Orb = true; // フラグを設定
+    } else {
+        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER;
+        newWeapon.hasTier4Orb = false;
+    }
+
     return newWeapon;
 }
 
 // ユニーク能力を適用したステータス計算
 function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
     if (!weapon || !weapon.uniqueAbilities) return baseStats;
-    
+
     const stats = { ...baseStats };
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "enemy_stat_debuff": // リ・ミゼラブル
@@ -595,23 +647,32 @@ function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
                     stats.def = Math.floor(stats.def * 0.5);
                 }
                 break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                if (!isEnemy) {
+                    stats.atk = Math.floor(stats.atk * 1.20);
+                    stats.def = Math.floor(stats.def * 1.20);
+                    stats.speed = Math.floor(stats.speed * 1.20);
+                    stats.maxHp = Math.floor(stats.maxHp * 1.20);
+                }
+                break;
             // 他の能力はダメージ計算時に処理
         }
     }
-    
+
     return stats;
 }
 
 // ユニーク abilityによるダメージ計算
 function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
     if (!weapon || !weapon.uniqueAbilities) return baseDamage;
-    
+
     let damage = baseDamage;
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "critical_damage": // 必殺
-                if (Math.random() < 0.20) {
+                // 基礎5% + 必殺能力25% = 最大30%
+                if (Math.random() < 0.30) {
                     damage = Math.floor(damage * 1.5);
                 }
                 break;
@@ -621,26 +682,77 @@ function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
             case "damage_cut_half": // 鉄壁
                 // 防御側の処理
                 break;
+            // Boss theme abilities
+            case "boss_atk_boost_multi_hit": // オーク軍団の猛攻
+                damage = Math.floor(damage * 1.35); // ATK boost 35%
+                if (Math.random() < 0.20) {
+                    damage = Math.floor(damage * 2); // 2連撃
+                }
+                break;
+            case "boss_poison_on_hit_strong": // 影蛇の毒牙
+                if (Math.random() < 0.50) {
+                    // 猛毒付与（戦闘システムで処理）
+                    weapon.pendingPoison = { turns: 4, damage: 0.08 };
+                }
+                break;
+            case "boss_burn_on_hit_strong": // 炎龍の息吹
+                if (Math.random() < 0.40) {
+                    // 大火傷付与（戦闘システムで処理）
+                    weapon.pendingBurn = { turns: 5, damage: 0.05 };
+                }
+                break;
+            case "boss_low_hp_atk_boost_crit": // 深淵騎士の闘気
+                if (attacker && attacker.hp / attacker.maxHp <= 0.5) {
+                    damage = Math.floor(damage * 1.50); // ATK boost 50%
+                    if (Math.random() < 0.15) {
+                        damage = Math.floor(damage * 1.5); // クリティカル率15%
+                    }
+                }
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 1.20); // 全ステータス20%上昇
+                if (Math.random() < 0.25) {
+                    // 防御破壊（戦闘システムで処理）
+                    weapon.pendingDefBreak = { turns: 2, reduction: 0.30 };
+                }
+                break;
         }
     }
-    
+
     return damage;
 }
 
 // 防御側のダメージ軽減計算
 function calculateDefenseWithAbilities(baseDamage, defender, weapon) {
     if (!weapon || !weapon.uniqueAbilities) return baseDamage;
-    
+
     let damage = baseDamage;
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "damage_cut_half": // 鉄壁
                 damage = Math.floor(damage * 0.5);
                 break;
+            // Boss theme defensive abilities
+            case "boss_damage_reduction_freeze": // 氷の巨人の鎧
+                damage = Math.floor(damage * 0.70); // 30%軽減
+                if (Math.random() < 0.30) {
+                    // 凍結付与（戦闘システムで処理）
+                    weapon.pendingFreeze = true;
+                }
+                break;
+            case "boss_hp_regen_damage_reduction": // 天界守護者の加護
+                damage = Math.floor(damage * 0.85); // 15%軽減
+                // HP回復は戦闘システムのターン開始時に処理
+                weapon.hasHpRegen = true;
+                weapon.hpRegenAmount = 0.08;
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 0.75); // 25%軽減
+                break;
         }
     }
-    
+
     return damage;
 }
 
@@ -1045,6 +1157,50 @@ function addMaterialToPlayer(player, materialId, amount = 1) {
 }
 
 /**
+ * ボスをモチーフにしたtier4固有能力を3つ取得する。
+ * @param {string} bossId
+ * @returns {array|null}
+ */
+function getBossThemeAbilities(bossId) {
+    // 既存のボス能力プール（定義されている能力のみ）
+    const bossThemeAbilityPools = {
+        goblin_king: ["boss_goblin_king"],
+        orc_warlord: ["boss_orc_warlord"],
+        shadow_serpent: ["boss_shadow_serpent"],
+        ice_golem: ["boss_ice_golem"],
+        flame_dragon: ["boss_flame_dragon"],
+        abyssal_knight: ["boss_abyssal_knight"],
+        celestial_guardian: ["boss_celestial_guardian"],
+        abyss_warden: ["boss_abyss_warden"]
+    };
+
+    const primaryAbilityKey = bossThemeAbilityPools[bossId];
+    if (!primaryAbilityKey || !ORB_UNIQUE_ABILITIES[primaryAbilityKey[0]]) {
+        return null;
+    }
+
+    const abilities = [];
+    // プライマリ能力を追加
+    abilities.push({
+        ...ORB_UNIQUE_ABILITIES[primaryAbilityKey[0]]
+    });
+
+    // 他のボス能力から2つをランダムに追加
+    const allBossAbilities = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => key.startsWith("boss_"));
+    const availableAbilities = allBossAbilities.filter(key => key !== primaryAbilityKey[0]);
+
+    while (abilities.length < 3 && availableAbilities.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableAbilities.length);
+        const abilityKey = availableAbilities.splice(randomIndex, 1)[0];
+        abilities.push({
+            ...ORB_UNIQUE_ABILITIES[abilityKey]
+        });
+    }
+
+    return abilities.length > 0 ? abilities : null;
+}
+
+/**
  * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
  * @param {object} weapon
  * @returns {boolean}
@@ -1076,11 +1232,22 @@ function limitBreakWeapon(player, weaponId) {
     const materials = { ...(player.materials || {}) };
     materials[materialId] = have - 1;
 
+    const newLimitBreakLevel = (weapon.limitBreakLevel || 0) + 1;
     const updatedWeapon = {
         ...weapon,
-        limitBreakLevel: (weapon.limitBreakLevel || 0) + 1,
+        limitBreakLevel: newLimitBreakLevel,
         maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
     };
+
+    // 限界突破が最大（4回）に達した場合、ボスをモチーフにしたtier4固有能力を3つ付与
+    if (newLimitBreakLevel >= BOSS_WEAPON_MAX_LIMIT_BREAK && !updatedWeapon.bossThemeAbilities) {
+        const bossThemeAbilities = getBossThemeAbilities(weapon.sourceBossId);
+        if (bossThemeAbilities && bossThemeAbilities.length > 0) {
+            updatedWeapon.bossThemeAbilities = bossThemeAbilities;
+            // 既存のuniqueAbilitiesに3つの能力を追加
+            updatedWeapon.uniqueAbilities = [...(weapon.uniqueAbilities || []), ...bossThemeAbilities];
+        }
+    }
 
     const weapons = player.weapons.map(w => w.id === weaponId ? updatedWeapon : w);
     let updatedPlayer = { ...player, weapons, materials };

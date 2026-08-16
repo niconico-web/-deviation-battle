@@ -164,17 +164,17 @@ const SKILL_TREE = {
             { id: "thunder_storm", name: "サンダーストーム", description: "次の攻撃2.2倍、必ずクリティカルになる", cost: 6, x: -16, y: -14, requires: "thunder_path_2", type: "active", effect: { type: "active", damageMultiplier: 2.2, nextAttackCrit: true } },
 
             // --- 特殊・クリティカルルート (左側) ---
-            { id: "crit_path_1", name: "精密", description: "クリティカル率+2%", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
+            { id: "crit_path_1", name: "精密", description: "クリティカル率+2%（基礎5%に加算）", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
             { id: "crit_path_2", name: "痛撃", description: "クリティカルダメージ+10%", cost: 2, x: -10, y: 0, requires: "crit_path_1", type: "passive", effect: { critMultiplier: 0.1 } },
-            { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
+            { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%（基礎5%に加算）, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
             { id: "active_crit", name: "狙い澄まし", description: "次の攻撃は必ずクリティカルになる", cost: 4, x: -14, y: 0, requires: "crit_mastery", type: "active", effect: { type: "active", nextAttackCrit: true } },
             // Extended critical path
-            { id: "crit_extreme_1", name: "殺戮者", description: "クリティカル率+8%, クリティカルダメージ+15%", cost: 4, x: -16, y: 0, requires: "active_crit", type: "passive", effect: { critChance: 0.08, critMultiplier: 0.15 } },
-            { id: "crit_extreme_2", name: "処刑人", description: "クリティカル率+10%, クリティカルダメージ+20%", cost: 4, x: -18, y: 0, requires: "crit_extreme_1", type: "passive", effect: { critChance: 0.1, critMultiplier: 0.2 } },
-            { id: "crit_path_3", name: "クリティカル率+", description: "クリティカル率+3%", cost: 2, x: -14, y: -2, requires: "crit_mastery", type: "passive", effect: { critChance: 0.03 } },
-            { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
-            { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
-            { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
+            { id: "crit_extreme_1", name: "殺戮者", description: "クリティカル率+8%（基礎5%に加算）, クリティカルダメージ+15%", cost: 4, x: -16, y: 0, requires: "active_crit", type: "passive", effect: { critChance: 0.08, critMultiplier: 0.15 } },
+            { id: "crit_extreme_2", name: "処刑人", description: "クリティカル率+10%（基礎5%に加算）, クリティカルダメージ+20%", cost: 4, x: -18, y: 0, requires: "crit_extreme_1", type: "passive", effect: { critChance: 0.1, critMultiplier: 0.2 } },
+            { id: "crit_path_3", name: "クリティカル率+", description: "クリティカル率+3%（基礎5%に加算）", cost: 2, x: -14, y: -2, requires: "crit_mastery", type: "passive", effect: { critChance: 0.03 } },
+            { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%（基礎5%に加算）", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
+            { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%（基礎5%に加算）", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
+            { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%（基礎5%に加算）, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
             { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP50%以上残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.5 } },
 
             // --- タンク・防御ルート (右側) ---

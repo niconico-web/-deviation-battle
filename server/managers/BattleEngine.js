@@ -237,11 +237,14 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
 function applyUniqueAbilityDamageBonus(damage, attacker) {
     let finalDamage = damage;
     
-    // 必殺: 20%の確率でダメージ1.5倍
+    // 必殺: 基礎5% + 必殺能力25% = 最大30%の確率でダメージ1.5倍
     if (hasUniqueAbility(attacker, "critical_damage")) {
-        if (Math.random() < 0.20) {
+        if (Math.random() < 0.30) {
             finalDamage = Math.floor(finalDamage * 1.5);
         }
+    } else if (Math.random() < 0.05) {
+        // 基礎クリティカル率5%
+        finalDamage = Math.floor(finalDamage * 1.5);
     }
     
     return finalDamage;
@@ -840,8 +843,9 @@ function processAnswer(battle, playerId, answer, usedSkill) {
             console.log(`[BattleEngine] Player ${playerId} HP reached 0, winner: ${enemyId}`);
         }
     }
-    
+
     // 一方が正解した場合、または両方のプレイヤーが回答した場合、次の問題へ
+    // 不正解の場合でも、相手が回答済みであれば次の問題へ進む（バトルが停滞するのを防ぐ）
     if ((isCorrect || bothAnswered) && !battle.finished) {
         generateQuestion(battle);
         // デバフのターンを経過させる
@@ -849,8 +853,11 @@ function processAnswer(battle, playerId, answer, usedSkill) {
         tickDebuffs(enemy);
 
         result.nextQuestion = battle.currentQuestion;
+    } else if (!isCorrect && !bothAnswered && !battle.finished) {
+        // 不正解で相手がまだ回答していない場合、相手の回答を待つ状態を明示
+        result.waitingForOpponent = true;
     }
-    
+
     // バトルが終了した場合、winnerをresultに含める
     if (battle.finished && result.winner) {
         console.log(`[BattleEngine] Battle finished, winner: ${result.winner}`);
