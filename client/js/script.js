@@ -878,6 +878,15 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileMenuToggle.addEventListener('click', toggleMobileMenu);
     }
 
+    const refreshRankingBtn = document.getElementById('refreshRankingBtn');
+    if (refreshRankingBtn) {
+        refreshRankingBtn.addEventListener('click', () => {
+            if (window.socket) {
+                window.socket.emit('ranking:get');
+            }
+        });
+    }
+
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeMobileMenu);
     }

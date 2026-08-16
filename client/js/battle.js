@@ -1405,38 +1405,84 @@ function applySkillEffect(damage, attacker, defender, skill) {
     return modifiedDamage;
 }
 
-// ボススキル効果の適用
+// ボススキル効果の適用（プレイヤーが使用する場合も含む）
 function applyBossSkillEffect(damage, attacker, defender, skill) {
     if (!skill || !skill.effect) return damage;
 
     let modifiedDamage = damage;
     const effect = skill.effect;
 
-    addLog(`ボスがスキル「${skill.name}」を使用！`);
+    const isPlayerUsing = attacker === me;
+    addLog(`${isPlayerUsing ? 'プレイヤー' : 'ボス'}がスキル「${skill.name}」を使用！`);
 
     // ダメージ倍率
     if (effect.damageMultiplier) {
         modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
-        addLog(`ボススキル効果: ダメージが${effect.damageMultiplier}倍になった！`);
+        addLog(`スキル効果: ダメージが${effect.damageMultiplier}倍になった！`);
     }
 
     // ライフスティール
     if (effect.lifeSteal) {
         const healAmount = Math.floor(modifiedDamage * effect.lifeSteal);
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
-        addLog(`ボススキル効果: ボスがHPを${healAmount}吸収した！`);
+        addLog(`スキル効果: ${attacker.name}がHPを${healAmount}吸収した！`);
+        if (isPlayerUsing) updateHP();
     }
 
-    // プレイヤーへのデバフ
-    if (effect.debuff) {
+    // 防御無視
+    if (effect.ignoreDef) {
+        addLog(`スキル効果: 防御を無視！`);
+    }
+
+    // 必中
+    if (effect.sureHit) {
+        addLog(`スキル効果: 攻撃が必中！`);
+    }
+
+    // 次の攻撃クリティカル確定
+    if (effect.nextAttackCrit) {
+        addLog(`スキル効果: 次の攻撃が必ずクリティカル！`);
+    }
+
+    // プレイヤーへのデバフ（ボスが使用する場合）
+    if (!isPlayerUsing && effect.debuff) {
         switch (effect.debuff.type) {
             case 'atk':
                 me.atk = Math.floor(me.atk * (1 - effect.debuff.reduction));
-                addLog(`ボススキル効果: ${me.name}の攻撃力が低下！`);
+                addLog(`スキル効果: ${me.name}の攻撃力が低下！`);
                 break;
-            // ... 他のデバフタイプもここに追加 ...
+            case 'def':
+                me.def = Math.floor(me.def * (1 - effect.debuff.reduction));
+                addLog(`スキル効果: ${me.name}の防御力が低下！`);
+                break;
+            case 'speed':
+                me.speed = Math.floor(me.speed * (1 - effect.debuff.reduction));
+                addLog(`スキル効果: ${me.name}の速度が低下！`);
+                break;
         }
     }
+
+    // 敵へのデバフ（プレイヤーが使用する場合）
+    if (isPlayerUsing && effect.enemyDebuff) {
+        switch (effect.enemyDebuff.type) {
+            case 'atk':
+                enemyAtkDebuff = effect.enemyDebuff.reduction;
+                enemyAtkDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の攻撃力が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+            case 'def':
+                enemyDefDebuff = effect.enemyDebuff.reduction;
+                enemyDefDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の防御力が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+            case 'speed':
+                enemySpeedDebuff = effect.enemyDebuff.reduction;
+                enemySpeedDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の速度が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+        }
+    }
+
     return modifiedDamage;
 }
 
@@ -2012,9 +2058,11 @@ function generateBotQuestion() {
 }
 
 function displayQuestion(question) {
+    console.log("displayQuestion called with:", question);
     if (!question || !question.question) {
         console.error("Invalid question data:", question);
         addLog("エラー: 無効な問題データです。");
+        addLog("問題データ: " + JSON.stringify(question));
         return;
     }
     currentQuestion = question;
