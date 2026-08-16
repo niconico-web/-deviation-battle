@@ -86,7 +86,9 @@ function generateQuestion(battle) {
         const subject = subjects[Math.floor(Math.random() * subjects.length)];
         const playerGrade = humanPlayer.grade || 1;
         const bossQuestion = QuestionManager.getBossBattleQuestion(subject, playerGrade);
-        
+
+        console.log(`[BattleEngine] Boss question result:`, bossQuestion);
+
         if (bossQuestion) {
             const options = QuestionManager.generateOptions(bossQuestion.answer);
             const question = {
@@ -96,14 +98,18 @@ function generateQuestion(battle) {
                 subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
                 startTime: Date.now()
             };
-            
+
+            console.log(`[BattleEngine] Generated boss question:`, question);
+
             // プレイヤーの回答時間をリセット（新しい問題の前にリセット）
             playerIds.forEach(id => {
                 battle.players[id].answerTime = null;
             });
-            
+
             battle.currentQuestion = question;
             return question;
+        } else {
+            console.error(`[BattleEngine] Failed to generate boss question for subject=${subject}, grade=${playerGrade}`);
         }
     }
 

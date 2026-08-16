@@ -2053,9 +2053,11 @@ function generateBotQuestion() {
 }
 
 function displayQuestion(question) {
+    console.log("displayQuestion called with:", question);
     if (!question || !question.question) {
         console.error("Invalid question data:", question);
         addLog("エラー: 無効な問題データです。");
+        addLog("問題データ: " + JSON.stringify(question));
         return;
     }
     currentQuestion = question;

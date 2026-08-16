@@ -730,8 +730,11 @@ function getSubjectDisplayName(subject) {
         'math': '算数・数学',
         'jp': '国語',
         'english': '英語',
+        'eng': '英語',
         'science': '理科',
-        'social': '社会'
+        'sci': '理科',
+        'social': '社会',
+        'soc': '社会'
     };
     return subjectNames[subject] || subject;
 }
