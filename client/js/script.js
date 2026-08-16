@@ -196,11 +196,13 @@ function initializeSocket() {
             setupOnlineEventHandlers();
         }
 
-        // 保留中のデータ保存を実行
+        // 接続時は常にプレイヤーデータをサーバーへ同期する
+        // （こうしないと、pendingSaveフラグが立っていない通常の接続時には一切保存されず、
+        //   ランキングなどサーバー側の集計にプレイヤーが反映されないままになってしまう）
         if (localStorage.getItem('pendingSave') === 'true') {
             console.log("Found pending save, attempting to sync to server...");
-            syncPlayerToServer(true); // silent=trueで自動保存
         }
+        syncPlayerToServer(true); // silent=trueで自動保存
 
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
@@ -713,11 +715,57 @@ function setupSocketEventHandlers() {
         alert(`エラー: ${message}`);
     });
 
+    // 戦力ランキング受信
+    window.socket.on("ranking:list", (ranking) => {
+        renderRanking(ranking);
+    });
+
     console.log("Socket event handlers setup complete");
+}
+
+/**
+ * サーバーから受け取った戦力ランキングを画面に描画する。
+ * @param {Array<object>} ranking
+ */
+function renderRanking(ranking) {
+    const container = document.getElementById("rankingList");
+    if (!container) return;
+
+    if (!Array.isArray(ranking) || ranking.length === 0) {
+        container.innerHTML = "<p>まだランキングデータがありません。他のプレイヤーがオンラインに接続すると表示されます。</p>";
+        return;
+    }
+
+    const myPlayer = getPlayerData();
+    const myId = myPlayer ? myPlayer.id : null;
+
+    container.innerHTML = "";
+    ranking.forEach((entry, index) => {
+        const item = document.createElement("div");
+        item.className = "ranking-item" + (entry.id === myId ? " me" : "");
+
+        const studyHours = (entry.studyMinutes / 60).toFixed(1);
+
+        item.innerHTML =
+            `<div class="ranking-rank">${index + 1}位</div>
+            <div class="ranking-info">
+                <div class="ranking-name">${entry.name}（Lv.${entry.level}）</div>
+                <div class="ranking-breakdown">勉強時間: ${studyHours}時間 / 対人戦勝利: ${entry.pvpWins}勝 / ボス周回: ${entry.bossRunCount}回</div>
+            </div>
+            <div class="ranking-score">${entry.powerScore.toLocaleString()}<br><span style="font-size:0.7em;color:var(--text-secondary);">戦力</span></div>`;
+
+        container.appendChild(item);
+    });
 }
 
 // グローバルにアクセス可能に
 window.normalizePlayerId = normalizePlayerId;
+
+// デバッグ用: ブラウザのコンソールで giveDebugInstantKillWeapon() を実行すると、
+// 必中・一撃必殺の武器を現在のプレイヤーに追加・装備する（テスト用）。
+if (typeof giveDebugInstantKillWeapon === "function") {
+    window.giveDebugInstantKillWeapon = giveDebugInstantKillWeapon;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
@@ -799,6 +847,12 @@ function lockStatInputs(locked) {
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocket();
 
+    // ショップ画面（武器作成ボタン・オーブ合成モーダルなど）のイベントを初期化する
+    // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
+    if (typeof initShop === "function") {
+        initShop();
+    }
+
     // PWAインストールボタンのイベントリスナー
     const installButton = document.getElementById('install-button');
     if (installButton) {
@@ -852,6 +906,15 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileMenuToggle.addEventListener('click', toggleMobileMenu);
     }
 
+    const refreshRankingBtn = document.getElementById('refreshRankingBtn');
+    if (refreshRankingBtn) {
+        refreshRankingBtn.addEventListener('click', () => {
+            if (window.socket) {
+                window.socket.emit('ranking:get');
+            }
+        });
+    }
+
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeMobileMenu);
     }
@@ -867,6 +930,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeSection = document.getElementById(`section-${section}`);
             if (activeSection) {
                 activeSection.classList.add('active');
+            }
+
+            if (section === 'ranking' && window.socket) {
+                window.socket.emit('ranking:get');
+            }
+
+            // ショップ・インベントリタブを開いたときは最新状態を再描画する
+            // （そうしないと、キャラクター作成直後などは何も表示されないままになる）
+            if (section === 'shop' || section === 'inventory') {
+                if (typeof renderShop === "function") renderShop();
+                if (typeof renderInventory === "function") renderInventory();
+                if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+                if (typeof renderMaterialsInventory === "function") renderMaterialsInventory();
             }
 
             closeMobileMenu();
@@ -920,16 +996,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (createCharBtn) {
         createCharBtn.addEventListener('click', createCharacter);
     }
-    const deletePlayerBtn = document.getElementById("deletePlayerBtn");
-    if (deletePlayerBtn) {
-        deletePlayerBtn.addEventListener('click', () => {
-            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
-            if (studyStartTime !== null) stopStudy();
-            localStorage.clear();
-            alert(I18N.deleted);
-            location.reload();
-        });
-    }
 
     // プレイヤーデータの読み込みとUIの初期化
     const player = getPlayerData();
@@ -963,4 +1029,58 @@ document.addEventListener('DOMContentLoaded', () => {
     statInputs.forEach(input => {
         input.addEventListener('input', updateRemainingPoints);
     });
+
+    // プレイヤー削除ボタンのイベントリスナーを再設定
+    // UIの動的な書き換えでリスナーが消える問題に対応
+    const deletePlayerBtn = document.getElementById("deletePlayerBtn");
+    if (deletePlayerBtn) {
+        // 既存のリスナーを削除して再設定するために、要素をクローンして置き換える
+        const newBtn = deletePlayerBtn.cloneNode(true);
+        deletePlayerBtn.parentNode.replaceChild(newBtn, deletePlayerBtn);
+
+        newBtn.addEventListener('click', () => {
+            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
+            if (studyStartTime !== null) stopStudy();
+            localStorage.clear();
+            alert(I18N.deleted);
+            location.reload();
+        });
+    }
 });
+
+/**
+ * デバッグ用の一撃必殺武器をプレイヤーに付与するコマンド
+ */
+function giveOneShotWeapon() {
+    const player = getPlayerData();
+    if (!player) {
+        console.error("プレイヤーが存在しません。");
+        return;
+    }
+
+    // デバッグ武器の定義
+    const debugWeapon = {
+        id: `debug_one_shot_${Date.now()}`,
+        name: "デバッガーズ・ジェノサイド",
+        type: "spear", // どの武器種でも良い
+        isOriginal: true, // オリジナル武器として扱うと管理が楽
+        multiplier: 999,
+        statBonuses: { atk: 999 },
+        uniqueAbilities: [
+            ORB_UNIQUE_ABILITIES.one_shot_kill, // 一撃必殺
+            ORB_UNIQUE_ABILITIES.sure_hit      // 必中
+        ],
+        ultimateName: "コード・デストラクション"
+    };
+
+    const updatedPlayer = addWeaponToPlayer(player, debugWeapon);
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+
+    alert(`デバッグ武器「${debugWeapon.name}」を付与しました。インベントリを確認し、装備してください。`);
+    // UIを更新
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof renderOriginalWeapons === 'function') renderOriginalWeapons();
+    if (typeof updateStatus === 'function') updateStatus(updatedPlayer);
+}
+// コンソールからアクセスできるようにグローバルに公開
+window.giveOneShotWeapon = giveOneShotWeapon;

@@ -158,6 +158,10 @@ const SKILL_TREE = {
             { id: "magic_branch_r1", name: "氷魔法", description: "攻撃+15, 敵速さ低下率+5%", cost: 3, x: 3, y: -11, requires: "magic_path_3", type: "stat", effect: { atk: 15, speedDebuff: 0.05 } },
             { id: "magic_branch_r2", name: "絶対零度", description: "攻撃+20, 敵速さ低下率+10%", cost: 3, x: 5, y: -12, requires: "magic_branch_r1", type: "stat", effect: { atk: 20, speedDebuff: 0.1 } },
             { id: "blizzard", name: "ブリザード", description: "次の攻撃2.0倍、敵速さ3ターン低下", cost: 6, x: 7, y: -13, requires: "magic_branch_r2", type: "active", effect: { type: "active", damageMultiplier: 2.0, speedDebuff: 0.3, speedDebuffTurns: 3 } },
+            // Magic branch: 雷魔法（火魔法・氷魔法に続く3本目の魔法分岐）
+            { id: "thunder_path_1", name: "雷魔法", description: "攻撃+15, クリティカル率+5%", cost: 3, x: -10, y: -12, requires: "magic_path_4", type: "stat", effect: { atk: 15, critChance: 0.05 } },
+            { id: "thunder_path_2", name: "雷神", description: "攻撃+20, クリティカル率+8%", cost: 3, x: -13, y: -13, requires: "thunder_path_1", type: "stat", effect: { atk: 20, critChance: 0.08 } },
+            { id: "thunder_storm", name: "サンダーストーム", description: "次の攻撃2.2倍、必ずクリティカルになる", cost: 6, x: -16, y: -14, requires: "thunder_path_2", type: "active", effect: { type: "active", damageMultiplier: 2.2, nextAttackCrit: true } },
 
             // --- 特殊・クリティカルルート (左側) ---
             { id: "crit_path_1", name: "精密", description: "クリティカル率+2%", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },

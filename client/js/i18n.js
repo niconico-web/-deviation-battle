@@ -112,3 +112,9 @@ const I18N = {
     matchFound: "対戦相手が見つかりました！",
     matchCancelled: "マッチングキャンセル"
 };
+
+// script.js などから `window.I18N` として参照される箇所があるため、明示的にグローバル公開する
+// （const 宣言はトップレベルでも window のプロパティにはならないため）
+if (typeof window !== 'undefined') {
+    window.I18N = I18N;
+}

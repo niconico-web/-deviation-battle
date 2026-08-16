@@ -19,46 +19,46 @@ body {
     align-items: center;
     color: #fff;
     font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
-    padding: 16px;
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
 }
 
 #resultCard {
     width: 100%;
-    max-width: 520px;
+    max-width: 480px;
     background: rgba(255, 255, 255, 0.08);
     backdrop-filter: blur(12px);
-    border-radius: 20px;
-    padding: 28px 20px;
+    border-radius: 16px;
+    padding: 18px 16px;
     text-align: center;
     box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
 }
 
 #resultTitle {
-    font-size: clamp(1.75rem, 8vw, 2.75rem);
-    margin-bottom: 20px;
+    font-size: clamp(1.5rem, 7vw, 2.25rem);
+    margin-bottom: 12px;
     line-height: 1.2;
 }
 
 .result-stats p {
-    font-size: clamp(1rem, 4vw, 1.25rem);
-    margin: 12px 0;
+    font-size: clamp(0.9375rem, 3.6vw, 1.125rem);
+    margin: 7px 0;
 }
 
 .buttonArea {
     display: grid;
-    gap: 10px;
-    margin-top: 28px;
+    gap: 8px;
+    margin-top: 16px;
 }
 
 .btn {
     width: 100%;
-    min-height: 48px;
-    padding: 12px 16px;
-    font-size: 1rem;
+    min-height: 42px;
+    padding: 10px 14px;
+    font-size: 0.9375rem;
     font-weight: 600;
     border: none;
-    border-radius: 12px;
+    border-radius: 10px;
     cursor: pointer;
     touch-action: manipulation;
     transition: transform 0.15s;
@@ -94,6 +94,6 @@ body {
     }
 
     #resultCard {
-        padding: 36px 32px;
+        padding: 26px 28px;
     }
 }

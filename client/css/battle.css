@@ -16,8 +16,8 @@ body {
     background: linear-gradient(135deg, #1e3c72, #2a5298);
     color: #fff;
     font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
-    padding: 12px;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    padding: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
 }
 
 .battle-container {
@@ -28,24 +28,24 @@ body {
 
 .battle-header {
     text-align: center;
-    margin-bottom: 16px;
-}
-
-.battle-header h1 {
-    font-size: clamp(1.25rem, 5vw, 2rem);
     margin-bottom: 8px;
 }
 
+.battle-header h1 {
+    font-size: clamp(1.0625rem, 4vw, 1.5rem);
+    margin-bottom: 2px;
+}
+
 .turn-text {
-    font-size: clamp(1rem, 4vw, 1.25rem);
-    min-height: 1.5em;
+    font-size: clamp(0.875rem, 3.2vw, 1.0625rem);
+    min-height: 1.3em;
     font-weight: 600;
 }
 
 .players {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     align-items: stretch;
 }
 
@@ -53,30 +53,30 @@ body {
     position: relative;
     width: 100%;
     background: rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
-    padding: 16px;
+    border-radius: 12px;
+    padding: 10px 12px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 .card-label {
     text-align: center;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     color: #ccc;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .card h2 {
     text-align: center;
-    margin-bottom: 12px;
-    font-size: clamp(1.125rem, 4vw, 1.5rem);
+    margin-bottom: 6px;
+    font-size: clamp(1rem, 3.4vw, 1.25rem);
     word-break: break-all;
 }
 
 .hpbar {
     width: 100%;
-    height: 24px;
+    height: 16px;
     background: #555;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
 }
 
@@ -93,26 +93,30 @@ body {
 
 .hp-text {
     text-align: center;
-    margin: 8px 0 12px;
-    font-size: 0.9375rem;
+    margin: 4px 0 6px;
+    font-size: 0.8125rem;
+}
+
+.gauge-container {
+    margin-bottom: 2px;
 }
 
 .ultimate-gauge {
-    margin: 8px 0 12px;
+    margin: 2px 0 6px;
 }
 
 .ultimate-label {
     text-align: center;
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     color: #ffeb3b;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .ultimate-bar {
     width: 100%;
-    height: 16px;
+    height: 10px;
     background: #333;
-    border-radius: 8px;
+    border-radius: 5px;
     overflow: hidden;
 }
 
@@ -129,74 +133,75 @@ body {
 
 .ultimate-text {
     text-align: center;
-    margin-top: 4px;
-    font-size: 0.8125rem;
+    margin-top: 2px;
+    font-size: 0.6875rem;
     color: #ffeb3b;
 }
 
 .stats {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
 }
 
 .stats p {
     background: rgba(255, 255, 255, 0.1);
-    padding: 10px 8px;
-    border-radius: 8px;
+    padding: 6px 2px;
+    border-radius: 6px;
     text-align: center;
-    font-size: 0.875rem;
+    font-size: 0.6875rem;
+    white-space: nowrap;
 }
 
 .vs {
     text-align: center;
-    font-size: clamp(1.5rem, 6vw, 2.5rem);
+    font-size: clamp(1.125rem, 4.5vw, 1.75rem);
     font-weight: bold;
-    padding: 4px 0;
+    padding: 0;
 }
 
 .question-section {
-    margin: 16px 0;
+    margin: 8px 0;
     background: rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 16px;
+    border-radius: 10px;
+    padding: 10px 12px;
 }
 
 #questionTitle {
-    font-size: 1rem;
+    font-size: 0.875rem;
     color: #ccc;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     text-align: center;
 }
 
 .question-display {
-    font-size: clamp(1.25rem, 5vw, 1.75rem);
+    font-size: clamp(1.0625rem, 4vw, 1.5rem);
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     font-weight: 600;
-    min-height: 3em;
+    min-height: 2em;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 .answer-section {
-    margin-bottom: 12px;
+    margin-bottom: 6px;
 }
 
 .choices-container {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: 6px;
 }
 
 .choice-btn {
-    padding: 16px 12px;
+    padding: 10px 8px;
     border: none;
     border-radius: 8px;
     background: rgba(255, 255, 255, 0.9);
     color: #333;
-    font-size: 1rem;
+    font-size: 0.9375rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
@@ -220,26 +225,26 @@ body {
 
 .timer {
     text-align: center;
-    font-size: 1.5rem;
+    font-size: 1.125rem;
     font-weight: bold;
     color: #ffeb3b;
     font-family: monospace;
 }
 
 .battle-log {
-    margin-top: 16px;
+    margin-top: 8px;
     background: rgba(0, 0, 0, 0.35);
-    padding: 14px;
-    border-radius: 12px;
-    min-height: 120px;
-    max-height: 200px;
-    font-size: 0.9375rem;
+    padding: 8px 10px;
+    border-radius: 10px;
+    min-height: 64px;
+    max-height: 140px;
+    font-size: 0.8125rem;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
 
 .battle-log div {
-    margin-bottom: 4px;
+    margin-bottom: 3px;
 }
 
 .damage {
@@ -283,18 +288,18 @@ body {
 
 @media (min-width: 768px) {
     body {
-        padding: 24px;
+        padding: 16px;
     }
 
     .players {
         flex-direction: row;
         align-items: center;
-        gap: 20px;
+        gap: 16px;
     }
 
     .card {
         flex: 1;
-        padding: 20px;
+        padding: 14px 16px;
     }
 
     .vs {
@@ -304,20 +309,20 @@ body {
 
     .commands {
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
+        gap: 12px;
         max-width: 900px;
         margin-left: auto;
         margin-right: auto;
     }
 
     .cmd-btn {
-        min-height: 56px;
-        font-size: 1.125rem;
+        min-height: 48px;
+        font-size: 1rem;
     }
 
     .battle-log {
-        font-size: 1rem;
-        max-height: 240px;
+        font-size: 0.9375rem;
+        max-height: 180px;
     }
 }
 
@@ -471,27 +476,27 @@ body {
 /* スキルセクションのスタイル */
 .skills-section {
     text-align: center;
-    margin: 16px 0;
-    padding: 10px;
+    margin: 8px 0;
+    padding: 8px;
     background: rgba(0, 0, 0, 0.2);
     border-radius: 8px;
 }
 
 .skills-section h3 {
-    margin: 0 0 10px;
-    font-size: 14px;
+    margin: 0 0 6px;
+    font-size: 12px;
     color: #eee;
 }
 
 .skill-slots {
     display: flex;
     justify-content: center;
-    gap: 10px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .skill-slot {
-    padding: 10px 14px;
+    padding: 6px 10px;
     font-size: 12px;
     border: 2px solid #888;
     background-color: #555;
@@ -499,22 +504,22 @@ body {
     cursor: pointer;
     border-radius: 8px;
     transition: all 0.2s;
-    min-width: 100px;
-    min-height: 50px;
+    min-width: 84px;
+    min-height: 40px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 2px;
 }
 
 .skill-slot .skill-name {
     font-weight: bold;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 .skill-slot .skill-desc {
-    font-size: 10px;
+    font-size: 9px;
     color: #ccc;
     text-align: center;
 }
