@@ -321,8 +321,12 @@ function renderMaterialsInventory() {
     container.innerHTML = "";
 
     const player = getPlayerData();
+
     // materials は { materialId: 個数 } の辞書形式で管理されている
     if (!player || !player.materials || Object.keys(player.materials).length === 0) {
+
+    if (!player || !player.materials || player.materials.length === 0) {
+
         container.innerHTML = "<p>素材を所持していません。</p>";
         return;
     }
@@ -348,8 +352,13 @@ function renderMaterialsInventory() {
             item.className = "inventory-item";
             item.innerHTML = `
                 <div class="inventory-item-info">
+<<<<<<< HEAD
                     <strong>${materialName}</strong>
                     <span>所持数: ${count}</span>
+=======
+                    <strong>${material.name}</strong>
+                    <span>所持数: ${material.count}</span>
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
                 </div>`;
             container.appendChild(item);
         }
@@ -1103,4 +1112,5 @@ if (document.readyState === "loading") {
     });
 } else {
     setTimeout(initShop, 100);
+}
 }

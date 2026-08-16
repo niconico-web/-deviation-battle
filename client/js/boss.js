@@ -1,7 +1,17 @@
 // ボス武器の基礎倍率（最弱ボスの討伐直後の状態）。ここから限界突破で上限を伸ばして「強化」で近づけていく。
 const BOSS_WEAPON_BASE_MULTIPLIER = 2.0;
 // ボスの強さ（bosses.json内の並び順 = 弱い順）が1段階上がるごとに、ドロップする武器の基礎倍率が伸びる量
+
 // （下のテーブルに載っていない新しいボスが追加された場合のフォールバック用）
+
+
+// （下のテーブルに載っていない新しいボスが追加された場合のフォールバック用）
+
+
+// （下のテーブルに載っていない新しいボスが追加された場合のフォールバック用）
+
+
+
 const BOSS_WEAPON_TIER_MULTIPLIER_STEP = 0.25;
 // 限界突破1回あたりの上限倍率の増加量
 const BOSS_WEAPON_LIMIT_BREAK_INCREMENT = 0.5;
@@ -176,6 +186,10 @@ function applyBossRewards(player, boss) {
 
         if (drop.type === 'weapon' && !ownedWeaponBefore) {
             const weapon = generateBossWeapon(fullBossData, drop.name);
+
+            const tierIndex = getBossTierIndex(fullBossData.id);
+            const weapon = generateBossWeapon(fullBossData, drop.name, tierIndex);
+
             if (weapon) {
                 newPlayer = addWeaponToPlayer(newPlayer, weapon);
                 rewardsForDisplay.bossWeapon = weapon;
@@ -254,14 +268,36 @@ function markBossDefeated(player, bossId, difficulty) {
 
 /**
  * Generates a boss-themed weapon with 3 random unique abilities for the 'medium' difficulty reward.
+<<<<<<< HEAD
  * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+<<<<<<< HEAD
+ * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+<<<<<<< HEAD
+ * 基礎倍率はボスごとに定義されたテーブル（BOSS_WEAPON_MULTIPLIER_BY_ID）から決まる。
+=======
+ * 基礎倍率は BOSS_WEAPON_BASE_MULTIPLIER を起点に、ボスの強さティアに応じて上乗せされる。
+>>>>>>> 78d5b0d6a7064766067478d744fb2de115ad1521
+>>>>>>> 0fa794c85af03ea59c7aae2fa76f0c083f1e6af7
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
  * 限界突破するまではこれが上限。限界突破素材を使うことで上限倍率が0.5ずつ伸び、
  * その分「強化」でさらに鍛えられるようになる。
  * @param {object} boss - The defeated boss object.
  * @param {string} weaponName - The name for the new weapon.
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+ * @param {number} [tierIndex=0] - ボスの強さティア（bosses.json内の並び順、弱い順）。
+>>>>>>> 78d5b0d6a7064766067478d744fb2de115ad1521
+>>>>>>> 0fa794c85af03ea59c7aae2fa76f0c083f1e6af7
+>>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
  * @returns {object|null} A weapon object or null.
  */
-function generateBossWeapon(boss, weaponName) {
+function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     if (!boss || !weaponName) return null;
 
     // Get all available unique abilities from weapons.js
@@ -287,6 +323,11 @@ function generateBossWeapon(boss, weaponName) {
 
     // ボスごとの基礎倍率（強いボスほど強い武器がドロップする）
     const baseMultiplier = getBossWeaponBaseMultiplier(boss.id);
+
+    // ボスの強さティアに応じて基礎倍率を上乗せする（強いボスほど強い武器がドロップする）
+    const baseMultiplier = Math.round((BOSS_WEAPON_BASE_MULTIPLIER + tierIndex * BOSS_WEAPON_TIER_MULTIPLIER_STEP) * 100) / 100;
+
+
 
     // Create a powerful original weapon (base state — 限界突破と強化で伸ばしていく)
     const weapon = {
