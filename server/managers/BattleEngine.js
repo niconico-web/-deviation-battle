@@ -71,18 +71,20 @@ function applyOrbDebuffs(stats, player) {
 
 function generateQuestion(battle) {
     const playerIds = Object.keys(battle.players);
-    const player1 = battle.players[playerIds[0]];
-    const player2 = battle.players[playerIds[1]];
 
-    console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}, isBossBattle=${battle.isBossBattle}`);
-
-    // Check if this is a boss battle
+    // Check if this is a boss battle (レイドで3人以上いる場合を含む)
     if (battle.isBossBattle) {
+        // グレードは、生存している人間プレイヤー（ボス以外）の中から代表して1人分を使う
+        const humanPlayer = playerIds
+            .map(id => battle.players[id])
+            .find(p => !p.isBoss) || battle.players[playerIds[0]];
+
+        console.log(`[BattleEngine] generateQuestion (boss/raid): grade=${humanPlayer.grade}, playerCount=${playerIds.length}`);
         console.log('[BattleEngine] Using boss question system');
         // For boss battles, use boss questions with player's grade
         const subjects = ['math', 'jp', 'eng', 'sci', 'soc'];
         const subject = subjects[Math.floor(Math.random() * subjects.length)];
-        const playerGrade = player1.grade || 1;
+        const playerGrade = humanPlayer.grade || 1;
         const bossQuestion = QuestionManager.getBossBattleQuestion(subject, playerGrade);
         
         if (bossQuestion) {
@@ -104,6 +106,11 @@ function generateQuestion(battle) {
             return question;
         }
     }
+
+    const player1 = battle.players[playerIds[0]];
+    const player2 = battle.players[playerIds[1]];
+
+    console.log(`[BattleEngine] generateQuestion: player1Grade=${player1.grade}, player2Grade=${player2.grade}, isBossBattle=${battle.isBossBattle}`);
 
     // 教科をランダムに選択
     let subject = ['math', 'jp', 'english'][Math.floor(Math.random() * 3)];
@@ -229,14 +236,14 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
  */
 function applyUniqueAbilityDamageBonus(damage, attacker) {
     let finalDamage = damage;
-    
-    // 必殺: 20%の確率でダメージ1.5倍
-    if (hasUniqueAbility(attacker, "critical_damage")) {
-        if (Math.random() < 0.20) {
-            finalDamage = Math.floor(finalDamage * 1.5);
-        }
+
+    // クリティカル判定：常時5%の確率で発生する。
+    // 「必殺」の固有能力を武器に持っている場合は、クリティカル率が30%まで上がる。
+    const critChance = hasUniqueAbility(attacker, "critical_damage") ? 0.30 : 0.05;
+    if (Math.random() < critChance) {
+        finalDamage = Math.floor(finalDamage * 1.5);
     }
-    
+
     return finalDamage;
 }
 
@@ -361,12 +368,233 @@ function getStatWithDebuffs(player, statName) {
     return Math.max(0, value);
 }
 // -----------------------------
+// レイドボス戦の回答処理（3人以上のパーティ対応）
+// -----------------------------
+
+/**
+ * レイドボス戦（パーティ対ボス）用の回答処理。
+ * 1対1のprocessAnswerとは異なり、正解した各プレイヤーがそれぞれボスにダメージを与え、
+ * 不正解の場合はボスがそのプレイヤー個人に反撃する。
+ * その周（ラウンド）で生存している全員が回答し終えたら次の問題に進む。
+ * @param {object} battle
+ * @param {string} playerId
+ * @param {string} answer
+ * @param {object} usedSkill
+ * @returns {object} result
+ */
+function processRaidAnswer(battle, playerId, answer, usedSkill) {
+    const player = battle.players[playerId];
+    const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
+    const boss = battle.players[bossId];
+
+    if (!player || !boss) {
+        return { error: "Invalid raid battle state" };
+    }
+    if (!battle.currentQuestion) {
+        return { error: "No active question" };
+    }
+    if (player.hp <= 0) {
+        return { error: "既に戦闘不能です" };
+    }
+    if (player.answerTime !== null) {
+        return { error: "この問題には既に回答済みです" };
+    }
+
+    const answerTime = Date.now() - battle.currentQuestion.startTime;
+    player.answerTime = answerTime;
+
+    const isCorrect = QuestionManager.checkAnswer(battle.currentQuestion, answer);
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        isCorrect,
+        answerTime,
+        question: battle.currentQuestion.question,
+        skillUsed: null,
+        raid: true
+    };
+
+    // スキルの発動判定と、攻撃を伴わない効果の即時適用
+    let activeSkillEffect = null;
+    if (usedSkill && usedSkill.effect) {
+        const eff = usedSkill.effect;
+        let canApply = true;
+        if (eff.condition && eff.condition.type === 'hp_below') {
+            if (player.maxHp > 0 && player.hp / player.maxHp > eff.condition.value) {
+                canApply = false;
+            }
+        }
+        if (canApply) {
+            activeSkillEffect = eff;
+            result.skillUsed = usedSkill;
+            applyInstantSkillEffects(player, boss, eff, result);
+        } else {
+            result.skillFailed = usedSkill.name;
+        }
+    }
+
+    if (isCorrect) {
+        player.correctAnswers++;
+
+        if (!player.ultimateGauge) {
+            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        }
+        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + ULTIMATE_GAUGE_PER_CORRECT);
+        result.ultimateGauge = player.ultimateGauge.current;
+        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+
+        const skillIsActive = !!activeSkillEffect;
+        let isAttackerIgnoreDef = hasUniqueAbility(player, "ignore_def_half");
+        if (skillIsActive && activeSkillEffect.ignoreDef) isAttackerIgnoreDef = true;
+
+        // 「根性」の攻撃力アップ効果
+        let attackerAtk = player.atk;
+        if (player.hp === 1 && hasUniqueAbility(player, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = player.name;
+        }
+
+        // レイドボスは基本的に回避しない（多人数を相手取る巨大な敵という前提の簡略化）
+        let damageResult = calculateDamage(player, boss, answerTime, {
+            isSureHit: true,
+            attackerAtk,
+            ignoreDef: isAttackerIgnoreDef,
+            defenderDef: boss.def
+        });
+        let damage = damageResult.damage;
+
+        if (skillIsActive) {
+            if (activeSkillEffect.damageMultiplier) damage = Math.floor(damage * activeSkillEffect.damageMultiplier);
+            if (activeSkillEffect.nextAttackCrit) {
+                damage = Math.floor(damage * 1.5);
+                result.skillCrit = true;
+            }
+            const strikeCount = Math.max(1, Math.min(5, activeSkillEffect.multiStrike || 1));
+            if (strikeCount > 1) {
+                const perHitRate = activeSkillEffect.multiStrikeMultiplier || 0.6;
+                damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
+                result.multiStrike = strikeCount;
+            }
+        }
+
+        if (player.skipTurn) {
+            player.skipTurn = false;
+            damage = 0;
+            result.skippedTurn = true;
+        }
+
+        // 必殺技発動判定（ゲージが満タンの場合）
+        if (player.ultimateGauge.current >= player.ultimateGauge.max && damage > 0) {
+            damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+            result.ultimateActivated = true;
+            result.ultimateDamage = damage;
+            player.ultimateGauge.current = 0;
+            result.ultimateGauge = 0;
+            result.ultimateReady = false;
+        }
+
+        damage = applyUniqueAbilityDamageBonus(damage, player);
+
+        if (damage > 0) {
+            boss.hp = Math.max(0, boss.hp - damage);
+            result.damage = damage;
+            result.enemyHp = boss.hp;
+
+            if (skillIsActive && activeSkillEffect.lifeSteal) {
+                const stolen = Math.floor(damage * activeSkillEffect.lifeSteal);
+                if (stolen > 0) {
+                    player.hp = Math.min(player.maxHp, player.hp + stolen);
+                    result.skillLifeSteal = stolen;
+                }
+            }
+            const healAmount = applyLifeDrain(player, damage);
+            if (healAmount > 0) {
+                player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+        } else {
+            result.damage = 0;
+        }
+
+        if (boss.hp <= 0) {
+            battle.finished = true;
+            result.winner = 'party';
+            result.raidVictory = true;
+        }
+    } else {
+        // 不正解: ボスがそのプレイヤー個人に反撃する
+        const damageResult = calculateDamage(boss, player, 0, {
+            defenderDef: getStatWithDebuffs(player, 'def')
+        });
+        let damage = damageResult.damage;
+        const dodgeChance = damageResult.dodgeChance;
+        const dodgeRoll = Math.random() * 100;
+
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            let finalDamage = applyUniqueAbilityDefense(damage, player);
+            if (player.hp - finalDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
+                player.hp = 1;
+                result.gutsSurvive = true;
+                result.gutsSurvivePlayerName = player.name;
+            } else {
+                player.hp = Math.max(0, player.hp - finalDamage);
+            }
+            result.damage = finalDamage;
+            result.playerHp = player.hp;
+            result.wrongAnswer = true;
+        }
+
+        if (player.hp <= 0) {
+            result.playerDown = true;
+            const anyoneAlive = Object.values(battle.players).some(p => !p.isBoss && p.hp > 0);
+            if (!anyoneAlive) {
+                battle.finished = true;
+                result.winner = bossId;
+                result.raidDefeat = true;
+            }
+        }
+    }
+
+    // このラウンドで、生存しているプレイヤー全員が回答し終えたら次の問題へ
+    const alivePlayers = Object.values(battle.players).filter(p => !p.isBoss && p.hp > 0);
+    const allAnswered = alivePlayers.length > 0 && alivePlayers.every(p => p.answerTime !== null);
+
+    if (!battle.finished && allAnswered) {
+        generateQuestion(battle);
+        alivePlayers.forEach(p => tickDebuffs(p));
+        tickBurn(boss, result, 'bossBurnTick');
+        result.nextQuestion = battle.currentQuestion;
+        result.roundComplete = true;
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
+// -----------------------------
 // 回答を処理
 // -----------------------------
 
 function processAnswer(battle, playerId, answer, usedSkill) {
     const player = battle.players[playerId];
-    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    // ボス戦（レイドで3人以上いる場合を含む）では、常にisBoss:trueのプレイヤーを敵として扱う。
+    // 通常のPvP（1対1）では、自分以外の唯一のプレイヤーが敵になる。
+    // ※以前は「自分以外の最初のプレイヤー」を機械的に敵にしていたため、
+    //   3人以上のレイドバトルでは味方が誤って敵として扱われてしまっていた。
+    const enemyId = battle.isBossBattle
+        ? Object.keys(battle.players).find(id => battle.players[id].isBoss)
+        : Object.keys(battle.players).find(id => id !== playerId);
     const enemy = battle.players[enemyId];
     
     if (!battle.currentQuestion) {
@@ -724,6 +952,7 @@ module.exports = {
     generateQuestion,
     calculateDamage,
     processAnswer,
+    processRaidAnswer,
     initializeBattle,
     finalizeBattle
 };
