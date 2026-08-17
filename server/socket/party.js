@@ -44,14 +44,13 @@ module.exports = function(io) {
             console.log(`[Party] Player ${player.name} joined party: ${partyId}`);
         });
 
-        socket.on('party:leave', () => {
-            const player = PlayerManager.getPlayer(socket.id);
-            if (!player) return;
+        socket.on('party:leave', ({ playerId }) => {
+            if (!playerId) return;
 
-            const partyBeforeLeave = PartyManager.getPartyByPlayerId(player.id);
+            const partyBeforeLeave = PartyManager.getPartyByPlayerId(playerId);
             const partyId = partyBeforeLeave ? partyBeforeLeave.id : null;
 
-            const result = PartyManager.leaveParty(player.id);
+            const result = PartyManager.leaveParty(playerId);
 
             if (result.error) {
                 return socket.emit('party:error', { message: result.error });
@@ -62,7 +61,9 @@ module.exports = function(io) {
                 if (result.partyDeleted) {
                     console.log(`[Party] Party ${partyId} disbanded.`);
                 } else {
-                    console.log(`[Party] Player ${player.name} left party ${partyId}`);
+                    // プレイヤー名を取得するためにPlayerManagerを参照するが、なければIDでログを出す
+                    const player = Object.values(PlayerManager.getPlayers()).find(p => p.id === playerId);
+                    console.log(`[Party] Player ${player?.name || playerId} left party ${partyId}`);
                     io.to(partyId).emit('party:update', result.party);
                 }
             }
@@ -133,6 +134,30 @@ module.exports = function(io) {
             });
 
             console.log(`[Party] Boss battle started for party ${party.id} against ${boss.name} (room: ${roomId})`);
+        });
+
+        socket.on('disconnect', () => {
+            const party = PartyManager.getPartyBySocketId(socket.id);
+            if (party) {
+                const member = party.members.find(m => m.socketId === socket.id);
+                if (member) {
+                    console.log(`[Party] Player ${member.player.name} disconnected from party ${party.id}`);
+                    const result = PartyManager.leaveParty(member.id);
+
+                    if (result.error) {
+                        console.error(`[Party] Error on disconnect-leave: ${result.error}`);
+                        return;
+                    }
+
+                    if (result.partyDeleted) {
+                        console.log(`[Party] Party ${party.id} disbanded due to player disconnect.`);
+                    } else {
+                        // 残りのメンバーに更新を通知
+                        io.to(party.id).emit('party:update', result.party);
+                        console.log(`[Party] Updated party ${party.id} after player disconnect.`);
+                    }
+                }
+            }
         });
     });
 };
