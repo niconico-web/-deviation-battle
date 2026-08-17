@@ -175,7 +175,7 @@ const SKILL_TREE = {
             { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%（基礎5%に加算）", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
             { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%（基礎5%に加算）", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
             { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%（基礎5%に加算）, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
-            { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP50%以上残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.5 } },
+            { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP25%以下残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.25 } },
 
             // --- タンク・防御ルート (右側) ---
             { id: "tank_path_1", name: "頑健", description: "HP+20", cost: 2, x: 8, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 20 } },
@@ -1114,13 +1114,13 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
-
+}
     if (desc.includes("即死") || desc.includes("一撃必殺") || desc.includes("instant kill") || desc.includes("one shot")) {
         if (!finalEffect.damageMultiplier) {
             finalEffect.damageMultiplier = 10.0;
         }
         effectFound = true;
-    }
+    
 
     if (desc.includes("麻痺") || desc.includes("スタン") || desc.includes("paralyze") || desc.includes("stun")) {
         finalEffect.skipNextTurn = true;

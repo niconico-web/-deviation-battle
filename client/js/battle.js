@@ -1368,17 +1368,25 @@ function applySkillEffect(damage, attacker, defender, skill) {
     
     // バーサーク（HPが低い時に強化）
     if (effect.berserk) {
-        const hpRatio = attacker.hp / attacker.maxHp;
-        if (hpRatio <= 0.5) {
-            modifiedDamage = Math.floor(modifiedDamage * effect.berserk);
-            addLog(`スキル効果: バーサーク発動！ダメージ${effect.berserk}倍！`);
+        if (typeof effect.berserk === 'number') {
+            const hpRatio = attacker.hp / attacker.maxHp;
+            if (hpRatio <= 0.5) {
+                modifiedDamage = Math.floor(modifiedDamage * effect.berserk);
+                addLog(`スキル効果: バーサーク発動！ダメージ${effect.berserk}倍！`);
+            }
         }
     }
     
-    // エクスキュート（相手HPが低い時に強化）
-    if (effect.execute) {
+    // エクスキュート（即死効果）
+    if (effect.execute === true && effect.executeThreshold) {
         const hpRatio = defender.hp / defender.maxHp;
-        if (hpRatio <= 0.3) {
+        if (hpRatio <= effect.executeThreshold) {
+            addLog(`スキル効果: オーバーキル発動！`);
+            modifiedDamage = 99999; // 事実上の即死ダメージ
+        }
+    } else if (typeof effect.execute === 'number') { // エクスキュート（ダメージ増加効果）
+        const hpRatio = defender.hp / defender.maxHp;
+        if (hpRatio <= 0.3) { // 既存のカスタムスキル用のロジックは維持
             modifiedDamage = Math.floor(modifiedDamage * effect.execute);
             addLog(`スキル効果: エクスキュート発動！ダメージ${effect.execute}倍！`);
         }
@@ -2335,6 +2343,16 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(myDef * 0.1);
         let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
         
+        // ボス戦の場合、ボスがスキルを使うことがある
+        let bossUsedSkillOnMiss = null;
+        if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+            // 30%の確率でスキル使用
+            if (Math.random() < 0.3) {
+                bossUsedSkillOnMiss = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+                damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkillOnMiss);
+            }
+        }
+
         // 鉄壁（相手からの攻撃のダメージ50%カット）
         if (hasUniqueAbility(me, 'damage_cut_half')) {
             damage = Math.floor(damage * 0.5);
