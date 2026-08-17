@@ -22,21 +22,23 @@
     </div>
 
     <div class="app-container">
-        <button id="mobileMenuToggle" class="mobile-menu-toggle">☰</button>
-        <div id="sidebarOverlay" class="sidebar-overlay"></div>
         <aside class="sidebar">
+            <button id="mobileMenuToggle" class="mobile-menu-toggle">☰</button>
             <nav class="main-menu">
-                <button class="menu-btn active" data-section="stats"><span>👤</span> ステータス</button>
-                <button class="menu-btn" data-section="study"><span>📚</span> 勉強</button>
+                <button class="menu-btn active" data-section="stats"><span>📝</span> ステータス</button>
+                <button class="menu-btn" data-section="study"><span>📖</span> 勉強</button>
+                <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
                 <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
                 <button class="menu-btn" data-section="inventory"><span>🎒</span> インベントリ</button>
-                <button class="menu-btn" data-section="skill-tree"><span>🌳</span> スキルツリー</button>
+                <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
-                <button class="menu-btn" data-section="party"><span>🤝</span> パーティ</button>
+                <button class="menu-btn" data-section="party"><span>👥</span> パーティ</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
+                <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
                 <button class="menu-btn" data-section="help"><span>❓</span> ヘルプ</button>
             </nav>
         </aside>
+        <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
         <main class="main-content">
             <section id="section-stats" class="content-section active">
@@ -92,6 +94,16 @@
                 </div>
             </section>
 
+            <section id="section-missions" class="content-section">
+                <h2>デイリーミッション</h2>
+                <div id="daily-missions-list" class="missions-container">
+                    <!-- Daily missions will be rendered here -->
+                </div>
+                <div id="daily-final-reward" class="final-reward-container">
+                    <!-- Final reward status will be rendered here -->
+                </div>
+            </section>
+
             <section id="section-shop" class="content-section">
                 <h2>ショップ</h2>
                 <div class="setting-box">
@@ -104,12 +116,12 @@
                 </div>
                 <h3>オリジナル武器作成</h3>
                 <div class="setting-box">
-                    <p>オリジナル武器を作成して、自分だけの最強武器を手に入れよう！</p>
-                    <button id="createOriginalWeaponBtn" class="btn btn-primary">オリジナル武器作成</button>
+                    <p>オリジナル武器を作成して、自分だけの最強武器を目指そう！</p>
+                    <button id="createOriginalWeaponBtn" class="btn btn-primary">オリジナル武器を作成</button>
                 </div>
                 <h3>オーブ合成</h3>
                 <div class="setting-box">
-                    <p>低ティアのオーブを合成して、高ティアのオーブを作成できます。</p>
+                    <p>低ティアのオーブを複数使って、高ティアのオーブを作成できます。</p>
                     <button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
                 </div>
                 <div id="orbSynthesisModal" class="modal">
@@ -118,9 +130,9 @@
                         <p>Tier1オーブ: <span id="tier1OrbCount">0</span>個</p>
                         <p>Tier2オーブ: <span id="tier2OrbCount">0</span>個</p>
                         <p>Tier3オーブ: <span id="tier3OrbCount">0</span>個</p>
-                        <button id="synthesizeTier2Btn" class="btn btn-primary">Tier1オーブ5個でTier2を合成</button>
-                        <button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5個でTier3を合成</button>
-                        <button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4を合成</button>
+                        <button id="synthesizeTier2Btn" class="btn btn-primary">Tier1オーブ5つでTier2オーブを合成</button>
+                        <button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5つでTier3オーブを合成</button>
+                        <button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4オーブを合成</button>
                         <button id="closeOrbSynthesisBtn" class="btn btn-secondary">閉じる</button>
                     </div>
                 </div>
@@ -142,43 +154,44 @@
                 </div>
             </section>
 
-            <section id="section-skill-tree" class="content-section">
-                <h2>スキルツリー</h2>
-                <div class="setting-box">
-                    <p>総スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
+            <section id="section-skills" class="content-section">
+                <h2>スキル</h2>
+                <div class="sub-tabs">
+                    <button class="sub-tab-btn active" data-subtab="skill-tree-content">スキルツリー</button>
+                    <button class="sub-tab-btn" data-subtab="equipped-skills-content">装備中スキル</button>
+                    <button class="sub-tab-btn" data-subtab="custom-skills-content">カスタムスキル</button>
                 </div>
-                <div class="skill-tree-container">
-                    <div id="skillTreeCanvas" class="skill-tree-canvas">
-                        <!-- Skill tree nodes and connections will be rendered here -->
+
+                <div id="skill-tree-content" class="sub-tab-content active">
+                    <h3>スキルツリー</h3>
+                    <div class="setting-box">
+                        <p>残スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
                     </div>
-                    <div id="skillDescriptionArea" class="skill-description-area">
-                        <h3>スキル詳細</h3>
-                        <p id="skillNodeName">スキルを選択してください</p>
-                        <p id="skillNodeDescription"></p>
-                        <p id="skillNodeCost"></p>
-                        <button id="unlockSkillBtn" class="btn btn-primary" disabled>スキル解放</button>
+                    <div id="skillTreeContainer" class="skill-tree-container">
+                        <div id="skillTreeCanvas" class="skill-tree-canvas"></div>
+                        <div id="skillDescriptionArea" class="skill-description-area"></div>
                     </div>
                 </div>
-                <h3>アクティブスキル装備</h3>
-                <div id="skillSlotsContainer" class="skill-slots-container">
-                    <!-- Skill slots will be rendered here -->
+
+                <div id="equipped-skills-content" class="sub-tab-content">
+                    <h3>アクティブスキル装備</h3>
+                    <div id="skillSlotsContainer" class="skill-slots-container"></div>
+                    <h3>使用可能なアクティブスキル</h3>
+                    <div id="availableSkillsList" class="available-skills-list"></div>
                 </div>
-                <h3>利用可能なアクティブスキル</h3>
-                <div id="availableSkillsList" class="available-skills-list">
-                    <!-- Available active skills will be rendered here -->
-                </div>
-                <h3>オリジナルスキル作成</h3>
-                <div class="setting-box">
-                    <p>自分だけのオリジナルスキルを作成しよう！</p>
-                    <label class="field-label" for="customSkillName">スキル名</label>
-                    <input type="text" id="customSkillName" placeholder="スキル名を入力">
-                    <label class="field-label" for="customSkillDescription">スキルの内容</label>
-                    <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に火傷付与"></textarea>
-                    <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
-                </div>
-                <h3>オリジナルスキルリスト</h3>
-                <div id="customSkillList" class="custom-skill-list">
-                    <!-- Custom skills will be rendered here -->
+
+                <div id="custom-skills-content" class="sub-tab-content">
+                    <h3>オリジナルスキル作成</h3>
+                    <div class="setting-box">
+                        <p>自分だけのオリジナルスキルを作成しよう！</p>
+                        <label class="field-label" for="customSkillName">スキル名</label>
+                        <input type="text" id="customSkillName" placeholder="スキル名を入力">
+                        <label class="field-label" for="customSkillDescription">スキルの内容</label>
+                        <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に毒付与"></textarea>
+                        <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
+                    </div>
+                    <h3>オリジナルスキルリスト</h3>
+                    <div id="customSkillList" class="custom-skill-list"></div>
                 </div>
             </section>
 
@@ -246,10 +259,25 @@
                 </div>
             </section>
 
+            <section id="section-ranking" class="content-section">
+                <h2>戦力ランキング</h2>
+                <div class="setting-box">
+                    <p>プレイヤーの総合的な戦力を示すランキングです。</p>
+                    <button id="refreshRankingBtn" class="btn btn-secondary">ランキング更新</button>
+                </div>
+                <div id="ranking-list-container">
+                    <p>ランキングを読み込み中...</p>
+                </div>
+            </section>
+
             <section id="section-help" class="content-section">
                 <h2>ヘルプ</h2>
-                <!-- ヘルプコンテンツをiframeで読み込む -->
-                <iframe src="help.html" style="width: 100%; height: 80vh; border: none; border-radius: 8px;"></iframe>
+                <div class="setting-box">
+                    <h3>ユニーク能力一覧</h3>
+                    <div id="unique-abilities-list" class="ability-list">
+                        <!-- Unique abilities will be rendered here by help.js -->
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -259,9 +287,11 @@
     <script src="js/stats.js"></script>
     <script src="js/weapons.js"></script>
     <script src="js/skillTree.js"></script>
+    <script src="js/mission.js"></script>
     <script src="js/shop.js"></script>
     <script src="js/boss.js"></script>
     <script src="js/party.js"></script>
+    <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>
     <script src="js/script.js"></script>

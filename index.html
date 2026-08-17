@@ -33,6 +33,7 @@
                 <button class="menu-btn" data-section="online"><span>?</span> �I�����C��</button>
                 <button class="menu-btn" data-section="party"><span>?</span> �p�[�e�B</button>
                 <button class="menu-btn" data-section="boss-battle"><span>?</span> �{�X�o�g��</button>
+                <button class="menu-btn" data-section="ranking"><span>?</span> ランキング</button>
                 <button class="menu-btn" data-section="help"><span>?</span> �w���v</button>
             </nav>
         </aside>
@@ -245,6 +246,17 @@
                 </div>
             </section>
 
+            <section id="section-ranking" class="content-section">
+                <h2>戦力ランキング</h2>
+                <div class="setting-box">
+                    <p>プレイヤーの総合的な戦力を示すランキングです。</p>
+                    <button id="refreshRankingBtn" class="btn btn-secondary">ランキング更新</button>
+                </div>
+                <div id="ranking-list-container">
+                    <p>ランキングを読み込み中...</p>
+                </div>
+            </section>
+
             <section id="section-help" class="content-section">
                 <h2>�w���v</h2>
                 <div class="setting-box">
@@ -262,9 +274,11 @@
     <script src="js/stats.js"></script>
     <script src="js/weapons.js"></script>
     <script src="js/skillTree.js"></script>
+    <script src="js/mission.js"></script>
     <script src="js/shop.js"></script>
     <script src="js/boss.js"></script>
     <script src="js/party.js"></script>
+    <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>
     <script src="js/script.js"></script>

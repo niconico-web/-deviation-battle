@@ -196,11 +196,13 @@ function initializeSocket() {
             setupOnlineEventHandlers();
         }
 
-        // 保留中のデータ保存を実行
+        // 接続時は常にプレイヤーデータをサーバーへ同期する
+        // （こうしないと、pendingSaveフラグが立っていない通常の接続時には一切保存されず、
+        //   ランキングなどサーバー側の集計にプレイヤーが反映されないままになってしまう）
         if (localStorage.getItem('pendingSave') === 'true') {
             console.log("Found pending save, attempting to sync to server...");
-            syncPlayerToServer(true); // silent=trueで自動保存
         }
+        syncPlayerToServer(true); // silent=trueで自動保存
 
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
@@ -554,6 +556,11 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
+
+    // デイリーミッションの進捗を更新
+    if (typeof updateMissionProgress === 'function') {
+        updateMissionProgress('study', seconds);
+    }
 }
 
 // プレイヤーIDの正規化（大文字・空白・全角の揺れを吸収）
@@ -713,11 +720,57 @@ function setupSocketEventHandlers() {
         alert(`エラー: ${message}`);
     });
 
+    // 戦力ランキング受信
+    window.socket.on("ranking:list", (ranking) => {
+        renderRanking(ranking);
+    });
+
     console.log("Socket event handlers setup complete");
+}
+
+/**
+ * サーバーから受け取った戦力ランキングを画面に描画する。
+ * @param {Array<object>} ranking
+ */
+function renderRanking(ranking) {
+    const container = document.getElementById("rankingList");
+    if (!container) return;
+
+    if (!Array.isArray(ranking) || ranking.length === 0) {
+        container.innerHTML = "<p>まだランキングデータがありません。他のプレイヤーがオンラインに接続すると表示されます。</p>";
+        return;
+    }
+
+    const myPlayer = getPlayerData();
+    const myId = myPlayer ? myPlayer.id : null;
+
+    container.innerHTML = "";
+    ranking.forEach((entry, index) => {
+        const item = document.createElement("div");
+        item.className = "ranking-item" + (entry.id === myId ? " me" : "");
+
+        const studyHours = (entry.studyMinutes / 60).toFixed(1);
+
+        item.innerHTML =
+            `<div class="ranking-rank">${index + 1}位</div>
+            <div class="ranking-info">
+                <div class="ranking-name">${entry.name}（Lv.${entry.level}）</div>
+                <div class="ranking-breakdown">勉強時間: ${studyHours}時間 / 対人戦勝利: ${entry.pvpWins}勝 / ボス周回: ${entry.bossRunCount}回</div>
+            </div>
+            <div class="ranking-score">${entry.powerScore.toLocaleString()}<br><span style="font-size:0.7em;color:var(--text-secondary);">戦力</span></div>`;
+
+        container.appendChild(item);
+    });
 }
 
 // グローバルにアクセス可能に
 window.normalizePlayerId = normalizePlayerId;
+
+// デバッグ用: ブラウザのコンソールで giveDebugInstantKillWeapon() を実行すると、
+// 必中・一撃必殺の武器を現在のプレイヤーに追加・装備する（テスト用）。
+if (typeof giveDebugInstantKillWeapon === "function") {
+    window.giveDebugInstantKillWeapon = giveDebugInstantKillWeapon;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
@@ -799,35 +852,13 @@ function lockStatInputs(locked) {
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocket();
 
-    // PWAインストールボタンのイベントリスナー
-    const installButton = document.getElementById('install-button');
-    if (installButton) {
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                deferredPrompt = null;
-                const installPopup = document.getElementById('install-popup');
-                if (installPopup) {
-                    installPopup.style.display = 'none';
-                }
-            }
-        });
-    }
-    const closeInstallPopup = document.getElementById('close-install-popup');
-    if (closeInstallPopup) {
-        closeInstallPopup.addEventListener('click', () => {
-            const installPopup = document.getElementById('install-popup');
-            if (installPopup) {
-                installPopup.style.display = 'none';
-            }
-        });
-    }
+    // ============================================================
+    // 最優先で初期化する部分（ここでエラーが起きると困るもの）：
+    // サイドバー・メニューボタンのナビゲーションと、既存プレイヤーの
+    // ステータス表示。これらは、他の機能（ショップ初期化など）で
+    // 何か問題が起きても、絶対に動作し続けなければならない。
+    // ============================================================
 
-    if (typeof setupPartyEventListeners === 'function') {
-        setupPartyEventListeners();
-    }
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -852,6 +883,15 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileMenuToggle.addEventListener('click', toggleMobileMenu);
     }
 
+    const refreshRankingBtn = document.getElementById('refreshRankingBtn');
+    if (refreshRankingBtn) {
+        refreshRankingBtn.addEventListener('click', () => {
+            if (window.socket) {
+                window.socket.emit('ranking:get');
+            }
+        });
+    }
+
     if (sidebarOverlay) {
         sidebarOverlay.addEventListener('click', closeMobileMenu);
     }
@@ -859,7 +899,7 @@ document.addEventListener('DOMContentLoaded', () => {
     menuButtons.forEach(button => {
         button.addEventListener('click', () => {
             const section = button.dataset.section;
-            
+
             menuButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
 
@@ -869,60 +909,81 @@ document.addEventListener('DOMContentLoaded', () => {
                 activeSection.classList.add('active');
             }
 
+            if (section === 'ranking' && window.socket) {
+                window.socket.emit('ranking:get');
+            }
+
+            // ショップ・インベントリタブを開いたときは最新状態を再描画する
+            // （そうしないと、キャラクター作成直後などは何も表示されないままになる）
+            if (section === 'shop' || section === 'inventory') {
+                try {
+                    if (typeof renderShop === "function") renderShop();
+                    if (typeof renderInventory === "function") renderInventory();
+                    if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+                    if (typeof renderMaterialsInventory === "function") renderMaterialsInventory();
+                    if (typeof renderOrbInventory === "function") renderOrbInventory();
+                } catch (e) {
+                    console.error("Error rendering shop/inventory tab:", e);
+                }
+            }
+
+            // デイリーミッションタブを開いたときは最新状態を再描画する
+            if (section === 'missions') {
+                try {
+                    if (typeof renderDailyMissions === "function") renderDailyMissions();
+                } catch (e) {
+                    console.error("Error rendering missions tab:", e);
+                }
+            }
+
+            // スキルツリータブを開いたときは最新状態を再描画する
+            if (section === 'skills') {
+                try {
+                    if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+                } catch (e) {
+                    console.error("Error rendering skills tab:", e);
+                }
+            }
+
             closeMobileMenu();
         });
     });
 
-    // --- ページの初期化処理 ---
-
-    // 勉強関連のイベントハンドラ
-    const studyStartBtn = document.getElementById("studyStart");
-    if (studyStartBtn) {
-        studyStartBtn.addEventListener('click', startStudy);
-    }
-    const studyStopBtn = document.getElementById("studyStop");
-    if (studyStopBtn) {
-        studyStopBtn.addEventListener('click', stopStudy);
-    }
-    const studyFocusSelect = document.getElementById("studyFocus");
-    if (studyFocusSelect) {
-        studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
-        updateStatGrowthInfo(); // 初期表示
-    }
-
-    // ソロボスバトル開始ボタン
-    const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
-    if (startSoloBossBattleBtn) {
-        startSoloBossBattleBtn.addEventListener('click', () => {
-            const player = getPlayerData();
-            if (!player) {
-                alert('まずはキャラクターを作成してください。');
-                return;
+    // プレイヤーデータの読み込みとステータス表示の初期化
+    try {
+        const initialPlayer = getPlayerData();
+        if (initialPlayer) {
+            updateStatus(initialPlayer);
+            updateXpDisplay(initialPlayer);
+            document.getElementById("playerName").value = initialPlayer.name;
+            if (typeof getStatsFromPlayer === "function") {
+                setStatsToInputs(getStatsFromPlayer(initialPlayer));
             }
-            if (!window.socket || !window.socket.connected) {
-                alert('サーバーに接続されていません。ページを再読み込みしてください。');
-                return;
+            lockStatInputs(true);
+            const statDesc = document.getElementById("statAllocationDesc");
+            if (statDesc) {
+                statDesc.textContent = (window.I18N ? I18N.fixedStats : "ステータスは固定されています。");
             }
-            const bossId = document.getElementById('soloBossSelect').value;
-            const difficulty = document.getElementById('soloBossDifficulty').value;
-            if (!bossId) {
-                alert('ボスを選択してください。');
-                return;
+        } else {
+            // 新規作成時の処理
+            if (typeof updateRemainingPoints === "function") {
+                updateRemainingPoints();
             }
-            // Save difficulty for result screen
-            localStorage.setItem("battleDifficulty", difficulty);
-            window.socket.emit('bosses:getDetails', { bossId, difficulty });
-        });
+            lockStatInputs(false);
+        }
+    } catch (e) {
+        console.error("Error initializing player status display:", e);
     }
 
-    // キャラクター作成・削除ボタン
-    const createCharBtn = document.getElementById("createCharBtn");
-    if (createCharBtn) {
-        createCharBtn.addEventListener('click', createCharacter);
-    }
+    // プレイヤー削除ボタンのイベントリスナーを再設定
+    // UIの動的な書き換えでリスナーが消える問題に対応
     const deletePlayerBtn = document.getElementById("deletePlayerBtn");
     if (deletePlayerBtn) {
-        deletePlayerBtn.addEventListener('click', () => {
+        // 既存のリスナーを削除して再設定するために、要素をクローンして置き換える
+        const newBtn = deletePlayerBtn.cloneNode(true);
+        deletePlayerBtn.parentNode.replaceChild(newBtn, deletePlayerBtn);
+
+        newBtn.addEventListener('click', () => {
             if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
             if (studyStartTime !== null) stopStudy();
             localStorage.clear();
@@ -931,36 +992,182 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // プレイヤーデータの読み込みとUIの初期化
+    // ============================================================
+    // ここから下は、他の機能の初期化（不具合があっても
+    // ナビゲーションやステータス表示を巻き込まないよう、
+    // 全体をtry/catchで保護している）
+    // ============================================================
+    try {
+        // ショップ画面（武器作成ボタン・オーブ合成モーダルなど）のイベントを初期化する
+        // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
+        if (typeof initShop === "function") {
+            initShop();
+        }
+
+        // デイリーミッションの初期化
+        if (typeof initializeDailyMissions === "function") {
+            initializeDailyMissions();
+        }
+
+        // スキルセクションのサブタブ切り替えロジック
+        const skillSubTabs = document.querySelectorAll('.sub-tab-btn');
+        const skillSubContents = document.querySelectorAll('.sub-tab-content');
+
+        skillSubTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                skillSubTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const subtabId = tab.dataset.subtab;
+                skillSubContents.forEach(content => {
+                    // `active` クラスの付け外しで表示/非表示を切り替える
+                    content.classList.toggle('active', content.id === subtabId);
+                });
+            });
+        });
+
+        // 初期表示時に最初のサブタブをアクティブにする
+        if (skillSubTabs.length > 0) {
+            // 既にアクティブなタブがなければ、最初のタブをクリックして表示状態を初期化
+            const hasActiveTab = Array.from(skillSubTabs).some(tab => tab.classList.contains('active'));
+            if (!hasActiveTab) {
+                skillSubTabs[0].click();
+            }
+        }
+
+        // PWAインストールボタンのイベントリスナー
+        const installButton = document.getElementById('install-button');
+        if (installButton) {
+            installButton.addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                    const installPopup = document.getElementById('install-popup');
+                    if (installPopup) {
+                        installPopup.style.display = 'none';
+                    }
+                }
+            });
+        }
+        const closeInstallPopup = document.getElementById('close-install-popup');
+        if (closeInstallPopup) {
+            closeInstallPopup.addEventListener('click', () => {
+                const installPopup = document.getElementById('install-popup');
+                if (installPopup) {
+                    installPopup.style.display = 'none';
+                }
+            });
+        }
+
+        if (typeof setupPartyEventListeners === 'function') {
+            setupPartyEventListeners();
+        }
+
+        const refreshRankingBtn = document.getElementById('refreshRankingBtn');
+        if (refreshRankingBtn) {
+            refreshRankingBtn.addEventListener('click', () => {
+                if (window.socket) {
+                    window.socket.emit('ranking:get');
+                }
+            });
+        }
+
+        // 勉強関連のイベントハンドラ
+        const studyStartBtn = document.getElementById("studyStart");
+        if (studyStartBtn) {
+            studyStartBtn.addEventListener('click', startStudy);
+        }
+        const studyStopBtn = document.getElementById("studyStop");
+        if (studyStopBtn) {
+            studyStopBtn.addEventListener('click', stopStudy);
+        }
+        const studyFocusSelect = document.getElementById("studyFocus");
+        if (studyFocusSelect) {
+            studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
+            updateStatGrowthInfo(); // 初期表示
+        }
+
+        // ソロボスバトル開始ボタン
+        const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
+        if (startSoloBossBattleBtn) {
+            startSoloBossBattleBtn.addEventListener('click', () => {
+                const player = getPlayerData();
+                if (!player) {
+                    alert('まずはキャラクターを作成してください。');
+                    return;
+                }
+                if (!window.socket || !window.socket.connected) {
+                    alert('サーバーに接続されていません。ページを再読み込みしてください。');
+                    return;
+                }
+                const bossId = document.getElementById('soloBossSelect').value;
+                const difficulty = document.getElementById('soloBossDifficulty').value;
+                if (!bossId) {
+                    alert('ボスを選択してください。');
+                    return;
+                }
+                // Save difficulty for result screen
+                localStorage.setItem("battleDifficulty", difficulty);
+                window.socket.emit('bosses:getDetails', { bossId, difficulty });
+            });
+        }
+
+        // キャラクター作成・削除ボタン
+        const createCharBtn = document.getElementById("createCharBtn");
+        if (createCharBtn) {
+            createCharBtn.addEventListener('click', createCharacter);
+        }
+
+        // スキルツリーの初期描画
+        if (typeof renderSkillTreeUI === "function") {
+            renderSkillTreeUI();
+        }
+
+        // ステータス入力欄のイベントリスナー
+        const statInputs = document.querySelectorAll('.stat-allocation input, .stat-allocation select');
+        statInputs.forEach(input => {
+            input.addEventListener('input', updateRemainingPoints);
+        });
+    } catch (e) {
+        console.error("Error during secondary page initialization:", e);
+    }
+});
+
+/**
+ * デバッグ用の一撃必殺武器をプレイヤーに付与するコマンド
+ */
+function giveOneShotWeapon() {
     const player = getPlayerData();
-    if (player) {
-        updateStatus(player);
-        updateXpDisplay(player);
-        document.getElementById("playerName").value = player.name;
-        if (typeof getStatsFromPlayer === "function") {
-            setStatsToInputs(getStatsFromPlayer(player));
-        }
-        lockStatInputs(true);
-        const statDesc = document.getElementById("statAllocationDesc");
-        if (statDesc) {
-            statDesc.textContent = (window.I18N ? I18N.fixedStats : "ステータスは固定されています。");
-        }
-    } else {
-        // 新規作成時の処理
-        if (typeof updateRemainingPoints === "function") {
-            updateRemainingPoints();
-        }
-        lockStatInputs(false);
+    if (!player) {
+        console.error("プレイヤーが存在しません。");
+        return;
     }
 
-    // スキルツリーの初期描画
-    if (typeof renderSkillTreeUI === "function") {
-        renderSkillTreeUI();
-    }
-    
-    // ステータス入力欄のイベントリスナー
-    const statInputs = document.querySelectorAll('.stat-allocation input, .stat-allocation select');
-    statInputs.forEach(input => {
-        input.addEventListener('input', updateRemainingPoints);
-    });
-});
+    // デバッグ武器の定義
+    const debugWeapon = {
+        id: `debug_one_shot_${Date.now()}`,
+        name: "デバッガーズ・ジェノサイド",
+        type: "spear", // どの武器種でも良い
+        isOriginal: true, // オリジナル武器として扱うと管理が楽
+        multiplier: 999,
+        statBonuses: { atk: 999 },
+        uniqueAbilities: [
+            ORB_UNIQUE_ABILITIES.one_shot_kill, // 一撃必殺
+            ORB_UNIQUE_ABILITIES.sure_hit      // 必中
+        ],
+        ultimateName: "コード・デストラクション"
+    };
+
+    const updatedPlayer = addWeaponToPlayer(player, debugWeapon);
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+
+    alert(`デバッグ武器「${debugWeapon.name}」を付与しました。インベントリを確認し、装備してください。`);
+    // UIを更新
+    if (typeof renderInventory === 'function') renderInventory();
+    if (typeof renderOriginalWeapons === 'function') renderOriginalWeapons();
+    if (typeof updateStatus === 'function') updateStatus(updatedPlayer);
+}
+// コンソールからアクセスできるようにグローバルに公開
+window.giveOneShotWeapon = giveOneShotWeapon;
