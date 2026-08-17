@@ -1,4 +1,4 @@
-// client/js/missions.js
+// client/js/mission.js
 
 const MISSION_REWARDS = {
     XP: 300,
@@ -9,14 +9,14 @@ const FINAL_REWARD_ORB_TIERS = ['tier2', 'tier3', 'tier4'];
 
 // Pool of possible daily missions
 const MISSION_POOL = [
-    { id: 'win_bot_1', type: 'win_bot', target: 1, description: '?{?b?g?????1???????' },
-    { id: 'win_online_1', type: 'win_online', target: 1, description: '?I?????C???????1???????' },
-    { id: 'study_5_min', type: 'study', target: 300, description: '???v5??????????' }, // 300 seconds
-    { id: 'defeat_goblin_king_easy', type: 'defeat_boss', target: { bossId: 'goblin_king', difficulty: 'easy' }, description: '?S?u?????L???O(EASY)??1???????' },
-    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: '?I???W?i????????1???????' },
-    { id: 'synthesize_orb_1', type: 'synthesize_orb', target: 1, description: '?I?[?u??1???????' },
-    { id: 'limit_break_1', type: 'limit_break', target: 1, description: '??????1?????E??j????' },
-    { id: 'upgrade_weapon_3', type: 'upgrade_weapon', target: 3, description: '??????3???????' },
+    { id: 'win_bot_1', type: 'win_bot', target: 1, description: 'ボット対戦に1回勝利する' },
+    { id: 'win_online_1', type: 'win_online', target: 1, description: 'オンライン対戦に1回勝利する' },
+    { id: 'study_5_min', type: 'study', target: 300, description: '合計5分間勉強する' }, // 300 seconds
+    { id: 'defeat_goblin_king_easy', type: 'defeat_boss', target: { bossId: 'goblin_king', difficulty: 'easy' }, description: 'ゴブリンキング(EASY)を1体討伐する' },
+    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: 'オリジナル武器を1個作成する' },
+    { id: 'synthesize_orb_1', type: 'synthesize_orb', target: 1, description: 'オーブを1個合成する' },
+    { id: 'limit_break_1', type: 'limit_break', target: 1, description: '武器を1回限界突破する' },
+    { id: 'upgrade_weapon_3', type: 'upgrade_weapon', target: 3, description: '武器を3回強化する' },
 ];
 
 /**
@@ -101,7 +101,7 @@ function claimMissionReward(missionIndex) {
 
     const mission = player.dailyMissions.missions[missionIndex];
     if (!mission || !mission.completed || mission.claimed) {
-        alert('???V?????????????B');
+        alert('報酬を受け取れませんでした。');
         return;
     }
 
@@ -109,7 +109,7 @@ function claimMissionReward(missionIndex) {
     player.xp = (player.xp || 0) + MISSION_REWARDS.XP;
     player.coins = (player.coins || 0) + MISSION_REWARDS.COINS;
 
-    alert(`???V???l??????????I\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} ?R?C??`);
+    alert(`報酬を獲得しました！\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} コイン`);
 
     // Check for final reward
     const allClaimed = player.dailyMissions.missions.every(m => m.claimed);
@@ -121,7 +121,7 @@ function claimMissionReward(missionIndex) {
         if (orb) {
             if (!player.orbs) player.orbs = [];
             player.orbs.push(orb);
-            alert(`?f?C???[?~?b?V?????R???v???[?g?I\n????? ${getOrbDisplayName(orb)} ???l??????????I`);
+            alert(`デイリーミッションコンプリート！\n報酬として ${getOrbDisplayName(orb)} を獲得しました！`);
             if (typeof renderOrbInventory === 'function') renderOrbInventory();
         }
     }
@@ -179,10 +179,10 @@ function renderDailyMissions() {
     if (finalRewardContainer) {
         const completedCount = player.dailyMissions.missions.filter(m => m.claimed).length;
         finalRewardContainer.innerHTML = `
-            <h4>?f?C???[?R???v???[?g???V</h4>
-            <p>?S???~?b?V???????N???A???????J?????I (?i??: ${completedCount} / 3)</p>
-            <div class="final-reward-icon">${player.dailyMissions.finalRewardClaimed ? '?' : '?'}</div>
-            <p>${player.dailyMissions.finalRewardClaimed ? '????????V??l????????B' : '???V: Tier2?????I?[?u'}</p>
+            <h4>デイリーコンプリート報酬</h4>
+            <p>全てのミッションをクリアして報酬をゲットしよう！ (達成: ${completedCount} / 3)</p>
+            <div class="final-reward-icon">${player.dailyMissions.finalRewardClaimed ? '??' : '?'}</div>
+            <p>${player.dailyMissions.finalRewardClaimed ? '今日の報酬は獲得済みです。' : '報酬: Tier2以上のオーブ'}</p>
         `;
     }
 
