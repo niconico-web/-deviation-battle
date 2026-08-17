@@ -117,8 +117,9 @@ function renderPartyStatus() {
             // my-status の前に挿入して、味方・自分・敵の順にする
             myStatusBox.parentElement.insertBefore(container, myStatusBox);
         } else {
-            console.error("Could not find a parent for 'my-status' to append ally statuses.");
-            return;
+            // エラーをログに出力するが、処理は続行させる
+            console.warn("Could not find a parent for 'my-status' to append ally statuses. Party status will not be displayed.");
+            return; // パーティ表示はできないが、他の処理は続行させる
         }
     }
     container.innerHTML = '';
