@@ -927,6 +927,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // デイリーミッションタブを開いたときは最新状態を再描画する
+            if (section === 'missions') {
+                try {
+                    if (typeof renderDailyMissions === "function") renderDailyMissions();
+                } catch (e) {
+                    console.error("Error rendering missions tab:", e);
+                }
+            }
+
             // スキルツリータブを開いたときは最新状態を再描画する
             if (section === 'skills') {
                 try {
@@ -999,6 +1008,23 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof initializeDailyMissions === "function") {
             initializeDailyMissions();
         }
+
+        // スキルセクションのサブタブ切り替えロジック
+        const skillSubTabs = document.querySelectorAll('.sub-tab-btn');
+        const skillSubContents = document.querySelectorAll('.sub-tab-content');
+
+        skillSubTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                skillSubTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const subtabId = tab.dataset.subtab;
+                skillSubContents.forEach(content => {
+                    // `active` クラスの付け外しで表示/非表示を切り替える
+                    content.classList.toggle('active', content.id === subtabId);
+                });
+            });
+        });
 
         // PWAインストールボタンのイベントリスナー
         const installButton = document.getElementById('install-button');
