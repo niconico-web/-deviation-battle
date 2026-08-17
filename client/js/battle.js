@@ -2059,21 +2059,27 @@ function generateBotQuestion() {
 }
 
 function displayQuestion(question) {
-    console.log("displayQuestion called with:", question);
     if (!question || !question.question) {
         console.error("Invalid question data:", question);
         addLog("エラー: 無効な問題データです。");
         addLog("問題データ: " + JSON.stringify(question));
         return;
     }
+    console.log("displayQuestion called with:", question);
     currentQuestion = question;
 
     showCountdown(() => {
-        questionDisplay.textContent = currentQuestion.question;
-        generateChoices(currentQuestion);
-        startTimer();
-        const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-        addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+        questionDisplay.textContent = "スキルを選択してください (3秒)";
+        choicesContainer.innerHTML = '';
+        startSkillActivationWindow();
+
+        setTimeout(() => {
+            questionDisplay.textContent = currentQuestion.question;
+            generateChoices(currentQuestion);
+            startTimer();
+            const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+            addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+        }, 3000);
     });
 }
 

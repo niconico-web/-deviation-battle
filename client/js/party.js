@@ -29,7 +29,8 @@ function setupPartyEventListeners() {
     if (leavePartyBtn) {
         leavePartyBtn.addEventListener('click', () => {
             if (window.socket) {
-                window.socket.emit('party:leave');
+                const player = getPlayerData();
+                if (player) window.socket.emit('party:leave', { playerId: player.id });
             }
         });
     }
