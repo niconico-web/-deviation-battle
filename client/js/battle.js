@@ -1619,71 +1619,68 @@ function generateBotQuestion() {
             tickBotBattleStatus();
             if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
-            showCountdown(() => {
-                questionDisplay.textContent = "スキルを選択してください (3秒)";
-                choicesContainer.innerHTML = '';
-                startSkillActivationWindow();
+            // スキル選択ウィンドウをカウントダウンと同時に開始
+            startSkillActivationWindow();
 
-                setTimeout(() => {
-                    questionDisplay.textContent = currentQuestion.question;
-                    // 選択肢を生成
-                    generateChoices(currentQuestion);
-                    startTimer();
-                    addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+            showCountdown(() => {
+                questionDisplay.textContent = currentQuestion.question;
+                // 選択肢を生成
+                generateChoices(currentQuestion);
+                startTimer();
+                addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+                
+                // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+                if (isBossBattle) {
+                    if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+                    bossAutoAnswerTimer = setTimeout(() => {
+                        if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
+                            console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
+                            addLog(`時間切れ！ ${enemy.name} の攻撃！`);
+                            
+                            // 選択肢を無効化
+                            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+                            buttons.forEach(btn => btn.disabled = true);
+                            
+                            // ボスの攻撃処理
+                            let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
+                            let botAtk = enemy.atk;
                     
-                    // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
-                    if (isBossBattle) {
-                        if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-                        bossAutoAnswerTimer = setTimeout(() => {
-                            if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
-                                console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
-                                addLog(`時間切れ！ ${enemy.name} の攻撃！`);
-                                
-                                // 選択肢を無効化
-                                const buttons = choicesContainer.querySelectorAll('.choice-btn');
-                                buttons.forEach(btn => btn.disabled = true);
-                                
-                                // ボスの攻撃処理
-                                let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-                                let botAtk = enemy.atk;
-                        
-                                // ボススキル使用
-                                let bossUsedSkill = null;
-                                if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
-                                    if (Math.random() < 0.5) { // 50%の確率でスキル使用
-                                        bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
-                                    }
-                                }
-                                
-                                const defReduction = Math.floor(myDef * 0.1);
-                                let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
-                        
-                                if (bossUsedSkill) {
-                                    damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
-                                }
-                        
-                                // 鉄壁適用
-                                if (hasUniqueAbility(me, 'damage_cut_half')) {
-                                    damage = Math.floor(damage * 0.5);
-                                    addLog("鉄壁発動！ダメージ50%カット");
-                                }
-                                
-                                // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
-                                me.hp = Math.max(0, me.hp - damage);
-                                showDamage("myDamage", damage);
-                                addLog(`${enemy.name}から ${damage} のダメージ！`);
-                                
-                                updateHP();
-                                
-                                if (me.hp <= 0) {
-                                    finishBotBattle("lose");
-                                } else {
-                                    setTimeout(generateBotQuestion, 1000);
+                            // ボススキル使用
+                            let bossUsedSkill = null;
+                            if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+                                if (Math.random() < 0.5) { // 50%の確率でスキル使用
+                                    bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
                                 }
                             }
-                        }, BOSS_AUTO_ANSWER_TIMEOUT);
-                    }
-                }, 3000);
+                            
+                            const defReduction = Math.floor(myDef * 0.1);
+                            let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
+                    
+                            if (bossUsedSkill) {
+                                damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+                            }
+                    
+                            // 鉄壁適用
+                            if (hasUniqueAbility(me, 'damage_cut_half')) {
+                                damage = Math.floor(damage * 0.5);
+                                addLog("鉄壁発動！ダメージ50%カット");
+                            }
+                            
+                            // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
+                            me.hp = Math.max(0, me.hp - damage);
+                            showDamage("myDamage", damage);
+                            addLog(`${enemy.name}から ${damage} のダメージ！`);
+                            
+                            updateHP();
+                            
+                            if (me.hp <= 0) {
+                                finishBotBattle("lose");
+                            } else {
+                                setTimeout(generateBotQuestion, 1000);
+                            }
+                        }
+                    }, BOSS_AUTO_ANSWER_TIMEOUT);
+                }
             });
             return;
         } else {
@@ -2029,32 +2026,29 @@ function generateBotQuestion() {
     tickBotBattleStatus();
     if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
-    showCountdown(() => {
-        questionDisplay.textContent = "スキルを選択してください (3秒)";
-        choicesContainer.innerHTML = '';
-        startSkillActivationWindow();
+    // スキル選択ウィンドウをカウントダウンと同時に開始
+    startSkillActivationWindow();
 
-        setTimeout(() => {
-            questionDisplay.textContent = currentQuestion.question;
-            // 選択肢を生成
-            generateChoices(currentQuestion);
-            startTimer();
-            addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
-            
-            // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
-            if (isBossBattle) {
-                if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-                bossAutoAnswerTimer = setTimeout(() => {
-                    if (!battleEnd && currentQuestion) {
-                        console.log('[Boss Auto-Answer] Boss auto-answer triggered');
-                        // ボスが正解する
-                        const bossCorrectAnswer = currentQuestion.answer;
-                        addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
-                        handleChoiceClick(bossCorrectAnswer);
-                    }
-                }, BOSS_AUTO_ANSWER_TIMEOUT);
-            }
-        }, 3000);
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        // 選択肢を生成
+        generateChoices(currentQuestion);
+        startTimer();
+        addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+        
+        // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+        if (isBossBattle) {
+            if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+            bossAutoAnswerTimer = setTimeout(() => {
+                if (!battleEnd && currentQuestion) {
+                    console.log('[Boss Auto-Answer] Boss auto-answer triggered');
+                    // ボスが正解する
+                    const bossCorrectAnswer = currentQuestion.answer;
+                    addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
+                    handleChoiceClick(bossCorrectAnswer);
+                }
+            }, BOSS_AUTO_ANSWER_TIMEOUT);
+        }
     });
 }
 
@@ -2068,18 +2062,15 @@ function displayQuestion(question) {
     console.log("displayQuestion called with:", question);
     currentQuestion = question;
 
-    showCountdown(() => {
-        questionDisplay.textContent = "スキルを選択してください (3秒)";
-        choicesContainer.innerHTML = '';
-        startSkillActivationWindow();
+    // スキル選択ウィンドウをカウントダウンと同時に開始
+    startSkillActivationWindow();
 
-        setTimeout(() => {
-            questionDisplay.textContent = currentQuestion.question;
-            generateChoices(currentQuestion);
-            startTimer();
-            const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
-            addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
-        }, 3000);
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        generateChoices(currentQuestion);
+        startTimer();
+        const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
+        addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
     });
 }
 
