@@ -1026,6 +1026,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // 初期表示時に最初のサブタブをアクティブにする
+        if (skillSubTabs.length > 0) {
+            // 既にアクティブなタブがなければ、最初のタブをクリックして表示状態を初期化
+            const hasActiveTab = Array.from(skillSubTabs).some(tab => tab.classList.contains('active'));
+            if (!hasActiveTab) {
+                skillSubTabs[0].click();
+            }
+        });
+
         // PWAインストールボタンのイベントリスナー
         const installButton = document.getElementById('install-button');
         if (installButton) {
