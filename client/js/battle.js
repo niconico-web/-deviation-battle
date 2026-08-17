@@ -278,7 +278,7 @@ function joinOnlineBattle() {
     console.log("Joining online battle for room:", roomId);
     addLog("バトルに参加中...");
     // サーバーにバトル参加を通知し、初期状態を要求
-    socket.emit("battle:join", { roomId });
+    socket.emit("battle:join", { roomId, playerId: me.id });
 }
 
 function calculateDodgeChance(speed) {
