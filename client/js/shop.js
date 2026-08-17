@@ -397,23 +397,8 @@ function renderMaterialsInventory() {
             item.className = "inventory-item";
             item.innerHTML = `
                 <div class="inventory-item-info">
-<<<<<<< HEAD
                     <strong>${materialName}</strong>
                     <span>所持数: ${count}</span>
-=======
-<<<<<<< HEAD
-                    <strong>${materialName}</strong>
-                    <span>所持数: ${count}</span>
-=======
-<<<<<<< HEAD
-                    <strong>${materialName}</strong>
-                    <span>所持数: ${count}</span>
-=======
-                    <strong>${material.name}</strong>
-                    <span>所持数: ${material.count}</span>
->>>>>>> 4b380cfe3cb546e38ecd5daae75a3400a52002bd
->>>>>>> 5ddf6c467335a178cb5f90c5ca9d83f62acd0e2c
->>>>>>> d0e61ab2d1ef912008cdc971ad60cb58a27c3d86
                 </div>`;
             container.appendChild(item);
         }
@@ -447,10 +432,6 @@ function renderOrbInventory() {
 
         const tierName = (typeof ORB_TIERS !== "undefined" && ORB_TIERS[orb.tier]?.name) || orb.tier;
         const statLabel = (typeof ORB_STAT_LABELS !== "undefined" && ORB_STAT_LABELS[orb.statType]) || orb.statType;
-        const tierName = (typeof ORB_TIERS !== "undefined" && ORB_TIERS[orb.tier]?.name) || orb.tier;
-        const statLabel = (typeof ORB_STAT_LABELS !== "undefined" && ORB_STAT_LABELS[orb.statType]) || orb.statType;
-
-
 
         let abilityInfo = "";
         if (orb.uniqueAbility) {
@@ -518,10 +499,6 @@ function limitBreakWeaponUI(weapon) {
         message += `\n\n★tier4固有能力「${gainedTier4.name}」を獲得した！★`;
     }
     alert(message);
-
-
-    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
-
 
     renderOriginalWeapons();
     renderInventory();

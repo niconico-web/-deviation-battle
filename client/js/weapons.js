@@ -1122,61 +1122,6 @@ function addMaterialToPlayer(player, materialId, amount = 1) {
     return { ...player, materials };
 }
 
-/**
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
- * ボスをモチーフにしたtier4固有能力を3つ取得する。
- * @param {string} bossId
- * @returns {array|null}
- */
-function getBossThemeAbilities(bossId) {
-    // 既存のボス能力プール（定義されている能力のみ）
-    const bossThemeAbilityPools = {
-        goblin_king: ["boss_goblin_king"],
-        orc_warlord: ["boss_orc_warlord"],
-        shadow_serpent: ["boss_shadow_serpent"],
-        ice_golem: ["boss_ice_golem"],
-        flame_dragon: ["boss_flame_dragon"],
-        abyssal_knight: ["boss_abyssal_knight"],
-        celestial_guardian: ["boss_celestial_guardian"],
-        abyss_warden: ["boss_abyss_warden"]
-    };
-
-    const primaryAbilityKey = bossThemeAbilityPools[bossId];
-    if (!primaryAbilityKey || !ORB_UNIQUE_ABILITIES[primaryAbilityKey[0]]) {
-        return null;
-    }
-
-    const abilities = [];
-    // プライマリ能力を追加
-    abilities.push({
-        ...ORB_UNIQUE_ABILITIES[primaryAbilityKey[0]]
-    });
-
-    // 他のボス能力から2つをランダムに追加
-    const allBossAbilities = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => key.startsWith("boss_"));
-    const availableAbilities = allBossAbilities.filter(key => key !== primaryAbilityKey[0]);
-
-    while (abilities.length < 3 && availableAbilities.length > 0) {
-        const randomIndex = Math.floor(Math.random() * availableAbilities.length);
-        const abilityKey = availableAbilities.splice(randomIndex, 1)[0];
-        abilities.push({
-            ...ORB_UNIQUE_ABILITIES[abilityKey]
-        });
-    }
-
-    return abilities.length > 0 ? abilities : null;
-}
-
-/**
->>>>>>> 5ddf6c467335a178cb5f90c5ca9d83f62acd0e2c
->>>>>>> d0e61ab2d1ef912008cdc971ad60cb58a27c3d86
- * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
- * @param {object} weapon
- * @returns {boolean}
- */
 function canLimitBreakWeapon(weapon) {
     if (!weapon || !weapon.sourceBossId) return false;
     const level = weapon.limitBreakLevel || 0;

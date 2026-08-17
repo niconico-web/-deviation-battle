@@ -408,13 +408,6 @@ function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     // ボスごとの基礎倍率（強いボスほど強い武器がドロップする）
     const baseMultiplier = getBossWeaponBaseMultiplier(boss.id);
 
-    // ボスの強さティアに応じて基礎倍率を上乗せする（強いボスほど強い武器がドロップする）
-    const baseMultiplier = Math.round((BOSS_WEAPON_BASE_MULTIPLIER + tierIndex * BOSS_WEAPON_TIER_MULTIPLIER_STEP) * 100) / 100;
-
-
-
-
-
     // Create a powerful original weapon (base state — 限界突破と強化で伸ばしていく)
     const weapon = {
         id: `boss_weapon_${boss.id}_${Date.now()}`,

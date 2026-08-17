@@ -407,9 +407,8 @@ module.exports = function(io){
         });
 
         // マルチプレイヤーレイドバトル用の参加ハンドラ
-        socket.on('battle:join', ({ roomId }) => {
-            const player = PlayerManager.getPlayer(socket.id);
-            if (!player || !roomId) {
+        socket.on('battle:join', ({ roomId, playerId }) => {
+            if (!playerId || !roomId) {
                 return socket.emit('battleError', { message: 'Invalid join request.' });
             }
 
@@ -419,11 +418,12 @@ module.exports = function(io){
             }
 
             // プレイヤーがこのバトルに参加しているか確認
-            if (!battle.players[player.id]) {
+            const player = battle.players[playerId];
+            if (!player) {
                 return socket.emit('battleError', { message: 'You are not part of this battle.' });
             }
             
-            BattleManager.remapPlayerSocket(roomId, player.id, socket.id);
+            BattleManager.remapPlayerSocket(roomId, playerId, socket.id);
             socket.join(roomId);
 
             console.log(`[Battle] Player ${player.name} (${player.id}) joined battle room ${roomId}`);
@@ -434,13 +434,13 @@ module.exports = function(io){
             //  （1対1のフレンド対戦を含む、battle:join を使う全ての対戦で発生していた）。
             // ボス戦なら isBoss:true のエントリが敵、それ以外は味方（レイドパーティメンバー）。
             // 1対1のPvPなら、残る1人がそのまま敵になる。
-            const others = Object.values(battle.players).filter(p => p.id !== player.id);
+            const others = Object.values(battle.players).filter(p => p.id !== playerId);
             const bossEntry = others.find(p => p.isBoss);
             const enemy = bossEntry || others[0] || null;
             const allies = others.filter(p => p !== enemy);
 
             const initialState = {
-                me: battle.players[player.id],
+                me: battle.players[playerId],
                 enemy: enemy,
                 allies: allies,
                 // このバトルの現在の問題を使う（未生成なら生成する）
