@@ -556,6 +556,11 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
+
+    // デイリーミッションの進捗を更新
+    if (typeof updateMissionProgress === 'function') {
+        updateMissionProgress('study', seconds);
+    }
 }
 
 // プレイヤーIDの正規化（大文字・空白・全角の揺れを吸収）
@@ -922,6 +927,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // スキルツリータブを開いたときは最新状態を再描画する
+            if (section === 'skills') {
+                try {
+                    if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+                } catch (e) {
+                    console.error("Error rendering skills tab:", e);
+                }
+            }
+
             closeMobileMenu();
         });
     });
@@ -979,6 +993,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
         if (typeof initShop === "function") {
             initShop();
+        }
+
+        // デイリーミッションの初期化
+        if (typeof initializeDailyMissions === "function") {
+            initializeDailyMissions();
         }
 
         // PWAインストールボタンのイベントリスナー

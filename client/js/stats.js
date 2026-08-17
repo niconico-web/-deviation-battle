@@ -177,6 +177,18 @@ function applyBattleRewards(won, turns, damage, options = {}) {
                 player = applyBossRewards(player, options.enemy);
             }
         }
+        
+        // デイリーミッションの進捗を更新
+        if (typeof updateMissionProgress === 'function') {
+            if (isBossBattle && options.enemy) {
+                updateMissionProgress('defeat_boss', { bossId: options.enemy.id, difficulty: options.enemy.difficulty });
+            } else if (isBotBattle) {
+                updateMissionProgress('win_bot');
+            } else {
+                updateMissionProgress('win_online');
+            }
+        }
+
         gainedCoins += COIN_BATTLE_WIN;
         console.log(`[Stats] Calling incrementWeaponWin for weapon: ${player.equippedWeapon?.name} (type: ${player.equippedWeapon?.type})`);
         player = incrementWeaponWin(player);
