@@ -385,6 +385,10 @@ const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
 const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率（通常）
 const ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4 = 10.0; // Tier4オーブ使用時の最大倍率
 const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
+// オリジナル武器の限界突破設定
+const ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER = "tier4"; // コストとなるオーブのティア
+const ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT = 0.5; // 1回あたりの上限倍率の増加量
+const ORIGINAL_WEAPON_MAX_LIMIT_BREAK = 16; // 最大限界突破回数
 
 // 必殺技システム
 const ULTIMATE_GAUGE_MAX = 100; // 必殺技ゲージ最大値
@@ -1122,6 +1126,73 @@ function addMaterialToPlayer(player, materialId, amount = 1) {
     return { ...player, materials };
 }
 
+/**
+ * プレイヤーが作成したオリジナル武器が限界突破可能か判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakOriginalWeapon(weapon) {
+    // ボス武器ではなく、純粋なオリジナル武器であること
+    if (!weapon || !weapon.isOriginal || weapon.sourceBossId) {
+        return false;
+    }
+    const level = weapon.originalLimitBreakLevel || 0;
+    const max = weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK;
+    return level < max;
+}
+
+/**
+ * Tier4オーブを1つ消費して、オリジナル武器の上限倍率を伸ばす。
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakOriginalWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) {
+        return { ok: false, message: "武器を所持していません" };
+    }
+    if (!canLimitBreakOriginalWeapon(weapon)) {
+        return { ok: false, message: "この武器は限界突破できません" };
+    }
+
+    // Tier4オーブを探す
+    const tier4OrbIndex = (player.orbs || []).findIndex(orb => orb.tier === ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER);
+    if (tier4OrbIndex === -1) {
+        return { ok: false, message: "限界突破に必要なTier4オーブを所持していません" };
+    }
+
+    // オーブを消費
+    const orbs = [...player.orbs];
+    orbs.splice(tier4OrbIndex, 1);
+
+    // 武器を更新
+    const updatedWeapon = {
+        ...weapon,
+        originalLimitBreakLevel: (weapon.originalLimitBreakLevel || 0) + 1,
+        maxMultiplier: (getWeaponMaxMultiplier(weapon) || ORIGINAL_WEAPON_MAX_MULTIPLIER) + ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT,
+        maxOriginalLimitBreak: weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK
+    };
+
+    // プレイヤーの武器リストを更新
+    const weapons = player.weapons.map(w => (w.id === weaponId ? updatedWeapon : w));
+
+    // プレイヤーオブジェクトを更新
+    let updatedPlayer = { ...player, weapons, orbs };
+
+    // 装備中の武器も更新
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
+}
+
+/**
+ * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
 function canLimitBreakWeapon(weapon) {
     if (!weapon || !weapon.sourceBossId) return false;
     const level = weapon.limitBreakLevel || 0;

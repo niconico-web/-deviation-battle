@@ -302,6 +302,15 @@ function renderOriginalWeapons() {
             limitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x） / 素材所持: ${materialCount}個</span>`;
         }
 
+        // オリジナル武器の限界突破情報
+        let originalLimitBreakText = "";
+        if (weapon.isOriginal && !weapon.sourceBossId) {
+            const level = weapon.originalLimitBreakLevel || 0;
+            const maxLevel = weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : 16;
+            const maxMult = getWeaponMaxMultiplier(weapon);
+            originalLimitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x）</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
@@ -310,6 +319,7 @@ function renderOriginalWeapons() {
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
                 ${secondaryTypeText}
                 ${limitBreakText}
+                ${originalLimitBreakText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
@@ -358,6 +368,20 @@ function renderOriginalWeapons() {
             limitBreakBtn.disabled = materialCount < 1;
             limitBreakBtn.onclick = () => limitBreakWeaponUI(weapon);
             item.appendChild(limitBreakBtn);
+        }
+
+        // オリジナル武器の限界突破ボタン（ボス武器でない場合）
+        if (weapon.isOriginal && !weapon.sourceBossId && canLimitBreakOriginalWeapon(weapon)) {
+            const tier4OrbCount = (player.orbs || []).filter(o => o.tier === 'tier4').length;
+            const originalLimitBreakBtn = document.createElement("button");
+            originalLimitBreakBtn.className = "btn btn-small btn-warning"; // 別の色にする
+            originalLimitBreakBtn.textContent = `限界突破 (Tier4オーブx${tier4OrbCount})`;
+            originalLimitBreakBtn.disabled = tier4OrbCount < 1;
+            originalLimitBreakBtn.onclick = () => {
+                // 新しいUIハンドラを呼ぶ
+                limitBreakOriginalWeaponUI(weapon);
+            };
+            item.appendChild(originalLimitBreakBtn);
         }
 
         container.appendChild(item);
@@ -499,6 +523,29 @@ function limitBreakWeaponUI(weapon) {
         message += `\n\n★tier4固有能力「${gainedTier4.name}」を獲得した！★`;
     }
     alert(message);
+
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(result.player);
+}
+
+function limitBreakOriginalWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    if (!confirm(`${weapon.name} を限界突破しますか？\n（Tier4オーブを1つ消費します）`)) {
+        return;
+    }
+
+    const result = limitBreakOriginalWeapon(player, weapon.id);
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    localStorage.setItem("player", JSON.stringify(result.player));
+
+    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.originalLimitBreakLevel}/${result.weapon.maxOriginalLimitBreak})`);
 
     renderOriginalWeapons();
     renderInventory();

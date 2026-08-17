@@ -61,6 +61,15 @@ function migratePlayer(player) {
     if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
     // 限界突破素材は { materialId: 個数 } の辞書形式で管理する。
     // 過去バージョンで配列形式 [{id, name, count}, ...] として保存されたデータがあれば辞書形式に変換する。
+    (player.weapons || []).forEach(w => {
+        if (w.isOriginal && !w.sourceBossId) {
+            if (w.originalLimitBreakLevel == null) {
+                w.originalLimitBreakLevel = 0;
+            }
+            // weapons.jsで定義した定数を参照できないため、直接値を記述
+            w.maxOriginalLimitBreak = 16;
+        }
+    });
     if (Array.isArray(player.materials)) {
         const materialsDict = {};
         player.materials.forEach(m => {
