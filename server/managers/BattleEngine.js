@@ -279,6 +279,66 @@ function applyLifeDrain(attacker, damageDealt) {
 }
 
 /**
+ * ボススキル効果を適用する
+ * @param {number} damage - 元のダメージ
+ * @param {object} attacker - 攻撃者 (ボス)
+ * @param {object} defender - 防御者 (プレイヤー)
+ * @param {object} skill - 使用するスキル
+ * @param {object} result - 結果を格納するオブジェクト
+ * @returns {number} - 変更後のダメージ
+ */
+function applyBossSkillEffect(damage, attacker, defender, skill, result) {
+    if (!skill || !skill.effect) return damage;
+
+    let modifiedDamage = damage;
+    const effect = skill.effect;
+
+    result.skillUsed = skill; // 使用したスキルを記録
+
+    // ダメージ倍率
+    if (effect.damageMultiplier) {
+        modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
+    }
+    // ライフスティール
+    if (effect.lifeSteal) {
+        const healAmount = Math.floor(modifiedDamage * effect.lifeSteal);
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+        result.bossHealed = healAmount;
+    }
+    // 防御無視
+    if (effect.ignoreDef) {
+        result.bossIgnoreDef = true;
+    }
+    // 必中
+    if (effect.sureHit) {
+        result.bossSureHit = true;
+    }
+    // プレイヤーへのデバフ
+    if (effect.debuff) {
+        if (!defender.debuffs) defender.debuffs = [];
+        defender.debuffs.push({
+            stat: effect.debuff.type,
+            reduction: effect.debuff.reduction,
+            isFlat: false,
+            remainingTurns: effect.debuff.turns || 3
+        });
+        result.playerDebuffed = effect.debuff;
+    }
+    // 自己バフ
+    if (effect.selfBuff) {
+        if (!attacker.buffs) attacker.buffs = [];
+        attacker.buffs.push({
+            stat: effect.selfBuff.type,
+            amount: effect.selfBuff.amount,
+            turns: effect.selfBuff.turns || 2
+        });
+        result.bossBuffed = effect.selfBuff;
+    }
+
+    return modifiedDamage;
+}
+
+/**
  * 攻撃を伴わないスキル効果を即時適用する
  */
 function applyInstantSkillEffects(player, enemy, effect, result) {
@@ -360,6 +420,15 @@ function tickDebuffs(player) {
 }
 
 /**
+ * バフのターンを減らす
+ */
+function tickBuffs(player) {
+    if (!player.buffs || player.buffs.length === 0) return;
+    player.buffs.forEach(b => b.turns--);
+    player.buffs = player.buffs.filter(b => b.turns > 0);
+}
+
+/**
  * デバフを考慮したステータスを取得
  */
 function getStatWithDebuffs(player, statName) {
@@ -372,6 +441,21 @@ function getStatWithDebuffs(player, statName) {
         });
     }
     return Math.max(0, value);
+}
+
+/**
+ * バフを考慮したステータスを取得
+ */
+function getStatWithBuffs(player, statName) {
+    let value = player[statName] || 0;
+    if (player.buffs) {
+        player.buffs.forEach(buff => {
+            if (buff.stat === statName) {
+                value = value * buff.amount;
+            }
+        });
+    }
+    return Math.floor(value);
 }
 // -----------------------------
 // レイドボス戦の回答処理（3人以上のパーティ対応）
@@ -531,10 +615,22 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
         }
     } else {
         // 不正解: ボスがそのプレイヤー個人に反撃する
+        const bossAtkWithBuffs = getStatWithBuffs(boss, 'atk');
         const damageResult = calculateDamage(boss, player, 0, {
+            attackerAtk: bossAtkWithBuffs,
             defenderDef: getStatWithDebuffs(player, 'def')
         });
         let damage = damageResult.damage;
+
+        // ボススキル使用ロジック
+        let bossUsedSkill = null;
+        if (boss.skills && boss.skills.length > 0) {
+            if (Math.random() < 0.5) { // 50%の確率でスキル使用
+                bossUsedSkill = boss.skills[Math.floor(Math.random() * boss.skills.length)];
+                damage = applyBossSkillEffect(damage, boss, player, bossUsedSkill, result);
+            }
+        }
+
         const dodgeChance = damageResult.dodgeChance;
         const dodgeRoll = Math.random() * 100;
 
@@ -573,8 +669,12 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
 
     if (!battle.finished && allAnswered) {
         generateQuestion(battle);
-        alivePlayers.forEach(p => tickDebuffs(p));
+        alivePlayers.forEach(p => {
+            tickDebuffs(p);
+            tickBuffs(p);
+        });
         tickBurn(boss, result, 'bossBurnTick');
+        tickBuffs(boss);
         result.nextQuestion = battle.currentQuestion;
         result.roundComplete = true;
     }
