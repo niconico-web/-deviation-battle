@@ -746,6 +746,11 @@ textarea {
     transition: background-color 0.2s, transform 0.3s;
 }
 
+/* 強制的にモバイルメニューボタンを表示（デバッグ用） */
+.mobile-menu-toggle.force-show {
+    display: block !important;
+}
+
 .mobile-menu-toggle:hover {
     background: var(--border-color);
 }
@@ -803,6 +808,32 @@ textarea {
 @media (max-width: 480px) {
     .mobile-menu-toggle {
         display: block !important; /* 強制的に表示 */
+    }
+}
+
+/* タブレット向け */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .mobile-menu-toggle {
+        display: block !important;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 1000;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        padding: 10px;
+        padding-top: 56px;
     }
 }
 

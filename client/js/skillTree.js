@@ -1233,6 +1233,7 @@ function injectSkillTreeCSS() {
 }
 
 function renderSkillTreeUI() {
+    console.log('renderSkillTreeUI called');
     const container = document.getElementById('skillTreeContainer');
     if (!container) {
         console.log('renderSkillTreeUI: skillTreeContainer not found');
@@ -1241,9 +1242,12 @@ function renderSkillTreeUI() {
 
     const player = getPlayerData();
     if (!player) {
+        console.log('renderSkillTreeUI: player not found');
         container.innerHTML = '<p>プレイヤーデータが見つかりません。</p>';
         return;
     }
+
+    console.log('renderSkillTreeUI: player found, skillTree:', player.skillTree);
 
     // index.htmlの静的UIを使用するため、動的生成は行わない
     // スキルポイント表示のみ更新
@@ -1741,4 +1745,5 @@ if (typeof window !== 'undefined') {
     window.equipSkillToSlot = equipSkillToSlot;
     window.unequipSkillFromSlot = unequipSkillFromSlot;
     window.renderSkillTreeUI = renderSkillTreeUI;
+    console.log('SkillTree functions exported to window');
 }

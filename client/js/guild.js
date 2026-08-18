@@ -13,15 +13,24 @@ class GuildSystem {
     }
 
     init() {
+        console.log('GuildSystem initializing...');
         this.setupEventListeners();
         this.loadGuildData();
+        console.log('GuildSystem initialized');
     }
 
     setupEventListeners() {
+        console.log('Setting up guild event listeners...');
+        
         // ギルド作成ボタン
-        document.getElementById('createGuildBtn')?.addEventListener('click', () => {
-            this.showCreateGuildModal();
-        });
+        const createGuildBtn = document.getElementById('createGuildBtn');
+        console.log('createGuildBtn found:', !!createGuildBtn);
+        if (createGuildBtn) {
+            createGuildBtn.addEventListener('click', () => {
+                console.log('Create guild button clicked');
+                this.showCreateGuildModal();
+            });
+        }
 
         // ギルド一覧ボタン
         document.getElementById('showGuildListBtn')?.addEventListener('click', () => {
@@ -201,10 +210,15 @@ class GuildSystem {
     }
 
     showCreateGuildModal() {
+        console.log('Showing create guild modal');
         const modal = document.getElementById('createGuildModal');
+        console.log('Modal element found:', !!modal);
         if (modal) {
             modal.style.display = 'flex';
             modal.classList.add('show');
+            console.log('Modal displayed');
+        } else {
+            console.error('Create guild modal not found');
         }
     }
 
@@ -570,6 +584,45 @@ class GuildSystem {
 
 // グローバルインスタンスを作成
 let guildSystem;
-document.addEventListener('DOMContentLoaded', () => {
-    guildSystem = new GuildSystem();
+
+// DOMContentLoaded と window load の両方で初期化を試みる
+function initGuildSystem() {
+    console.log('initGuildSystem called');
+    if (!guildSystem) {
+        console.log('Creating new GuildSystem instance');
+        guildSystem = new GuildSystem();
+    } else {
+        console.log('GuildSystem already exists');
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGuildSystem);
+} else {
+    // DOM already loaded
+    initGuildSystem();
+}
+
+// フォールバックとして window load も使用
+window.addEventListener('load', () => {
+    console.log('Window load fired, initializing guild system');
+    setTimeout(initGuildSystem, 100);
 });
+
+// デバッグ用：グローバルに公開
+window.debugGuild = () => {
+    console.log('Guild System Debug Info:');
+    console.log('guildSystem exists:', !!guildSystem);
+    console.log('createGuildBtn:', document.getElementById('createGuildBtn'));
+    console.log('createGuildModal:', document.getElementById('createGuildModal'));
+    console.log('showGuildListBtn:', document.getElementById('showGuildListBtn'));
+    console.log('guildListModal:', document.getElementById('guildListModal'));
+    
+    // 強制的にモーダルを表示
+    const modal = document.getElementById('createGuildModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        console.log('Modal force-shown');
+    }
+};
