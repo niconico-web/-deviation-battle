@@ -75,6 +75,11 @@ document.addEventListener('visibilitychange', () => {
         // ページが非表示になったらタイマー状態を保存
         saveStudyTimerState();
     } else {
+        // ページが再表示されたら、日付が変わっている可能性を考慮してミッションを再初期化する
+        if (typeof initializeDailyMissions === 'function') {
+            initializeDailyMissions();
+        }
+
         // ページが再表示されたらタイマー状態を復元
         const savedState = loadStudyTimerState();
         if (savedState && studyStartTime === null) {

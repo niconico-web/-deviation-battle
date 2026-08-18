@@ -212,6 +212,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 
     if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
         player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
+        if (typeof updateMissionProgress === 'function') {
+            updateMissionProgress('level_up', newLevel - oldLevel);
+        }
         alert(`レベルアップ！ Lv${newLevel}\nスキルポイントを ${ (newLevel - oldLevel) * SKILL_POINTS_PER_LEVEL } 獲得しました！`);
     }
 
