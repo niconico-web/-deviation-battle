@@ -751,6 +751,11 @@ textarea {
     display: block !important;
 }
 
+/* 常にモバイルメニューボタンを表示 */
+.mobile-menu-toggle.always-show {
+    display: block !important;
+}
+
 .mobile-menu-toggle:hover {
     background: var(--border-color);
 }

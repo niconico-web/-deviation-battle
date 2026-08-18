@@ -1131,6 +1131,16 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSkillTreeUI();
         }
 
+        // 素材管理の初期化
+        if (typeof initMaterials === "function") {
+            initMaterials();
+        }
+
+        // ギルドシステムの初期化
+        if (typeof initializeGuildSystem === "function") {
+            initializeGuildSystem();
+        }
+
         // ステータス入力欄のイベントリスナー
         const statInputs = document.querySelectorAll('.stat-allocation input, .stat-allocation select');
         statInputs.forEach(input => {

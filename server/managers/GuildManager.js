@@ -239,22 +239,113 @@ function addContribution(guildId, playerId, amount) {
     };
 }
 
+// クエストの難易度をAIで判定
+function analyzeQuestDifficulty(description, category) {
+    let difficultyScore = 0;
+    let estimatedRank = 'F';
+    
+    const desc = description.toLowerCase();
+    
+    // 基本スコア
+    const baseScores = {
+        'battle': 10,
+        'delivery': 5,
+        'escort': 8,
+        'special': 3
+    };
+    difficultyScore += baseScores[category] || 5;
+    
+    // 数値ベースの難易度判定
+    const numberMatches = desc.match(/(\d+)/g);
+    if (numberMatches) {
+        numberMatches.forEach(num => {
+            const value = parseInt(num);
+            if (value > 10) difficultyScore += value * 0.5;
+            else if (value > 5) difficultyScore += value * 0.3;
+            else difficultyScore += value * 0.1;
+        });
+    }
+    
+    // キーワードベースの難易度判定
+    const highDifficultyKeywords = ['連勝', '连胜', 'streak', '連続', 'consecutive', '伝説', 'legendary', '極意', 'ultimate', '最強', 'strongest'];
+    const mediumDifficultyKeywords = ['勝利', '胜利', 'win', '攻略', 'clear', '達成', 'achieve', '完了', 'complete'];
+    const lowDifficultyKeywords = ['初心者', 'beginner', '入門', 'intro', '練習', 'practice', '簡単', 'easy', 'basic'];
+    
+    highDifficultyKeywords.forEach(keyword => {
+        if (desc.includes(keyword)) difficultyScore += 20;
+    });
+    
+    mediumDifficultyKeywords.forEach(keyword => {
+        if (desc.includes(keyword)) difficultyScore += 10;
+    });
+    
+    lowDifficultyKeywords.forEach(keyword => {
+        if (desc.includes(keyword)) difficultyScore -= 5;
+    });
+    
+    // 特定のモンスター名
+    const bossKeywords = ['ボス', 'boss', 'ドラゴン', 'dragon', '魔王', 'demon king', '神', 'god'];
+    bossKeywords.forEach(keyword => {
+        if (desc.includes(keyword)) difficultyScore += 15;
+    });
+    
+    // ランク判定
+    if (difficultyScore >= 50) estimatedRank = 'S';
+    else if (difficultyScore >= 40) estimatedRank = 'A';
+    else if (difficultyScore >= 30) estimatedRank = 'B';
+    else if (difficultyScore >= 20) estimatedRank = 'C';
+    else if (difficultyScore >= 15) estimatedRank = 'D';
+    else if (difficultyScore >= 10) estimatedRank = 'E';
+    else estimatedRank = 'F';
+    
+    // 報酬の自動計算
+    const baseReward = {
+        'F': 30,
+        'E': 50,
+        'D': 100,
+        'C': 200,
+        'B': 400,
+        'A': 800,
+        'S': 1500
+    };
+    
+    const autoReward = Math.floor(baseReward[estimatedRank] * (difficultyScore / 10));
+    
+    return {
+        difficultyScore,
+        estimatedRank,
+        suggestedReward: autoReward
+    };
+}
+
 // クエストを作成
 function createQuest(questData) {
     const { guildId, title, description, category, rank, reward, createdBy, creatorName, type } = questData;
     
-    if (!title || !description || !category || !rank || !reward) {
+    if (!title || !description || !category) {
         return { success: false, message: '必須項目が不足しています' };
-    }
-    
-    // ランクのバリデーション
-    if (!GUILD_RANKS[rank]) {
-        return { success: false, message: '無効なランクです' };
     }
     
     // カテゴリのバリデーション
     if (!QUEST_CATEGORIES[category]) {
         return { success: false, message: '無効なカテゴリです' };
+    }
+    
+    // AIによる難易度判定（ランクと報酬が指定されていない場合）
+    let finalRank = rank;
+    let finalReward = reward;
+    
+    if (!rank || !reward) {
+        const analysis = analyzeQuestDifficulty(description, category);
+        if (!rank) finalRank = analysis.estimatedRank;
+        if (!reward) finalReward = analysis.suggestedReward;
+        
+        console.log(`[GuildManager] AI Analysis for quest "${title}":`, analysis);
+    }
+    
+    // ランクのバリデーション
+    if (!GUILD_RANKS[finalRank]) {
+        return { success: false, message: '無効なランクです' };
     }
     
     const questId = 'QUEST_' + Date.now().toString(36).toUpperCase();
@@ -265,8 +356,8 @@ function createQuest(questData) {
         title: title,
         description: description,
         category: category,
-        rank: rank,
-        reward: reward,
+        rank: finalRank,
+        reward: finalReward,
         type: type || 'system', // 'system' or 'user'
         createdBy: createdBy,
         creatorName: creatorName,
@@ -280,6 +371,9 @@ function createQuest(questData) {
     
     questData[questId] = newQuest;
     saveQuestData();
+    
+    console.log(`[GuildManager] Quest created: ${questId}, status: ${newQuest.status}, guildId: ${newQuest.guildId}`);
+    console.log(`[GuildManager] Total quests in data: ${Object.keys(questData).length}`);
     
     return { success: true, quest: newQuest };
 }
