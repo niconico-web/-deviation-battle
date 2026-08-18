@@ -770,7 +770,7 @@ textarea {
 }
 
 /* モバイル表示 */
-@media (max-width: 1200px) {
+@media (max-width: 768px) {
     .app-container {
         flex-direction: column;
     }
@@ -796,6 +796,13 @@ textarea {
     .main-content {
         padding: 10px;
         padding-top: 56px;
+    }
+}
+
+/* さらに小さい画面向け */
+@media (max-width: 480px) {
+    .mobile-menu-toggle {
+        display: block !important; /* 強制的に表示 */
     }
 }
 
