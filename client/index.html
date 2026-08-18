@@ -278,7 +278,6 @@
                 <div id="guildListModal" class="modal">
                     <div class="modal-content guild-list-modal">
                         <h3>ギルド一覧</h3>
-                        <input type="text" id="guildSearchInput" placeholder="ギルド名で検索..." class="form-input">
                         <div id="guild-list-container">
                             <!-- ギルドリストが表示される -->
                         </div>
@@ -307,6 +306,35 @@
                     <div id="active-quests" class="active-quests">
                         <!-- アクティブクエストが表示される -->
                     </div>
+                </div>
+
+                <!-- クエスト作成（ギルドメンバー用） -->
+                <div id="quest-creation" class="setting-box" style="display: none;">
+                    <h3>クエストを作成</h3>
+                    <label class="field-label" for="questTitle">クエストタイトル</label>
+                    <input type="text" id="questTitle" placeholder="クエストタイトル" maxlength="30">
+                    <label class="field-label" for="questDescription">詳細</label>
+                    <textarea id="questDescription" placeholder="クエストの詳細を入力" maxlength="100"></textarea>
+                    <label class="field-label" for="questCategory">カテゴリ</label>
+                    <select id="questCategory">
+                        <option value="BATTLE">⚔️ 討伐依頼</option>
+                        <option value="DELIVERY">📦 素材納品</option>
+                        <option value="ESCORT">🛡️ 護衛協力</option>
+                        <option value="SPECIAL">🔍 調査特殊</option>
+                    </select>
+                    <label class="field-label" for="questRank">ランク</label>
+                    <select id="questRank">
+                        <option value="F">Fランク</option>
+                        <option value="E">Eランク</option>
+                        <option value="D">Dランク</option>
+                        <option value="C">Cランク</option>
+                        <option value="B">Bランク</option>
+                        <option value="A">Aランク</option>
+                        <option value="S">Sランク</option>
+                    </select>
+                    <label class="field-label" for="questReward">報酬（貢献度）</label>
+                    <input type="number" id="questReward" placeholder="報酬を入力" min="1" max="1000">
+                    <button type="button" id="createQuestBtn" class="btn btn-primary">クエストを作成</button>
                 </div>
             </section>
 
@@ -375,7 +403,6 @@
     <script src="js/help.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/guild.js"></script>
-    <script src="js/script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
