@@ -1,6 +1,6 @@
 // client/js/guild.js
 
-const GUILD_QUEST_STORAGE_KEY = 'guildQuests';
+const GUILD_QUEST_STORAGE_KEY = 'guildWeeklyQuests';
 
 // ============================================================================
 // ギルドデータ管理
@@ -125,7 +125,7 @@ function updateGuildQuestProgress(type, value) {
                 const targetCount = quest.target.count || quest.target.seconds || 1;
                 if (quest.progress >= targetCount) {
                     quest.status = 'completed';
-                    quest.progress = targetCount; // 上限を超えないように
+                    quest.progress = targetCount;
                     alert(`クエスト「${quest.title}」を達成しました！`);
                     // ギルド貢献度を付与
                     const playerGuild = getPlayerGuild();
@@ -255,6 +255,27 @@ function renderActiveQuests() {
         `;
         activeQuestsContainer.appendChild(questCard);
     });
+}
+
+/**
+ * ウィークリークエストを生成する関数
+ * @returns {Array}
+ */
+function generateWeeklyQuests() {
+    const questPool = [
+        { id: 'collect_goblin_fang_10', type: 'collect_material', title: 'ゴブリンの牙収集', description: 'ゴブリンから牙を10本集める。', target: { materialId: 'goblin_fang', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
+        { id: 'collect_slime_jelly_10', type: 'collect_material', title: 'スライムゼリー収集', description: 'スライムからゼリーを10個集める。', target: { materialId: 'slime_jelly', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
+        { id: 'defeat_goblin_king_easy_3', type: 'defeat_boss', title: 'ゴブリンキング討伐(Easy) x3', description: 'ゴブリンキング(EASY)を3体討伐する。', target: { bossId: 'goblin_king', difficulty: 'easy', count: 3 }, reward: 150, category: 'BATTLE', rank: 'D' },
+        { id: 'win_online_5', type: 'win_online', title: 'オンライン対戦5勝', description: 'オンライン対戦で5回勝利する。', target: { count: 5 }, reward: 200, category: 'BATTLE', rank: 'C' },
+        { id: 'study_3_hours', type: 'study_time', title: '合計3時間勉強', description: '合計3時間勉強して学力を高める。', target: { seconds: 10800 }, reward: 180, category: 'SPECIAL', rank: 'D' },
+    ];
+
+    const shuffled = questPool.sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 10).map(q => ({
+        ...q,
+        id: `${q.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`, // ユニークID
+        status: 'available', assignedTo: null, progress: 0,
+    }));
 }
 
 /**
