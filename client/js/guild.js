@@ -1,7 +1,6 @@
 // client/js/guild.js
 
-const GUILD_STORAGE_KEY = 'playerGuild';
-const GUILD_QUEST_STORAGE_KEY = 'guildQuests';
+const GUILD_QUEST_STORAGE_KEY = 'guildWeeklyQuests';
 
 // ============================================================================
 // ギルドデータ管理
@@ -35,16 +34,6 @@ function setPlayerGuild(guildData) {
 // ============================================================================
 
 /**
- * クエストのプール (AIが生成するクエストのテンプレートとして機能)
- */
-const QUEST_POOL = [
-    { id: 'collect_goblin_fang_5', type: 'collect_material', title: 'ゴブリンの牙を5本集めよう', description: 'ゴブリンキングからゴブリンの牙を5本集めて納品しよう。', target: { materialId: 'goblin_fang', count: 5 }, reward: 50, category: 'DELIVERY', rank: 'E' },
-    { id: 'defeat_slime_queen_1', type: 'defeat_boss', title: 'スライムクイーン討伐', description: 'スライムクイーン(NORMAL)を1体討伐しよう。', target: { bossId: 'slime_queen', difficulty: 'medium', count: 1 }, reward: 80, category: 'BATTLE', rank: 'D' },
-    { id: 'study_1_hour', type: 'study_time', title: '合計1時間勉強', description: '合計1時間勉強して学力を高めよう。', target: { seconds: 3600 }, reward: 60, category: 'SPECIAL', rank: 'F' },
-    { id: 'win_online_3', type: 'win_online', title: 'オンライン対戦3勝', description: 'オンライン対戦で3回勝利しよう。', target: { count: 3 }, reward: 70, category: 'BATTLE', rank: 'C' },
-];
-
-/**
  * クライアントサイドでクエストリストを管理する (仮)
  * 実際にはサーバーから取得・更新されるべきです。
  */
@@ -58,26 +47,6 @@ function saveGuildQuests(quests) {
 }
 
 /**
- * 新しいクエストを作成する (クライアントサイド仮実装)
- * @param {object} questData - クエストのタイトル、説明、カテゴリ、ランク、報酬など
- */
-function createNewQuest(questData) {
-    let quests = getGuildQuests();
-    const newQuest = {
-        id: `quest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-        ...questData,
-        status: 'available', // available, active, completed
-        assignedTo: null,
-        progress: 0,
-        createdAt: Date.now()
-    };
-    quests.push(newQuest);
-    saveGuildQuests(quests);
-    renderQuestBoard();
-    alert('クエストが作成されました！');
-}
-
-/**
  * クエストを受注する (クライアントサイド仮実装)
  * @param {string} questId - 受注するクエストのID
  */
@@ -88,7 +57,7 @@ function acceptQuest(questId) {
 
     const questIndex = quests.findIndex(q => q.id === questId);
     if (questIndex > -1 && quests[questIndex].status === 'available') {
-        quests[questIndex].status = 'active';
+        quests[questIndex].status = 'active'; // 'available' -> 'active'
         quests[questIndex].assignedTo = player.id;
         saveGuildQuests(quests);
         renderQuestBoard();
@@ -135,8 +104,10 @@ function updateGuildQuestProgress(type, value) {
 
             if (progressMade) {
                 questUpdated = true;
-                if (quest.progress >= quest.target.count) {
+                const targetCount = quest.target.count || quest.target.seconds || 1;
+                if (quest.progress >= targetCount) {
                     quest.status = 'completed';
+                    quest.progress = targetCount; // 上限を超えないように
                     alert(`クエスト「${quest.title}」を達成しました！`);
                     // ここで報酬を付与する処理を追加
                 }
@@ -161,13 +132,11 @@ function renderGuildUI() {
     const playerGuild = getPlayerGuild();
     const guildInfoSection = document.getElementById('guild-info');
     const noGuildSection = document.getElementById('no-guild');
-    const questCreationSection = document.getElementById('quest-creation');
 
     if (playerGuild) {
         // ギルド参加中
         if (guildInfoSection) guildInfoSection.style.display = 'block';
         if (noGuildSection) noGuildSection.style.display = 'none';
-        if (questCreationSection) questCreationSection.style.display = 'block'; // ギルドメンバーはクエスト作成可能
 
         const myGuildDetails = document.getElementById('my-guild-details');
         if (myGuildDetails) {
@@ -182,7 +151,6 @@ function renderGuildUI() {
         // ギルド未参加
         if (guildInfoSection) guildInfoSection.style.display = 'none';
         if (noGuildSection) noGuildSection.style.display = 'block';
-        if (questCreationSection) questCreationSection.style.display = 'none';
     }
     renderQuestBoard();
     renderActiveQuests();
@@ -196,7 +164,7 @@ function renderQuestBoard(filterCategory = 'all') {
     const questBoard = document.getElementById('quest-board');
     if (!questBoard) return;
 
-    const quests = getGuildQuests().filter(q => q.status === 'available');
+    const quests = getGuildQuests().filter(q => q.status === 'available' || q.status === 'completed');
     questBoard.innerHTML = '';
 
     const filteredQuests = filterCategory === 'all'
@@ -212,10 +180,13 @@ function renderQuestBoard(filterCategory = 'all') {
         const questCard = document.createElement('div');
         questCard.className = 'quest-card';
         questCard.innerHTML = `
-            <h3>${quest.title} (${quest.rank}ランク)</h3>
+            <h3>${quest.title} (${quest.rank || 'N/A'}ランク)</h3>
             <p>${quest.description}</p>
-            <p>報酬: ${quest.reward}貢献度</p>
-            <button class="btn btn-primary accept-quest-btn" data-quest-id="${quest.id}">受注する</button>
+            <p>報酬: ${quest.reward || 0}貢献度</p>
+            ${quest.status === 'completed' 
+                ? '<button class="btn btn-disabled" disabled>完了</button>'
+                : `<button class="btn btn-primary accept-quest-btn" data-quest-id="${quest.id}">受注する</button>`
+            }
         `;
         questBoard.appendChild(questCard);
     });
@@ -253,8 +224,8 @@ function renderActiveQuests() {
         questCard.className = 'quest-card active-quest';
         questCard.innerHTML = `
             <h3>${quest.title}</h3>
-            <p>${quest.description}</p>
-            <p>進捗: ${quest.progress || 0} / ${quest.target.count}</p>
+            <p>${quest.description || ''}</p>
+            <p>進捗: ${quest.progress || 0} / ${quest.target.count || quest.target.seconds || 1}</p>
             <!-- 進捗バーなどをここに追加可能 -->
         `;
         activeQuestsContainer.appendChild(questCard);
@@ -267,6 +238,10 @@ function renderActiveQuests() {
 function initializeGuildSystem() {
     console.log("Initializing guild system.");
     renderGuildUI();
+    if (window.socket) {
+        window.socket.emit('guild:getQuests'); // サーバーからクエストを取得
+        window.socket.emit('guild:getList'); // サーバーからギルドリストを取得
+    }
 
     // イベントリスナー設定
     document.getElementById('createGuildBtn')?.addEventListener('click', () => {
@@ -292,21 +267,6 @@ function initializeGuildSystem() {
             alert('ギルドから脱退しました。');
         }
     });
-    document.getElementById('createQuestBtn')?.addEventListener('click', () => {
-        const questTitle = document.getElementById('questTitle').value.trim();
-        const questDescription = document.getElementById('questDescription').value.trim();
-        const questCategory = document.getElementById('questCategory').value;
-        const questRank = document.getElementById('questRank').value;
-        const questReward = parseInt(document.getElementById('questReward').value);
-
-        if (questTitle && questDescription && questReward > 0) {
-            // 仮のターゲット設定 (AI連携がないため、今回は固定値)
-            const target = { materialId: 'goblin_fang', count: 3 }; // 例: ゴブリンの牙3本
-            createNewQuest({ title: questTitle, description: questDescription, category: questCategory, rank: questRank, reward: questReward, type: 'collect_material', target: target });
-        } else {
-            alert('クエストの情報をすべて入力してください。');
-        }
-    });
 
     document.querySelectorAll('.quest-filter-btn').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -315,4 +275,63 @@ function initializeGuildSystem() {
             renderQuestBoard(e.target.dataset.filter);
         });
     });
+
+    // ギルド一覧表示
+    document.getElementById('showGuildListBtn')?.addEventListener('click', () => {
+        document.getElementById('guildListModal').style.display = 'flex';
+    });
+    document.getElementById('closeGuildListBtn')?.addEventListener('click', () => {
+        document.getElementById('guildListModal').style.display = 'none';
+    });
+
+    // ギルド検索
+    document.getElementById('guildSearchInput')?.addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const guildItems = document.querySelectorAll('#guild-list-container .guild-list-item');
+        guildItems.forEach(item => {
+            const guildName = item.querySelector('h4').textContent.toLowerCase();
+            if (guildName.includes(searchTerm)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+
+    if (window.socket) {
+        window.socket.on('guild:questUpdate', (quests) => {
+            saveGuildQuests(quests);
+            renderQuestBoard();
+            renderActiveQuests();
+        });
+
+        window.socket.on('guild:list', (guilds) => {
+            const container = document.getElementById('guild-list-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!guilds || guilds.length === 0) {
+                container.innerHTML = '<p>現在、ギルドはありません。</p>';
+                return;
+            }
+            guilds.forEach(guild => {
+                const item = document.createElement('div');
+                item.className = 'guild-list-item';
+                item.innerHTML = `
+                    <h4>${guild.name}</h4>
+                    <p>${guild.description}</p>
+                    <p>メンバー: ${guild.memberCount}人</p>
+                    <button class="btn btn-small join-guild-btn" data-guild-id="${guild.id}">参加</button>
+                `;
+                container.appendChild(item);
+            });
+
+            container.querySelectorAll('.join-guild-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const guildId = e.target.dataset.guildId;
+                    // ここで参加処理を実装（サーバーにイベントをemit）
+                    console.log(`Joining guild ${guildId}`);
+                });
+            });
+        });
+    }
 }

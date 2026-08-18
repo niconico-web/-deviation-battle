@@ -1126,11 +1126,6 @@ document.addEventListener('DOMContentLoaded', () => {
             createCharBtn.addEventListener('click', createCharacter);
         }
 
-        // スキルツリーの初期描画
-        if (typeof renderSkillTreeUI === "function") {
-            renderSkillTreeUI();
-        }
-
         // 素材管理の初期化
         if (typeof initMaterials === "function") {
             initMaterials();
@@ -1139,6 +1134,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // ギルドシステムの初期化
         if (typeof initializeGuildSystem === "function") {
             initializeGuildSystem();
+        }
+
+        // スキルツリーの初期描画
+        if (typeof renderSkillTreeUI === "function") {
+            renderSkillTreeUI();
         }
 
         // ステータス入力欄のイベントリスナー
