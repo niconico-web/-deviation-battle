@@ -372,10 +372,17 @@ function getAvailableQuests(guildId = null) {
     const quests = Object.values(questData).filter(q => q.status === 'available');
     
     if (guildId) {
-        return quests.filter(q => q.guildId === guildId || !q.guildId);
+        // ギルドメンバーの場合：そのギルドのクエスト + システムクエスト（guildIdがないもの）
+        const guildQuests = quests.filter(q => q.guildId === guildId);
+        const systemQuests = quests.filter(q => !q.guildId);
+        console.log(`Available quests for guild ${guildId}:`, { guildQuests: guildQuests.length, systemQuests: systemQuests.length });
+        return [...guildQuests, ...systemQuests];
     }
     
-    return quests;
+    // ギルド未参加の場合：システムクエストのみ
+    const systemQuests = quests.filter(q => !q.guildId);
+    console.log('Available quests for non-guild player:', systemQuests.length);
+    return systemQuests;
 }
 
 // プレイヤーのアクティブクエストを取得

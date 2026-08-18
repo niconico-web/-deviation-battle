@@ -120,8 +120,9 @@ if (existingTabData) {
         // 5秒以上前のタブ情報は無効とみなす（タブが正常に閉じられなかった場合）
         if (now - data.timestamp < 5000) {
             // 他のタブが最近開かれている
-            alert('このサイトは同時に1つのタブでのみ使用できます。既存のタブを閉じてから再度開いてください。');
-            window.location.href = 'about:blank';
+            console.log('Another tab is already open');
+            // alert('このサイトは同時に1つのタブでのみ使用できます。既存のタブを閉じてから再度開いてください。');
+            // window.location.href = 'about:blank';
         }
     } catch (e) {
         // データが破損している場合は無視して続行
