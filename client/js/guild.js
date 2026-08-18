@@ -98,28 +98,54 @@ function acceptQuest(questId) {
 }
 
 /**
- * クエストの進捗を更新する (クライアントサイド仮実装)
- * @param {string} questId - 進捗を更新するクエストのID
- * @param {number} amount - 進捗量
+ * ギルドクエストの進捗を更新する
+ * @param {string} type - クエストのタイプ (e.g., 'defeat_boss', 'collect_material')
+ * @param {object|number} value - 達成した内容 (e.g., { bossId: '...', count: 1 }, 1)
  */
-function updateQuestProgress(questId, amount) {
+function updateGuildQuestProgress(type, value) {
     let quests = getGuildQuests();
     const player = getPlayerData();
     if (!player) return;
 
-    const quest = quests.find(q => q.id === questId && q.assignedTo === player.id && q.status === 'active');
-    if (quest) {
-        quest.progress = (quest.progress || 0) + amount;
-        if (quest.progress >= quest.target.count) { // 仮の達成条件
-            quest.status = 'completed';
-            alert(`クエスト「${quest.title}」を達成しました！`);
-            // 報酬付与 (仮)
-            player.coins = (player.coins || 0) + quest.reward;
-            localStorage.setItem("player", JSON.stringify(player));
-            updateStatus(player); // ステータスUI更新
+    let questUpdated = false;
+    const activeQuests = quests.filter(q => q.assignedTo === player.id && q.status === 'active');
+
+    activeQuests.forEach(quest => {
+        if (quest.type === type) {
+            let progressMade = false;
+            switch (type) {
+                case 'defeat_boss':
+                    if (quest.target.bossId === value.bossId && quest.target.difficulty === value.difficulty) {
+                        quest.progress = (quest.progress || 0) + 1;
+                        progressMade = true;
+                    }
+                    break;
+                case 'collect_material':
+                    if (quest.target.materialId === value.materialId) {
+                        quest.progress = (quest.progress || 0) + value.count;
+                        progressMade = true;
+                    }
+                    break;
+                case 'win_online':
+                case 'study_time':
+                    quest.progress = (quest.progress || 0) + value;
+                    progressMade = true;
+                    break;
+            }
+
+            if (progressMade) {
+                questUpdated = true;
+                if (quest.progress >= quest.target.count) {
+                    quest.status = 'completed';
+                    alert(`クエスト「${quest.title}」を達成しました！`);
+                    // ここで報酬を付与する処理を追加
+                }
+            }
         }
+    });
+
+    if (questUpdated) {
         saveGuildQuests(quests);
-        renderQuestBoard();
         renderActiveQuests();
     }
 }
@@ -231,7 +257,7 @@ function renderActiveQuests() {
             <p>進捗: ${quest.progress || 0} / ${quest.target.count}</p>
             <!-- 進捗バーなどをここに追加可能 -->
         `;
-        activeQuquestsContainer.appendChild(questCard);
+        activeQuestsContainer.appendChild(questCard);
     });
 }
 

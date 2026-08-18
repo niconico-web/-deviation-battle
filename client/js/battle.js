@@ -2503,6 +2503,17 @@ function finishBotBattle(result) {
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
     // デバッグ武器は奪えない
+
+    // ボット戦での素材ドロップ処理
+    if (win && enemy.isBot && enemy.materialDrops) {
+        enemy.materialDrops.forEach(drop => {
+            if (Math.random() < drop.chance) {
+                localStorage.setItem("droppedMaterial", drop.materialId);
+                addLog(`${enemy.name}から${MATERIAL_DATA[drop.materialId].name}を入手！`);
+            }
+        });
+    }
+
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }

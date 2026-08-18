@@ -158,6 +158,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     // 対人戦（ボット戦・ボス戦以外）に勝利した場合はランキング用の勝利数を加算する
     if (won && !isBossBattle && !isBotBattle) {
         player.pvpWins = (player.pvpWins || 0) + 1;
+        // ギルドクエスト進捗更新
+        if (typeof updateGuildQuestProgress === 'function') {
+            updateGuildQuestProgress('win_online', 1);
+        }
     }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
@@ -207,6 +211,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (droppedMaterial) {
             player.materials = player.materials || {};
             player.materials[droppedMaterial] = (player.materials[droppedMaterial] || 0) + 1;
+            // ギルドクエスト進捗更新
+            if (typeof updateGuildQuestProgress === 'function') {
+                updateGuildQuestProgress('collect_material', { materialId: droppedMaterial, count: 1 });
+            }
             console.log(`[Stats] Material dropped: ${droppedMaterial}, total: ${player.materials[droppedMaterial]}`);
             localStorage.removeItem("droppedMaterial");
         }

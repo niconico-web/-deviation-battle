@@ -11,6 +11,24 @@ function getBattleReadyPlayer(player) {
     };
 }
 
+const BOT_MONSTERS = [
+    { 
+        name: "ゴブリン", monsterType: "ゴブリン", monsterEmoji: "👺", 
+        baseStats: { maxHp: 80, atk: 60, def: 40, speed: 50 },
+        materialDrops: [{ materialId: 'goblin_fang', chance: 0.5 }]
+    },
+    { 
+        name: "スライム", monsterType: "スライム", monsterEmoji: "💧",
+        baseStats: { maxHp: 100, atk: 50, def: 60, speed: 30 },
+        materialDrops: [{ materialId: 'slime_jelly', chance: 0.6 }]
+    },
+    { 
+        name: "ベビードラゴン", monsterType: "ドラゴン", monsterEmoji: "🐲",
+        baseStats: { maxHp: 120, atk: 70, def: 50, speed: 40 },
+        materialDrops: [{ materialId: 'dragon_scale', chance: 0.4 }]
+    }
+];
+
 function setupOnlineEventHandlers() {
     if (onlineHandlersSetup) {
         return;
@@ -104,49 +122,19 @@ function setupOnlineEventHandlers() {
             }
 
             const battleStats = getBattleStats(player);
-            const botTypes = Object.keys(WEAPON_TYPES);
-            const randomType = botTypes[Math.floor(Math.random() * botTypes.length)];
-            // ボットの武器をtier1-tier3でランダムに生成
-            const tiers = ["tier1", "tier2", "tier3"];
-            const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
-            const botWeapon = createWeapon(randomType, randomTier, false);
-
-            // モンスターの種類を定義
-            const monsterTypes = [
-                { name: "スライム", emoji: "🟢", difficulty: 1.0, drops: ["スライムの粘液", "基本オーブ欠片"] },
-                { name: "ゴブリン", emoji: "👺", difficulty: 1.2, drops: ["ゴブリンの牙", "粗末なオーブ"] },
-                { name: "オーク", emoji: "👹", difficulty: 1.4, drops: ["オークの皮", "強化オーブ欠片"] },
-                { name: "ドラゴン", emoji: "🐉", difficulty: 1.8, drops: ["ドラゴンの鱗", "炎のオーブ", "高級オーブ"] },
-                { name: "ゾンビ", emoji: "🧟", difficulty: 1.1, drops: ["ゾンビの肉", "闇のオーブ欠片"] },
-                { name: "スケルトン", emoji: "💀", difficulty: 1.3, drops: ["骨片", "死のオーブ欠片"] },
-                { name: "ウィッチ", emoji: "🧙‍♀️", difficulty: 1.5, drops: "魔女の帽子", "魔法のオーブ欠片"] },
-                { name: "ナイト", emoji: "🤺", difficulty: 1.6, drops: ["騎士の盾", "守護のオーブ"] },
-                { name: "ゴーレム", emoji: "🗿", difficulty: 1.7, drops: ["魔法石", "大地のオーブ"] },
-                { name: "フェニックス", emoji: "🔥", difficulty: 2.0, drops: ["不死鳥の羽", "再生のオーブ", "伝説のオーブ"] }
-            ];
-
-            // プレイヤーの学年に合わせてモンスターを選択
-            const playerGrade = player.grade || 1;
-            const availableMonsters = monsterTypes.filter(m => {
-                // 学年1-3: 難易度1.0-1.3
-                // 学年4-6: 難易度1.0-1.5
-                // 学年7-9: 難易度1.0-1.7
-                // 学年10-12: 難易度1.0-2.0
-                if (playerGrade <= 3) return m.difficulty <= 1.3;
-                if (playerGrade <= 6) return m.difficulty <= 1.5;
-                if (playerGrade <= 9) return m.difficulty <= 1.7;
-                return m.difficulty <= 2.0;
-            });
-
-            const selectedMonster = availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
             
-            // 学年に応じた基礎ステータスを計算（モンスター難易度を考慮）
-            const gradeMultiplier = Math.max(1.0, Math.min(1.8, 1.0 + (playerGrade - 1) * 0.08));
-            const monsterMultiplier = selectedMonster.difficulty;
-            const baseMaxHp = Math.floor(120 * gradeMultiplier * monsterMultiplier);
-            const baseAtk = Math.floor(70 * gradeMultiplier * monsterMultiplier);
-            const baseDef = Math.floor(55 * gradeMultiplier * monsterMultiplier);
-            const baseSpeed = Math.floor(45 * gradeMultiplier * monsterMultiplier);
+            // ランダムなモンスターを選択
+            const randomMonster = BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
+
+            // プレイヤーの学年に合わせてボットの学年を設定
+            const playerGrade = player.grade || 1;
+            
+            // 学年に応じた基礎ステータスを計算（強化版）
+            const gradeMultiplier = Math.max(1.0, 1.0 + (playerGrade - 1) * 0.1);
+            const baseMaxHp = Math.floor(randomMonster.baseStats.maxHp * gradeMultiplier);
+            const baseAtk = Math.floor(randomMonster.baseStats.atk * gradeMultiplier);
+            const baseDef = Math.floor(randomMonster.baseStats.def * gradeMultiplier);
+            const baseSpeed = Math.floor(randomMonster.baseStats.speed * gradeMultiplier);
 
             // 武器補正を適用
             const botBaseStats = {
@@ -155,22 +143,17 @@ function setupOnlineEventHandlers() {
                 def: baseDef,
                 speed: baseSpeed
             };
-            const botStatsWithWeapon = applyWeaponStats(botBaseStats, botWeapon);
 
             const botPlayer = {
                 id: "bot_" + Date.now(),
-                name: selectedMonster.emoji + " " + selectedMonster.name,
-                monsterType: selectedMonster.name,
-                monsterEmoji: selectedMonster.emoji,
-                monsterDrops: selectedMonster.drops,
-                maxHp: botStatsWithWeapon.maxHp,
-                hp: botStatsWithWeapon.maxHp,
-                atk: botStatsWithWeapon.atk,
-                def: botStatsWithWeapon.def,
-                speed: botStatsWithWeapon.speed,
+                name: randomMonster.name,
+                ...botBaseStats,
+                hp: baseMaxHp,
                 grade: playerGrade,
                 isBot: true,
-                equippedWeapon: botWeapon
+                monsterType: randomMonster.monsterType,
+                monsterEmoji: randomMonster.monsterEmoji,
+                materialDrops: randomMonster.materialDrops
             };
 
             const battlePlayer = getBattleReadyPlayer(player);
