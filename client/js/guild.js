@@ -199,22 +199,38 @@ class GuildSystem {
     }
 
     showCreateGuildModal() {
-        document.getElementById('createGuildModal').style.display = 'block';
+        const modal = document.getElementById('createGuildModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('show');
+        }
     }
 
     hideCreateGuildModal() {
-        document.getElementById('createGuildModal').style.display = 'none';
+        const modal = document.getElementById('createGuildModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+        }
     }
 
     showGuildList() {
         if (window.socket) {
             window.socket.emit('guild:getAll');
         }
-        document.getElementById('guildListModal').style.display = 'block';
+        const modal = document.getElementById('guildListModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.add('show');
+        }
     }
 
     hideGuildListModal() {
-        document.getElementById('guildListModal').style.display = 'none';
+        const modal = document.getElementById('guildListModal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('show');
+        }
     }
 
     createGuild() {

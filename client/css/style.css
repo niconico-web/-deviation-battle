@@ -676,6 +676,10 @@ textarea {
     overflow: auto;
     background-color: rgba(0,0,0,0.7);
     backdrop-filter: blur(4px);
+}
+
+.modal.show {
+    display: flex;
     justify-content: center;
     align-items: center;
     animation: fadeIn 0.2s ease;
@@ -766,7 +770,7 @@ textarea {
 }
 
 /* モバイル表示 */
-@media (max-width: 1024px) {
+@media (max-width: 1200px) {
     .app-container {
         flex-direction: column;
     }
