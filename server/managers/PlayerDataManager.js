@@ -41,7 +41,9 @@ function savePlayer(player) {
     if (!player || !player.id) {
         return false;
     }
-    playerData[player.id] = player;
+    // 既存のデータをマージして、ギルド情報などが失われないようにする
+    const existingData = playerData[player.id] || {};
+    playerData[player.id] = { ...existingData, ...player };
     saveDataToFile();
     return true;
 }

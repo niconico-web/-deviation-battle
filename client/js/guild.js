@@ -122,6 +122,7 @@ class GuildSystem {
 
         // クエスト作成レスポンス
         window.socket.on('quest:createResponse', (response) => {
+            console.log('Quest create response:', response);
             if (response.success) {
                 this.loadAvailableQuests();
                 this.showNotification('クエストを作成しました！', 'success');
@@ -170,6 +171,7 @@ class GuildSystem {
 
         // 利用可能なクエスト
         window.socket.on('quest:available', (quests) => {
+            console.log('Available quests received:', quests);
             this.availableQuests = quests;
             this.renderQuestBoard();
         });
@@ -361,6 +363,7 @@ class GuildSystem {
     }
 
     loadAvailableQuests() {
+        console.log('Loading available quests, current guild:', this.currentGuild);
         if (window.socket) {
             const guildId = this.currentGuild ? this.currentGuild.id : null;
             window.socket.emit('quest:getAvailable', guildId);
