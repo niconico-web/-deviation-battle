@@ -111,15 +111,42 @@ function setupOnlineEventHandlers() {
             const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
             const botWeapon = createWeapon(randomType, randomTier, false);
 
-            // プレイヤーの学年に合わせてボットの学年を設定
+            // モンスターの種類を定義
+            const monsterTypes = [
+                { name: "スライム", emoji: "🟢", difficulty: 1.0, drops: ["スライムの粘液", "基本オーブ欠片"] },
+                { name: "ゴブリン", emoji: "👺", difficulty: 1.2, drops: ["ゴブリンの牙", "粗末なオーブ"] },
+                { name: "オーク", emoji: "👹", difficulty: 1.4, drops: ["オークの皮", "強化オーブ欠片"] },
+                { name: "ドラゴン", emoji: "🐉", difficulty: 1.8, drops: ["ドラゴンの鱗", "炎のオーブ", "高級オーブ"] },
+                { name: "ゾンビ", emoji: "🧟", difficulty: 1.1, drops: ["ゾンビの肉", "闇のオーブ欠片"] },
+                { name: "スケルトン", emoji: "💀", difficulty: 1.3, drops: ["骨片", "死のオーブ欠片"] },
+                { name: "ウィッチ", emoji: "🧙‍♀️", difficulty: 1.5, drops: "魔女の帽子", "魔法のオーブ欠片"] },
+                { name: "ナイト", emoji: "🤺", difficulty: 1.6, drops: ["騎士の盾", "守護のオーブ"] },
+                { name: "ゴーレム", emoji: "🗿", difficulty: 1.7, drops: ["魔法石", "大地のオーブ"] },
+                { name: "フェニックス", emoji: "🔥", difficulty: 2.0, drops: ["不死鳥の羽", "再生のオーブ", "伝説のオーブ"] }
+            ];
+
+            // プレイヤーの学年に合わせてモンスターを選択
             const playerGrade = player.grade || 1;
+            const availableMonsters = monsterTypes.filter(m => {
+                // 学年1-3: 難易度1.0-1.3
+                // 学年4-6: 難易度1.0-1.5
+                // 学年7-9: 難易度1.0-1.7
+                // 学年10-12: 難易度1.0-2.0
+                if (playerGrade <= 3) return m.difficulty <= 1.3;
+                if (playerGrade <= 6) return m.difficulty <= 1.5;
+                if (playerGrade <= 9) return m.difficulty <= 1.7;
+                return m.difficulty <= 2.0;
+            });
+
+            const selectedMonster = availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
             
-            // 学年に応じた基礎ステータスを計算（強化版）
+            // 学年に応じた基礎ステータスを計算（モンスター難易度を考慮）
             const gradeMultiplier = Math.max(1.0, Math.min(1.8, 1.0 + (playerGrade - 1) * 0.08));
-            const baseMaxHp = Math.floor(120 * gradeMultiplier);
-            const baseAtk = Math.floor(70 * gradeMultiplier);
-            const baseDef = Math.floor(55 * gradeMultiplier);
-            const baseSpeed = Math.floor(45 * gradeMultiplier);
+            const monsterMultiplier = selectedMonster.difficulty;
+            const baseMaxHp = Math.floor(120 * gradeMultiplier * monsterMultiplier);
+            const baseAtk = Math.floor(70 * gradeMultiplier * monsterMultiplier);
+            const baseDef = Math.floor(55 * gradeMultiplier * monsterMultiplier);
+            const baseSpeed = Math.floor(45 * gradeMultiplier * monsterMultiplier);
 
             // 武器補正を適用
             const botBaseStats = {
@@ -132,7 +159,10 @@ function setupOnlineEventHandlers() {
 
             const botPlayer = {
                 id: "bot_" + Date.now(),
-                name: "AIボット",
+                name: selectedMonster.emoji + " " + selectedMonster.name,
+                monsterType: selectedMonster.name,
+                monsterEmoji: selectedMonster.emoji,
+                monsterDrops: selectedMonster.drops,
                 maxHp: botStatsWithWeapon.maxHp,
                 hp: botStatsWithWeapon.maxHp,
                 atk: botStatsWithWeapon.atk,

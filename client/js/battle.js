@@ -2608,6 +2608,16 @@ function finishBattle(winner) {
         localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
     }
     
+    // モンスターからの素材ドロップ処理
+    if (win && enemy.isBot && enemy.monsterDrops) {
+        const dropChance = 0.3; // 30%の確率でドロップ
+        if (Math.random() < dropChance) {
+            const droppedMaterial = enemy.monsterDrops[Math.floor(Math.random() * enemy.monsterDrops.length)];
+            localStorage.setItem("droppedMaterial", droppedMaterial);
+            addLog(`${enemy.monsterEmoji} ${enemy.monsterType}から${droppedMaterial}を入手！`);
+        }
+    }
+    
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
     
     setTimeout(() => location.href = "result.html", 2500);

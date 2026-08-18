@@ -43,6 +43,7 @@ a:hover {
     background-color: #1c1e22;
     padding: 20px;
     box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    z-index: 999; /* Ensure sidebar is below overlay but above main content */
     flex-shrink: 0; /* Prevent shrinking */
     display: flex;
     flex-direction: column;
@@ -54,7 +55,7 @@ a:hover {
     overflow-y: auto; /* Allow scrolling if content is long */
 }
 
-.mobile-menu-toggle {
+.mobile-menu-toggle { /* This is the button outside the sidebar */
     display: none; /* Hidden by default on desktop */
 }
 
@@ -69,7 +70,7 @@ a:hover {
     }
 
     .sidebar {
-        position: fixed;
+        position: fixed; /* Fixed position relative to viewport */
         top: 0;
         left: -250px; /* Hidden off-screen */
         height: 100%;
@@ -85,10 +86,10 @@ a:hover {
 
     .mobile-menu-toggle {
         display: block; /* Visible on mobile */
-        position: fixed;
+        position: fixed; /* Fixed position relative to viewport */
         top: 10px;
         left: 10px;
-        z-index: 1001; /* Above sidebar */
+        z-index: 1001; /* Ensure it's above the sidebar and overlay */
         background-color: #333;
         color: #fff;
         border: none;

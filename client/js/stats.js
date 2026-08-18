@@ -201,6 +201,15 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (typeof rollOrbDrop === "function") {
             droppedOrb = rollOrbDrop();
         }
+        
+        // 素材ドロップ判定（モンスター戦勝利時）
+        const droppedMaterial = localStorage.getItem("droppedMaterial");
+        if (droppedMaterial) {
+            player.materials = player.materials || {};
+            player.materials[droppedMaterial] = (player.materials[droppedMaterial] || 0) + 1;
+            console.log(`[Stats] Material dropped: ${droppedMaterial}, total: ${player.materials[droppedMaterial]}`);
+            localStorage.removeItem("droppedMaterial");
+        }
     }
     if (options.lostWeapon) {
         player = removeWeaponFromPlayer(player, options.lostWeapon.id);
