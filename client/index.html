@@ -36,7 +36,6 @@
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="party"><span>👥</span> パーティ</button>
                 <button class="menu-btn" data-section="guild"><span>🏰</span> ギルド</button>
-                <button class="menu-btn" data-section="guild"><span>🏰</span> ギルド</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
                 <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
                 <button class="menu-btn" data-section="help"><span>❓</span> ヘルプ</button>
@@ -143,20 +142,6 @@
                         <button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5つでTier3オーブを合成</button>
                         <button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4オーブを合成</button>
                         <button id="closeOrbSynthesisBtn" class="btn btn-secondary">閉じる</button>
-                    </div>
-                </div>
-                <h3>素材管理</h3>
-                <div class="setting-box">
-                    <p>モンスターから入手した素材を確認・管理できます。</p>
-                    <button id="openMaterialManagementBtn" class="btn btn-primary">素材管理</button>
-                </div>
-                <div id="materialManagementModal" class="modal">
-                    <div class="modal-content">
-                        <h3>素材インベントリ</h3>
-                        <div id="materialsInventoryList" class="materials-inventory-list">
-                            <!-- Materials will be rendered here -->
-                        </div>
-                        <button id="closeMaterialManagementBtn" class="btn btn-secondary">閉じる</button>
                     </div>
                 </div>
             </section>
@@ -353,105 +338,6 @@
                 </div>
             </section>
 
-            <section id="section-guild" class="content-section">
-                <h2>ギルド</h2>
-                
-                <!-- ギルド情報表示 -->
-                <div id="guild-info" class="guild-info-container" style="display: none;">
-                    <div class="setting-box">
-                        <h3>マイギルド</h3>
-                        <div id="my-guild-details">
-                            <!-- ギルド詳細が表示される -->
-                        </div>
-                        <button type="button" id="leaveGuildBtn" class="btn btn-danger">ギルドを脱退</button>
-                    </div>
-                </div>
-
-                <!-- ギルド未参加時 -->
-                <div id="no-guild" class="setting-box">
-                    <h3>ギルドに参加</h3>
-                    <p>ギルドを作成するか、既存のギルドに参加しましょう。</p>
-                    <button type="button" id="createGuildBtn" class="btn btn-primary">ギルドを作成</button>
-                    <button type="button" id="showGuildListBtn" class="btn btn-secondary">ギルド一覧を見る</button>
-                </div>
-
-                <!-- ギルド作成モーダル -->
-                <div id="createGuildModal" class="modal">
-                    <div class="modal-content">
-                        <h3>ギルド作成</h3>
-                        <label class="field-label" for="guildName">ギルド名</label>
-                        <input type="text" id="guildName" placeholder="ギルド名を入力" maxlength="20">
-                        <label class="field-label" for="guildDescription">説明</label>
-                        <textarea id="guildDescription" placeholder="ギルドの説明を入力" maxlength="100"></textarea>
-                        <button type="button" id="confirmCreateGuildBtn" class="btn btn-primary">作成</button>
-                        <button type="button" id="cancelCreateGuildBtn" class="btn btn-secondary">キャンセル</button>
-                    </div>
-                </div>
-
-                <!-- ギルド一覧モーダル -->
-                <div id="guildListModal" class="modal">
-                    <div class="modal-content guild-list-modal">
-                        <h3>ギルド一覧</h3>
-                        <div id="guild-list-container">
-                            <!-- ギルドリストが表示される -->
-                        </div>
-                        <button type="button" id="closeGuildListBtn" class="btn btn-secondary">閉じる</button>
-                    </div>
-                </div>
-
-                <!-- クエスト掲示板 -->
-                <div class="quest-board-container">
-                    <h3>📋 クエスト掲示板</h3>
-                    <div class="quest-filters">
-                        <button class="quest-filter-btn active" data-filter="all">すべて</button>
-                        <button class="quest-filter-btn" data-filter="BATTLE">⚔️ 討伐</button>
-                        <button class="quest-filter-btn" data-filter="DELIVERY">📦 納品</button>
-                        <button class="quest-filter-btn" data-filter="ESCORT">🛡️ 護衛</button>
-                        <button class="quest-filter-btn" data-filter="SPECIAL">🔍 特殊</button>
-                    </div>
-                    <div id="quest-board" class="quest-board">
-                        <!-- クエストカードが表示される -->
-                    </div>
-                </div>
-
-                <!-- 自分のアクティブクエスト -->
-                <div class="active-quests-container">
-                    <h3>🎯 受注中のクエスト</h3>
-                    <div id="active-quests" class="active-quests">
-                        <!-- アクティブクエストが表示される -->
-                    </div>
-                </div>
-
-                <!-- クエスト作成（ギルドメンバー用） -->
-                <div id="quest-creation" class="setting-box" style="display: none;">
-                    <h3>クエストを作成</h3>
-                    <label class="field-label" for="questTitle">クエストタイトル</label>
-                    <input type="text" id="questTitle" placeholder="クエストタイトル" maxlength="30">
-                    <label class="field-label" for="questDescription">詳細</label>
-                    <textarea id="questDescription" placeholder="クエストの詳細を入力" maxlength="100"></textarea>
-                    <label class="field-label" for="questCategory">カテゴリ</label>
-                    <select id="questCategory">
-                        <option value="BATTLE">⚔️ 討伐依頼</option>
-                        <option value="DELIVERY">📦 素材納品</option>
-                        <option value="ESCORT">🛡️ 護衛協力</option>
-                        <option value="SPECIAL">🔍 調査特殊</option>
-                    </select>
-                    <label class="field-label" for="questRank">ランク</label>
-                    <select id="questRank">
-                        <option value="F">Fランク</option>
-                        <option value="E">Eランク</option>
-                        <option value="D">Dランク</option>
-                        <option value="C">Cランク</option>
-                        <option value="B">Bランク</option>
-                        <option value="A">Aランク</option>
-                        <option value="S">Sランク</option>
-                    </select>
-                    <label class="field-label" for="questReward">報酬（貢献度）</label>
-                    <input type="number" id="questReward" placeholder="報酬を入力" min="1" max="1000">
-                    <button type="button" id="createQuestBtn" class="btn btn-primary">クエストを作成</button>
-                </div>
-            </section>
-
             <section id="section-boss-battle" class="content-section">
                 <h2>ボスバトル</h2>
                 <div id="soloBossBattleControls" class="setting-box">
@@ -515,10 +401,9 @@
     <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>
-    <script src="js/script.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/guild.js"></script>
-    <script src="js/guild.js"></script>
+    <script src="js/script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
