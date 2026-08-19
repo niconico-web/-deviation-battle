@@ -9,14 +9,14 @@ const FINAL_REWARD_ORB_TIERS = ['tier2', 'tier3', 'tier4'];
 
 // Pool of possible daily missions
 const MISSION_POOL = [
-    { id: 'win_bot_3', type: 'win_bot', target: 3, description: '??????3?????' },
-    { id: 'win_online_2', type: 'win_online', target: 2, description: '????????2?????' },
-    { id: 'study_30_min', type: 'study', target: 1800, description: '??30??????' }, // 1800 seconds
-    { id: 'level_up_1', type: 'level_up', target: 1, description: '????1???' },
-    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: '????????1?????' },
-    { id: 'synthesize_orb_2', type: 'synthesize_orb', target: 2, description: '????2?????' },
-    { id: 'limit_break_1', type: 'limit_break', target: 1, description: '???1???????' },
-    { id: 'upgrade_weapon_5', type: 'upgrade_weapon', target: 5, description: '???5?????' },
+    { id: 'win_bot_3', type: 'win_bot', target: 3, description: 'ボット戦で3回勝利する' },
+    { id: 'win_online_2', type: 'win_online', target: 2, description: 'オンライン対戦で2回勝利する' },
+    { id: 'study_30_min', type: 'study', target: 1800, description: '合計30分勉強する' }, // 1800 seconds
+    { id: 'level_up_1', type: 'level_up', target: 1, description: 'レベルを1上げる' },
+    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: '武器を1つ作成する' },
+    { id: 'synthesize_orb_2', type: 'synthesize_orb', target: 2, description: 'オーブを2つ合成する' },
+    { id: 'limit_break_1', type: 'limit_break', target: 1, description: '武器を1回限界突破する' },
+    { id: 'upgrade_weapon_5', type: 'upgrade_weapon', target: 5, description: '武器を5回強化する' },
 ];
 
 /**
@@ -116,7 +116,7 @@ function claimMissionReward(missionIndex) {
 
     const mission = player.dailyMissions.missions[missionIndex];
     if (!mission || !mission.completed || mission.claimed) {
-        alert('??????????????');
+        alert('報酬を受け取れません');
         return;
     }
 
@@ -124,7 +124,7 @@ function claimMissionReward(missionIndex) {
     player.xp = (player.xp || 0) + MISSION_REWARDS.XP;
     player.coins = (player.coins || 0) + MISSION_REWARDS.COINS;
 
-    alert(`??????????\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} ???`);
+    alert(`ミッション達成！\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} コイン`);
 
     // Check for final reward
     const allClaimed = player.dailyMissions.missions.every(m => m.claimed);
@@ -136,7 +136,7 @@ function claimMissionReward(missionIndex) {
         if (orb) {
             if (!player.orbs) player.orbs = [];
             player.orbs.push(orb);
-            alert(`????????????????\n????? ${getOrbDisplayName(orb)} ????????`);
+            alert(`全ミッション達成！\n報酬として ${getOrbDisplayName(orb)} を入手しました！`);
             if (typeof renderOrbInventory === 'function') renderOrbInventory();
         }
     }
@@ -156,7 +156,7 @@ function renderDailyMissions() {
 
     const player = getPlayerData();
     if (!player || !player.dailyMissions) {
-        container.innerHTML = '<p>???????????????</p>';
+        container.innerHTML = '<p>ミッションデータがありません。</p>';
         return;
     }
 
@@ -180,9 +180,9 @@ function renderDailyMissions() {
                 <span class="progress-text">${progressText}</span>
             </div>
             <div class="mission-reward">
-                <span>??: ${MISSION_REWARDS.XP} XP, ${MISSION_REWARDS.COINS} ???</span>
+                <span>報酬: ${MISSION_REWARDS.XP} XP, ${MISSION_REWARDS.COINS} コイン</span>
                 <button class="btn btn-small claim-btn" data-index="${index}" ${!mission.completed || mission.claimed ? 'disabled' : ''}>
-                    ${mission.claimed ? '???' : '????'}
+                    ${mission.claimed ? '受取済' : '受け取る'}
                 </button>
             </div>
         `;
@@ -194,10 +194,10 @@ function renderDailyMissions() {
     if (finalRewardContainer) {
         const completedCount = player.dailyMissions.missions.filter(m => m.claimed).length;
         finalRewardContainer.innerHTML = `
-            <h4>????????????</h4>
-            <p>???????????????????????? (??: ${completedCount} / 3)</p>
-            <div class="final-reward-icon">${player.dailyMissions.finalRewardClaimed ? '??' : '??'}</div>
-            <p>${player.dailyMissions.finalRewardClaimed ? '?????????????' : '??: Tier2??????'}</p>
+            <h4>最終達成報酬</h4>
+            <p>全てのミッションを達成して報酬を受け取ろう！ (達成: ${completedCount} / 3)</p>
+            <div class="final-reward-icon">${player.dailyMissions.finalRewardClaimed ? '??' : '?'}</div>
+            <p>${player.dailyMissions.finalRewardClaimed ? '最終報酬は受取済みです' : '報酬: Tier2以上のオーブ'}</p>
         `;
     }
 
