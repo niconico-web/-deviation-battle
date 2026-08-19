@@ -369,7 +369,7 @@ if (document.readyState === 'loading') {
     initSocialSystem();
 }
 
-window.addEventListener('load', () => {
-    console.log('Window load fired, initializing social system');
-    setTimeout(initSocialSystem, 100);
-});
+// window.addEventListener('load', () => {
+//     console.log('Window load fired, initializing social system');
+//     setTimeout(initSocialSystem, 100);
+// });

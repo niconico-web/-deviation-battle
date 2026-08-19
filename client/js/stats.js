@@ -138,7 +138,6 @@ function calcStatsFromSubjects(s) {
     return {
         maxHp: Math.max(50, Math.floor(100 + (jp - 50) * 4 + (soc - 50) * 2)),
         atk: Math.max(20, Math.floor(50 + (math - 50) * 5 + (sci - 50) * 2)),
-        sp: Math.max(20, Math.floor(50 + (eng - 50) * 5 + (sci - 50) * 2)), // 'sp' is used here, but 'speed' is the target property
         def: Math.max(20, Math.floor(50 + (soc - 50) * 5 + (jp - 50) * 2)),
         speed: Math.max(20, Math.floor(50 + (eng - 50) * 3 + (math - 50) * 2))
     };

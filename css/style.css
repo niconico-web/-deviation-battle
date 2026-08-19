@@ -246,3 +246,12 @@ a:hover {
 .btn-warning:hover {
     background-color: #ffca2c;
 }
+
+/* 武器詳細表示用のスタイル */
+.weapon-display {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 5px;
+    border-left: 3px solid #00ffe0;
+}
