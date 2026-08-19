@@ -5,6 +5,10 @@ body {
   background-color: #212529;
   margin: 0;
   padding: 0;
+  display: flex; /* Ensure body is flex for app-container to take full height */
+  flex-direction: column;
+  min-height: 100vh;
+  width: 100%;
 }
 
 /* Improve Japanese text rendering */
@@ -26,6 +30,94 @@ a:hover {
 /* Ensure proper spacing for content */
 .container {
   padding: 20px;
+}
+
+/* App Layout */
+.app-container {
+    display: flex;
+    flex-grow: 1; /* Allow app-container to fill remaining height */
+}
+
+.sidebar {
+    width: 250px; /* Desktop width */
+    background-color: #1c1e22;
+    padding: 20px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.3);
+    z-index: 999; /* Ensure sidebar is below overlay but above main content */
+    flex-shrink: 0; /* Prevent shrinking */
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto; /* Allow scrolling if content is long */
+}
+
+.mobile-menu-toggle { /* This is the button outside the sidebar */
+    display: none; /* Hidden by default on desktop */
+}
+
+.sidebar-overlay {
+    display: none; /* Hidden by default on desktop */
+}
+
+/* Mobile specific styles */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column; /* Stack items vertically on mobile */
+    }
+
+    .sidebar {
+        position: fixed; /* Fixed position relative to viewport */
+        top: 0;
+        left: -250px; /* Hidden off-screen */
+        height: 100%;
+        width: 250px;
+        z-index: 1000;
+        transition: left 0.3s ease-in-out;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.5);
+    }
+
+    .sidebar.active {
+        left: 0; /* Slide in */
+    }
+
+    .mobile-menu-toggle {
+        display: block; /* Visible on mobile */
+        position: fixed; /* Fixed position relative to viewport */
+        top: 10px;
+        left: 10px;
+        z-index: 1001; /* Ensure it's above the sidebar and overlay */
+        background-color: #333;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        font-size: 1.5em;
+        cursor: pointer;
+        border-radius: 5px;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: none; /* Hidden by default */
+    }
+
+    .sidebar-overlay.active {
+        display: block; /* Visible when sidebar is active */
+    }
+
+    .main-content {
+        margin-left: 0; /* No margin from sidebar on mobile */
+        padding-top: 60px; /* Make space for the mobile menu toggle */
+    }
 }
 /* Skill Tree & Inventory Styles - Unified UI Elements */
 
@@ -99,4 +191,67 @@ a:hover {
 .tooltip:hover .tooltiptext {
   visibility: visible;
   opacity: 1;
+}
+
+/* Ranking Table Styles */
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: #e0e0e0;
+}
+
+.ranking-table th, .ranking-table td {
+    border: 1px solid #444;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.ranking-table th {
+    background-color: #333;
+    color: #00ffe0;
+}
+
+.ranking-table tbody tr:nth-child(odd) {
+    background-color: #2a2d32;
+}
+
+.ranking-table .current-user-rank {
+    background-color: #004d40;
+    font-weight: bold;
+}
+
+/* Limit Break Styles */
+.limit-break-container {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #444;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.limit-break-info {
+    font-size: 0.9em;
+    color: #ffc107; /* Amber color */
+}
+.btn-warning {
+    background-color: #ffc107;
+    color: #212529;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.btn-warning:hover {
+    background-color: #ffca2c;
+}
+
+/* 武器詳細表示用のスタイル */
+.weapon-display {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 5px;
+    border-left: 3px solid #00ffe0;
 }

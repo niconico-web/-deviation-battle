@@ -158,20 +158,24 @@ const SKILL_TREE = {
             { id: "magic_branch_r1", name: "氷魔法", description: "攻撃+15, 敵速さ低下率+5%", cost: 3, x: 3, y: -11, requires: "magic_path_3", type: "stat", effect: { atk: 15, speedDebuff: 0.05 } },
             { id: "magic_branch_r2", name: "絶対零度", description: "攻撃+20, 敵速さ低下率+10%", cost: 3, x: 5, y: -12, requires: "magic_branch_r1", type: "stat", effect: { atk: 20, speedDebuff: 0.1 } },
             { id: "blizzard", name: "ブリザード", description: "次の攻撃2.0倍、敵速さ3ターン低下", cost: 6, x: 7, y: -13, requires: "magic_branch_r2", type: "active", effect: { type: "active", damageMultiplier: 2.0, speedDebuff: 0.3, speedDebuffTurns: 3 } },
+            // Magic branch: 雷魔法（火魔法・氷魔法に続く3本目の魔法分岐）
+            { id: "thunder_path_1", name: "雷魔法", description: "攻撃+15, クリティカル率+5%", cost: 3, x: -10, y: -12, requires: "magic_path_4", type: "stat", effect: { atk: 15, critChance: 0.05 } },
+            { id: "thunder_path_2", name: "雷神", description: "攻撃+20, クリティカル率+8%", cost: 3, x: -13, y: -13, requires: "thunder_path_1", type: "stat", effect: { atk: 20, critChance: 0.08 } },
+            { id: "thunder_storm", name: "サンダーストーム", description: "次の攻撃2.2倍、必ずクリティカルになる", cost: 6, x: -16, y: -14, requires: "thunder_path_2", type: "active", effect: { type: "active", damageMultiplier: 2.2, nextAttackCrit: true } },
 
             // --- 特殊・クリティカルルート (左側) ---
-            { id: "crit_path_1", name: "精密", description: "クリティカル率+2%", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
+            { id: "crit_path_1", name: "精密", description: "クリティカル率+2%（基礎5%に加算）", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
             { id: "crit_path_2", name: "痛撃", description: "クリティカルダメージ+10%", cost: 2, x: -10, y: 0, requires: "crit_path_1", type: "passive", effect: { critMultiplier: 0.1 } },
-            { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
+            { id: "crit_mastery", name: "殺意", description: "クリティカル率+5%（基礎5%に加算）, クリティカルダメージ+20%", cost: 5, x: -12, y: 0, requires: "crit_path_2", type: "passive", effect: { critChance: 0.05, critMultiplier: 0.2 } },
             { id: "active_crit", name: "狙い澄まし", description: "次の攻撃は必ずクリティカルになる", cost: 4, x: -14, y: 0, requires: "crit_mastery", type: "active", effect: { type: "active", nextAttackCrit: true } },
             // Extended critical path
-            { id: "crit_extreme_1", name: "殺戮者", description: "クリティカル率+8%, クリティカルダメージ+15%", cost: 4, x: -16, y: 0, requires: "active_crit", type: "passive", effect: { critChance: 0.08, critMultiplier: 0.15 } },
-            { id: "crit_extreme_2", name: "処刑人", description: "クリティカル率+10%, クリティカルダメージ+20%", cost: 4, x: -18, y: 0, requires: "crit_extreme_1", type: "passive", effect: { critChance: 0.1, critMultiplier: 0.2 } },
-            { id: "crit_path_3", name: "クリティカル率+", description: "クリティカル率+3%", cost: 2, x: -14, y: -2, requires: "crit_mastery", type: "passive", effect: { critChance: 0.03 } },
-            { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
-            { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
-            { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
-            { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP50%以上残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.5 } },
+            { id: "crit_extreme_1", name: "殺戮者", description: "クリティカル率+8%（基礎5%に加算）, クリティカルダメージ+15%", cost: 4, x: -16, y: 0, requires: "active_crit", type: "passive", effect: { critChance: 0.08, critMultiplier: 0.15 } },
+            { id: "crit_extreme_2", name: "処刑人", description: "クリティカル率+10%（基礎5%に加算）, クリティカルダメージ+20%", cost: 4, x: -18, y: 0, requires: "crit_extreme_1", type: "passive", effect: { critChance: 0.1, critMultiplier: 0.2 } },
+            { id: "crit_path_3", name: "クリティカル率+", description: "クリティカル率+3%（基礎5%に加算）", cost: 2, x: -14, y: -2, requires: "crit_mastery", type: "passive", effect: { critChance: 0.03 } },
+            { id: "crit_path_4", name: "クリティカル率++", description: "クリティカル率+4%（基礎5%に加算）", cost: 2, x: -16, y: -3, requires: "crit_path_3", type: "passive", effect: { critChance: 0.04 } },
+            { id: "crit_path_5", name: "クリティカル率+++", description: "クリティカル率+5%（基礎5%に加算）", cost: 2, x: -18, y: -4, requires: "crit_path_4", type: "passive", effect: { critChance: 0.05 } },
+            { id: "crit_apex", name: "クリティカルの頂点", description: "常時クリティカル率+20%（基礎5%に加算）, クリティカルダメージ+30%", cost: 7, x: -20, y: -5, requires: "crit_path_5", type: "passive", effect: { critChance: 0.2, critMultiplier: 0.3 } },
+            { id: "overkill", name: "オーバーキル", description: "次の攻撃敵HP25%以下残り時即死", cost: 6, x: -22, y: -5, requires: "crit_apex", type: "active", effect: { type: "active", execute: true, executeThreshold: 0.25 } },
 
             // --- タンク・防御ルート (右側) ---
             { id: "tank_path_1", name: "頑健", description: "HP+20", cost: 2, x: 8, y: 0, requires: "def_path_1", type: "stat", effect: { maxHp: 20 } },
@@ -222,23 +226,29 @@ const CUSTOM_SKILL_VALIDATION = {
         "unlimited", // 無制限
     ],
     
-    // 効果の強度に基づく必要ステータス合計値（緩和された設定 - 指数関数的に拡大）
+    // 効果の強度に基づく必要ステータス合計値
+    // 各階級の間隔を約3倍に広げ、分類もtier20まで拡張した
     statRequirements: {
         tier1: { totalStats: 100, maxMultiplier: 1.05, description: "微弱" },
-        tier2: { totalStats: 250, maxMultiplier: 1.1, description: "弱い" },
-        tier3: { totalStats: 625, maxMultiplier: 1.15, description: "やや弱い" },
-        tier4: { totalStats: 1562, maxMultiplier: 1.2, description: "普通" },
-        tier5: { totalStats: 3906, maxMultiplier: 1.25, description: "やや強い" },
-        tier6: { totalStats: 9765, maxMultiplier: 1.3, description: "強い" },
-        tier7: { totalStats: 24414, maxMultiplier: 1.4, description: "かなり強い" },
-        tier8: { totalStats: 61035, maxMultiplier: 1.5, description: "非常に強い" },
-        tier9: { totalStats: 152587, maxMultiplier: 1.6, description: "極めて強い" },
-        tier10: { totalStats: 381469, maxMultiplier: 1.7, description: "超強力" },
-        tier11: { totalStats: 953674, maxMultiplier: 1.8, description: "伝説級" },
-        tier12: { totalStats: 2384185, maxMultiplier: 1.9, description: "神話級" },
-        tier13: { totalStats: 5960462, maxMultiplier: 2.0, description: "神級" },
-        tier14: { totalStats: 14901156, maxMultiplier: 2.2, description: "超越" },
-        tier15: { totalStats: 15000000, maxMultiplier: 2.5, description: "宇宙崩壊レベル" }
+        tier2: { totalStats: 300, maxMultiplier: 1.1, description: "弱い" },
+        tier3: { totalStats: 900, maxMultiplier: 1.15, description: "やや弱い" },
+        tier4: { totalStats: 2700, maxMultiplier: 1.2, description: "普通" },
+        tier5: { totalStats: 8100, maxMultiplier: 1.25, description: "やや強い" },
+        tier6: { totalStats: 24300, maxMultiplier: 1.3, description: "強い" },
+        tier7: { totalStats: 72900, maxMultiplier: 1.4, description: "かなり強い" },
+        tier8: { totalStats: 218700, maxMultiplier: 1.5, description: "非常に強い" },
+        tier9: { totalStats: 656100, maxMultiplier: 1.6, description: "極めて強い" },
+        tier10: { totalStats: 1968300, maxMultiplier: 1.7, description: "超強力" },
+        tier11: { totalStats: 5904900, maxMultiplier: 1.8, description: "伝説級" },
+        tier12: { totalStats: 17714700, maxMultiplier: 1.9, description: "神話級" },
+        tier13: { totalStats: 53144100, maxMultiplier: 2.0, description: "神級" },
+        tier14: { totalStats: 159432300, maxMultiplier: 2.2, description: "超越" },
+        tier15: { totalStats: 478296900, maxMultiplier: 2.5, description: "宇宙崩壊レベル" },
+        tier16: { totalStats: 1434890700, maxMultiplier: 2.8, description: "極限" },
+        tier17: { totalStats: 4304672100, maxMultiplier: 3.1, description: "次元超越" },
+        tier18: { totalStats: 12914016300, maxMultiplier: 3.4, description: "創造主級" },
+        tier19: { totalStats: 38742048900, maxMultiplier: 3.7, description: "全能" },
+        tier20: { totalStats: 116226146700, maxMultiplier: 4.0, description: "理外の力" }
     }
 };
 
@@ -695,7 +705,7 @@ function validateCustomSkill(skillDescription, playerStats) {
     }
     
     // 複合効果によるランクアップ（ティアシステム対応）
-    const strengthLevels = ["tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9", "tier10", "tier11", "tier12", "tier13", "tier14", "tier15"];
+    const strengthLevels = ["tier1", "tier2", "tier3", "tier4", "tier5", "tier6", "tier7", "tier8", "tier9", "tier10", "tier11", "tier12", "tier13", "tier14", "tier15", "tier16", "tier17", "tier18", "tier19", "tier20"];
     const currentIndex = strengthLevels.indexOf(estimatedStrength);
     
     if (effectCount >= 4) {
@@ -1104,7 +1114,6 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
-
     if (desc.includes("即死") || desc.includes("一撃必殺") || desc.includes("instant kill") || desc.includes("one shot")) {
         if (!finalEffect.damageMultiplier) {
             finalEffect.damageMultiplier = 10.0;
@@ -1223,6 +1232,7 @@ function injectSkillTreeCSS() {
 }
 
 function renderSkillTreeUI() {
+    console.log('renderSkillTreeUI called');
     const container = document.getElementById('skillTreeContainer');
     if (!container) {
         console.log('renderSkillTreeUI: skillTreeContainer not found');
@@ -1231,9 +1241,12 @@ function renderSkillTreeUI() {
 
     const player = getPlayerData();
     if (!player) {
+        console.log('renderSkillTreeUI: player not found');
         container.innerHTML = '<p>プレイヤーデータが見つかりません。</p>';
         return;
     }
+
+    console.log('renderSkillTreeUI: player found, skillTree:', player.skillTree);
 
     // index.htmlの静的UIを使用するため、動的生成は行わない
     // スキルポイント表示のみ更新
@@ -1570,6 +1583,9 @@ function renderSkillSlots(player) {
 function renderCustomSkillList(player) {
     const listContainer = document.getElementById('customSkillList');
     if (!listContainer) return;
+    // playerが渡されなかった場合は自分で取得する（呼び出し漏れによるクラッシュを防ぐ）
+    if (!player) player = getPlayerData();
+    if (!player) return;
 
     listContainer.innerHTML = '';
     const customSkills = player.customSkills || [];
@@ -1627,7 +1643,7 @@ function renderCustomSkillList(player) {
                     player.customSkills.splice(skillIndex, 1);
                     
                     localStorage.setItem("player", JSON.stringify(player));
-                    renderCustomSkillList();
+                    renderCustomSkillList(player);
                 }
             }
         };
@@ -1728,4 +1744,5 @@ if (typeof window !== 'undefined') {
     window.equipSkillToSlot = equipSkillToSlot;
     window.unequipSkillFromSlot = unequipSkillFromSlot;
     window.renderSkillTreeUI = renderSkillTreeUI;
+    console.log('SkillTree functions exported to window');
 }

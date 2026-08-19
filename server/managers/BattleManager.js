@@ -190,6 +190,11 @@ function createBattle(roomId, player1, player2, isBossBattle = false) {
             grade: 99, // Boss grade
             isBoss: true,
             skills: boss.skills,
+            // ※ difficulty と drops がないと、クライアント側の applyBossRewards が
+            //   「無効なボスデータ」として即座に処理を中断し、武器・スキル・素材が
+            //   一切ドロップしなくなる（これらのフィールドが必須のため）。
+            difficulty: boss.difficulty,
+            drops: boss.drops,
             equippedWeapon: null,
             skillSlots: [],
             answerTime: null,
@@ -241,7 +246,82 @@ function createBattle(roomId, player1, player2, isBossBattle = false) {
 }
 
 // -----------------------------
-// ?????
+// レイドバトル作成（パーティ全員 + ボス）
+// -----------------------------
+
+/**
+ * パーティメンバー全員とボスからなるレイドバトルを作成する。
+ * createBattleは2人専用（PvP or 1対1ボス戦）のため、3人以上のパーティ用に別関数として用意する。
+ * @param {string} roomId
+ * @param {Array<object>} players - 各パーティメンバーのプレイヤーオブジェクト（.id, .socketId, .name, .battleStats等）
+ * @param {object} boss - createBossForBattleで生成されたボスオブジェクト
+ * @returns {object|null}
+ */
+function createRaidBattle(roomId, players, boss) {
+    if (!Array.isArray(players) || players.length === 0 || !boss?.id) {
+        console.error("[BattleManager] createRaidBattle failed: invalid players or boss.", { players, boss });
+        return null;
+    }
+
+    const battleData = {
+        roomId,
+        players: {},
+        turn: null,
+        finished: false,
+        isBossBattle: true
+    };
+
+    players.forEach(p => {
+        if (!p?.id) return;
+        const stats = p.battleStats || p;
+        const weapon = p.equippedWeapon || null;
+        const grade = Number(p.grade) || 1;
+
+        battleData.players[p.id] = {
+            id: p.id,
+            socketId: p.socketId,
+            name: p.name,
+            hp: stats.maxHp,
+            maxHp: stats.maxHp,
+            atk: stats.atk,
+            def: stats.def,
+            speed: stats.speed,
+            grade,
+            equippedWeapon: weapon,
+            skillSlots: Array.isArray(p.skillSlots) ? p.skillSlots : [null, null, null],
+            answerTime: null,
+            correctAnswers: 0,
+            ultimateGauge: { current: 0, max: 100 }
+        };
+    });
+
+    battleData.players[boss.id] = {
+        id: boss.id,
+        name: boss.name,
+        hp: boss.hp,
+        maxHp: boss.maxHp,
+        atk: boss.atk,
+        def: boss.def,
+        speed: boss.speed,
+        grade: 99,
+        isBoss: true,
+        skills: boss.skills,
+        // ※ difficulty と drops がないと applyBossRewards が即座に処理を中断してしまう
+        difficulty: boss.difficulty,
+        drops: boss.drops,
+        equippedWeapon: null,
+        skillSlots: [],
+        answerTime: null,
+        correctAnswers: 0,
+        ultimateGauge: { current: 0, max: 100 }
+    };
+
+    battles[roomId] = battleData;
+    return battles[roomId];
+}
+
+// -----------------------------
+// バトル取得
 // -----------------------------
 
 function getBattle(roomId){
@@ -251,7 +331,7 @@ function getBattle(roomId){
 }
 
 // -----------------------------
-// ???????
+// プレイヤー取得
 // -----------------------------
 
 function getPlayer(roomId,id){
@@ -265,7 +345,7 @@ function getPlayer(roomId,id){
 }
 
 // -----------------------------
-// ????
+// 敵取得
 // -----------------------------
 
 function getEnemy(roomId,id){
@@ -285,7 +365,7 @@ function getEnemy(roomId,id){
 }
 
 // -----------------------------
-// ????
+// ターン交代
 // -----------------------------
 
 function nextTurn(roomId){
@@ -303,7 +383,7 @@ function nextTurn(roomId){
 }
 
 // -----------------------------
-// ????
+// バトル終了
 // -----------------------------
 
 function finishBattle(roomId){
@@ -315,7 +395,7 @@ function finishBattle(roomId){
 }
 
 // -----------------------------
-// ソケ�?�?IDの付け替え（�?��?�ジ遷移後�?�再接続用?�?
+// ソケットIDの付け替え（ページ遷移後の再接続用）
 // -----------------------------
 
 function findPlayerIdBySocket(battle, socketId) {
@@ -337,7 +417,7 @@ function remapPlayerSocket(roomId, oldPlayerId, newSocketId){
 }
 
 // -----------------------------
-// ????
+// バトル削除
 // -----------------------------
 
 function deleteBattle(roomId){
@@ -349,6 +429,8 @@ function deleteBattle(roomId){
 module.exports = {
 
     createBattle,
+
+    createRaidBattle,
 
     getBattle,
 

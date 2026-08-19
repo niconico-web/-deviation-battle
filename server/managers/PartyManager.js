@@ -112,6 +112,15 @@ function getParty(partyId) {
     return parties.get(partyId);
 }
 
+function getPartyBySocketId(socketId) {
+    for (const party of parties.values()) {
+        if (party.members.some(member => member.socketId === socketId)) {
+            return party;
+        }
+    }
+    return null;
+}
+
 module.exports = {
     createParty,
     joinParty,
@@ -120,4 +129,5 @@ module.exports = {
     setPlayerReady,
     setBossSelection,
     getParty,
+    getPartyBySocketId,
 };

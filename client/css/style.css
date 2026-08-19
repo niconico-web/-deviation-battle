@@ -2,19 +2,30 @@
 
 /* 基本スタイル */
 :root {
-    --bg-dark: #1c1e22;
-    --bg-medium: #25282e;
-    --bg-light: #31353d;
-    --border-color: #3a3f4b;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a9b1c2;
-    --accent-blue: #4a90e2;
-    --accent-blue-hover: #5aa1f2;
-    --accent-red: #e94e77;
-    --accent-red-hover: #f06289;
-    --accent-green: #2ecc71;
-    --accent-yellow: #f1c40f;
+    --bg-dark: #0f1115;
+    --bg-medium: #1a1d24;
+    --bg-light: #252932;
+    --border-color: #3d4452;
+    --text-primary: #f0f2f5;
+    --text-secondary: #9aa5b6;
+    --accent-blue: #5b9bd5;
+    --accent-blue-hover: #6ba8e0;
+    --accent-blue-dark: #4a7fb8;
+    --accent-red: #e85a7a;
+    --accent-red-hover: #f06b8b;
+    --accent-red-dark: #c94a66;
+    --accent-green: #3ddc84;
+    --accent-green-hover: #4ee895;
+    --accent-yellow: #ffc107;
+    --accent-purple: #9b59b6;
+    --accent-orange: #ff9800;
     --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --gradient-primary: linear-gradient(135deg, #5b9bd5 0%, #7ec8e3 100%);
+    --gradient-danger: linear-gradient(135deg, #e85a7a 0%, #ff8fa3 100%);
+    --gradient-success: linear-gradient(135deg, #3ddc84 0%, #6ee8b5 100%);
 }
 
 body {
@@ -22,7 +33,7 @@ body {
     margin: 0;
     background-color: var(--bg-dark);
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -35,59 +46,80 @@ body {
 
 /* サイドバー */
 .sidebar {
-    width: 240px;
+    width: 200px;
     background-color: var(--bg-medium);
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
     transition: transform 0.3s ease-in-out;
     flex-shrink: 0;
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    position: relative;
 }
 
 .main-menu {
     list-style: none;
-    padding: 0;
+    padding: 12px 0;
     margin: 0;
+    position: relative;
+    z-index: 10;
 }
 
 .menu-btn {
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 15px 20px;
+    padding: 10px 16px;
     background: none;
     border: none;
     color: var(--text-secondary);
     text-align: left;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9375rem;
     border-left: 3px solid transparent;
     transition: background-color 0.2s, color 0.2s, border-left-color 0.2s;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .menu-btn span {
-    margin-right: 15px;
-    font-size: 1.2rem;
-    width: 24px;
+    margin-right: 10px;
+    font-size: 1.05rem;
+    width: 20px;
     text-align: center;
+    transition: transform 0.2s ease;
 }
 
 .menu-btn:hover {
-    background-color: var(--border-color);
-    color: white;
+    background-color: rgba(91, 155, 213, 0.1);
+    color: var(--text-primary);
+    padding-left: 22px;
+}
+
+.menu-btn:hover span {
+    transform: scale(1.1);
 }
 
 .menu-btn.active {
-    background-color: var(--bg-light);
-    color: white;
+    background: linear-gradient(90deg, rgba(91, 155, 213, 0.2) 0%, transparent 100%);
+    color: var(--accent-blue);
     border-left-color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.menu-btn.active span {
+    color: var(--accent-blue);
 }
 
 /* メインコンテンツ */
 .main-content {
     flex-grow: 1;
-    padding: 25px;
+    padding: 14px 16px;
     overflow-y: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .content-section {
@@ -96,53 +128,61 @@ body {
 
 .content-section.active {
     display: block;
-    animation: fadeIn 0.5s ease-in-out;
+    animation: fadeIn 0.4s ease-in-out;
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
 h2 {
     color: var(--accent-blue);
     border-bottom: 2px solid var(--border-color);
-    padding-bottom: 10px;
+    padding-bottom: 6px;
     margin-top: 0;
-    margin-bottom: 25px;
-    font-size: 1.8rem;
+    margin-bottom: 14px;
+    font-size: 1.375rem;
 }
 
 h3 {
     color: var(--text-primary);
-    margin-top: 25px;
-    margin-bottom: 15px;
+    margin-top: 14px;
+    margin-bottom: 8px;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 8px;
+    padding-bottom: 5px;
+    font-size: 1.0625rem;
 }
 
 /* カード/ボックススタイル */
 .setting-box, .status-box {
     background-color: var(--bg-medium);
-    padding: 20px;
+    padding: 12px 14px;
     border-radius: 8px;
-    margin-bottom: 25px;
+    margin-bottom: 14px;
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.setting-box:hover, .status-box:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .status-box p {
-    margin: 8px 0;
+    margin: 5px 0;
 }
 
 .status-box strong {
     color: var(--text-secondary);
-    margin-right: 8px;
+    margin-right: 6px;
 }
 
 /* フォーム要素 */
 .field-label {
     display: block;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     color: var(--text-secondary);
     font-weight: bold;
 }
@@ -152,12 +192,12 @@ input[type="number"],
 select,
 textarea {
     width: 100%;
-    padding: 12px;
+    padding: 9px 10px;
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
     border-radius: 4px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     box-sizing: border-box;
     transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -172,15 +212,15 @@ textarea:focus {
 }
 
 textarea {
-    min-height: 80px;
+    min-height: 60px;
     resize: vertical;
 }
 
 .stat-inputs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 15px;
-    margin: 15px 0;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
 }
 
 .stat-inputs label {
@@ -194,7 +234,7 @@ textarea {
 
 .remaining-points {
     font-weight: bold;
-    margin-top: 15px;
+    margin-top: 8px;
 }
 .points-ok { color: var(--accent-green); }
 .points-over { color: var(--accent-red); }
@@ -203,86 +243,278 @@ textarea {
 
 /* ボタン */
 .btn {
-    padding: 10px 15px;
+    padding: 8px 12px;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
-    font-size: 0.95rem;
+    font-size: 0.875rem;
     transition: background-color 0.2s, transform 0.1s;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .btn-primary {
-    background-color: var(--accent-blue);
+    background: var(--gradient-primary);
     color: white;
 }
 
 .btn-primary:hover {
-    background-color: var(--accent-blue-hover);
+    background: linear-gradient(135deg, var(--accent-blue-hover) 0%, #8fd3ef 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .btn-secondary {
-    background-color: #555c69;
+    background: linear-gradient(135deg, #5a6375 0%, #6b7588 100%);
     color: white;
 }
 
 .btn-secondary:hover {
-    background-color: #666e7a;
+    background: linear-gradient(135deg, #6b7588 0%, #7c879a 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .btn-danger {
-    background-color: var(--accent-red);
+    background: var(--gradient-danger);
     color: white;
 }
 
 .btn-danger:hover {
-    background-color: var(--accent-red-hover);
+    background: linear-gradient(135deg, var(--accent-red-hover) 0%, #ffa0b3 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .btn-info {
-    background-color: #17a2b8;
+    background: linear-gradient(135deg, #17a2b8 0%, #1ab6cf 100%);
     color: white;
 }
 .btn-info:hover {
-    background-color: #1ab6cf;
+    background: linear-gradient(135deg, #1ab6cf 0%, #2ec8e0 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: var(--gradient-success);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, var(--accent-green-hover) 0%, #7ef0c5 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .btn-danger-outline {
     background-color: transparent;
     color: var(--accent-red);
-    border: 1px solid var(--accent-red);
+    border: 2px solid var(--accent-red);
+    box-shadow: none;
 }
 .btn-danger-outline:hover {
-    background-color: rgba(233, 78, 119, 0.1);
+    background-color: rgba(232, 90, 122, 0.15);
+    border-color: var(--accent-red-hover);
+    color: var(--accent-red-hover);
 }
 
 .btn:disabled {
-    background-color: var(--border-color);
+    background: linear-gradient(135deg, var(--border-color) 0%, #4a5160 100%);
     color: #777;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
+    opacity: 0.6;
 }
 
 .btn:active:not(:disabled) {
-    transform: translateY(1px);
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+/* ランキング */
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.ranking-item.me {
+    border-color: var(--accent-blue);
+    background-color: rgba(74, 144, 226, 0.15);
+}
+
+.ranking-rank {
+    width: 2.2em;
+    flex-shrink: 0;
+    text-align: center;
+    font-weight: bold;
+    color: var(--accent-yellow);
+}
+
+.ranking-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.ranking-name {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ranking-breakdown {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.ranking-score {
+    flex-shrink: 0;
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent-blue);
+}
+
+/* ランキング */
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.ranking-item.me {
+    border-color: var(--accent-blue);
+    background-color: rgba(74, 144, 226, 0.15);
+}
+
+.ranking-rank {
+    width: 2.2em;
+    flex-shrink: 0;
+    text-align: center;
+    font-weight: bold;
+    color: var(--accent-yellow);
+}
+
+.ranking-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.ranking-name {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ranking-breakdown {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.ranking-score {
+    flex-shrink: 0;
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent-blue);
+}
+
+/* ランキング */
+.ranking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.ranking-item.me {
+    border-color: var(--accent-blue);
+    background-color: rgba(74, 144, 226, 0.15);
+}
+
+.ranking-rank {
+    width: 2.2em;
+    flex-shrink: 0;
+    text-align: center;
+    font-weight: bold;
+    color: var(--accent-yellow);
+}
+
+.ranking-info {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.ranking-name {
+    font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ranking-breakdown {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.ranking-score {
+    flex-shrink: 0;
+    text-align: right;
+    font-weight: bold;
+    color: var(--accent-blue);
 }
 
 /* スキルツリー */
 .skill-tree-container {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    margin-top: 20px;
+    gap: 12px;
+    margin-top: 12px;
 }
 
 .skill-tree-canvas {
     position: relative;
     width: 100%;
-    min-height: 500px; /* 必要に応じて調整 */
+    min-height: 360px; /* 必要に応じて調整 */
     background-color: var(--bg-dark);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -291,7 +523,7 @@ textarea {
 
 .skill-description-area {
     background-color: var(--bg-light);
-    padding: 20px;
+    padding: 12px 14px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
@@ -302,21 +534,21 @@ textarea {
 }
 
 #skillNodeName {
-    font-size: 1.2rem;
+    font-size: 1.0625rem;
     font-weight: bold;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
 }
 
 #skillNodeDescription, #skillNodeCost {
-    margin-bottom: 15px;
+    margin-bottom: 8px;
     color: var(--text-secondary);
 }
 
 /* skillTree.jsによって追加されるノードと線のスタイル */
 .skill-node {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 48px;
+    height: 48px;
     border: 2px solid var(--border-color);
     border-radius: 50%;
     background-color: var(--bg-medium);
@@ -325,8 +557,8 @@ textarea {
     justify-content: center;
     align-items: center;
     text-align: center;
-    font-size: 0.75rem;
-    padding: 5px;
+    font-size: 0.6875rem;
+    padding: 3px;
     transition: all 0.2s ease;
     z-index: 2;
 }
@@ -367,17 +599,17 @@ textarea {
 /* スキルスロット */
 .skill-slots-container {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     justify-content: center;
-    margin-bottom: 20px;
-    padding: 15px;
+    margin-bottom: 12px;
+    padding: 10px;
     background-color: var(--bg-dark);
     border-radius: 8px;
 }
 
 .skill-slot {
-    width: 80px;
-    height: 80px;
+    width: 60px;
+    height: 60px;
     border: 2px dashed var(--border-color);
     border-radius: 8px;
     display: flex;
@@ -385,7 +617,7 @@ textarea {
     align-items: center;
     text-align: center;
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.6875rem;
     background-color: var(--bg-medium);
     transition: background-color 0.2s;
 }
@@ -404,22 +636,31 @@ textarea {
 /* リストスタイル */
 .shop-list, .inventory-list, .original-weapon-list, .orb-inventory-list, .custom-skill-list, .available-skills-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
 }
 
 .shop-item, .inventory-item, .quest-item, .custom-skill-item, .available-skill-item {
     background-color: var(--bg-light);
-    padding: 15px;
+    padding: 10px 12px;
     border-radius: 6px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.shop-item:hover, .inventory-item:hover, .quest-item:hover, .custom-skill-item:hover, .available-skill-item:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--accent-blue);
 }
 
 .inventory-item.equipped {
     border-left: 4px solid var(--accent-green);
+    background: linear-gradient(145deg, rgba(61, 220, 132, 0.15) 0%, var(--bg-light) 100%);
 }
 
 .shop-item.owned .buy-btn {
@@ -429,6 +670,7 @@ textarea {
 .shop-item.owned .owned-label {
     color: var(--accent-green);
     font-weight: bold;
+    text-shadow: 0 0 10px rgba(61, 220, 132, 0.3);
 }
 
 /* モーダル */
@@ -441,39 +683,45 @@ textarea {
     width: 100%;
     height: 100%;
     overflow: auto;
-    background-color: rgba(0,0,0,0.6);
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+}
+
+.modal.show {
+    display: flex;
     justify-content: center;
     align-items: center;
+    animation: fadeIn 0.2s ease;
 }
 
 .modal-content {
-    background-color: var(--bg-medium);
+    background: linear-gradient(145deg, var(--bg-medium) 0%, var(--bg-dark) 100%);
     margin: auto;
-    padding: 25px;
+    padding: 16px;
     border: 1px solid var(--border-color);
     width: 90%;
-    max-width: 500px;
-    border-radius: 8px;
+    max-width: 520px;
+    border-radius: 16px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 10px;
 }
 
 /* PWAインストールポップアップ */
 .install-popup {
     position: fixed;
-    bottom: 20px;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
-    background-color: var(--bg-light);
+    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-medium) 100%);
     color: var(--text-primary);
-    padding: 15px 25px;
+    padding: 10px 16px;
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     z-index: 2000;
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 12px;
 }
 
 /* パーティUI (既存のスタイルを維持) */
@@ -483,28 +731,34 @@ textarea {
 }
 
 #party-info li {
-    padding: 5px 0;
+    padding: 4px 0;
 }
 
 /* モバイルメニュー */
 .mobile-menu-toggle {
     display: none; /* デスクトップでは非表示 */
     position: fixed;
-    top: 15px;
-    left: 15px;
-    z-index: 1002;
+    top: 10px;
+    left: 10px;
+    z-index: 1003;
     background: var(--bg-light);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
-    font-size: 24px;
-    line-height: 44px;
+    font-size: 20px;
+    line-height: 38px;
     text-align: center;
     cursor: pointer;
     padding: 0;
     transition: background-color 0.2s, transform 0.3s;
+    pointer-events: auto;
+}
+
+/* 強制的にモバイルメニューボタンを表示（デバッグ用） */
+.mobile-menu-toggle.force-show {
+    display: block !important;
 }
 
 .mobile-menu-toggle:hover {
@@ -520,9 +774,16 @@ textarea {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 998;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .sidebar-overlay.active {
@@ -541,6 +802,45 @@ textarea {
         top: 0;
         left: 0;
         height: 100%;
+        z-index: 1001;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+        pointer-events: auto;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .mobile-menu-toggle {
+        display: block; /* スマホで表示 */
+        pointer-events: auto;
+    }
+
+    .main-content {
+        padding: 10px;
+        padding-top: 56px;
+    }
+}
+
+/* さらに小さい画面向け */
+@media (max-width: 480px) {
+    .mobile-menu-toggle {
+        display: block !important; /* 強制的に表示 */
+    }
+}
+
+/* タブレット向け */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .mobile-menu-toggle {
+        display: block !important;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
         z-index: 1000;
         transform: translateX(-100%);
         box-shadow: 5px 0 15px rgba(0,0,0,0.2);
@@ -550,13 +850,9 @@ textarea {
         transform: translateX(0);
     }
 
-    .mobile-menu-toggle {
-        display: block; /* スマホで表示 */
-    }
-
     .main-content {
-        padding: 15px;
-        padding-top: 70px;
+        padding: 10px;
+        padding-top: 56px;
     }
 }
 
@@ -571,6 +867,93 @@ textarea {
     .skill-description-area {
         flex: 1;
         position: sticky;
-        top: 20px;
+        top: 12px;
     }
+}
+
+/* デイリーミッション */
+.missions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.mission-item {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mission-item.completed {
+    border-color: var(--accent-green);
+}
+
+.mission-item.claimed {
+    opacity: 0.6;
+}
+
+.mission-description {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.mission-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-bar-container {
+    flex-grow: 1;
+    height: 10px;
+    background-color: var(--bg-dark);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--accent-blue);
+    transition: width 0.3s ease;
+}
+
+.mission-item.completed .progress-bar {
+    background-color: var(--accent-green);
+}
+
+.progress-text {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.mission-reward {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.final-reward-container {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--accent-yellow);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+}
+
+.final-reward-container h4 {
+    margin: 0 0 8px;
+    color: var(--accent-yellow);
+}
+
+.final-reward-icon {
+    font-size: 2.5rem;
+    margin: 8px 0;
 }
