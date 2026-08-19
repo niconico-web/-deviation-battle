@@ -398,16 +398,6 @@ function getPlayerData() {
     const raw = localStorage.getItem("player");
     return raw ? migratePlayer(JSON.parse(raw)) : null;
 }
-            maxHp: derived.maxHp,
-            atk: derived.atk,
-            sp: derived.sp,
-            def: derived.def,
-            speed: derived.speed,
-            hp: player.hp != null ? Math.min(player.hp, derived.maxHp) : derived.maxHp
-        };
-    }
-    return player;
-}
 
 function calcStatsFromSubjects(s) {
     const { jp, math, eng, sci, soc } = s;
