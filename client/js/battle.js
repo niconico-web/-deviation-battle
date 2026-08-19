@@ -2612,10 +2612,13 @@ function finishBattle(winner) {
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
 
-    // デバッグ武器のみ奪えない
-    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
+    // セーフモードチェック
+    const isSafeMode = localStorage.getItem("safeMode") === "true";
+    
+    // デバッグ武器のみ奪えない（セーフモードの場合も奪わない）
+    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon && !isSafeMode) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
-    } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
+    } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon && !isSafeMode) {
         localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
     }
     
@@ -2630,6 +2633,7 @@ function finishBattle(winner) {
     }
     
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
+    localStorage.removeItem("safeMode"); // セーフモードフラグをクリア
     
     setTimeout(() => location.href = "result.html", 2500);
 }

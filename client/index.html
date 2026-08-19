@@ -35,6 +35,7 @@
                 <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="party"><span>👥</span> パーティ</button>
+                <button class="menu-btn" data-section="social"><span>👋</span> ソーシャル</button>
                 <button class="menu-btn" data-section="guild"><span>🏰</span> ギルド</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
                 <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
@@ -207,10 +208,16 @@
                 <h2>オンライン</h2>
                 <div class="setting-box">
                     <h3>ランダムマッチ</h3>
+                    <label class="field-label">
+                        <input type="checkbox" id="randomMatchSafeMode"> セーフモード（武器を奪われない）
+                    </label>
                     <button type="button" id="randomMatch" class="btn btn-primary">ランダムマッチ</button>
                 </div>
                 <div class="setting-box">
                     <h3>ルームマッチ</h3>
+                    <label class="field-label">
+                        <input type="checkbox" id="roomMatchSafeMode"> セーフモード（武器を奪われない）
+                    </label>
                     <button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
                     <label class="field-label" for="roomInput">ルームコード</label>
                     <input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
@@ -236,6 +243,47 @@
                     </div>
                     <button type="button" id="leavePartyBtn" class="btn btn-danger" style="display: none;">パーティを抜ける</button>
                     <button type="button" id="partyReadyBtn" class="btn btn-primary" style="display: none;">準備OK</button>
+                </div>
+            </section>
+
+            <section id="section-social" class="content-section">
+                <h2>ソーシャル</h2>
+                
+                <!-- プレイヤーID検索 -->
+                <div class="setting-box">
+                    <h3>プレイヤー検索</h3>
+                    <label class="field-label" for="playerIdSearch">プレイヤーID</label>
+                    <input type="text" id="playerIdSearch" placeholder="6文字のIDを入力" maxlength="6" autocapitalize="characters" autocomplete="off">
+                    <button type="button" id="searchPlayerBtn" class="btn btn-primary">検索</button>
+                </div>
+
+                <!-- 検索結果 -->
+                <div id="playerSearchResult" class="setting-box" style="display: none;">
+                    <h3>検索結果</h3>
+                    <div id="searchedPlayerInfo">
+                        <!-- 検索したプレイヤー情報が表示される -->
+                    </div>
+                    <div id="playerActions">
+                        <button type="button" id="friendRequestBtn" class="btn btn-secondary">フレンド申請</button>
+                        <button type="button" id="guildInviteBtn" class="btn btn-secondary">ギルド招待</button>
+                        <button type="button" id="challengePlayerBtn" class="btn btn-primary">対戦申請</button>
+                    </div>
+                </div>
+
+                <!-- フレンドリスト -->
+                <div class="setting-box">
+                    <h3>フレンドリスト</h3>
+                    <div id="friendList">
+                        <p>フレンドはまだいません</p>
+                    </div>
+                </div>
+
+                <!-- フレンド申請 -->
+                <div class="setting-box">
+                    <h3>フレンド申請</h3>
+                    <div id="friendRequests">
+                        <p>フレンド申請はありません</p>
+                    </div>
                 </div>
             </section>
 
@@ -398,6 +446,7 @@
     <script src="js/shop.js"></script>
     <script src="js/boss.js"></script>
     <script src="js/party.js"></script>
+    <script src="js/social.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>

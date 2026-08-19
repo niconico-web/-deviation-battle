@@ -70,6 +70,11 @@ function setupOnlineEventHandlers() {
                 return;
             }
 
+            // セーフモードチェック
+            const safeModeCheckbox = document.getElementById('randomMatchSafeMode');
+            const isSafeMode = safeModeCheckbox ? safeModeCheckbox.checked : false;
+            localStorage.setItem('safeMode', isSafeMode.toString());
+
             isMatching = true;
             randomMatchBtn.textContent = "マッチング待機中... (クリックでキャンセル)";
             const battlePlayer = getBattleReadyPlayer(player);
@@ -184,6 +189,12 @@ function setupOnlineEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+            
+            // セーフモードチェック
+            const safeModeCheckbox = document.getElementById('roomMatchSafeMode');
+            const isSafeMode = safeModeCheckbox ? safeModeCheckbox.checked : false;
+            localStorage.setItem('safeMode', isSafeMode.toString());
+            
             createRoomBtn.disabled = true;
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);
