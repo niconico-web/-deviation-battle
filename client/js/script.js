@@ -856,6 +856,7 @@ function lockStatInputs(locked) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Content Loaded - Initializing application');
     initializeSocket();
 
     // ============================================================
@@ -871,14 +872,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const menuButtons = document.querySelectorAll('.menu-btn');
     const contentSections = document.querySelectorAll('.content-section');
 
+    console.log('Menu elements found:', {
+        mobileMenuToggle: !!mobileMenuToggle,
+        sidebar: !!sidebar,
+        sidebarOverlay: !!sidebarOverlay,
+        menuButtons: menuButtons.length,
+        contentSections: contentSections.length
+    });
+
     function toggleMobileMenu() {
+        console.log('Toggle mobile menu called');
         if (!sidebar) return;
         const isOpen = sidebar.classList.toggle('active');
         if (sidebarOverlay) sidebarOverlay.classList.toggle('active', isOpen);
         if (mobileMenuToggle) mobileMenuToggle.textContent = isOpen ? '✕' : '☰';
+        console.log('Menu toggled, isOpen:', isOpen);
     }
 
     function closeMobileMenu() {
+        console.log('Close mobile menu called');
         if (!sidebar) return;
         sidebar.classList.remove('active');
         if (sidebarOverlay) sidebarOverlay.classList.remove('active');
@@ -887,6 +899,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (mobileMenuToggle) {
         mobileMenuToggle.addEventListener('click', toggleMobileMenu);
+        console.log('Mobile menu toggle event listener attached');
+    } else {
+        console.error('Mobile menu toggle button not found!');
     }
 
     const refreshRankingBtn = document.getElementById('refreshRankingBtn');
@@ -904,6 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     menuButtons.forEach(button => {
         button.addEventListener('click', () => {
+            console.log('Menu button clicked:', button.dataset.section);
             const section = button.dataset.section;
 
             menuButtons.forEach(btn => btn.classList.remove('active'));
@@ -913,6 +929,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const activeSection = document.getElementById(`section-${section}`);
             if (activeSection) {
                 activeSection.classList.add('active');
+                console.log('Activated section:', section);
+            } else {
+                console.error('Section not found:', `section-${section}`);
             }
 
             if (section === 'ranking' && window.socket) {
