@@ -11,6 +11,24 @@ function getBattleReadyPlayer(player) {
     };
 }
 
+const BOT_MONSTERS = [
+    { 
+        name: "ゴブリン", monsterType: "ゴブリン", monsterEmoji: "👺", 
+        baseStats: { maxHp: 80, atk: 60, def: 40, speed: 50 },
+        materialDrops: [{ materialId: 'goblin_fang', chance: 0.5 }]
+    },
+    { 
+        name: "スライム", monsterType: "スライム", monsterEmoji: "💧",
+        baseStats: { maxHp: 100, atk: 50, def: 60, speed: 30 },
+        materialDrops: [{ materialId: 'slime_jelly', chance: 0.6 }]
+    },
+    { 
+        name: "ベビードラゴン", monsterType: "ドラゴン", monsterEmoji: "🐲",
+        baseStats: { maxHp: 120, atk: 70, def: 50, speed: 40 },
+        materialDrops: [{ materialId: 'dragon_scale', chance: 0.4 }]
+    }
+];
+
 function setupOnlineEventHandlers() {
     if (onlineHandlersSetup) {
         return;
@@ -51,6 +69,11 @@ function setupOnlineEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+
+            // セーフモードチェック
+            const safeModeCheckbox = document.getElementById('randomMatchSafeMode');
+            const isSafeMode = safeModeCheckbox ? safeModeCheckbox.checked : false;
+            localStorage.setItem('safeMode', isSafeMode.toString());
 
             isMatching = true;
             randomMatchBtn.textContent = "マッチング待機中... (クリックでキャンセル)";
@@ -104,22 +127,19 @@ function setupOnlineEventHandlers() {
             }
 
             const battleStats = getBattleStats(player);
-            const botTypes = Object.keys(WEAPON_TYPES);
-            const randomType = botTypes[Math.floor(Math.random() * botTypes.length)];
-            // ボットの武器をtier1-tier3でランダムに生成
-            const tiers = ["tier1", "tier2", "tier3"];
-            const randomTier = tiers[Math.floor(Math.random() * tiers.length)];
-            const botWeapon = createWeapon(randomType, randomTier, false);
+            
+            // ランダムなモンスターを選択
+            const randomMonster = BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
 
             // プレイヤーの学年に合わせてボットの学年を設定
             const playerGrade = player.grade || 1;
             
             // 学年に応じた基礎ステータスを計算（強化版）
-            const gradeMultiplier = Math.max(1.0, Math.min(1.8, 1.0 + (playerGrade - 1) * 0.08));
-            const baseMaxHp = Math.floor(120 * gradeMultiplier);
-            const baseAtk = Math.floor(70 * gradeMultiplier);
-            const baseDef = Math.floor(55 * gradeMultiplier);
-            const baseSpeed = Math.floor(45 * gradeMultiplier);
+            const gradeMultiplier = Math.max(1.0, 1.0 + (playerGrade - 1) * 0.1);
+            const baseMaxHp = Math.floor(randomMonster.baseStats.maxHp * gradeMultiplier);
+            const baseAtk = Math.floor(randomMonster.baseStats.atk * gradeMultiplier);
+            const baseDef = Math.floor(randomMonster.baseStats.def * gradeMultiplier);
+            const baseSpeed = Math.floor(randomMonster.baseStats.speed * gradeMultiplier);
 
             // 武器補正を適用
             const botBaseStats = {
@@ -128,19 +148,17 @@ function setupOnlineEventHandlers() {
                 def: baseDef,
                 speed: baseSpeed
             };
-            const botStatsWithWeapon = applyWeaponStats(botBaseStats, botWeapon);
 
             const botPlayer = {
                 id: "bot_" + Date.now(),
-                name: "AIボット",
-                maxHp: botStatsWithWeapon.maxHp,
-                hp: botStatsWithWeapon.maxHp,
-                atk: botStatsWithWeapon.atk,
-                def: botStatsWithWeapon.def,
-                speed: botStatsWithWeapon.speed,
+                name: randomMonster.name,
+                ...botBaseStats,
+                hp: baseMaxHp,
                 grade: playerGrade,
                 isBot: true,
-                equippedWeapon: botWeapon
+                monsterType: randomMonster.monsterType,
+                monsterEmoji: randomMonster.monsterEmoji,
+                materialDrops: randomMonster.materialDrops
             };
 
             const battlePlayer = getBattleReadyPlayer(player);
@@ -171,6 +189,12 @@ function setupOnlineEventHandlers() {
                 alert("サーバーに接続されていません。ページを再読み込みしてください。");
                 return;
             }
+            
+            // セーフモードチェック
+            const safeModeCheckbox = document.getElementById('roomMatchSafeMode');
+            const isSafeMode = safeModeCheckbox ? safeModeCheckbox.checked : false;
+            localStorage.setItem('safeMode', isSafeMode.toString());
+            
             createRoomBtn.disabled = true;
             createRoomBtn.textContent = "作成中...";
             const battlePlayer = getBattleReadyPlayer(player);

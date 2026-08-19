@@ -11,6 +11,12 @@ const critical = localStorage.getItem("criticalCount") || "0";
 const title = document.getElementById("resultTitle");
 const won = result === "win";
 
+// 「もう一度戦う」で使うため、result.js末尾でクリアされる前にバトル種別を控えておく
+const wasBotBattle = localStorage.getItem("isBotBattle");
+const wasBossBattle = localStorage.getItem("isBossBattle");
+const battleDifficultyValue = localStorage.getItem("battleDifficulty");
+const partyDataValue = localStorage.getItem("partyData");
+
 const stolenWeaponRaw = localStorage.getItem("stolenWeapon");
 const lostWeaponRaw = localStorage.getItem("lostWeapon");
 const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
@@ -25,6 +31,12 @@ const updatedPlayer = applyBattleRewards(won, turn, damage, {
     lostWeapon: !won && !enemy?.isBoss ? lostWeapon : null,
     enemy: enemy
 });
+
+// ギルドクエスト進捗更新（ボス討伐）
+if (won && isBossBattle && typeof updateGuildQuestProgress === 'function') {
+    updateGuildQuestProgress('defeat_boss', { bossId: enemy.id, difficulty: battleDifficultyValue });
+}
+
 if (!updatedPlayer) {
     console.error("[Result] applyBattleRewards returned null. Player data might be lost or not updated.");
 } else {
@@ -72,6 +84,59 @@ if (orbEl) {
     }
 }
 
+// 「もう一度戦う」ボタン（ボット戦・ソロボス戦のみ対応。オンライン対戦やパーティボス戦は再戦不可）
+const retryBtn = document.getElementById("retryBtn");
+if (retryBtn) {
+    if (wasBotBattle === "true" && enemy && !partyDataValue) {
+        retryBtn.style.display = "";
+        retryBtn.onclick = () => {
+            localStorage.setItem("isBotBattle", "true");
+            if (wasBossBattle === "true") {
+                localStorage.setItem("isBossBattle", "true");
+                if (battleDifficultyValue) {
+                    localStorage.setItem("battleDifficulty", battleDifficultyValue);
+                }
+            } else {
+                localStorage.removeItem("isBossBattle");
+                localStorage.removeItem("battleDifficulty");
+            }
+            localStorage.setItem("enemy", JSON.stringify(enemy));
+            localStorage.removeItem("rewardsApplied");
+            localStorage.removeItem("stolenWeapon");
+            localStorage.removeItem("lostWeapon");
+            location.href = "battle.html";
+        };
+    } else {
+        retryBtn.style.display = "none";
+    }
+}
+
+// ボス報酬の表示（武器・スキル・限界突破素材）
+const battleResultDataRaw = localStorage.getItem("battleResultData");
+const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) : null;
+
+if (battleResultData && battleResultData.rewards) {
+    const bossWeaponDropText = document.getElementById('bossWeaponDropText');
+    const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
+    const bossSkillDropText = document.getElementById('bossSkillDropText');
+
+    if (battleResultData.rewards.bossWeapon && bossWeaponDropText) {
+        bossWeaponDropText.textContent = `★武器を入手！ ${battleResultData.rewards.bossWeapon.name}★`;
+        bossWeaponDropText.style.display = 'block';
+    }
+
+    if (battleResultData.rewards.limitBreakMaterial && limitBreakMaterialText) {
+        const material = battleResultData.rewards.limitBreakMaterial;
+        limitBreakMaterialText.textContent = `★限界突破素材を入手！ ${material.name} ×${material.count}★`;
+        limitBreakMaterialText.style.display = 'block';
+    }
+
+    if (battleResultData.rewards.bossSkill && bossSkillDropText) {
+        bossSkillDropText.textContent = `★スキルを習得！ ${battleResultData.rewards.bossSkill.name}★`;
+        bossSkillDropText.style.display = 'block';
+    }
+}
+
 localStorage.removeItem("stolenWeapon");
 localStorage.removeItem("lostWeapon");
 localStorage.removeItem("battleCoinGain");
@@ -79,3 +144,4 @@ localStorage.removeItem("droppedOrb");
 localStorage.removeItem("isBotBattle");
 localStorage.removeItem("isBossBattle"); // Clear boss battle flag
 localStorage.removeItem("battleDifficulty"); // Clear difficulty
+localStorage.removeItem("battleResultData"); // Clear boss reward data

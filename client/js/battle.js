@@ -18,6 +18,11 @@ let skillActivationWindow = false;
 let skillActivationTimer = null;
 let bossAutoAnswerTimer = null; // Boss auto-answer timer
 const BOSS_AUTO_ANSWER_TIMEOUT = 5000; // 5 seconds for boss to auto-answer
+
+// クリティカル関連
+const BASE_CRIT_CHANCE = 0.05; // 通常時、常に5%の確率でクリティカルが発生する
+const CRITICAL_ABILITY_CRIT_CHANCE = 0.30; // 「必殺」の固有能力を持つ武器を装備している場合の基本クリティカル率
+const BASE_CRIT_MULTIPLIER = 1.5; // クリティカル発生時の基本ダメージ倍率
 // スキルによる一時的な効果（ボット戦で使用）
 let myPendingDamageReduction = 0; // 次に受けるダメージの軽減率
 let myDefDebuff = 0;              // 自身の防御低下量
@@ -112,8 +117,9 @@ function renderPartyStatus() {
             // my-status の前に挿入して、味方・自分・敵の順にする
             myStatusBox.parentElement.insertBefore(container, myStatusBox);
         } else {
-            console.error("Could not find a parent for 'my-status' to append ally statuses.");
-            return;
+            // エラーをログに出力するが、処理は続行させる
+            console.warn("Could not find a parent for 'my-status' to append ally statuses. Party status will not be displayed.");
+            return; // パーティ表示はできないが、他の処理は続行させる
         }
     }
     container.innerHTML = '';
@@ -236,8 +242,7 @@ function initialize() {
     } else {
         console.log("Online battle detected, waiting for server");
         if (!socket) {
-            addLog("エラー: ソケットが初期化されていません");
-            alert("ソケット接続エラーが発生しました。ページを再読み込みしてください。");
+            addLog("エラー: ソケット接続エラーが発生しました。ページを再読み込みしてください。");
             return;
         }
         
@@ -249,13 +254,21 @@ function initialize() {
                 joinOnlineBattle();
             });
             
-            // 接続タイムアウト
+            // 接続に時間がかかっている場合の通知（ブロッキングしない）
+            // ※ サーバーがスリープ状態から復帰する場合など、接続確立までに時間がかかることがあるため、
+            //    ここでは alert() を使わず、ログ表示のみで待機を継続する（socket.io側は自動で再接続を試み続ける）
             setTimeout(() => {
                 if (!socket.connected) {
-                    addLog("エラー: サーバーに接続できませんでした");
-                    alert("サーバーに接続できませんでした。ページを再読み込みしてください。");
+                    addLog("サーバーへの接続に時間がかかっています。しばらくお待ちください...");
                 }
-            }, 5000);
+            }, 8000);
+
+            // それでも長時間接続できない場合のみ、ユーザーに再読み込みを促す
+            setTimeout(() => {
+                if (!socket.connected) {
+                    addLog("エラー: サーバーに接続できませんでした。ページを再読み込みしてください。");
+                }
+            }, 30000);
         } else {
             joinOnlineBattle();
         }
@@ -266,7 +279,7 @@ function joinOnlineBattle() {
     console.log("Joining online battle for room:", roomId);
     addLog("バトルに参加中...");
     // サーバーにバトル参加を通知し、初期状態を要求
-    socket.emit("battle:join", { roomId });
+    socket.emit("battle:join", { roomId, playerId: me.id });
 }
 
 function calculateDodgeChance(speed) {
@@ -549,7 +562,10 @@ function generateOptionsForQuestion(question) {
         }
         
         // まだ足りない場合は従来の方法で追加
-        while (options.length < 4) {
+        // ※ 万が一候補が尽きて無限ループにならないよう、試行回数の上限と保険のフォールバックを設ける
+        let numAttempts = 0;
+        while (options.length < 4 && numAttempts < 50) {
+            numAttempts++;
             let offset;
             if (Math.random() < 0.5) {
                 offset = Math.floor(Math.random() * 5) + 1;
@@ -562,6 +578,16 @@ function generateOptionsForQuestion(question) {
                 usedNumbers.add(wrongAnswer);
                 options.push(String(wrongAnswer));
             }
+        }
+        // それでも足りない場合は、確実に一意な数値を足して埋める（無限ループ防止の保険）
+        let fallbackOffset = 6;
+        while (options.length < 4) {
+            const wrongAnswer = numAnswer + fallbackOffset;
+            if (!usedNumbers.has(wrongAnswer) && wrongAnswer >= 0) {
+                usedNumbers.add(wrongAnswer);
+                options.push(String(wrongAnswer));
+            }
+            fallbackOffset++;
         }
     } else {
         // 文字列の場合は意味のある誤答を生成
@@ -578,12 +604,37 @@ function generateOptionsForQuestion(question) {
         // 文学的技法の問題の場合は、類似した文字列を生成しない
         if (!isLiteraryTechniqueQuestion(question.answer)) {
             // まだ足りない場合は類似した文字列を生成
-            while (options.length < 4) {
+            // ※ generateSimilarString は短い文字列（特に1文字）だと毎回同じ結果を返すことがあり、
+            //   無限ループでブラウザが完全にフリーズする原因になっていた。試行回数の上限を設ける。
+            let attempts = 0;
+            while (options.length < 4 && attempts < 30) {
+                attempts++;
                 const similar = generateSimilarString(question.answer);
                 if (!usedAnswers.has(similar)) {
                     usedAnswers.add(similar);
                     options.push(similar);
                 }
+            }
+            // それでも足りない場合は、記号を付加して確実に選択肢を埋める（無限ループ防止の保険）
+            let fallbackSuffix = 1;
+            while (options.length < 4) {
+                const filler = `${question.answer}${"？".repeat(fallbackSuffix)}`;
+                if (!usedAnswers.has(filler)) {
+                    usedAnswers.add(filler);
+                    options.push(filler);
+                }
+                fallbackSuffix++;
+            }
+        } else {
+            // 文学的技法の問題で、かつ誤答候補が3つに満たない場合も保険で埋める
+            let fallbackSuffix = 1;
+            while (options.length < 4) {
+                const filler = `${question.answer}${"？".repeat(fallbackSuffix)}`;
+                if (!usedAnswers.has(filler)) {
+                    usedAnswers.add(filler);
+                    options.push(filler);
+                }
+                fallbackSuffix++;
             }
         }
     }
@@ -1317,17 +1368,25 @@ function applySkillEffect(damage, attacker, defender, skill) {
     
     // バーサーク（HPが低い時に強化）
     if (effect.berserk) {
-        const hpRatio = attacker.hp / attacker.maxHp;
-        if (hpRatio <= 0.5) {
-            modifiedDamage = Math.floor(modifiedDamage * effect.berserk);
-            addLog(`スキル効果: バーサーク発動！ダメージ${effect.berserk}倍！`);
+        if (typeof effect.berserk === 'number') {
+            const hpRatio = attacker.hp / attacker.maxHp;
+            if (hpRatio <= 0.5) {
+                modifiedDamage = Math.floor(modifiedDamage * effect.berserk);
+                addLog(`スキル効果: バーサーク発動！ダメージ${effect.berserk}倍！`);
+            }
         }
     }
     
-    // エクスキュート（相手HPが低い時に強化）
-    if (effect.execute) {
+    // エクスキュート（即死効果）
+    if (effect.execute === true && effect.executeThreshold) {
         const hpRatio = defender.hp / defender.maxHp;
-        if (hpRatio <= 0.3) {
+        if (hpRatio <= effect.executeThreshold) {
+            addLog(`スキル効果: オーバーキル発動！`);
+            modifiedDamage = 9999999999; // 事実上の即死ダメージ
+        }
+    } else if (typeof effect.execute === 'number') { // エクスキュート（ダメージ増加効果）
+        const hpRatio = defender.hp / defender.maxHp;
+        if (hpRatio <= 0.3) { // 既存のカスタムスキル用のロジックは維持
             modifiedDamage = Math.floor(modifiedDamage * effect.execute);
             addLog(`スキル効果: エクスキュート発動！ダメージ${effect.execute}倍！`);
         }
@@ -1355,38 +1414,84 @@ function applySkillEffect(damage, attacker, defender, skill) {
     return modifiedDamage;
 }
 
-// ボススキル効果の適用
+// ボススキル効果の適用（プレイヤーが使用する場合も含む）
 function applyBossSkillEffect(damage, attacker, defender, skill) {
     if (!skill || !skill.effect) return damage;
 
     let modifiedDamage = damage;
     const effect = skill.effect;
 
-    addLog(`ボスがスキル「${skill.name}」を使用！`);
+    const isPlayerUsing = attacker === me;
+    addLog(`${isPlayerUsing ? 'プレイヤー' : 'ボス'}がスキル「${skill.name}」を使用！`);
 
     // ダメージ倍率
     if (effect.damageMultiplier) {
         modifiedDamage = Math.floor(modifiedDamage * effect.damageMultiplier);
-        addLog(`ボススキル効果: ダメージが${effect.damageMultiplier}倍になった！`);
+        addLog(`スキル効果: ダメージが${effect.damageMultiplier}倍になった！`);
     }
 
     // ライフスティール
     if (effect.lifeSteal) {
         const healAmount = Math.floor(modifiedDamage * effect.lifeSteal);
         attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
-        addLog(`ボススキル効果: ボスがHPを${healAmount}吸収した！`);
+        addLog(`スキル効果: ${attacker.name}がHPを${healAmount}吸収した！`);
+        if (isPlayerUsing) updateHP();
     }
 
-    // プレイヤーへのデバフ
-    if (effect.debuff) {
+    // 防御無視
+    if (effect.ignoreDef) {
+        addLog(`スキル効果: 防御を無視！`);
+    }
+
+    // 必中
+    if (effect.sureHit) {
+        addLog(`スキル効果: 攻撃が必中！`);
+    }
+
+    // 次の攻撃クリティカル確定
+    if (effect.nextAttackCrit) {
+        addLog(`スキル効果: 次の攻撃が必ずクリティカル！`);
+    }
+
+    // プレイヤーへのデバフ（ボスが使用する場合）
+    if (!isPlayerUsing && effect.debuff) {
         switch (effect.debuff.type) {
             case 'atk':
                 me.atk = Math.floor(me.atk * (1 - effect.debuff.reduction));
-                addLog(`ボススキル効果: ${me.name}の攻撃力が低下！`);
+                addLog(`スキル効果: ${me.name}の攻撃力が低下！`);
                 break;
-            // ... 他のデバフタイプもここに追加 ...
+            case 'def':
+                me.def = Math.floor(me.def * (1 - effect.debuff.reduction));
+                addLog(`スキル効果: ${me.name}の防御力が低下！`);
+                break;
+            case 'speed':
+                me.speed = Math.floor(me.speed * (1 - effect.debuff.reduction));
+                addLog(`スキル効果: ${me.name}の速度が低下！`);
+                break;
         }
     }
+
+    // 敵へのデバフ（プレイヤーが使用する場合）
+    if (isPlayerUsing && effect.enemyDebuff) {
+        switch (effect.enemyDebuff.type) {
+            case 'atk':
+                enemyAtkDebuff = effect.enemyDebuff.reduction;
+                enemyAtkDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の攻撃力が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+            case 'def':
+                enemyDefDebuff = effect.enemyDebuff.reduction;
+                enemyDefDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の防御力が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+            case 'speed':
+                enemySpeedDebuff = effect.enemyDebuff.reduction;
+                enemySpeedDebuffTurns = effect.enemyDebuff.turns || 2;
+                addLog(`スキル効果: 敵の速度が${effect.enemyDebuff.reduction * 100}%低下！`);
+                break;
+        }
+    }
+
     return modifiedDamage;
 }
 
@@ -1522,71 +1627,68 @@ function generateBotQuestion() {
             tickBotBattleStatus();
             if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
-            showCountdown(() => {
-                questionDisplay.textContent = "スキルを選択してください (3秒)";
-                choicesContainer.innerHTML = '';
-                startSkillActivationWindow();
+            // スキル選択ウィンドウをカウントダウンと同時に開始
+            startSkillActivationWindow();
 
-                setTimeout(() => {
-                    questionDisplay.textContent = currentQuestion.question;
-                    // 選択肢を生成
-                    generateChoices(currentQuestion);
-                    startTimer();
-                    addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+            showCountdown(() => {
+                questionDisplay.textContent = currentQuestion.question;
+                // 選択肢を生成
+                generateChoices(currentQuestion);
+                startTimer();
+                addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+                
+                // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+                if (isBossBattle) {
+                    if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+                    bossAutoAnswerTimer = setTimeout(() => {
+                        if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
+                            console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
+                            addLog(`時間切れ！ ${enemy.name} の攻撃！`);
+                            
+                            // 選択肢を無効化
+                            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+                            buttons.forEach(btn => btn.disabled = true);
+                            
+                            // ボスの攻撃処理
+                            let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
+                            let botAtk = enemy.atk;
                     
-                    // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
-                    if (isBossBattle) {
-                        if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-                        bossAutoAnswerTimer = setTimeout(() => {
-                            if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
-                                console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
-                                addLog(`時間切れ！ ${enemy.name} の攻撃！`);
-                                
-                                // 選択肢を無効化
-                                const buttons = choicesContainer.querySelectorAll('.choice-btn');
-                                buttons.forEach(btn => btn.disabled = true);
-                                
-                                // ボスの攻撃処理
-                                let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-                                let botAtk = enemy.atk;
-                        
-                                // ボススキル使用
-                                let bossUsedSkill = null;
-                                if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
-                                    if (Math.random() < 0.5) { // 50%の確率でスキル使用
-                                        bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
-                                    }
-                                }
-                                
-                                const defReduction = Math.floor(myDef * 0.1);
-                                let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
-                        
-                                if (bossUsedSkill) {
-                                    damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
-                                }
-                        
-                                // 鉄壁適用
-                                if (hasUniqueAbility(me, 'damage_cut_half')) {
-                                    damage = Math.floor(damage * 0.5);
-                                    addLog("鉄壁発動！ダメージ50%カット");
-                                }
-                                
-                                // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
-                                me.hp = Math.max(0, me.hp - damage);
-                                showDamage("myDamage", damage);
-                                addLog(`${enemy.name}から ${damage} のダメージ！`);
-                                
-                                updateHP();
-                                
-                                if (me.hp <= 0) {
-                                    finishBotBattle("lose");
-                                } else {
-                                    setTimeout(generateBotQuestion, 1000);
+                            // ボススキル使用
+                            let bossUsedSkill = null;
+                            if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+                                if (Math.random() < 0.5) { // 50%の確率でスキル使用
+                                    bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
                                 }
                             }
-                        }, BOSS_AUTO_ANSWER_TIMEOUT);
-                    }
-                }, 3000);
+                            
+                            const defReduction = Math.floor(myDef * 0.1);
+                            let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
+                    
+                            if (bossUsedSkill) {
+                                damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+                            }
+                    
+                            // 鉄壁適用
+                            if (hasUniqueAbility(me, 'damage_cut_half')) {
+                                damage = Math.floor(damage * 0.5);
+                                addLog("鉄壁発動！ダメージ50%カット");
+                            }
+                            
+                            // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
+                            me.hp = Math.max(0, me.hp - damage);
+                            showDamage("myDamage", damage);
+                            addLog(`${enemy.name}から ${damage} のダメージ！`);
+                            
+                            updateHP();
+                            
+                            if (me.hp <= 0) {
+                                finishBotBattle("lose");
+                            } else {
+                                setTimeout(generateBotQuestion, 1000);
+                            }
+                        }
+                    }, BOSS_AUTO_ANSWER_TIMEOUT);
+                }
             });
             return;
         } else {
@@ -1932,32 +2034,29 @@ function generateBotQuestion() {
     tickBotBattleStatus();
     if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
-    showCountdown(() => {
-        questionDisplay.textContent = "スキルを選択してください (3秒)";
-        choicesContainer.innerHTML = '';
-        startSkillActivationWindow();
+    // スキル選択ウィンドウをカウントダウンと同時に開始
+    startSkillActivationWindow();
 
-        setTimeout(() => {
-            questionDisplay.textContent = currentQuestion.question;
-            // 選択肢を生成
-            generateChoices(currentQuestion);
-            startTimer();
-            addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
-            
-            // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
-            if (isBossBattle) {
-                if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-                bossAutoAnswerTimer = setTimeout(() => {
-                    if (!battleEnd && currentQuestion) {
-                        console.log('[Boss Auto-Answer] Boss auto-answer triggered');
-                        // ボスが正解する
-                        const bossCorrectAnswer = currentQuestion.answer;
-                        addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
-                        handleChoiceClick(bossCorrectAnswer);
-                    }
-                }, BOSS_AUTO_ANSWER_TIMEOUT);
-            }
-        }, 3000);
+    showCountdown(() => {
+        questionDisplay.textContent = currentQuestion.question;
+        // 選択肢を生成
+        generateChoices(currentQuestion);
+        startTimer();
+        addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+        
+        // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+        if (isBossBattle) {
+            if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+            bossAutoAnswerTimer = setTimeout(() => {
+                if (!battleEnd && currentQuestion) {
+                    console.log('[Boss Auto-Answer] Boss auto-answer triggered');
+                    // ボスが正解する
+                    const bossCorrectAnswer = currentQuestion.answer;
+                    addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
+                    handleChoiceClick(bossCorrectAnswer);
+                }
+            }, BOSS_AUTO_ANSWER_TIMEOUT);
+        }
     });
 }
 
@@ -1965,9 +2064,14 @@ function displayQuestion(question) {
     if (!question || !question.question) {
         console.error("Invalid question data:", question);
         addLog("エラー: 無効な問題データです。");
+        addLog("問題データ: " + JSON.stringify(question));
         return;
     }
+    console.log("displayQuestion called with:", question);
     currentQuestion = question;
+
+    // スキル選択ウィンドウをカウントダウンと同時に開始
+    startSkillActivationWindow();
 
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
@@ -2043,6 +2147,10 @@ function handleBotAnswer(userAnswer) {
     }
     const skillEffect = (usedSkill && usedSkill.effect) || {};
     applyInstantSkillEffects(skillEffect);
+    // このスキルを使用済みとして記録し、戦闘中は再度使用できないようにする
+    if (usedSkill) {
+        afterSkillUse(usedSkill);
+    }
 
     const isCorrect = userAnswer.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
@@ -2104,6 +2212,13 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
+        // ★★★デバッグ武器のチェック★★★
+        if (hasUniqueAbility(me, 'one_shot_kill')) {
+            addLog(`デバッグ武器の効果発動！「${me.equippedWeapon.name}」！`);
+            damage = enemy.maxHp * 999; // 相手の最大HP以上のダメージを与える
+            skillEffect.sureHit = true; // 必中効果を強制
+        }
+
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         const mySpeed = me.speed || 0;
         const dodgeChance = calculateDodgeChance(mySpeed);
@@ -2127,10 +2242,15 @@ function handleBotAnswer(userAnswer) {
             updateUltimateGauge();
         }
         
-        // 必殺（20%の確率でダメージ1.5倍）
-        if (hasUniqueAbility(me, 'critical_damage') && Math.random() < 0.20) {
-            damage = Math.floor(damage * 1.5);
-            addLog("必殺発動！ダメージ1.5倍！");
+        // クリティカル判定：常時 BASE_CRIT_CHANCE（5%）の確率で発生する。
+        // 「必殺」の固有能力を武器に持っている場合は基本率が CRITICAL_ABILITY_CRIT_CHANCE（30%）まで上がる。
+        // スキルツリーの「クリティカルルート」で得た critChance / critMultiplier もここに加算される。
+        const critBaseChance = hasUniqueAbility(me, 'critical_damage') ? CRITICAL_ABILITY_CRIT_CHANCE : BASE_CRIT_CHANCE;
+        const totalCritChance = Math.min(1, critBaseChance + (me.critChance || 0));
+        if (Math.random() < totalCritChance) {
+            const critMultiplier = BASE_CRIT_MULTIPLIER + (me.critMultiplier || 0);
+            damage = Math.floor(damage * critMultiplier);
+            addLog(`クリティカル発動！ダメージ${critMultiplier.toFixed(2)}倍！`);
         }
         
         // スキル効果を適用（新しいスキルシステム）
@@ -2160,19 +2280,26 @@ function handleBotAnswer(userAnswer) {
         }
         
         // 回避判定（敵の回避率）
+        // デバッグ用「必中・即死」武器を装備している場合は、回避判定を無視して確実にトドメを刺す
+        const isDebugInstantKill = me.equippedWeapon && me.equippedWeapon.debugInstantKill;
+        if (isDebugInstantKill) {
+            damage = Math.max(damage, enemy.hp, enemy.maxHp || enemy.hp, 1);
+        }
         const enemyDodgeChance = calculateDodgeChance(enemy.speed);
         const dodgeRoll = Math.random() * 100;
         if (damage <= 0) {
             showDamage("enemyDamage", 0);
-        } else if (!skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+        } else if (!isDebugInstantKill && !skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
             addLog("回避！ダメージなし");
             damage = 0;
         } else {
-            if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+            if (isDebugInstantKill) {
+                addLog("【デバッグ】必中・即死効果で確実にトドメを刺した！");
+            } else if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
                 addLog("必中効果で回避を許さなかった！");
             }
-            if (enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+            if (!isDebugInstantKill && enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
                 enemy.hp = 1;
                 addLog(`${enemy.name}は根性で持ちこたえた！`);
             } else {
@@ -2216,6 +2343,16 @@ function handleBotAnswer(userAnswer) {
         const defReduction = Math.floor(myDef * 0.1);
         let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
         
+        // ボス戦の場合、ボスがスキルを使うことがある
+        let bossUsedSkillOnMiss = null;
+        if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+            // 30%の確率でスキル使用
+            if (Math.random() < 0.3) {
+                bossUsedSkillOnMiss = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+                damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkillOnMiss);
+            }
+        }
+
         // 鉄壁（相手からの攻撃のダメージ50%カット）
         if (hasUniqueAbility(me, 'damage_cut_half')) {
             damage = Math.floor(damage * 0.5);
@@ -2366,6 +2503,17 @@ function finishBotBattle(result) {
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
     // デバッグ武器は奪えない
+
+    // ボット戦での素材ドロップ処理
+    if (win && enemy.isBot && enemy.materialDrops) {
+        enemy.materialDrops.forEach(drop => {
+            if (Math.random() < drop.chance) {
+                localStorage.setItem("droppedMaterial", drop.materialId);
+                addLog(`${enemy.name}から${MATERIAL_DATA[drop.materialId].name}を入手！`);
+            }
+        });
+    }
+
     if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
@@ -2456,21 +2604,36 @@ function finishBattle(winner) {
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
     buttons.forEach(btn => btn.disabled = true);
 
-    const win = winner === me.id;
+    // レイドボス戦の場合、winnerは 'party'（パーティ全員の勝利）か、ボスのID（敗北）になる
+    const win = winner === me.id || winner === 'party';
     addLog(win ? I18N.victory : I18N.defeat);
     
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
     localStorage.setItem("enemyHP", String(enemy.hp));
 
-    // デバッグ武器のみ奪えない
-    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon) {
+    // セーフモードチェック
+    const isSafeMode = localStorage.getItem("safeMode") === "true";
+    
+    // デバッグ武器のみ奪えない（セーフモードの場合も奪わない）
+    if (win && enemy.equippedWeapon && !enemy.equippedWeapon.isDebugWeapon && !isSafeMode) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
-    } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon) {
+    } else if (!win && me.equippedWeapon && !me.equippedWeapon.isDebugWeapon && !isSafeMode) {
         localStorage.setItem("lostWeapon", JSON.stringify(me.equippedWeapon));
     }
     
+    // モンスターからの素材ドロップ処理
+    if (win && enemy.isBot && enemy.monsterDrops) {
+        const dropChance = 0.3; // 30%の確率でドロップ
+        if (Math.random() < dropChance) {
+            const droppedMaterial = enemy.monsterDrops[Math.floor(Math.random() * enemy.monsterDrops.length)];
+            localStorage.setItem("droppedMaterial", droppedMaterial);
+            addLog(`${enemy.monsterEmoji} ${enemy.monsterType}から${droppedMaterial}を入手！`);
+        }
+    }
+    
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
+    localStorage.removeItem("safeMode"); // セーフモードフラグをクリア
     
     setTimeout(() => location.href = "result.html", 2500);
 }
@@ -2607,8 +2770,12 @@ if (!isBotBattle && socket) {
             syncBattleState(data.stateUpdate);
         }
 
-        if (data.nextQuestion && data.nextQuestion.forPlayerId === me.id) {
-            displayQuestion(data.nextQuestion.question);
+        // サーバーは「そのバトル共有の次の問題」をそのまま送ってくる（forPlayerIdは付与されない）。
+        // 以前は data.nextQuestion.forPlayerId === me.id という常に偽になる条件と、
+        // displayQuestion(data.nextQuestion.question) という誤った参照になっており、
+        // 最初の問題以降は永遠に次の問題が表示されなかった。
+        if (data.nextQuestion) {
+            displayQuestion(data.nextQuestion);
         }
     });
 

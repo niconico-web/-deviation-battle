@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v16';
+const CACHE_NAME = 'school-battle-cache-v35';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -10,6 +10,7 @@ const urlsToCache = [
   '/css/style.css',
   '/css/help.css',
   '/css/battle.css',
+  '/css/guild.css',
   '/css/result.css',
   '/css/ability-popup.css',
   '/js/script.js',
@@ -24,7 +25,11 @@ const urlsToCache = [
   '/js/result.js',
   '/js/help.js',
   '/js/boss.js',
+  '/js/mission.js',
+  '/js/materials.js',
+  '/js/ranking.js',
   '/js/party.js',
+  '/js/guild.js',
   '/socket.io/socket.io.js',
   // アイコンのパスを修正
   '/images/icons/icon-192x192.png',

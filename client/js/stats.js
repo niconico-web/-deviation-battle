@@ -50,29 +50,87 @@ function generatePlayerId() {
 
 function migratePlayer(player) {
     if (!player) return null;
-    if (!player.id) player.id = generatePlayerId();
-    if (player.coins == null) player.coins = 0;
-    if (!player.weapons) player.weapons = [];
-    if (!player.weaponWins) player.weaponWins = {};
-    if (!player.orbs) player.orbs = [];
-    if (typeof initializeSkillData === 'function') {
-        player = initializeSkillData(player);
-    }
-    if (!player.bossDefeats) player.bossDefeats = {}; // Add bossDefeats
 
-    if (player.subjects && typeof calcStatsFromSubjects === "function") {
-        const derived = calcStatsFromSubjects(player.subjects);
-        return {
-            ...player,
-            maxHp: derived.maxHp,
-            atk: derived.atk,
-            sp: derived.sp,
-            def: derived.def,
-            speed: derived.speed,
-            hp: player.hp != null ? Math.min(player.hp, derived.maxHp) : derived.maxHp
-        };
+    // Create a mutable copy and ensure all essential properties are present with defaults
+    const migratedPlayer = {
+        ...player, // Start with existing player data
+        id: player.id || generatePlayerId(),
+        name: player.name || "無名",
+        xp: player.xp || 0,
+        level: player.level || calcLevel(player.xp || 0), // Recalculate level based on XP if missing
+        coins: player.coins == null ? 0 : player.coins,
+        weapons: player.weapons || [],
+        equippedWeapon: player.equippedWeapon || null,
+        weaponWins: player.weaponWins || {},
+        orbs: player.orbs || [],
+        skillTree: player.skillTree || { unlockedNodes: [], availablePoints: 0 },
+        skillSlots: player.skillSlots || [null, null, null],
+        customSkills: player.customSkills || [],
+        bossDefeats: player.bossDefeats || {},
+        materials: player.materials || {}, // Will be handled below for array migration
+        pvpWins: player.pvpWins || 0,
+        bossRunCount: player.bossRunCount || 0,
+        totalStudySeconds: player.totalStudySeconds || 0,
+        grade: player.grade || 1,
+        // Core stats (maxHp, atk, def, speed) will be set below
+        maxHp: player.maxHp, // Keep existing if present, otherwise default below
+        atk: player.atk,
+        def: player.def,
+        speed: player.speed,
+        hp: player.hp // Current HP, will be clamped by maxHp later
+    };
+
+    // Apply skill data initialization if function exists
+    if (typeof initializeSkillData === 'function') {
+        Object.assign(migratedPlayer, initializeSkillData(migratedPlayer));
     }
-    return player;
+
+    // 限界突破素材は { materialId: 個数 } の辞書形式で管理する。
+    // 過去バージョンで配列形式 [{id, name, count}, ...] として保存されたデータがあれば辞書形式に変換する。
+    (migratedPlayer.weapons || []).forEach(w => {
+        if (w.isOriginal && !w.sourceBossId) {
+            if (w.originalLimitBreakLevel == null) {
+                w.originalLimitBreakLevel = 0;
+            }
+            // weapons.jsで定義した定数を参照できないため、直接値を記述
+            w.maxOriginalLimitBreak = 16;
+            // Ensure baseMultiplier is set for original weapons if missing
+            if (w.baseMultiplier == null) w.baseMultiplier = ORIGINAL_WEAPON_BASE_MULTIPLIER;
+        }
+    });
+
+    // Handle old material array format
+    if (Array.isArray(migratedPlayer.materials)) {
+        const materialsDict = {};
+        migratedPlayer.materials.forEach(m => {
+            if (m && m.id) {
+                materialsDict[m.id] = (materialsDict[m.id] || 0) + (m.count || 0);
+            }
+        });
+        migratedPlayer.materials = materialsDict;
+    } else if (!migratedPlayer.materials) {
+        migratedPlayer.materials = {};
+    }
+
+    // Determine core stats (maxHp, atk, def, speed)
+    if (migratedPlayer.subjects && typeof calcStatsFromSubjects === "function") {
+        const derived = calcStatsFromSubjects(migratedPlayer.subjects);
+        migratedPlayer.maxHp = derived.maxHp;
+        migratedPlayer.atk = derived.atk;
+        migratedPlayer.def = derived.def;
+        migratedPlayer.speed = derived.speed; // Corrected from 'sp'
+    } else {
+        // If no subjects, ensure core stats have defaults
+        migratedPlayer.maxHp = migratedPlayer.maxHp != null ? migratedPlayer.maxHp : DEFAULT_STATS.maxHp;
+        migratedPlayer.atk = migratedPlayer.atk != null ? migratedPlayer.atk : DEFAULT_STATS.atk;
+        migratedPlayer.def = migratedPlayer.def != null ? migratedPlayer.def : DEFAULT_STATS.def;
+        migratedPlayer.speed = migratedPlayer.speed != null ? migratedPlayer.speed : DEFAULT_STATS.speed;
+    }
+    
+    // Ensure current HP is not greater than max HP
+    migratedPlayer.hp = migratedPlayer.hp != null ? Math.min(migratedPlayer.hp, migratedPlayer.maxHp) : migratedPlayer.maxHp;
+
+    return migratedPlayer;
 }
 
 function calcStatsFromSubjects(s) {
@@ -80,7 +138,6 @@ function calcStatsFromSubjects(s) {
     return {
         maxHp: Math.max(50, Math.floor(100 + (jp - 50) * 4 + (soc - 50) * 2)),
         atk: Math.max(20, Math.floor(50 + (math - 50) * 5 + (sci - 50) * 2)),
-        sp: Math.max(20, Math.floor(50 + (eng - 50) * 5 + (sci - 50) * 2)),
         def: Math.max(20, Math.floor(50 + (soc - 50) * 5 + (jp - 50) * 2)),
         speed: Math.max(20, Math.floor(50 + (eng - 50) * 3 + (math - 50) * 2))
     };
@@ -117,11 +174,28 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         console.error("[Stats] applyBattleRewards failed: 'player' not found in localStorage.");
         return null;
     }
+    // 新しい報酬データを保存するためのオブジェクトを初期化
+    localStorage.setItem('battleResultData', JSON.stringify({}));
+
     let player = migratePlayer(JSON.parse(raw));
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcBattleXp(won, turns, damage);
     let gainedCoins = 0;
     const isBossBattle = localStorage.getItem("isBossBattle") === "true";
+    const isBotBattle = localStorage.getItem("isBotBattle") === "true";
+
+    // ボス戦は勝敗にかかわらず「周回」としてカウントする
+    if (isBossBattle) {
+        player.bossRunCount = (player.bossRunCount || 0) + 1;
+    }
+    // 対人戦（ボット戦・ボス戦以外）に勝利した場合はランキング用の勝利数を加算する
+    if (won && !isBossBattle && !isBotBattle) {
+        player.pvpWins = (player.pvpWins || 0) + 1;
+        // ギルドクエスト進捗更新
+        if (typeof updateGuildQuestProgress === 'function') {
+            updateGuildQuestProgress('win_online', 1);
+        }
+    }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
 
@@ -140,6 +214,18 @@ function applyBattleRewards(won, turns, damage, options = {}) {
                 player = applyBossRewards(player, options.enemy);
             }
         }
+        
+        // デイリーミッションの進捗を更新
+        if (typeof updateMissionProgress === 'function') {
+            if (isBossBattle && options.enemy) {
+                updateMissionProgress('defeat_boss', { bossId: options.enemy.id, difficulty: options.enemy.difficulty });
+            } else if (isBotBattle) {
+                updateMissionProgress('win_bot');
+            } else {
+                updateMissionProgress('win_online');
+            }
+        }
+
         gainedCoins += COIN_BATTLE_WIN;
         console.log(`[Stats] Calling incrementWeaponWin for weapon: ${player.equippedWeapon?.name} (type: ${player.equippedWeapon?.type})`);
         player = incrementWeaponWin(player);
@@ -152,6 +238,19 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (typeof rollOrbDrop === "function") {
             droppedOrb = rollOrbDrop();
         }
+        
+        // 素材ドロップ判定（モンスター戦勝利時）
+        const droppedMaterial = localStorage.getItem("droppedMaterial");
+        if (droppedMaterial) {
+            player.materials = player.materials || {};
+            player.materials[droppedMaterial] = (player.materials[droppedMaterial] || 0) + 1;
+            // ギルドクエスト進捗更新
+            if (typeof updateGuildQuestProgress === 'function') {
+                updateGuildQuestProgress('collect_material', { materialId: droppedMaterial, count: 1 });
+            }
+            console.log(`[Stats] Material dropped: ${droppedMaterial}, total: ${player.materials[droppedMaterial]}`);
+            localStorage.removeItem("droppedMaterial");
+        }
     }
     if (options.lostWeapon) {
         player = removeWeaponFromPlayer(player, options.lostWeapon.id);
@@ -163,6 +262,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 
     if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
         player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
+        if (typeof updateMissionProgress === 'function') {
+            updateMissionProgress('level_up', newLevel - oldLevel);
+        }
         alert(`レベルアップ！ Lv${newLevel}\nスキルポイントを ${ (newLevel - oldLevel) * SKILL_POINTS_PER_LEVEL } 獲得しました！`);
     }
 
@@ -179,7 +281,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
         customSkills: player.customSkills,
-        bossDefeats: player.bossDefeats || {}
+        bossDefeats: player.bossDefeats || {},
+        materials: player.materials || {},
+        pvpWins: player.pvpWins || 0,
+        bossRunCount: player.bossRunCount || 0
     });
 
     // オーブを追加
@@ -207,7 +312,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 function getStatsFromPlayer(player, withPassives = false) {
     const p = player || {};
 
-    if (withPassives && typeof getSkillNodeEffects === 'function') {
+    // Apply passives only if requested, the function exists, and the player object has a skill tree.
+    if (withPassives && typeof getSkillNodeEffects === 'function' && p.skillTree) {
         const baseStats = {
             maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
             atk: Number(p.atk) || DEFAULT_STATS.atk,
@@ -224,6 +330,9 @@ function getStatsFromPlayer(player, withPassives = false) {
         baseStats.atk = Math.floor((baseStats.atk + (passive.atk || 0)) * (1 + (passive.atkPercent || 0)));
         baseStats.def = Math.floor((baseStats.def + (passive.def || 0)) * (1 + (passive.defPercent || 0)));
         baseStats.speed = Math.floor((baseStats.speed + (passive.speed || 0)) * (1 + (passive.speedPercent || 0)));
+        // クリティカル関連のスキルツリー効果（クリティカルルート）を引き継ぐ
+        baseStats.critChance = passive.critChance || 0;
+        baseStats.critMultiplier = passive.critMultiplier || 0;
 
         return baseStats;
     }
@@ -234,7 +343,9 @@ function getStatsFromPlayer(player, withPassives = false) {
         atk: Number(p.atk) || DEFAULT_STATS.atk,
         def: Number(p.def) || DEFAULT_STATS.def,
         speed: Number(p.speed) || DEFAULT_STATS.speed,
-        grade: Number(p.grade) || 1
+        grade: Number(p.grade) || 1,
+        critChance: 0,
+        critMultiplier: 0
     };
 }
 
@@ -273,7 +384,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         skillTree: options.skillTree || { unlockedNodes: [], availablePoints: 0 },
         skillSlots: options.skillSlots || [null, null, null],
         customSkills: options.customSkills || [],
-        bossDefeats: options.bossDefeats || {}
+        bossDefeats: options.bossDefeats || {},
+        materials: options.materials || {},
+        pvpWins: options.pvpWins || 0,
+        bossRunCount: options.bossRunCount || 0
     };
 }
 

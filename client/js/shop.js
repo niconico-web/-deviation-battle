@@ -95,13 +95,13 @@ function renderInventory() {
         let weaponDetails = "";
         if (weapon.isOriginal) {
             let details = [];
-            
+
             // 倍率表示
             if (weapon.multiplier) {
                 const multPercent = Math.round((weapon.multiplier - 1) * 100);
                 details.push(`倍率: +${multPercent}%`);
             }
-            
+
             // ステータス補正表示
             if (weapon.statBonuses) {
                 const bonusParts = [];
@@ -114,13 +114,43 @@ function renderInventory() {
                     details.push(bonusParts.join(", "));
                 }
             }
-            
+
             // ユニーク能力表示
             if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
                 const abilityNames = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
                 details.push(`★${abilityNames}★`);
             }
-            
+
+            if (details.length > 0) {
+                weaponDetails = `<div class="weapon-details">${details.join("<br>")}</div>`;
+            }
+        } else if (weapon.sourceBossId) {
+            // ボス武器の詳細情報
+            let details = [];
+
+            // 倍率表示
+            if (weapon.multiplier) {
+                const multPercent = Math.round((weapon.multiplier - 1) * 100);
+                details.push(`倍率: +${multPercent}%`);
+            }
+
+            // 上限倍率表示
+            if (weapon.maxMultiplier) {
+                const maxMultPercent = Math.round((weapon.maxMultiplier - 1) * 100);
+                details.push(`上限倍率: +${maxMultPercent}%`);
+            }
+
+            // 限界突破レベル表示
+            const limitBreakLevel = weapon.limitBreakLevel || 0;
+            const maxLimitBreak = weapon.maxLimitBreak || 4;
+            details.push(`限界突破: ${limitBreakLevel}/${maxLimitBreak}`);
+
+            // ユニーク能力表示
+            if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
+                const abilityNames = weapon.uniqueAbilities.map(ua => ua.name).join(", ");
+                details.push(`★${abilityNames}★`);
+            }
+
             if (details.length > 0) {
                 weaponDetails = `<div class="weapon-details">${details.join("<br>")}</div>`;
             }
@@ -137,6 +167,7 @@ function renderInventory() {
                     ? '<span class="equipped-label">装備中</span>'
                     : `<button class="btn btn-small equip-btn" data-id="${weapon.id}">装備</button>`
                 }
+                ${weapon.sourceBossId && !isEquipped ? `<button class="btn btn-small limit-break-btn" data-id="${weapon.id}">限界突破</button>` : ''}
                 ${!isEquipped ? `<button class="btn btn-small btn-danger discard-btn" data-id="${weapon.id}">捨てる</button>` : ''}
             </div>`;
         container.appendChild(item);
@@ -165,6 +196,24 @@ function renderInventory() {
                 return;
             }
             localStorage.setItem("player", JSON.stringify(result.player));
+            renderInventory();
+            updateStatus(result.player);
+        };
+    });
+
+    container.querySelectorAll(".limit-break-btn").forEach(btn => {
+        btn.onclick = () => {
+            const p = getPlayerData();
+            const weapon = (p.weapons || []).find(w => w.id === btn.dataset.id);
+            if (!weapon) return;
+
+            const result = limitBreakWeapon(p, weapon.id);
+            if (!result.ok) {
+                alert(result.message);
+                return;
+            }
+            localStorage.setItem("player", JSON.stringify(result.player));
+            alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`);
             renderInventory();
             updateStatus(result.player);
         };
@@ -209,7 +258,11 @@ function renderOriginalWeapons() {
         
         const canUpgrade = canUpgradeOriginalWeapon(weapon);
         const upgradeCost = getOriginalWeaponUpgradeCost(weapon);
-        const progress = ((weapon.multiplier - ORIGINAL_WEAPON_BASE_MULTIPLIER) / (ORIGINAL_WEAPON_MAX_MULTIPLIER - ORIGINAL_WEAPON_BASE_MULTIPLIER) * 100).toFixed(1);
+        const baseMult = getWeaponBaseMultiplierForProgress(weapon);
+        const maxMult = getWeaponMaxMultiplier(weapon);
+        const progress = maxMult > baseMult
+            ? ((weapon.multiplier - baseMult) / (maxMult - baseMult) * 100).toFixed(1)
+            : "100.0";
         
         let bonusText = "";
         if (weapon.statBonuses) {
@@ -239,779 +292,473 @@ function renderOriginalWeapons() {
             secondaryTypeText = `<span class="quest-progress">二個目武器種: ${getWeaponTypeLabel(weapon.secondaryType)}</span>`;
         }
 
+        // 限界突破情報表示（ボス武器のみ）
+        let limitBreakText = "";
+        if (weapon.sourceBossId) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const level = weapon.limitBreakLevel || 0;
+            const maxLevel = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+            limitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x） / 素材所持: ${materialCount}個</span>`;
+        }
+
+        // オリジナル武器の限界突破情報
+        let originalLimitBreakText = "";
+        if (weapon.isOriginal && !weapon.sourceBossId) {
+            const level = weapon.originalLimitBreakLevel || 0;
+            const maxLevel = weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : 16;
+            const maxMult = getWeaponMaxMultiplier(weapon);
+            originalLimitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x）</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
-                <span>倍率: ${weapon.multiplier.toFixed(3)}x (${progress}%)</span>
-                <span class="quest-progress">${bonusText || "補正なし"}</span>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" style="width: ${progress}%"></div>
+                    <span class="progress-text">強化進捗: ${progress}% (倍率 ${weapon.multiplier.toFixed(3)}x / ${maxMult.toFixed(1)}x)</span>
+                </div>
+                <span class="quest-progress">${bonusText}</span>
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
                 ${secondaryTypeText}
+                ${limitBreakText}
+                ${originalLimitBreakText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
-        // 必殺技名設定ボタン
-        const setUltimateBtn = document.createElement("button");
-        setUltimateBtn.className = "btn btn-small";
-        setUltimateBtn.textContent = "必殺技名設定";
-        setUltimateBtn.onclick = () => setOriginalWeaponUltimateNameUI(weapon);
-        item.appendChild(setUltimateBtn);
-
-        // デュアルウェポン能力がある場合、二次武器種設定ボタンを追加
-        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon')) {
-            const setSecondaryTypeBtn = document.createElement("button");
-            setSecondaryTypeBtn.className = "btn btn-small btn-info";
-            setSecondaryTypeBtn.textContent = "二次武器種設定";
-            setSecondaryTypeBtn.onclick = () => setSecondaryWeaponTypeUI(weapon);
-            item.appendChild(setSecondaryTypeBtn);
-        }
+        const actionContainer = document.createElement("div");
+        actionContainer.className = "quest-item-action";
+        item.appendChild(actionContainer);
 
         if (canUpgrade) {
             const upgradeBtn = document.createElement("button");
             upgradeBtn.className = "btn btn-small";
             upgradeBtn.textContent = `強化 (${upgradeCost}コイン)`;
+            upgradeBtn.disabled = player.coins < upgradeCost;
             upgradeBtn.onclick = () => upgradeOriginalWeaponUI(weapon);
-            item.appendChild(upgradeBtn);
-
-            const upgradeWithMaterialBtn = document.createElement("button");
-            upgradeWithMaterialBtn.className = "btn btn-small btn-info";
-            upgradeWithMaterialBtn.textContent = "素材で強化";
-            upgradeWithMaterialBtn.onclick = () => upgradeOriginalWeaponWithMaterialUI(weapon);
-            item.appendChild(upgradeWithMaterialBtn);
-        } else {
-            const maxLabel = document.createElement("span");
-            maxLabel.className = "owned-label";
-            maxLabel.textContent = "MAX";
-            item.appendChild(maxLabel);
+            actionContainer.appendChild(upgradeBtn);
         }
 
+        // ボス武器の限界突破ボタン
+        if (weapon.sourceBossId && canLimitBreakWeapon(weapon)) {
+            const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+            const materialCount = getMaterialCount(player, materialId);
+            const limitBreakBtn = document.createElement("button");
+            limitBreakBtn.className = "btn btn-small btn-warning";
+            limitBreakBtn.textContent = `限界突破 (素材x${materialCount})`;
+            limitBreakBtn.disabled = materialCount < 1;
+            limitBreakBtn.onclick = () => limitBreakWeaponUI(weapon);
+            actionContainer.appendChild(limitBreakBtn);
+        }
+
+        // オリジナル武器の限界突破ボタン（ボス武器でない場合）
+        if (weapon.isOriginal && !weapon.sourceBossId && canLimitBreakOriginalWeapon(weapon)) {
+            const tier4OrbCount = (player.orbs || []).filter(o => o.tier === 'tier4').length;
+            const originalLimitBreakBtn = document.createElement("button");
+            originalLimitBreakBtn.className = "btn btn-small btn-warning"; // 別の色にする
+            originalLimitBreakBtn.textContent = `限界突破 (Tier4オーブx${tier4OrbCount})`;
+            originalLimitBreakBtn.disabled = tier4OrbCount < 1;
+            originalLimitBreakBtn.onclick = () => {
+                // 新しいUIハンドラを呼ぶ
+                limitBreakOriginalWeaponUI(weapon);
+            };
+            actionContainer.appendChild(originalLimitBreakBtn);
+        }
+
+        container.appendChild(item);
+    }
+}
+
+function renderMaterialsInventory() {
+    const container = document.getElementById("materialsInventoryList");
+    if (!container) return;
+    container.innerHTML = "";
+
+    const player = getPlayerData();
+    if (!player || !player.materials || Object.keys(player.materials).length === 0) {
+        container.innerHTML = "<p>素材を所持していません。</p>";
+        return;
+    }
+
+    for (const [materialId, count] of Object.entries(player.materials)) {
+        if (count <= 0) continue;
+        // 素材IDからボス名を取得する（暫定的な方法）
+        const bossId = materialId.replace('_limit_break_material', '');
+        const bosses = window.bosses || [];
+        const boss = bosses.find(b => b.id === bossId);
+        const materialName = boss ? getBossLimitBreakMaterialName(boss.name) : materialId;
+
+        const item = document.createElement("div");
+        item.className = "inventory-item";
+        item.innerHTML = `
+            <div class="inventory-item-info">
+                <strong>${materialName}</strong>
+                <span>所持数: ${count}</span>
+            </div>`;
         container.appendChild(item);
     }
 }
 
 function renderOrbInventory() {
-    const container = document.getElementById("orbInventory");
+    const container = document.getElementById("orbInventoryList");
     if (!container) return;
     container.innerHTML = "";
 
     const player = getPlayerData();
-    if (!player) return;
-
-    const orbs = player.orbs || [];
-    
-    if (orbs.length === 0) {
-        container.innerHTML = "<p>オーブを所持していません。\n勉強タイマーを25分以上使用するか、戦闘で勝利して入手してください。</p>";
+    if (!player || !player.orbs || player.orbs.length === 0) {
+        container.innerHTML = "<p>オーブを所持していません。</p>";
         return;
     }
 
-    for (const orb of orbs) {
+    for (const orb of player.orbs) {
         const item = document.createElement("div");
-        item.className = `inventory-item orb-item ${orb.tier}`;
-        
-        const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "不明なオーブ";
-        
+        item.className = "inventory-item";
+
+        const tierName = (typeof ORB_TIERS !== "undefined" && ORB_TIERS[orb.tier]?.name) || orb.tier;
+        const statLabel = (typeof ORB_STAT_LABELS !== "undefined" && ORB_STAT_LABELS[orb.statType]) || orb.statType;
+
         let abilityInfo = "";
         if (orb.uniqueAbility) {
-            abilityInfo = `<div class="orb-unique-ability">★${orb.uniqueAbility.name}★</div>`;
+            abilityInfo = `<div class="orb-ability">★ ${orb.uniqueAbility.name}</div>`;
         }
-        
-        const orbIndex = orbs.indexOf(orb);
-        
-        item.innerHTML =
-            `<div class="inventory-item-info">
-                <strong>${orbName}</strong>
+
+        item.innerHTML = `
+            <div class="inventory-item-info">
+                <strong>${tierName}オーブ</strong>
+                <span>${statLabel} +${Math.round(orb.bonus * 100)}%</span>
                 ${abilityInfo}
-            </div>
-            <button class="btn btn-danger" onclick="discardOrb(${orbIndex})">捨てる</button>`;
-        
+            </div>`;
         container.appendChild(item);
     }
 }
 
-function discardOrb(orbIndex) {
-    const player = getPlayerData();
-    if (!player) return;
+function showBuyWeaponDialog(type, tier) {
+    const weapon = createWeapon(type, tier, false);
+    const price = TIER_PRICES[tier];
+    if (!confirm(`${weapon.name} を ${price}コインで購入しますか？`)) return;
     
-    if (!player.orbs || orbIndex < 0 || orbIndex >= player.orbs.length) {
-        alert("無効なオーブです");
+    const player = getPlayerData();
+    const result = buyWeapon(player, type, tier);
+    
+    if (!result.ok) {
+        alert(result.message);
         return;
     }
     
-    const orb = player.orbs[orbIndex];
-    const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "不明なオーブ";
-    
-    if (confirm(`${orbName} を捨てますか？この操作は取り消せません。`)) {
-        player.orbs.splice(orbIndex, 1);
-        localStorage.setItem("player", JSON.stringify(player));
-        renderOrbInventory();
-        updateStatus(player);
-        alert(`${orbName} を捨てました`);
+    localStorage.setItem("player", JSON.stringify(result.player));
+    renderShop();
+    renderInventory();
+    updateStatus(result.player);
+}
+
+function limitBreakWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+    const materialCount = getMaterialCount(player, materialId);
+    const materialName = getBossLimitBreakMaterialName(weapon.name.replace(/の武器$/, ''));
+
+    if (!confirm(`${weapon.name} を限界突破しますか？\n（${materialName}を1つ消費します）`)) {
+        return;
     }
+
+    const result = limitBreakWeapon(player, weapon.id);
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    localStorage.setItem("player", JSON.stringify(result.player));
+    if (typeof updateMissionProgress === 'function') updateMissionProgress('limit_break');
+
+    let message = `${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.limitBreakLevel}/${result.weapon.maxLimitBreak})\nさらに「強化」でこの上限まで倍率を伸ばせます。`;
+
+    // 4回限界突破した時に固有能力が付与されたらメッセージを追加
+    if (result.weapon.uniqueAbilities && result.weapon.uniqueAbilities.length > (weapon.uniqueAbilities || []).length) {
+        const newAbility = result.weapon.uniqueAbilities[result.weapon.uniqueAbilities.length - 1];
+        if (newAbility) {
+            message += `\n\n★武器を極めし者よ…\n固有能力「${newAbility.name}」が解放されました！`;
+        }
+    }
+
+    alert(message);
+
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(result.player);
+}
+
+function limitBreakOriginalWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    if (!confirm(`${weapon.name} を限界突破しますか？\n（Tier4オーブを1つ消費します）`)) {
+        return;
+    }
+
+    const result = limitBreakOriginalWeapon(player, weapon.id);
+    if (!result.ok) {
+        alert(result.message);
+        return;
+    }
+
+    localStorage.setItem("player", JSON.stringify(result.player));
+    if (typeof updateMissionProgress === 'function') updateMissionProgress('limit_break');
+
+    alert(`${weapon.name} を限界突破しました！\n上限倍率: ${result.weapon.maxMultiplier.toFixed(1)}x (限界突破 ${result.weapon.originalLimitBreakLevel}/${result.weapon.maxOriginalLimitBreak})`);
+
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(result.player);
 }
 
 function upgradeOriginalWeaponUI(weapon) {
     const player = getPlayerData();
     if (!player) return;
-
+    
     const cost = getOriginalWeaponUpgradeCost(weapon);
     if (player.coins < cost) {
-        alert(`コインが足りません（必要: ${cost}、所持: ${player.coins}）`);
+        alert(`コインが足りません（必要: ${cost}）`);
         return;
     }
-
-    const upgraded = upgradeOriginalWeapon(weapon);
-    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-    if (weaponIndex === -1) return;
-
-    player.weapons[weaponIndex] = upgraded;
-    player.coins -= cost;
     
-    localStorage.setItem("player", JSON.stringify(player));
-    alert(`${weapon.name} を強化しました！倍率: ${upgraded.multiplier.toFixed(3)}x`);
-    renderOriginalWeapons();
-    renderInventory();
-    updateStatus(player);
-}
+    const updatedPlayer = { ...player, coins: player.coins - cost };
+    let updatedWeapon = upgradeOriginalWeapon(weapon);
 
-function upgradeOriginalWeaponWithMaterialUI(weapon) {
-    const player = getPlayerData();
-    if (!player) return;
+    // プレイヤーの武器リストを更新
+    const weapons = updatedPlayer.weapons.map(w => w.id === weapon.id ? updatedWeapon : w);
+    updatedPlayer.weapons = weapons;
 
-    const materialWeapons = (player.weapons || []).filter(w => {
-        // 強化対象の武器、装備中の武器、オリジナル武器は素材にできない
-        if (w.id === weapon.id) return false;
-        if (player.equippedWeapon && player.equippedWeapon.id === w.id) return false;
-        if (w.isOriginal) return false;
-        return true;
-    });
-
-    if (materialWeapons.length === 0) {
-        alert("強化に使用できる素材武器がありません。\n装備中やオリジナル武器でない、不要な武器を素材として使用できます。");
-        return;
+    // 装備中の武器も更新
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weapon.id) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
     }
-
-    let promptText = "強化の素材にする武器を選択してください:\n";
-    const weaponOptions = materialWeapons.map((w, index) => {
-        return `${index + 1}: ${getWeaponDisplayName(w)}`;
-    });
-    promptText += weaponOptions.join("\n");
-
-    const choice = prompt(promptText);
-    if (choice === null) return; // キャンセル
-
-    const choiceIndex = parseInt(choice) - 1;
-    if (isNaN(choiceIndex) || choiceIndex < 0 || choiceIndex >= materialWeapons.length) {
-        alert("無効な選択です。");
-        return;
-    }
-
-    const materialWeapon = materialWeapons[choiceIndex];
-
-    if (!confirm(`${getWeaponDisplayName(materialWeapon)} を素材にして ${weapon.name} を強化しますか？\n（${getWeaponDisplayName(materialWeapon)} は失われます）`)) {
-        return;
-    }
-
-    // 武器を強化
-    const upgraded = upgradeOriginalWeapon(weapon);
-    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-    if (weaponIndex === -1) return;
-
-    player.weapons[weaponIndex] = upgraded;
-
-    // 素材武器を削除
-    const updatedPlayer = removeWeaponFromPlayer(player, materialWeapon.id);
 
     localStorage.setItem("player", JSON.stringify(updatedPlayer));
-    alert(`${weapon.name} を強化しました！倍率: ${upgraded.multiplier.toFixed(3)}x`);
+    if (typeof updateMissionProgress === 'function') updateMissionProgress('upgrade_weapon');
+    
+    let message = `${weapon.name} を強化しました！\n倍率: ${updatedWeapon.multiplier.toFixed(3)}x`;
+
+    // 4回限界突破した武器が上限まで強化された時に固有能力が付与されたらメッセージを追加
+    if (updatedWeapon.uniqueAbilities && updatedWeapon.uniqueAbilities.length > (weapon.uniqueAbilities || []).length) {
+        const newAbility = updatedWeapon.uniqueAbilities[updatedWeapon.uniqueAbilities.length - 1];
+        if (newAbility) {
+            message += `\n\n★武器を極めし者よ…\n固有能力「${newAbility.name}」が解放されました！`;
+        }
+    }
+
+    alert(message);
+    
     renderOriginalWeapons();
-    renderInventory();
     updateStatus(updatedPlayer);
 }
 
-function showOriginalWeaponCreationDialog() {
+function showCreateWeaponDialog() {
+    const modal = document.getElementById('createWeaponModal');
+    if (!modal) return;
+    
     const player = getPlayerData();
     if (!player) return;
-
-    if (player.coins < ORIGINAL_WEAPON_COST) {
-        alert(`コインが足りません（必要: ${ORIGINAL_WEAPON_COST}、所持: ${player.coins}）`);
-        return;
-    }
-
-    // オーブ所持チェック
-    if (!player.orbs || player.orbs.length === 0) {
-        alert("オリジナル武器を作成するにはオーブが必要です！\n勉強タイマーを25分以上使用するか、戦闘で勝利してオーブを入手してください。");
-        return;
-    }
-
-    const name = prompt("オリジナル武器の名前を入力してください:");
-    if (!name || name.trim() === "") return;
-
-    // 名前のバリデーション
-    const validation = validateName(name.trim());
-    if (!validation.valid) {
-        alert(validation.reason);
-        return;
-    }
-
-    // 必殺技名の入力
-    const ultimateName = prompt("必殺技の名前を入力してください（オプション）:");
-    let validatedUltimateName = null;
-    if (ultimateName && ultimateName.trim() !== "") {
-        const ultimateValidation = validateName(ultimateName.trim());
-        if (!ultimateValidation.valid) {
-            alert("必殺技名: " + ultimateValidation.reason);
-            return;
-        }
-        validatedUltimateName = ultimateName.trim();
-    }
-
-    // 武器種選択
-    const weaponTypes = Object.keys(WEAPON_TYPES);
-    let typeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
-    const typeInput = prompt(`武器種を選択してください:\n${typeOptions}\n番号を入力:`, "1");
     
-    if (typeInput === null) return;
-    const typeIndex = parseInt(typeInput) - 1;
-    if (isNaN(typeIndex) || typeIndex < 0 || typeIndex >= weaponTypes.length) {
-        alert("無効な番号です");
-        return;
+    const cost = ORIGINAL_WEAPON_COST;
+    document.getElementById('createWeaponCost').textContent = `作成コスト: ${cost}コイン`;
+    document.getElementById('createWeaponBtn').disabled = player.coins < cost;
+    
+    // オーブ選択肢を生成
+    const orbSelectContainer = document.getElementById('orbSelectContainer');
+    orbSelectContainer.innerHTML = '';
+    const orbs = player.orbs || [];
+    
+    if (orbs.length === 0) {
+        orbSelectContainer.innerHTML = '<p>使用できるオーブがありません。</p>';
+    } else {
+        orbs.forEach((orb, index) => {
+            const checkbox = document.createElement('div');
+            checkbox.className = 'orb-checkbox';
+            checkbox.innerHTML = `<input type="checkbox" id="orb-${index}" value="${index}"> <label for="orb-${index}">${getOrbDisplayName(orb)}</label>`;
+            orbSelectContainer.appendChild(checkbox);
+        });
     }
     
-    const selectedType = weaponTypes[typeIndex];
-
-    // オーブ選択（1~3個）
-    const availableOrbs = player.orbs;
-    let orbOptions = availableOrbs.map((orb, index) => {
-        const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
-        return `${index + 1}. ${orbName}`;
-    }).join('\n');
+    // デュアルウェポン用の武器種選択を表示/非表示
+    const dualWeaponSelect = document.getElementById('dualWeaponTypeSelect');
+    dualWeaponSelect.style.display = 'none';
+    orbSelectContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const selectedOrbs = getSelectedOrbs();
+            const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
+            dualWeaponSelect.style.display = hasDualWeapon ? 'block' : 'none';
+        });
+    });
     
-    const selectedOrbIndices = [];
-    const maxOrbs = Math.min(3, availableOrbs.length);
-    
-    for (let i = 0; i < maxOrbs; i++) {
-        const remainingOptions = availableOrbs
-            .map((orb, index) => {
-                if (selectedOrbIndices.includes(index)) return null;
-                const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
-                return `${index + 1}. ${orbName}`;
-            })
-            .filter(opt => opt !== null)
-            .join('\n');
-        
-        const promptText = i === 0 
-            ? `使用するオーブを選択してください（1~${maxOrbs}個）:\n${remainingOptions}\n番号を入力（キャンセルで終了）:`
-            : `追加のオーブを選択してください（残り${maxOrbs - i}個まで）:\n${remainingOptions}\n番号を入力（キャンセルで終了）:`;
-        
-        const orbInput = prompt(promptText, "1");
-        if (orbInput === null) break;
-        
-        const orbIndex = parseInt(orbInput) - 1;
-        if (isNaN(orbIndex) || orbIndex < 0 || orbIndex >= availableOrbs.length || selectedOrbIndices.includes(orbIndex)) {
-            alert("無効な番号です");
-            i--;
-            continue;
-        }
-        
-        selectedOrbIndices.push(orbIndex);
-    }
-
-    if (selectedOrbIndices.length === 0) {
-        alert("オーブを少なくとも1つ選択してください");
-        return;
-    }
-
-    const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
-
-    // デュアルウェポン能力のチェック
-    const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
-    let secondaryType = null;
-    
-    if (hasDualWeapon) {
-        const secondaryTypeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
-        const secondaryTypeInput = prompt(`デュアルウェポン能力発動！二個目の武器種を選択してください:\n${secondaryTypeOptions}\n番号を入力（キャンセルでスキップ）:`, "1");
-        
-        if (secondaryTypeInput !== null) {
-            const secondaryTypeIndex = parseInt(secondaryTypeInput) - 1;
-            if (!isNaN(secondaryTypeIndex) && secondaryTypeIndex >= 0 && secondaryTypeIndex < weaponTypes.length) {
-                secondaryType = weaponTypes[secondaryTypeIndex];
-            }
-        }
-    }
-
-    // 基本武器を作成（補正なし）
-    const baseWeapon = createOriginalWeapon(name.trim(), selectedType, {}, validatedUltimateName);
-    
-    // 二個目の武器種を設定
-    if (secondaryType) {
-        baseWeapon.secondaryType = secondaryType;
-    }
-    
-    // オーブを適用
-    const weapon = applyOrbToWeapon(baseWeapon, selectedOrbs);
-    
-    // 使用したオーブを削除
-    const remainingOrbs = player.orbs.filter((_, index) => !selectedOrbIndices.includes(index));
-    
-    const updated = addWeaponToPlayer({ ...player, coins: player.coins - ORIGINAL_WEAPON_COST, orbs: remainingOrbs }, weapon);
-    
-    localStorage.setItem("player", JSON.stringify(updated));
-    
-    let orbInfo = selectedOrbs.map(orb => typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "Orb").join(", ");
-    alert(`オリジナル武器「${weapon.name}」を作成しました！\n使用オーブ: ${orbInfo}\n倍率: ${weapon.multiplier.toFixed(3)}x`);
-    
-    renderOriginalWeapons();
-    renderInventory();
-    renderOrbInventory(); // オーブインベントリを更新
-    updateStatus(updated);
+    modal.style.display = 'block';
 }
 
-function showBuyWeaponDialog(type, tier) {
+function getSelectedOrbs() {
     const player = getPlayerData();
-    if (!player) return;
-
-    const baseWeapon = createWeapon(type, tier, false);
-    if (!baseWeapon) return;
-
-    const price = TIER_PRICES[tier];
-
-    const choice = prompt(
-        `${baseWeapon.name} (${price}コイン) の購入方法を選択してください:\n\n` +
-        "1. そのまま購入する\n" +
-        "2. オーブを付与してオリジナル武器として購入する\n\n" +
-        "番号を入力してください:", "1"
-    );
-
-    if (choice === "1") {
-        const result = buyWeapon(player, type, tier);
-        if (!result.ok) {
-            alert(result.message);
-            return;
+    const selectedOrbs = [];
+    const orbCheckboxes = document.querySelectorAll('#orbSelectContainer input[type="checkbox"]:checked');
+    orbCheckboxes.forEach(checkbox => {
+        const index = parseInt(checkbox.value);
+        if (player.orbs && player.orbs[index]) {
+            selectedOrbs.push(player.orbs[index]);
         }
-        localStorage.setItem("player", JSON.stringify(result.player));
-        alert(`${result.weapon.name} を購入しました！`);
-        renderShop();
-        renderInventory();
-        updateStatus(result.player);
-    } else if (choice === "2") {
-        if (!player.orbs || player.orbs.length === 0) {
-            alert("オーブを所持していません。オーブを付与するには、まずオーブを入手してください。");
-            return;
-        }
-
-        // オーブ選択ロジック
-        const availableOrbs = player.orbs;
-        const selectedOrbIndices = [];
-        const maxOrbs = Math.min(3, availableOrbs.length);
-
-        for (let i = 0; i < maxOrbs; i++) {
-            const remainingOptions = availableOrbs
-                .map((orb, index) => {
-                    if (selectedOrbIndices.includes(index)) return null;
-                    const orbName = typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : `Orb ${index + 1}`;
-                    return `${index + 1}. ${orbName}`;
-                })
-                .filter(opt => opt !== null)
-                .join('\n');
-            
-            if (remainingOptions.length === 0 && i > 0) {
-                alert("選択できるオーブがもうありません。");
-                break;
-            }
-
-            const promptText = i === 0 
-                ? `使用するオーブを選択してください（1〜${maxOrbs}個）:\n${remainingOptions}\n番号を入力（キャンセルまたは空欄で終了）:`
-                : `追加のオーブを選択してください（残り${maxOrbs - i}個まで）:\n${remainingOptions}\n番号を入力（キャンセルまたは空欄で終了）:`;
-
-            const orbInput = prompt(promptText);
-            if (orbInput === null || orbInput.trim() === "") break;
-
-            const orbIndex = parseInt(orbInput) - 1;
-            if (isNaN(orbIndex) || orbIndex < 0 || orbIndex >= availableOrbs.length || selectedOrbIndices.includes(orbIndex)) {
-                alert("無効な番号です。");
-                i--;
-                continue;
-            }
-            selectedOrbIndices.push(orbIndex);
-        }
-
-        if (selectedOrbIndices.length === 0) {
-            if (confirm("オーブを選択しませんでした。通常通り購入しますか？")) {
-                const result = buyWeapon(player, type, tier);
-                if (!result.ok) {
-                    alert(result.message);
-                    return;
-                }
-                localStorage.setItem("player", JSON.stringify(result.player));
-                alert(`${result.weapon.name} を購入しました！`);
-                renderShop();
-                renderInventory();
-                updateStatus(result.player);
-            }
-            return;
-        }
-
-        const selectedOrbs = selectedOrbIndices.map(index => availableOrbs[index]);
-        buyWeaponWithOrbs(player, type, tier, selectedOrbs, selectedOrbIndices);
-    }
-}
-
-function buyWeaponWithOrbs(player, type, tier, selectedOrbs, selectedOrbIndices) {
-    const price = TIER_PRICES[tier];
-    if (!price) return;
-
-    const coins = player.coins || 0;
-    if (coins < price) {
-        alert(`コインが足りません（必要: ${price}、所持: ${coins}）`);
-        return;
-    }
-
-    const baseWeaponInfo = WEAPON_CATALOG[type][tier];
-    const customName = `(改) ${baseWeaponInfo.name}`;
-
-    // 基本武器を作成（補正なし）
-    const tempOriginal = createOriginalWeapon(customName, type, {}, baseWeaponInfo.ultimate);
-    
-    // オーブを適用
-    const finalWeapon = applyOrbToWeapon(tempOriginal, selectedOrbs);
-
-    // 使用したオーブを削除
-    const remainingOrbs = player.orbs.filter((_, index) => !selectedOrbIndices.includes(index));
-    
-    const updatedPlayer = addWeaponToPlayer({ ...player, coins: player.coins - price, orbs: remainingOrbs }, finalWeapon);
-    
-    localStorage.setItem("player", JSON.stringify(updatedPlayer));
-    
-    let orbInfo = selectedOrbs.map(orb => (typeof getOrbDisplayName === "function" ? getOrbDisplayName(orb) : "Orb")).join(", ");
-    alert(
-        `オリジナル武器「${finalWeapon.name}」を作成しました！\n` +
-        `使用オーブ: ${orbInfo}\n` +
-        `倍率: ${finalWeapon.multiplier.toFixed(3)}x\n` +
-        `価格: ${price}コイン`
-    );
-    
-    renderShop();
-    renderOriginalWeapons();
-    renderInventory();
-    renderOrbInventory();
-    updateStatus(updatedPlayer);
-}
-
-function claimUniqueWeapon(type) {
-    const player = getPlayerData();
-    if (!player) return;
-
-    const requiredWins = UNIQUE_QUEST_WINS;
-    const wins = getWeaponWinCount(player, type);
-    
-    console.log(`[Shop] claimUniqueWeapon: type=${type}, wins=${wins}, requiredWins=${requiredWins}`);
-    
-    if (wins < requiredWins) {
-        alert(`まだクエスト未達成です（${wins}/${requiredWins}勝）`);
-        return;
-    }
-
-    fetch("/api/unique/claim", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            type,
-            playerId: player.id,
-            playerName: player.name,
-            wins
-        })
-    })
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                if (data.claimedBy) {
-                    alert(`${data.claimedBy.playerName} が先にユニーク武器を獲得しました。`);
-                } else {
-                    alert(data.message || "獲得に失敗しました。");
-                }
-                renderUniqueQuests();
-                return;
-            }
-            const weapon = createWeapon(type, null, true);
-            const updated = addWeaponToPlayer(player, weapon);
-            localStorage.setItem("player", JSON.stringify(updated));
-            alert(`おめでとうございます！${weapon.name} を獲得しました！`);
-            renderUniqueQuests();
-            renderInventory();
-            updateStatus(updated);
-        })
-        .catch(() => alert("サーバーとの通信に失敗しました。"));
-}
-
-function setOriginalWeaponUltimateNameUI(weapon) {
-    const player = getPlayerData();
-    if (!player) return;
-
-    const currentUltimateName = weapon.ultimateName || "未設定";
-    const newUltimateName = prompt(`必殺技名を入力してください:\n現在: ${currentUltimateName}`, currentUltimateName === "未設定" ? "" : currentUltimateName);
-
-    if (newUltimateName === null) return; // キャンセル
-
-    const trimmedName = newUltimateName.trim();
-
-    // 空文字の場合は未設定に戻す
-    if (trimmedName === "") {
-        const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-        if (weaponIndex !== -1) {
-            player.weapons[weaponIndex].ultimateName = null;
-            localStorage.setItem("player", JSON.stringify(player));
-            alert("必殺技名を未設定にしました");
-            renderOriginalWeapons();
-        }
-        return;
-    }
-
-    // バリデーション
-    const validation = validateName(trimmedName);
-    if (!validation.valid) {
-        alert("必殺技名: " + validation.reason);
-        return;
-    }
-
-    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-    if (weaponIndex !== -1) {
-        player.weapons[weaponIndex].ultimateName = trimmedName;
-        
-        // 装備中の武器も更新
-        if (player.equippedWeapon && player.equippedWeapon.id === weapon.id) {
-            player.equippedWeapon.ultimateName = trimmedName;
-        }
-        
-        localStorage.setItem("player", JSON.stringify(player));
-        alert("必殺技名を設定しました");
-        renderOriginalWeapons();
-    }
-}
-
-function setSecondaryWeaponTypeUI(weapon) {
-    const player = getPlayerData();
-    if (!player) return;
-
-    const weaponTypes = Object.keys(WEAPON_TYPES);
-    const currentSecondaryType = weapon.secondaryType || "未設定";
-    const secondaryTypeOptions = weaponTypes.map((type, index) => `${index + 1}. ${getWeaponTypeLabel(type)}`).join('\n');
-    
-    const currentSecondaryTypeText = currentSecondaryType === "未設定" ? "未設定" : getWeaponTypeLabel(currentSecondaryType);
-    const secondaryTypeInput = prompt(`二次武器種を選択してください:\n現在: ${currentSecondaryTypeText}\n${secondaryTypeOptions}\n番号を入力（キャンセルで未設定に戻す）:`, "1");
-
-    if (secondaryTypeInput === null) return; // キャンセル
-
-    const secondaryTypeIndex = parseInt(secondaryTypeInput) - 1;
-    if (isNaN(secondaryTypeIndex) || secondaryTypeIndex < 0 || secondaryTypeIndex >= weaponTypes.length) {
-        alert("無効な番号です");
-        return;
-    }
-
-    const selectedSecondaryType = weaponTypes[secondaryTypeIndex];
-
-    // 同じ武器種は選択できない
-    if (selectedSecondaryType === weapon.type) {
-        alert("一次武器種と同じ武器種は選択できません");
-        return;
-    }
-
-    const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-    if (weaponIndex !== -1) {
-        player.weapons[weaponIndex].secondaryType = selectedSecondaryType;
-        
-        // 装備中の武器も更新
-        if (player.equippedWeapon && player.equippedWeapon.id === weapon.id) {
-            player.equippedWeapon.secondaryType = selectedSecondaryType;
-        }
-        
-        localStorage.setItem("player", JSON.stringify(player));
-        alert(`二次武器種を${getWeaponTypeLabel(selectedSecondaryType)}に設定しました`);
-        renderOriginalWeapons();
-    }
-}
-
-function claimDebugWeapon(type) {
-    const player = getPlayerData();
-    if (!player) return;
-
-    const wins = getWeaponWinCount(player, type);
-
-    if (wins < 1) {
-        alert(`1勝が必要です（現在: ${wins}勝）`);
-        return;
-    }
-
-    fetch("/api/unique/claimDebug", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            type,
-            playerId: player.id,
-            playerName: player.name,
-            wins
-        })
-    })
-        .then(r => r.json())
-        .then(data => {
-            if (!data.success) {
-                if (data.claimedBy) {
-                    alert(`${data.claimedBy.playerName} が先にデバッガーランスを獲得しました。`);
-                } else {
-                    alert(data.message || "獲得に失敗しました。");
-                }
-                renderUniqueQuests();
-                return;
-            }
-            const weapon = createWeapon(type, "debug", false);
-            const updated = addWeaponToPlayer(player, weapon);
-            localStorage.setItem("player", JSON.stringify(updated));
-            alert(`おめでとうございます！${weapon.name} を獲得しました！`);
-            renderUniqueQuests();
-            renderInventory();
-            updateStatus(updated);
-        })
-        .catch(() => alert("サーバーとの通信に失敗しました。"));
+    });
+    return selectedOrbs;
 }
 
 function initShop() {
-    renderShop();
-    renderInventory();
-    renderOriginalWeapons();
-    renderOrbInventory();
-
-    const refreshBtn = document.getElementById("refreshShop");
-    if (refreshBtn) {
-        refreshBtn.onclick = () => {
-            renderShop();
-            renderInventory();
+    // 武器作成モーダル
+    const createWeaponModalBtn = document.getElementById('showCreateWeaponModalBtn');
+    if (createWeaponModalBtn) {
+        createWeaponModalBtn.onclick = showCreateWeaponDialog;
+    }
+    
+    const closeCreateModal = document.querySelector('#createWeaponModal .close');
+    if (closeCreateModal) {
+        closeCreateModal.onclick = () => document.getElementById('createWeaponModal').style.display = 'none';
+    }
+    
+    const createWeaponBtn = document.getElementById('createWeaponBtn');
+    if (createWeaponBtn) {
+        createWeaponBtn.onclick = () => {
+            const player = getPlayerData();
+            if (!player) return;
+            
+            const name = document.getElementById('weaponName').value.trim();
+            const type = document.getElementById('weaponType').value;
+            const ultimateName = document.getElementById('ultimateName').value.trim();
+            
+            if (!name) { alert('武器名を入力してください'); return; }
+            if (!ultimateName) { alert('必殺技名を入力してください'); return; }
+            
+            // 名前のバリデーション
+            const nameValidation = validateName(name);
+            if (!nameValidation.valid) {
+                alert(`武器名エラー: ${nameValidation.reason}`);
+                return;
+            }
+            
+            // 必殺技名のバリデーション
+            const ultimateValidation = validateName(ultimateName);
+            if (!ultimateValidation.valid) {
+                alert(`必殺技名エラー: ${ultimateValidation.reason}`);
+                return;
+            }
+            
+            const selectedOrbs = getSelectedOrbs();
+            
+            // デュアルウェポン能力があるかチェック
+            const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
+            const secondaryType = hasDualWeapon ? document.getElementById('dualWeaponType').value : null;
+            
+            if (hasDualWeapon && secondaryType === type) {
+                alert('デュアルウェポンでは、メインと同じ武器種は選択できません。');
+                return;
+            }
+            
+            let playerAfterCost = { ...player, coins: player.coins - ORIGINAL_WEAPON_COST };
+            
+            // オーブを消費
+            const remainingOrbs = player.orbs.filter(orb => !selectedOrbs.some(selected => selected.id === orb.id));
+            playerAfterCost.orbs = remainingOrbs;
+            
+            // 武器を作成
+            let weapon = createOriginalWeapon(name, type, {}, ultimateName);
+            weapon = applyOrbToWeapon(weapon, selectedOrbs);
+            
+            // デュアルウェポン情報を追加
+            if (secondaryType) {
+                weapon.secondaryType = secondaryType;
+            }
+            
+            const updatedPlayer = addWeaponToPlayer(playerAfterCost, weapon);
+            
+            localStorage.setItem("player", JSON.stringify(updatedPlayer));
+            if (typeof updateMissionProgress === 'function') updateMissionProgress('create_weapon');
+            
+            alert(`オリジナル武器「${weapon.name}」を作成しました！`);
+            
+            document.getElementById('createWeaponModal').style.display = 'none';
             renderOriginalWeapons();
+            renderInventory();
+            updateStatus(updatedPlayer);
+        };
+    }
+    
+    // オーブ合成モーダル
+    const openOrbSynthesisBtn = document.getElementById('openOrbSynthesisBtn');
+    const orbSynthesisModal = document.getElementById('orbSynthesisModal');
+    const closeOrbSynthesisBtn = document.getElementById('closeOrbSynthesisBtn');
+
+    function updateOrbSynthesisCounts() {
+        const p = getPlayerData();
+        const orbs = (p && p.orbs) || [];
+        const tier1Count = orbs.filter(o => o.tier === 'tier1').length;
+        const tier2Count = orbs.filter(o => o.tier === 'tier2').length;
+        const tier3Count = orbs.filter(o => o.tier === 'tier3').length;
+        const t1El = document.getElementById('tier1OrbCount');
+        const t2El = document.getElementById('tier2OrbCount');
+        const t3El = document.getElementById('tier3OrbCount');
+        if (t1El) t1El.textContent = tier1Count;
+        if (t2El) t2El.textContent = tier2Count;
+        if (t3El) t3El.textContent = tier3Count;
+    }
+
+    if (openOrbSynthesisBtn && orbSynthesisModal) {
+        openOrbSynthesisBtn.onclick = () => {
+            updateOrbSynthesisCounts();
+            orbSynthesisModal.style.display = 'flex';
+        };
+    }
+    if (closeOrbSynthesisBtn && orbSynthesisModal) {
+        closeOrbSynthesisBtn.onclick = () => {
+            orbSynthesisModal.style.display = 'none';
         };
     }
 
-    // オリジナル武器作成ボタン
-    const createBtn = document.getElementById("createOriginalWeaponBtn");
-    if (createBtn) {
-        createBtn.onclick = showOriginalWeaponCreationDialog;
-    }
-    
-    // オーブ合成モーダルのイベントリスナー
-    const openModalBtn = document.getElementById("openOrbSynthesisBtn");
-    const closeModalBtn = document.getElementById("closeOrbSynthesisBtn");
-    const modal = document.getElementById("orbSynthesisModal");
+    // 低ティアのオーブを指定数消費して、1つ上のティアのオーブを合成する
+    function synthesizeOrbTier(fromTier, toTier, requiredCount) {
+        const player = getPlayerData();
+        if (!player || !player.orbs) return;
 
-    if (openModalBtn && modal) {
-        openModalBtn.addEventListener('click', openOrbSynthesisModal);
-    }
-    if (closeModalBtn && modal) {
-        closeModalBtn.addEventListener('click', () => modal.style.display = 'none');
-    }
-    if (modal) {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.style.display = 'none';
-            }
-        });
-    }
-
-    document.getElementById('synthesizeTier2Btn').addEventListener('click', () => synthesizeOrb('tier2'));
-    document.getElementById('synthesizeTier3Btn').addEventListener('click', () => synthesizeOrb('tier3'));
-    document.getElementById('synthesizeTier4Btn').addEventListener('click', () => synthesizeOrb('tier4'));
-}
-
-function openOrbSynthesisModal() {
-    const modal = document.getElementById("orbSynthesisModal");
-    if (!modal) return;
-
-    const player = getPlayerData();
-    if (!player) return;
-
-    const orbs = player.orbs || [];
-    const tier1Count = orbs.filter(o => o.tier === 'tier1').length;
-    const tier2Count = orbs.filter(o => o.tier === 'tier2').length;
-    const tier3Count = orbs.filter(o => o.tier === 'tier3').length;
-
-    document.getElementById('tier1OrbCount').textContent = tier1Count;
-    document.getElementById('tier2OrbCount').textContent = tier2Count;
-    document.getElementById('tier3OrbCount').textContent = tier3Count;
-
-    document.getElementById('synthesizeTier2Btn').disabled = tier1Count < 5;
-    document.getElementById('synthesizeTier3Btn').disabled = tier2Count < 5;
-    document.getElementById('synthesizeTier4Btn').disabled = tier3Count < 10;
-
-    modal.style.display = 'flex';
-}
-
-function synthesizeOrb(targetTier) {
-    const player = getPlayerData();
-    if (!player) return;
-
-    let requiredTier, requiredCount, newOrbTier;
-    switch (targetTier) {
-        case 'tier2':
-            requiredTier = 'tier1';
-            requiredCount = 5;
-            newOrbTier = 'tier2';
-            break;
-        case 'tier3':
-            requiredTier = 'tier2';
-            requiredCount = 5;
-            newOrbTier = 'tier3';
-            break;
-        case 'tier4':
-            requiredTier = 'tier3';
-            requiredCount = 10;
-            newOrbTier = 'tier4';
-            break;
-        default:
-            alert("無効な合成です。");
+        const sourceOrbs = player.orbs.filter(o => o.tier === fromTier);
+        if (sourceOrbs.length < requiredCount) {
+            alert(`${fromTier}オーブが${requiredCount}個必要です（現在: ${sourceOrbs.length}個）`);
             return;
-    }
-
-    const materialOrbs = (player.orbs || []).filter(o => o.tier === requiredTier);
-    if (materialOrbs.length < requiredCount) {
-        alert(`${ORB_TIERS[requiredTier].name}オーブが足りません。`);
-        return;
-    }
-
-    if (!confirm(`${ORB_TIERS[requiredTier].name}オーブを${requiredCount}個使用して、${ORB_TIERS[newOrbTier].name}オーブを1つ合成しますか？`)) {
-        return;
-    }
-    
-    // 素材オーブを消費
-    let countToRemove = requiredCount;
-    const remainingOrbs = (player.orbs || []).filter(orb => {
-        if (orb.tier === requiredTier && countToRemove > 0) {
-            countToRemove--;
-            return false;
         }
-        return true;
-    });
 
-    // 新しいオーブを生成
-    const newOrb = createOrb(newOrbTier);
-    if (!newOrb) {
-        alert("オーブの生成に失敗しました。");
-        return;
+        const idsToConsume = new Set(sourceOrbs.slice(0, requiredCount).map(o => o.id));
+        const remainingOrbs = player.orbs.filter(o => !idsToConsume.has(o.id));
+
+        const newOrb = createOrb(toTier);
+        if (!newOrb) {
+            alert('オーブの合成に失敗しました。');
+            return;
+        }
+        remainingOrbs.push(newOrb);
+
+        const updatedPlayer = { ...player, orbs: remainingOrbs };
+        localStorage.setItem("player", JSON.stringify(updatedPlayer));
+        if (typeof updateMissionProgress === 'function') updateMissionProgress('synthesize_orb');
+
+        alert(`オーブを合成しました！\n新しいオーブ: ${getOrbDisplayName(newOrb)}`);
+        updateOrbSynthesisCounts();
+        renderOrbInventory();
+        updateStatus(updatedPlayer);
     }
 
-    remainingOrbs.push(newOrb);
-    player.orbs = remainingOrbs;
-
-    localStorage.setItem("player", JSON.stringify(player));
-    
-    alert(`${getOrbDisplayName(newOrb)} を合成しました！`);
-
-    // UIを更新
-    renderOrbInventory();
-    openOrbSynthesisModal(); // モーダル内の表示を更新
-    updateStatus(player);
-}
-
-
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        // script.jsの関数が利用可能になるのを待ってから初期化
-        setTimeout(initShop, 100);
-    });
-} else {
-    setTimeout(initShop, 100);
+    const synthesizeTier2Btn = document.getElementById('synthesizeTier2Btn');
+    if (synthesizeTier2Btn) {
+        synthesizeTier2Btn.onclick = () => synthesizeOrbTier('tier1', 'tier2', 5);
+    }
+    const synthesizeTier3Btn = document.getElementById('synthesizeTier3Btn');
+    if (synthesizeTier3Btn) {
+        synthesizeTier3Btn.onclick = () => synthesizeOrbTier('tier2', 'tier3', 5);
+    }
+    const synthesizeTier4Btn = document.getElementById('synthesizeTier4Btn');
+    if (synthesizeTier4Btn) {
+        synthesizeTier4Btn.onclick = () => synthesizeOrbTier('tier3', 'tier4', 10);
+    }
 }

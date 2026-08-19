@@ -382,8 +382,13 @@ function validateName(name) {
 const ORIGINAL_WEAPON_COST = 30; // 作成コスト
 const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
 const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
-const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率
+const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率（通常）
+const ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4 = 10.0; // Tier4オーブ使用時の最大倍率
 const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
+// オリジナル武器の限界突破設定
+const ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER = "tier4"; // コストとなるオーブのティア
+const ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT = 0.5; // 1回あたりの上限倍率の増加量
+const ORIGINAL_WEAPON_MAX_LIMIT_BREAK = 16; // 最大限界突破回数
 
 // 必殺技システム
 const ULTIMATE_GAUGE_MAX = 100; // 必殺技ゲージ最大値
@@ -437,7 +442,7 @@ const ORB_UNIQUE_ABILITIES = {
     },
     critical_hit: {
         name: "必殺",
-        description: "20%の確率で相手への攻撃のダメージ1.5倍",
+        description: "クリティカル率が30%まで上昇する（通常は常に5%）",
         effect: "critical_damage"
     },
     guts: {
@@ -449,6 +454,11 @@ const ORB_UNIQUE_ABILITIES = {
         name: 'デュアルウェポン',
         description: 'これを使って武器を作るとき、もう一つ武器の種類を選択できる。その選んだ武器の種類のバフ、デバフの倍率がその武器に乗るようになる。（例：大剣を作成し、デュアルウェポンで双剣を選択すると、大剣に双剣のバフ・デバフ効果も付与される）',
         effect: 'dual_weapon'
+    },
+    one_shot_kill: {
+        name: "一撃必殺",
+        description: "相手を一撃で倒す。この能力は必中効果も持つ。",
+        effect: "one_shot_kill"
     }
 };
 
@@ -480,9 +490,9 @@ function createOrb(tier) {
         uniqueAbility: null
     };
     
-    // Tier4のみユニーク能力を付与
+    // Tier4のみユニーク能力を付与（ボス能力を除外）
     if (tier === "tier4") {
-        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES);
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
         const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
         orb.uniqueAbility = {
             key: abilityKey,
@@ -526,10 +536,10 @@ function getOrbDisplayName(orb) {
 
 function applyOrbToWeapon(weapon, orbs) {
     if (!weapon || !orbs || orbs.length === 0) return weapon;
-    
+
     const newWeapon = { ...weapon };
     const totalBonus = {};
-    
+
     // オーブの補正を集計
     for (const orb of orbs) {
         if (!totalBonus[orb.statType]) {
@@ -537,44 +547,54 @@ function applyOrbToWeapon(weapon, orbs) {
         }
         totalBonus[orb.statType] += orb.bonus;
     }
-    
+
     // ステータス補正を適用（既存の補正を上書きせず、オーブの補正のみを適用）
     newWeapon.statBonuses = {}; // 新しい武器なので補正をリセット
     for (const [stat, bonus] of Object.entries(totalBonus)) {
         newWeapon.statBonuses[stat] = bonus;
     }
-    
+
     // ユニーク能力を適用（Tier4オーブから）
     const uniqueAbilities = orbs
         .filter(orb => orb.uniqueAbility)
         .map(orb => orb.uniqueAbility);
-    
+
     if (uniqueAbilities.length > 0) {
         newWeapon.uniqueAbilities = uniqueAbilities;
     } else {
         newWeapon.uniqueAbilities = []; // ユニーク能力をリセット
     }
-    
+
     // オーブの合計倍率を計算
     let orbMultiplier = 1.0;
     for (const orb of orbs) {
         const tierMult = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 }[orb.tier] || 1.0;
         orbMultiplier *= tierMult;
     }
-    
+
     newWeapon.multiplier = ORIGINAL_WEAPON_BASE_MULTIPLIER * orbMultiplier; // 基礎倍率から再計算
     newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
     newWeapon.upgradeCount = 0; // 強化回数をリセット
-    
+
+    // Tier4オーブが使用されている場合、倍率上限を10倍に設定
+    const hasTier4Orb = orbs.some(orb => orb.tier === "tier4");
+    if (hasTier4Orb) {
+        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4;
+        newWeapon.hasTier4Orb = true; // フラグを設定
+    } else {
+        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER;
+        newWeapon.hasTier4Orb = false;
+    }
+
     return newWeapon;
 }
 
 // ユニーク能力を適用したステータス計算
 function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
     if (!weapon || !weapon.uniqueAbilities) return baseStats;
-    
+
     const stats = { ...baseStats };
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "enemy_stat_debuff": // リ・ミゼラブル
@@ -590,23 +610,32 @@ function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
                     stats.def = Math.floor(stats.def * 0.5);
                 }
                 break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                if (!isEnemy) {
+                    stats.atk = Math.floor(stats.atk * 1.20);
+                    stats.def = Math.floor(stats.def * 1.20);
+                    stats.speed = Math.floor(stats.speed * 1.20);
+                    stats.maxHp = Math.floor(stats.maxHp * 1.20);
+                }
+                break;
             // 他の能力はダメージ計算時に処理
         }
     }
-    
+
     return stats;
 }
 
 // ユニーク abilityによるダメージ計算
 function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
     if (!weapon || !weapon.uniqueAbilities) return baseDamage;
-    
+
     let damage = baseDamage;
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "critical_damage": // 必殺
-                if (Math.random() < 0.20) {
+                // 基礎5% + 必殺能力25% = 最大30%
+                if (Math.random() < 0.30) {
                     damage = Math.floor(damage * 1.5);
                 }
                 break;
@@ -616,26 +645,77 @@ function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
             case "damage_cut_half": // 鉄壁
                 // 防御側の処理
                 break;
+            // Boss theme abilities
+            case "boss_atk_boost_multi_hit": // オーク軍団の猛攻
+                damage = Math.floor(damage * 1.35); // ATK boost 35%
+                if (Math.random() < 0.20) {
+                    damage = Math.floor(damage * 2); // 2連撃
+                }
+                break;
+            case "boss_poison_on_hit_strong": // 影蛇の毒牙
+                if (Math.random() < 0.50) {
+                    // 猛毒付与（戦闘システムで処理）
+                    weapon.pendingPoison = { turns: 4, damage: 0.08 };
+                }
+                break;
+            case "boss_burn_on_hit_strong": // 炎龍の息吹
+                if (Math.random() < 0.40) {
+                    // 大火傷付与（戦闘システムで処理）
+                    weapon.pendingBurn = { turns: 5, damage: 0.05 };
+                }
+                break;
+            case "boss_low_hp_atk_boost_crit": // 深淵騎士の闘気
+                if (attacker && attacker.hp / attacker.maxHp <= 0.5) {
+                    damage = Math.floor(damage * 1.50); // ATK boost 50%
+                    if (Math.random() < 0.15) {
+                        damage = Math.floor(damage * 1.5); // クリティカル率15%
+                    }
+                }
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 1.20); // 全ステータス20%上昇
+                if (Math.random() < 0.25) {
+                    // 防御破壊（戦闘システムで処理）
+                    weapon.pendingDefBreak = { turns: 2, reduction: 0.30 };
+                }
+                break;
         }
     }
-    
+
     return damage;
 }
 
 // 防御側のダメージ軽減計算
 function calculateDefenseWithAbilities(baseDamage, defender, weapon) {
     if (!weapon || !weapon.uniqueAbilities) return baseDamage;
-    
+
     let damage = baseDamage;
-    
+
     for (const ability of weapon.uniqueAbilities) {
         switch (ability.effect) {
             case "damage_cut_half": // 鉄壁
                 damage = Math.floor(damage * 0.5);
                 break;
+            // Boss theme defensive abilities
+            case "boss_damage_reduction_freeze": // 氷の巨人の鎧
+                damage = Math.floor(damage * 0.70); // 30%軽減
+                if (Math.random() < 0.30) {
+                    // 凍結付与（戦闘システムで処理）
+                    weapon.pendingFreeze = true;
+                }
+                break;
+            case "boss_hp_regen_damage_reduction": // 天界守護者の加護
+                damage = Math.floor(damage * 0.85); // 15%軽減
+                // HP回復は戦闘システムのターン開始時に処理
+                weapon.hasHpRegen = true;
+                weapon.hpRegenAmount = 0.08;
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 0.75); // 25%軽減
+                break;
         }
     }
-    
+
     return damage;
 }
 
@@ -744,24 +824,40 @@ function createOriginalWeapon(name, type, statBonuses, ultimateName) {
     };
 }
 
+function getWeaponMaxMultiplier(weapon) {
+    return (weapon && weapon.maxMultiplier != null) ? weapon.maxMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function getWeaponBaseMultiplierForProgress(weapon) {
+    return (weapon && weapon.baseMultiplier != null) ? weapon.baseMultiplier : ORIGINAL_WEAPON_BASE_MULTIPLIER;
+}
+
 function upgradeOriginalWeapon(weapon) {
     if (!weapon.isOriginal) return weapon;
-    if (weapon.multiplier >= ORIGINAL_WEAPON_MAX_MULTIPLIER) return weapon;
-    
+    const max = getWeaponMaxMultiplier(weapon);
+    if (weapon.multiplier >= max) return weapon;
+
     const newMultiplier = Math.min(
-        ORIGINAL_WEAPON_MAX_MULTIPLIER,
+        max,
         weapon.multiplier + ORIGINAL_WEAPON_UPGRADE_INCREMENT
     );
-    
-    return {
+
+    let updated = {
         ...weapon,
         multiplier: newMultiplier,
         upgradeCount: weapon.upgradeCount + 1
     };
+
+    // ボス武器が「4回限界突破＋上限まで強化」を満たしたら、tier4固有能力を付与する
+    if (typeof checkAndGrantBossTier4Ability === "function") {
+        updated = checkAndGrantBossTier4Ability(updated);
+    }
+
+    return updated;
 }
 
 function canUpgradeOriginalWeapon(weapon) {
-    return weapon.isOriginal && weapon.multiplier < ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    return weapon.isOriginal && weapon.multiplier < getWeaponMaxMultiplier(weapon);
 }
 
 function getOriginalWeaponUpgradeCost(weapon) {
@@ -942,6 +1038,205 @@ function applyWeaponStats(baseStats, weapon) {
 
 function playerOwnsWeapon(player, weaponId) {
     return (player.weapons || []).some(w => w.id === weaponId);
+}
+
+// ============================================
+// デバッグ用「必中・即死」武器
+// 開発中の動作確認用。ブラウザのコンソールから
+// giveDebugInstantKillWeapon() を実行すると、現在のプレイヤーに
+// 追加・装備される（script.js からグローバル公開）。
+// ============================================
+
+const DEBUG_INSTANT_KILL_WEAPON_ID = "debug_instant_kill_weapon";
+
+/**
+ * 必中・一撃必殺のデバッグ用武器を生成する。
+ * battle.js側で weapon.debugInstantKill を見て、回避判定を無視し
+ * 確実にトドメを刺す処理をしている。
+ * @returns {object}
+ */
+function createDebugInstantKillWeapon() {
+    return {
+        id: DEBUG_INSTANT_KILL_WEAPON_ID,
+        type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
+        name: "【デバッグ】絶対撃破の剣",
+        isOriginal: true,
+        isDebugWeapon: true,
+        debugInstantKill: true, // battle.js: 必中・確定撃破フラグ
+        multiplier: 1,
+        baseMultiplier: 1,
+        maxMultiplier: 1,
+        statBonuses: {},
+        upgradeCount: 0,
+        uniqueAbilities: [],
+        ultimateName: "デバッグ・絶対撃破"
+    };
+}
+
+/**
+ * デバッグ用の必中即死武器を、現在のプレイヤーに追加して装備する。
+ * ブラウザのコンソールから `giveDebugInstantKillWeapon()` として実行する想定。
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugInstantKillWeapon(player) {
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    let updated = p;
+    if (!playerOwnsWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID)) {
+        updated = addWeaponToPlayer(updated, createDebugInstantKillWeapon());
+    }
+    const equipResult = equipWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID);
+    if (equipResult.ok) {
+        updated = equipResult.player;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log("[Debug] 必中即死のデバッグ武器を装備しました。ページを再読み込みすると反映されます。");
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
+// 素材・限界突破システム
+// ============================================
+
+function getMaterialCount(player, materialId) {
+    return (player && player.materials && player.materials[materialId]) || 0;
+}
+
+function addMaterialToPlayer(player, materialId, amount = 1) {
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = (materials[materialId] || 0) + amount;
+    return { ...player, materials };
+}
+
+/**
+ * プレイヤーが作成したオリジナル武器が限界突破可能か判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakOriginalWeapon(weapon) {
+    // ボス武器ではなく、純粋なオリジナル武器であること
+    if (!weapon || !weapon.isOriginal || weapon.sourceBossId) {
+        return false;
+    }
+    const level = weapon.originalLimitBreakLevel || 0;
+    const max = weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK;
+    return level < max;
+}
+
+/**
+ * Tier4オーブを1つ消費して、オリジナル武器の上限倍率を伸ばす。
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakOriginalWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) {
+        return { ok: false, message: "武器を所持していません" };
+    }
+    if (!canLimitBreakOriginalWeapon(weapon)) {
+        return { ok: false, message: "この武器は限界突破できません" };
+    }
+
+    // Tier4オーブを探す
+    const tier4OrbIndex = (player.orbs || []).findIndex(orb => orb.tier === ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER);
+    if (tier4OrbIndex === -1) {
+        return { ok: false, message: "限界突破に必要なTier4オーブを所持していません" };
+    }
+
+    // オーブを消費
+    const orbs = [...player.orbs];
+    orbs.splice(tier4OrbIndex, 1);
+
+    // 武器を更新
+    const updatedWeapon = {
+        ...weapon,
+        originalLimitBreakLevel: (weapon.originalLimitBreakLevel || 0) + 1,
+        maxMultiplier: (getWeaponMaxMultiplier(weapon) || ORIGINAL_WEAPON_MAX_MULTIPLIER) + ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT,
+        maxOriginalLimitBreak: weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK
+    };
+
+    // プレイヤーの武器リストを更新
+    const weapons = player.weapons.map(w => (w.id === weaponId ? updatedWeapon : w));
+
+    // プレイヤーオブジェクトを更新
+    let updatedPlayer = { ...player, weapons, orbs };
+
+    // 装備中の武器も更新
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
+}
+
+/**
+ * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakWeapon(weapon) {
+    if (!weapon || !weapon.sourceBossId) return false;
+    const level = weapon.limitBreakLevel || 0;
+    const max = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+    return level < max;
+}
+
+/**
+ * 限界突破素材を1個消費して、対象武器の上限倍率を0.5伸ばす。
+ * （実際の倍率を上限まで伸ばすには、別途「強化」を行う必要がある）
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (!weapon.sourceBossId) return { ok: false, message: "この武器は限界突破できません" };
+    if (!canLimitBreakWeapon(weapon)) return { ok: false, message: "既に限界突破の上限に達しています" };
+
+    const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+    const have = getMaterialCount(player, materialId);
+    if (have < 1) return { ok: false, message: "限界突破素材が足りません" };
+
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = have - 1;
+
+    let updatedWeapon = {
+        ...weapon,
+        limitBreakLevel: (weapon.limitBreakLevel || 0) + 1,
+        maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
+    };
+
+    // ボス武器が「4回限界突破＋上限まで強化」を満たしたら、tier4固有能力を付与する
+    if (typeof checkAndGrantBossTier4Ability === "function") {
+        updatedWeapon = checkAndGrantBossTier4Ability(updatedWeapon);
+    }
+
+    const weapons = player.weapons.map(w => w.id === weaponId ? updatedWeapon : w);
+    let updatedPlayer = { ...player, weapons, materials };
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
 }
 
 function addWeaponToPlayer(player, weapon) {
