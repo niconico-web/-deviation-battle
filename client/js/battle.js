@@ -1382,7 +1382,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
         const hpRatio = defender.hp / defender.maxHp;
         if (hpRatio <= effect.executeThreshold) {
             addLog(`スキル効果: オーバーキル発動！`);
-            modifiedDamage = 99999; // 事実上の即死ダメージ
+            modifiedDamage = 9999999999; // 事実上の即死ダメージ
         }
     } else if (typeof effect.execute === 'number') { // エクスキュート（ダメージ増加効果）
         const hpRatio = defender.hp / defender.maxHp;
