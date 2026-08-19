@@ -54,12 +54,16 @@ body {
     transition: transform 0.3s ease-in-out;
     flex-shrink: 0;
     box-shadow: var(--shadow-md);
+    z-index: 100;
+    position: relative;
 }
 
 .main-menu {
     list-style: none;
     padding: 12px 0;
     margin: 0;
+    position: relative;
+    z-index: 10;
 }
 
 .menu-btn {
@@ -75,6 +79,9 @@ body {
     font-size: 0.9375rem;
     border-left: 3px solid transparent;
     transition: background-color 0.2s, color 0.2s, border-left-color 0.2s;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
 }
 
 .menu-btn span {
@@ -111,6 +118,8 @@ body {
     flex-grow: 1;
     padding: 14px 16px;
     overflow-y: auto;
+    position: relative;
+    z-index: 1;
 }
 
 .content-section {
@@ -731,7 +740,7 @@ textarea {
     position: fixed;
     top: 10px;
     left: 10px;
-    z-index: 1002;
+    z-index: 1003;
     background: var(--bg-light);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
@@ -744,6 +753,7 @@ textarea {
     cursor: pointer;
     padding: 0;
     transition: background-color 0.2s, transform 0.3s;
+    pointer-events: auto;
 }
 
 /* 強制的にモバイルメニューボタンを表示（デバッグ用） */
@@ -769,9 +779,16 @@ textarea {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 998;
     opacity: 0;
     transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .sidebar-overlay.active {
@@ -790,9 +807,10 @@ textarea {
         top: 0;
         left: 0;
         height: 100%;
-        z-index: 1000;
+        z-index: 1001;
         transform: translateX(-100%);
         box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+        pointer-events: auto;
     }
 
     .sidebar.active {
@@ -801,6 +819,7 @@ textarea {
 
     .mobile-menu-toggle {
         display: block; /* スマホで表示 */
+        pointer-events: auto;
     }
 
     .main-content {
