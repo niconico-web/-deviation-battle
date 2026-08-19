@@ -352,13 +352,55 @@ function createCharacter() {
     alert(I18N.charCreated);
 }
 
+/**
+ * 武器の表示名を取得する
+ * @param {object} weapon - 武器オブジェクト
+ * @returns {string} 武器の表示名
+ */
+function getWeaponDisplayName(weapon) {
+    if (!weapon) return 'なし';
+    return weapon.name || '名称不明の武器';
+}
+
+/**
+ * 装備中の武器詳細をHTMLで整形して返す
+ * @param {object} weapon - 武器オブジェクト
+ * @returns {string} 武器詳細のHTML文字列
+ */
+function formatWeaponDetailsHTML(weapon) {
+    if (!weapon) return "なし";
+
+    let detailsHtml = `<strong>${getWeaponDisplayName(weapon)}</strong>`;
+    const detailsList = [];
+
+    // ステータスボーナス
+    if (weapon.statBonuses && Object.keys(weapon.statBonuses).length > 0) {
+        const bonusStrings = Object.entries(weapon.statBonuses).map(([stat, value]) => {
+            const statLabel = (typeof STAT_LABELS !== 'undefined' && STAT_LABELS[stat]) ? STAT_LABELS[stat] : stat;
+            return `${statLabel} +${Math.round(value * 100)}%`;
+        });
+        if (bonusStrings.length > 0) {
+            detailsList.push(`<li><strong>補正:</strong> ${bonusStrings.join(', ')}</li>`);
+        }
+    }
+
+    // 特殊能力
+    if (weapon.uniqueAbilities && weapon.uniqueAbilities.length > 0) {
+        const abilityNames = weapon.uniqueAbilities.map(ability => ability.name || '名称不明の能力').join(', ');
+        detailsList.push(`<li><strong>特殊能力:</strong> ${abilityNames}</li>`);
+    }
+
+    if (detailsList.length > 0) {
+        detailsHtml += `<ul style="margin: 5px 0 5px 0; padding-left: 20px; list-style-type: '◆ '; font-size: 0.9em; color: #ddd;">${detailsList.join('')}</ul>`;
+    }
+
+    return detailsHtml;
+}
+
 function updateStatus(player) {
-    const weaponText = player.equippedWeapon
-        ? getWeaponDisplayName(player.equippedWeapon)
-        : "なし";
-    
     // 武器補正を適用したステータスを取得
     const battleStats = getBattleStats(player);
+    const weaponDetailsHtml = formatWeaponDetailsHTML(player.equippedWeapon);
     
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
@@ -366,7 +408,7 @@ function updateStatus(player) {
         "<p><strong>プレイヤーID" + I18N.colon + "</strong>" + player.id + "</p>" +
         "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p>" +
         "<p><strong>コイン" + I18N.colon + "</strong>" + (player.coins || 0) + "</p>" +
-        "<p><strong>装備武器" + I18N.colon + "</strong>" + weaponText + "</p><hr>" +
+        "<p><strong>装備武器" + I18N.colon + "</strong></p><div class='weapon-display'>" + weaponDetailsHtml + "</div><hr>" +
         "<p>HP" + I18N.colon + battleStats.maxHp + "</p>" +
         "<p>" + I18N.atk + I18N.colon + battleStats.atk + "</p>" +
         "<p>" + I18N.def + I18N.colon + battleStats.def + "</p>" +
