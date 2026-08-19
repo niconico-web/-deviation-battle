@@ -1114,13 +1114,12 @@ function parseEffectFromDescription(description) {
         }
         effectFound = true;
     }
-}
     if (desc.includes("即死") || desc.includes("一撃必殺") || desc.includes("instant kill") || desc.includes("one shot")) {
         if (!finalEffect.damageMultiplier) {
             finalEffect.damageMultiplier = 10.0;
         }
         effectFound = true;
-    
+    }
 
     if (desc.includes("麻痺") || desc.includes("スタン") || desc.includes("paralyze") || desc.includes("stun")) {
         finalEffect.skipNextTurn = true;
@@ -1161,10 +1160,7 @@ function parseEffectFromDescription(description) {
     }
 
     // 次のターンスキップ (例: "次のターン行動できない", "skip next turn", "休む")
-    if (desc.includes("行動できない") || desc.includes("skip") || desc.includes("skip turn") || desc.includes("休む") || desc.includes("休止")) { 
-        finalEffect.skipNextTurn = true; 
-        effectFound = true; 
-    }
+    if (desc.includes("行動できない") || desc.includes("skip") || desc.includes("skip turn") || desc.includes("休む") || desc.includes("休止")) { finalEffect.skipNextTurn = true; effectFound = true; }
 
     // --- 条件のパース ---
     // HP条件 (例: "hpが50%以下の時", "when hp below 50%", "hp < 50%", "残りHP50%以下")
