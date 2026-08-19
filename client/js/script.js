@@ -884,10 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Toggle mobile menu called');
         if (!sidebar) return;
         const isOpen = sidebar.classList.toggle('active');
-        if (sidebarOverlay) {
-            sidebarOverlay.classList.toggle('active', isOpen);
-            sidebarOverlay.style.display = isOpen ? 'block' : 'none';
-        }
+        if (sidebarOverlay) sidebarOverlay.classList.toggle('active', isOpen);
         if (mobileMenuToggle) mobileMenuToggle.textContent = isOpen ? '✕' : '☰';
         console.log('Menu toggled, isOpen:', isOpen);
     }
@@ -896,10 +893,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Close mobile menu called');
         if (!sidebar) return;
         sidebar.classList.remove('active');
-        if (sidebarOverlay) {
-            sidebarOverlay.classList.remove('active');
-            sidebarOverlay.style.display = 'none';
-        }
+        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
         if (mobileMenuToggle) mobileMenuToggle.textContent = '☰';
     }
 
@@ -938,11 +932,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Activated section:', section);
             } else {
                 console.error('Section not found:', `section-${section}`);
-            }
-
-            // モバイルメニューを閉じる
-            if (window.innerWidth <= 768) {
-                closeMobileMenu();
             }
 
             if (section === 'ranking' && window.socket) {
@@ -1014,17 +1003,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // プレイヤー削除ボタンのイベントリスナーを再設定
     // UIの動的な書き換えでリスナーが消える問題に対応
     const deletePlayerBtn = document.getElementById("deletePlayerBtn");
-    if (deletePlayerBtn) {
+    if (deletePlayerBtn && deletePlayerBtn.parentNode) {
         // 既存のリスナーを削除して再設定するために、要素をクローンして置き換える
         const newBtn = deletePlayerBtn.cloneNode(true);
         deletePlayerBtn.parentNode.replaceChild(newBtn, deletePlayerBtn);
 
         newBtn.addEventListener('click', () => {
-            if (!window.I18N || !confirm(I18N.deleteConfirm)) return;
-            if (studyStartTime !== null) stopStudy();
-            localStorage.clear();
-            alert(I18N.deleted);
-            location.reload();
+            if (window.I18N && confirm(I18N.deleteConfirm)) {
+                if (studyStartTime !== null) stopStudy();
+                localStorage.clear();
+                alert(I18N.deleted);
+                location.reload();
+            }
         });
     }
 
