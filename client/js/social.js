@@ -363,11 +363,7 @@ function initSocialSystem() {
     }
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSocialSystem);
-} else {
-    initSocialSystem();
-}
+document.addEventListener('DOMContentLoaded', initSocialSystem);
 
 // window.addEventListener('load', () => {
 //     console.log('Window load fired, initializing social system');

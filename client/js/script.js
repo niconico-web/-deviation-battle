@@ -854,7 +854,9 @@ function getPlayerData() {
         return typeof migratePlayer === "function" ? migratePlayer(player) : player;
     } catch (e) {
         console.error("プレイヤーデータの解析に失敗しました:", e);
-        localStorage.removeItem("player");
+        console.error("破損した可能性のあるデータ:", raw); // 破損データをログに出力
+        // localStorage.removeItem("player"); // 根本原因がわかるまで、データを自動削除しないようにします
+        alert("プレイヤーデータの読み込みに失敗しました。データが破損している可能性があります。開発者コンソールで詳細を確認してください。");
         return null;
     }
 }
@@ -899,7 +901,6 @@ function lockStatInputs(locked) {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM Content Loaded - Initializing application');
-<<<<<<< HEAD
     // ソケット接続の初期化に失敗しても、メニュー・ステータス表示など
     // 後続の必須初期化処理が巻き込まれて止まらないようにする
     try {
@@ -915,17 +916,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 何か問題が起きても、絶対に動作し続けなければならない。
     // ============================================================
 
-=======
-    initializeSocket();
-
-    // ============================================================
-    // 最優先で初期化する部分（ここでエラーが起きると困るもの）：
-    // サイドバー・メニューボタンのナビゲーションと、既存プレイヤーの
-    // ステータス表示。これらは、他の機能（ショップ初期化など）で
-    // 何か問題が起きても、絶対に動作し続けなければならない。
-    // ============================================================
-
->>>>>>> f3e6744cd84d9442368601438766496f1a5f0906
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.querySelector('.sidebar');
     const sidebarOverlay = document.getElementById('sidebarOverlay');
