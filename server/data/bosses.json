@@ -450,7 +450,7 @@
     {
         "id": "abyss_warden",
         "name": "深淵ヲ廻ルモノ",
-        "description": "セレスティアルガーディアンがアビサルナイトによって侵食された姿",
+        "description": "セレスティアルガーディアンがアビサルナイトの怨念によって侵食された姿",
         "difficulties": {
             "easy": {
                 "hp": 5000000,
@@ -485,7 +485,8 @@
                 "description": "深淵の裁き。深淵の力で敵を討つ、絶大な威力を持つ攻撃。",
                 "effect": {
                     "damageMultiplier": 7.0,
-                    "sureHit": true
+                    "sureHit": true,
+                    "ignoreDef": true
                 }
             },
             {
