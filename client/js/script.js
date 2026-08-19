@@ -884,7 +884,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Toggle mobile menu called');
         if (!sidebar) return;
         const isOpen = sidebar.classList.toggle('active');
-        if (sidebarOverlay) sidebarOverlay.classList.toggle('active', isOpen);
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.toggle('active', isOpen);
+            sidebarOverlay.style.display = isOpen ? 'block' : 'none';
+        }
         if (mobileMenuToggle) mobileMenuToggle.textContent = isOpen ? '✕' : '☰';
         console.log('Menu toggled, isOpen:', isOpen);
     }
@@ -893,7 +896,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Close mobile menu called');
         if (!sidebar) return;
         sidebar.classList.remove('active');
-        if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        if (sidebarOverlay) {
+            sidebarOverlay.classList.remove('active');
+            sidebarOverlay.style.display = 'none';
+        }
         if (mobileMenuToggle) mobileMenuToggle.textContent = '☰';
     }
 
@@ -932,6 +938,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Activated section:', section);
             } else {
                 console.error('Section not found:', `section-${section}`);
+            }
+
+            // モバイルメニューを閉じる
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
             }
 
             if (section === 'ranking' && window.socket) {
