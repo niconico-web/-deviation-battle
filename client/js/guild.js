@@ -519,9 +519,16 @@ function initializeGuildSystem() {
                 container.innerHTML = '<p>現在、ギルドはありません。</p>';
                 return;
             }
+            
+            const searchInput = document.getElementById('guildSearchInput');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            
             guilds.forEach(guild => {
                 const item = document.createElement('div');
                 item.className = 'guild-list-item';
+                if (searchTerm && !guild.name.toLowerCase().includes(searchTerm)) {
+                    item.style.display = 'none';
+                }
                 item.innerHTML = `
                     <h4>${guild.name}</h4>
                     <p>${guild.description}</p>

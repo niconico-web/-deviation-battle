@@ -115,9 +115,9 @@ const BOSS_TIER4_ABILITY_BY_ID = {
         effect: "enemy_stat_debuff"
     },
     abyss_warden: {
-        name: "深淵の終焉",
-        description: "【tier4固有能力】相手を一撃で倒す。この能力は必中効果も持つ（深淵ヲ廻ルモノの武器を極めた証）",
-        effect: "one_shot_kill"
+        name: "深淵の絶対支配",
+        description: "【tier4固有能力】戦闘時、相手の全ステータスを0.7倍にする（深淵ヲ廻ルモノの武器を極めた証）",
+        effect: "enemy_stat_debuff"
     }
 };
 
@@ -348,8 +348,8 @@ function markBossDefeated(player, bossId, difficulty) {
 function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     if (!boss || !weaponName) return null;
 
-    // Get all available unique abilities from weapons.js
-    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
+    // Get all available unique abilities from weapons.js (exclude one_shot_kill as it is debugger-only)
+    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES).filter(a => a.effect !== 'one_shot_kill') : [];
     if (allAbilities.length === 0) {
         console.error("ORB_UNIQUE_ABILITIES not found or empty. Cannot generate boss weapon.");
         return null;

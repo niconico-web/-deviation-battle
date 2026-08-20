@@ -400,17 +400,18 @@ function renderMaterialsInventory() {
 }
 
 function renderOrbInventory() {
-    const container = document.getElementById("orbInventoryList");
+    const container = document.getElementById("orbInventory");
     if (!container) return;
     container.innerHTML = "";
 
     const player = getPlayerData();
-    if (!player || !player.orbs || player.orbs.length === 0) {
+    if (!player || !player.orbs || !Array.isArray(player.orbs) || player.orbs.length === 0) {
         container.innerHTML = "<p>オーブを所持していません。</p>";
         return;
     }
 
     for (const orb of player.orbs) {
+        if (!orb) continue;
         const item = document.createElement("div");
         item.className = "inventory-item";
 
@@ -661,7 +662,7 @@ function initShop() {
             let playerAfterCost = { ...player, coins: player.coins - ORIGINAL_WEAPON_COST };
             
             // オーブを消費
-            const remainingOrbs = player.orbs.filter(orb => !selectedOrbs.some(selected => selected.id === orb.id));
+            const remainingOrbs = (player.orbs || []).filter(orb => !selectedOrbs.some(selected => selected.id === orb.id));
             playerAfterCost.orbs = remainingOrbs;
             
             // 武器を作成
