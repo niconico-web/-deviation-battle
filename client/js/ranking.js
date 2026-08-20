@@ -1,4 +1,14 @@
+// イベントハンドラーが既に設定されているかをチェックするフラグ
+let rankingHandlerInitialized = false;
+
 function setupRankingEventListeners() {
+    // 既に初期化されている場合は何もしない
+    if (rankingHandlerInitialized) {
+        console.log('[Ranking] Event listeners already initialized, skipping...');
+        return;
+    }
+    rankingHandlerInitialized = true;
+    
     const rankingMenuBtn = document.querySelector('.menu-btn[data-section="ranking"]');
     const refreshRankingBtn = document.getElementById('refreshRankingBtn');
 
