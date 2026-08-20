@@ -10,7 +10,7 @@ function setupRankingEventListeners() {
             console.warn('[Ranking] Cannot fetch ranking, socket not connected.');
             const container = document.getElementById('ranking-list-container');
             if (container) {
-                container.innerHTML = '<p>?T?[?o?[?????????????????B?????L???O???\???????????B</p>';
+                container.innerHTML = '<p>サーバーに接続されていません。ランキングを取得できません。再接続をお待ちください。</p>';
             }
         }
     };
@@ -36,7 +36,7 @@ function renderRanking(ranking) {
     if (!container) return;
 
     if (!ranking || ranking.length === 0) {
-        container.innerHTML = '<p>�����L���O�f�[�^������܂���B</p>';
+        container.innerHTML = '<p>ランキングデータがありません。</p>';
         return;
     }
 
@@ -47,11 +47,11 @@ function renderRanking(ranking) {
         <table class="ranking-table">
             <thead>
                 <tr>
-                    <th>????</th>
-                    <th>???O</th>
-                    <th>???x??</th>
-                    <th>?????X?R?A</th>
-                    <th>???? (???/??l/?{?X)</th>
+                    <th>順位</th>
+                    <th>プレイヤー名</th>
+                    <th>レベル</th>
+                    <th>戦力スコア</th>
+                    <th>実績 (勉強/勝利/ボス)</th>
                 </tr>
             </thead>
             <tbody>
@@ -65,7 +65,7 @@ function renderRanking(ranking) {
                 <td>${escapeHtml(entry.name)}</td>
                 <td>${entry.level}</td>
                 <td>${entry.powerScore}</td>
-                <td>${entry.studyMinutes}�� / ${entry.pvpWins}�� / ${entry.bossRunCount}��</td>
+                <td>${entry.studyMinutes}分 / ${entry.pvpWins}勝 / ${entry.bossRunCount}回</td>
             </tr>
         `;
     });
@@ -85,10 +85,10 @@ function escapeHtml(str) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // socket??????????????????X?i?[?????
+    // socketが初期化されるのを待ってからイベントリスナーを設定
     setTimeout(() => {
         if (typeof setupRankingEventListeners === 'function') {
             setupRankingEventListeners();
         }
-    }, 500); // script.js??socket????????????????????
+    }, 500); // script.jsでsocketが初期化されるのを待つ
 });

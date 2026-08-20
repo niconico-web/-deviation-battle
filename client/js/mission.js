@@ -17,6 +17,7 @@ const MISSION_POOL = [
     { id: 'synthesize_orb_2', type: 'synthesize_orb', target: 2, description: 'オーブを2つ合成する' },
     { id: 'limit_break_1', type: 'limit_break', target: 1, description: '武器を1回限界突破する' },
     { id: 'upgrade_weapon_5', type: 'upgrade_weapon', target: 5, description: '武器を5回強化する' },
+    { id: 'defeat_boss_1', type: 'defeat_boss', target: 1, description: 'ボスを1体討伐する' },
 ];
 
 /**
