@@ -10,7 +10,7 @@ function setupRankingEventListeners() {
             console.warn('[Ranking] Cannot fetch ranking, socket not connected.');
             const container = document.getElementById('ranking-list-container');
             if (container) {
-                container.innerHTML = '<p>サーバーに接続されていません。ランキングを表示できません。</p>';
+                container.innerHTML = '<p>?T?[?o?[?????????????????B?????L???O???\???????????B</p>';
             }
         }
     };
@@ -47,11 +47,11 @@ function renderRanking(ranking) {
         <table class="ranking-table">
             <thead>
                 <tr>
-                    <th>順位</th>
-                    <th>名前</th>
-                    <th>レベル</th>
-                    <th>総合スコア</th>
-                    <th>内訳 (勉強/対人/ボス)</th>
+                    <th>????</th>
+                    <th>???O</th>
+                    <th>???x??</th>
+                    <th>?????X?R?A</th>
+                    <th>???? (???/??l/?{?X)</th>
                 </tr>
             </thead>
             <tbody>
@@ -85,10 +85,10 @@ function escapeHtml(str) {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // socketが初期化された後にリスナーを設定
+    // socket??????????????????X?i?[?????
     setTimeout(() => {
         if (typeof setupRankingEventListeners === 'function') {
             setupRankingEventListeners();
         }
-    }, 500); // script.jsでsocketが初期化されるのを待つ
+    }, 500); // script.js??socket????????????????????
 });
