@@ -1,5 +1,6 @@
 // イベントハンドラーが既に設定されているかをチェックするフラグ
 let rankingHandlerInitialized = false;
+let socketHandlerSetup = false;
 
 function setupRankingEventListeners() {
     // 既に初期化されている場合は何もしない
@@ -46,6 +47,10 @@ function setupRankingEventListeners() {
 
     // ソケットイベントハンドラーを設定
     const setupSocketHandler = () => {
+        if (socketHandlerSetup) {
+            return; // 既に設定済みなら何もしない
+        }
+        
         if (window.socket) {
             // 既存のハンドラーを削除して重複を防ぐ
             window.socket.off('ranking:list');
@@ -55,6 +60,7 @@ function setupRankingEventListeners() {
                 renderRanking(ranking);
             });
             
+            socketHandlerSetup = true;
             console.log('[Ranking] Socket handler set up');
         }
     };
@@ -64,7 +70,7 @@ function setupRankingEventListeners() {
     
     // ソケットが後で初期化される場合に備えて、定期的にチェック
     const checkInterval = setInterval(() => {
-        if (window.socket && window.socket.connected) {
+        if (window.socket && window.socket.connected && !socketHandlerSetup) {
             setupSocketHandler();
             clearInterval(checkInterval);
         }

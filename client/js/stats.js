@@ -72,6 +72,8 @@ function migratePlayer(player) {
         bossRunCount: player.bossRunCount || 0,
         totalStudySeconds: player.totalStudySeconds || 0,
         grade: player.grade || 1,
+        guild: player.guild || null, // Preserve guild membership
+        adventurerExp: player.adventurerExp || 0, // Preserve adventurer experience
         // Core stats (maxHp, atk, def, speed) will be set below
         maxHp: player.maxHp, // Keep existing if present, otherwise default below
         atk: player.atk,
