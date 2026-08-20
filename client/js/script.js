@@ -777,10 +777,7 @@ function setupSocketEventHandlers() {
         alert(`エラー: ${message}`);
     });
 
-    // 戦力ランキング受信
-    window.socket.on("ranking:list", (ranking) => {
-        renderRanking(ranking);
-    });
+    // 戦力ランキング受信は ranking.js でハンドリングされているため、ここでは重複を避けるために削除
 
     console.log("Socket event handlers setup complete");
 }
