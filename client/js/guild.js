@@ -133,6 +133,9 @@ function updateGuildQuestProgress(type, value) {
                         playerGuild.contribution = (playerGuild.contribution || 0) + (quest.reward || 0);
                         setPlayerGuild(playerGuild);
                     }
+                    // クエストボードとアクティブクエストを更新
+                    renderQuestBoard();
+                    renderActiveQuests();
                 }
             }
         }
@@ -283,11 +286,23 @@ function generateWeeklyQuests() {
  */
 function initializeGuildSystem() {
     console.log("Initializing guild system.");
-    renderGuildUI();
+    
+    // ギルドデータをサーバーから再取得して同期
     if (window.socket) {
+        const player = getPlayerData();
+        if (player) {
+            window.socket.emit('guild:getPlayerGuild', player.id);
+            window.socket.on('guild:playerGuild', (guild) => {
+                if (guild) {
+                    setPlayerGuild(guild);
+                }
+            });
+        }
         // サーバーからギルドリストを取得
         window.socket.emit('guild:getList'); // サーバーからギルドリストを取得
     }
+    
+    renderGuildUI();
 
     // クエストのリセット処理
     const currentWeekId = getWeekId();
@@ -367,6 +382,16 @@ function initializeGuildSystem() {
             renderActiveQuests();
         });
 
+        window.socket.on('guild:joinResponse', (result) => {
+            if (result.success) {
+                setPlayerGuild(result.guild);
+                alert('ギルドに参加しました！');
+                document.getElementById('guildListModal').style.display = 'none';
+            } else {
+                alert(result.message || 'ギルド参加に失敗しました');
+            }
+        });
+
         window.socket.on('guild:list', (guilds) => {
             const container = document.getElementById('guild-list-container');
             if (!container) return;
@@ -390,8 +415,10 @@ function initializeGuildSystem() {
             container.querySelectorAll('.join-guild-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const guildId = e.target.dataset.guildId;
-                    // ここで参加処理を実装（サーバーにイベントをemit）
-                    console.log(`Joining guild ${guildId}`);
+                    const player = getPlayerData();
+                    if (player && window.socket) {
+                        window.socket.emit('guild:join', { guildId, playerId: player.id, playerName: player.name });
+                    }
                 });
             });
         });
