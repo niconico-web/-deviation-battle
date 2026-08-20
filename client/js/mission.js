@@ -9,14 +9,14 @@ const FINAL_REWARD_ORB_TIERS = ['tier2', 'tier3', 'tier4'];
 
 // Pool of possible daily missions
 const MISSION_POOL = [
-    { id: 'win_bot_3', type: 'win_bot', target: 3, description: 'ƒ{ƒbƒgí‚Å3‰ñŸ—˜‚·‚é' },
-    { id: 'win_online_2', type: 'win_online', target: 2, description: 'ƒIƒ“ƒ‰ƒCƒ“‘Îí‚Å2‰ñŸ—˜‚·‚é' },
-    { id: 'study_30_min', type: 'study', target: 1800, description: '‡Œv30•ª•×‹­‚·‚é' }, // 1800 seconds
-    { id: 'level_up_1', type: 'level_up', target: 1, description: 'ƒŒƒxƒ‹‚ğ1ã‚°‚é' },
-    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: '•Ší‚ğ1‚Âì¬‚·‚é' },
-    { id: 'synthesize_orb_2', type: 'synthesize_orb', target: 2, description: 'ƒI[ƒu‚ğ2‚Â‡¬‚·‚é' },
-    { id: 'limit_break_1', type: 'limit_break', target: 1, description: '•Ší‚ğ1‰ñŒÀŠE“Ë”j‚·‚é' },
-    { id: 'upgrade_weapon_5', type: 'upgrade_weapon', target: 5, description: '•Ší‚ğ5‰ñ‹­‰»‚·‚é' },
+    { id: 'win_bot_3', type: 'win_bot', target: 3, description: 'ãƒœãƒƒãƒˆæˆ¦ã§3å›å‹åˆ©ã™ã‚‹' },
+    { id: 'win_online_2', type: 'win_online', target: 2, description: 'ã‚ªãƒ³ãƒ©ã‚¤ãƒ³å¯¾æˆ¦ã§2å›å‹åˆ©ã™ã‚‹' },
+    { id: 'study_30_min', type: 'study', target: 1800, description: 'åˆè¨ˆ30åˆ†å‹‰å¼·ã™ã‚‹' }, // 1800 seconds
+    { id: 'level_up_1', type: 'level_up', target: 1, description: 'ãƒ¬ãƒ™ãƒ«ã‚’1ä¸Šã’ã‚‹' },
+    { id: 'create_weapon_1', type: 'create_weapon', target: 1, description: 'æ­¦å™¨ã‚’1ã¤ä½œæˆã™ã‚‹' },
+    { id: 'synthesize_orb_2', type: 'synthesize_orb', target: 2, description: 'ã‚ªãƒ¼ãƒ–ã‚’2ã¤åˆæˆã™ã‚‹' },
+    { id: 'limit_break_1', type: 'limit_break', target: 1, description: 'æ­¦å™¨ã‚’1å›é™ç•Œçªç ´ã™ã‚‹' },
+    { id: 'upgrade_weapon_5', type: 'upgrade_weapon', target: 5, description: 'æ­¦å™¨ã‚’5å›å¼·åŒ–ã™ã‚‹' },
 ];
 
 /**
@@ -80,11 +80,11 @@ function updateMissionProgress(type, value = 1) {
                         mission.progress += 1;
                         progressMade = true;
                     }
-                } else if (type === 'collect_material') {
-                    if (mission.target.materialId === value.materialId) {
-                        mission.progress += value.count;
-                        progressMade = true;
-                    }
+                }
+            } else if (type === 'collect_material') {
+                if (mission.target.materialId === value.materialId) {
+                    mission.progress += value.count;
+                    progressMade = true;
                 }
             } else {
                 mission.progress += value;
@@ -116,7 +116,7 @@ function claimMissionReward(missionIndex) {
 
     const mission = player.dailyMissions.missions[missionIndex];
     if (!mission || !mission.completed || mission.claimed) {
-        alert('•ñV‚ğó‚¯æ‚ê‚Ü‚¹‚ñ');
+        alert('å ±é…¬ã‚’å—ã‘å–ã‚Œã¾ã›ã‚“');
         return;
     }
 
@@ -124,7 +124,7 @@ function claimMissionReward(missionIndex) {
     player.xp = (player.xp || 0) + MISSION_REWARDS.XP;
     player.coins = (player.coins || 0) + MISSION_REWARDS.COINS;
 
-    alert(`ƒ~ƒbƒVƒ‡ƒ“’B¬I\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} ƒRƒCƒ“`);
+    alert(`ãƒŸãƒƒã‚·ãƒ§ãƒ³é”æˆï¼\n${MISSION_REWARDS.XP} XP\n${MISSION_REWARDS.COINS} ã‚³ã‚¤ãƒ³`);
 
     // Check for final reward
     const allClaimed = player.dailyMissions.missions.every(m => m.claimed);
@@ -136,7 +136,7 @@ function claimMissionReward(missionIndex) {
         if (orb) {
             if (!player.orbs) player.orbs = [];
             player.orbs.push(orb);
-            alert(`‘Sƒ~ƒbƒVƒ‡ƒ“’B¬I\n•ñV‚Æ‚µ‚Ä ${getOrbDisplayName(orb)} ‚ğ“üè‚µ‚Ü‚µ‚½I`);
+            alert(`å…¨ãƒŸãƒƒã‚·ãƒ§ãƒ³é”æˆï¼\nå ±é…¬ã¨ã—ã¦ ${getOrbDisplayName(orb)} ã‚’å…¥æ‰‹ã—ã¾ã—ãŸï¼`);
             if (typeof renderOrbInventory === 'function') renderOrbInventory();
         }
     }
@@ -156,7 +156,7 @@ function renderDailyMissions() {
 
     const player = getPlayerData();
     if (!player || !player.dailyMissions) {
-        container.innerHTML = '<p>ƒ~ƒbƒVƒ‡ƒ“ƒf[ƒ^‚ª‚ ‚è‚Ü‚¹‚ñB</p>';
+        container.innerHTML = '<p>ãƒŸãƒƒã‚·ãƒ§ãƒ³ãƒ‡ãƒ¼ã‚¿ãŒã‚ã‚Šã¾ã›ã‚“ã€‚</p>';
         return;
     }
 
@@ -180,9 +180,9 @@ function renderDailyMissions() {
                 <span class="progress-text">${progressText}</span>
             </div>
             <div class="mission-reward">
-                <span>•ñV: ${MISSION_REWARDS.XP} XP, ${MISSION_REWARDS.COINS} ƒRƒCƒ“</span>
+                <span>å ±é…¬: ${MISSION_REWARDS.XP} XP, ${MISSION_REWARDS.COINS} ã‚³ã‚¤ãƒ³</span>
                 <button class="btn btn-small claim-btn" data-index="${index}" ${!mission.completed || mission.claimed ? 'disabled' : ''}>
-                    ${mission.claimed ? 'óæÏ' : 'ó‚¯æ‚é'}
+                    ${mission.claimed ? 'å—å–æ¸ˆ' : 'å—ã‘å–ã‚‹'}
                 </button>
             </div>
         `;
@@ -194,10 +194,10 @@ function renderDailyMissions() {
     if (finalRewardContainer) {
         const completedCount = player.dailyMissions.missions.filter(m => m.claimed).length;
         finalRewardContainer.innerHTML = `
-            <h4>ÅI’B¬•ñV</h4>
-            <p>‘S‚Ä‚Ìƒ~ƒbƒVƒ‡ƒ“‚ğ’B¬‚µ‚Ä•ñV‚ğó‚¯æ‚ë‚¤I (’B¬: ${completedCount} / 3)</p>
+            <h4>æœ€çµ‚é”æˆå ±é…¬</h4>
+            <p>å…¨ã¦ã®ãƒŸãƒƒã‚·ãƒ§ãƒ³ã‚’é”æˆã—ã¦å ±é…¬ã‚’å—ã‘å–ã‚ã†ï¼ (é”æˆ: ${completedCount} / 3)</p>
             <div class="final-reward-icon">${player.dailyMissions.finalRewardClaimed ? '??' : '?'}</div>
-            <p>${player.dailyMissions.finalRewardClaimed ? 'ÅI•ñV‚ÍóæÏ‚İ‚Å‚·' : '•ñV: Tier2ˆÈã‚ÌƒI[ƒu'}</p>
+            <p>${player.dailyMissions.finalRewardClaimed ? 'æœ€çµ‚å ±é…¬ã¯å—å–æ¸ˆã¿ã§ã™' : 'å ±é…¬: Tier2ä»¥ä¸Šã®ã‚ªãƒ¼ãƒ–'}</p>
         `;
     }
 
