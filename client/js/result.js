@@ -111,6 +111,26 @@ if (retryBtn) {
     }
 }
 
+// ナビゲーションボタン
+const onlineBtn = document.getElementById("onlineBtn");
+const partyBtn = document.getElementById("partyBtn");
+const bossBtn = document.getElementById("bossBtn");
+
+if (onlineBtn) {
+    onlineBtn.style.display = "";
+    onlineBtn.onclick = () => location.href = "index.html#section-online";
+}
+
+if (partyBtn) {
+    partyBtn.style.display = "";
+    partyBtn.onclick = () => location.href = "index.html#section-party";
+}
+
+if (bossBtn) {
+    bossBtn.style.display = "";
+    bossBtn.onclick = () => location.href = "index.html#section-boss-battle";
+}
+
 // ボス報酬の表示（武器・スキル・限界突破素材）
 const battleResultDataRaw = localStorage.getItem("battleResultData");
 const battleResultData = battleResultDataRaw ? JSON.parse(battleResultDataRaw) : null;
