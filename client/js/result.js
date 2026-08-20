@@ -33,7 +33,7 @@ const updatedPlayer = applyBattleRewards(won, turn, damage, {
 });
 
 // ギルドクエスト進捗更新（ボス討伐）
-if (won && isBossBattle && typeof updateGuildQuestProgress === 'function') {
+if (won && wasBossBattle === "true" && typeof updateGuildQuestProgress === 'function') {
     updateGuildQuestProgress('defeat_boss', { bossId: enemy.id, difficulty: battleDifficultyValue });
 }
 
