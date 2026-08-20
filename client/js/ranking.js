@@ -3,12 +3,16 @@ function setupRankingEventListeners() {
     const refreshRankingBtn = document.getElementById('refreshRankingBtn');
 
     const fetchRanking = () => {
+        const container = document.getElementById('ranking-list-container');
+        if (container) {
+            container.innerHTML = '<p>ランキングを読み込み中...</p>';
+        }
+        
         if (window.socket && window.socket.connected) {
             console.log('[Ranking] Requesting ranking data...');
             window.socket.emit('ranking:get');
         } else {
             console.warn('[Ranking] Cannot fetch ranking, socket not connected.');
-            const container = document.getElementById('ranking-list-container');
             if (container) {
                 container.innerHTML = '<p>サーバーに接続されていません。ランキングを取得できません。再接続をお待ちください。</p>';
             }
