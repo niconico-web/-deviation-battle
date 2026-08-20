@@ -492,7 +492,7 @@ function createOrb(tier) {
     
     // Tier4のみユニーク能力を付与（ボス能力を除外）
     if (tier === "tier4") {
-        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_") && key !== "one_shot_kill");
         const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
         orb.uniqueAbility = {
             key: abilityKey,
