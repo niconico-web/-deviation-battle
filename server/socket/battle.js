@@ -70,8 +70,8 @@ module.exports = function(io){
 
             const player = battle.players[playerId];
             let usedSkill = null;
-            if (skillId && player && Array.isArray(player.equippedSkills)) {
-                usedSkill = player.equippedSkills.find(s => s && s.id === skillId) || null;
+            if (skillId && player && Array.isArray(player.skillSlots)) {
+                usedSkill = player.skillSlots.find(s => s && s.id === skillId) || null;
             }
 
             // レイドボス戦（パーティ対ボス、3人以上いる場合を含む）と、通常の1対1対戦とで処理を分ける
