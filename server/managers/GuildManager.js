@@ -493,8 +493,8 @@ function generateSystemQuests() {
             title: '初心者トレーニング',
             description: '対戦で3回勝利せよ',
             category: 'BATTLE',
-            rank: 'F',
-            reward: 50,
+            rank: 'D',
+            reward: 200,
             type: 'system'
         },
         {
@@ -525,16 +525,16 @@ function generateSystemQuests() {
             title: '連勝記録',
             description: '対戦で5連勝せよ',
             category: 'BATTLE',
-            rank: 'C',
-            reward: 300,
+            rank: 'B',
+            reward: 400,
             type: 'system'
         },
         {
             title: '伝説の戦士',
             description: 'Sランクプレイヤーに勝利せよ',
             category: 'BATTLE',
-            rank: 'A',
-            reward: 1000,
+            rank: 'S',
+            reward: 1500,
             type: 'system'
         },
         {
@@ -543,6 +543,22 @@ function generateSystemQuests() {
             category: 'SPECIAL',
             rank: 'B',
             reward: 500,
+            type: 'system'
+        },
+        {
+            title: 'ボス討伐',
+            description: 'ハード難易度のボスを1体討伐せよ',
+            category: 'BATTLE',
+            rank: 'A',
+            reward: 800,
+            type: 'system'
+        },
+        {
+            title: 'ボスハンター',
+            description: 'ボスを合計5体討伐せよ',
+            category: 'BATTLE',
+            rank: 'S',
+            reward: 2000,
             type: 'system'
         }
     ];

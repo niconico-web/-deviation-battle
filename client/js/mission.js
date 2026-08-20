@@ -55,6 +55,7 @@ function initializeDailyMissions() {
             finalRewardClaimed: false,
         };
         localStorage.setItem("player", JSON.stringify(player));
+        console.log('[Mission] Daily missions initialized for', today);
     }
     renderDailyMissions();
 }

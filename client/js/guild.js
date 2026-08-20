@@ -73,6 +73,14 @@ function acceptQuest(questId) {
 
     const questIndex = quests.findIndex(q => q.id === questId);
     if (questIndex > -1 && quests[questIndex].status === 'available') {
+        // ランクチェック
+        const playerRank = getAdventurerRank(player);
+        const questRank = quests[questIndex].rank;
+        if (playerRank < getRankValue(questRank)) {
+            alert(`ランク不足です。必要ランク: ${questRank} (現在: ${playerRank})`);
+            return;
+        }
+        
         quests[questIndex].status = 'active'; // 'available' -> 'active'
         quests[questIndex].assignedTo = player.id;
         questsData.quests = quests;
@@ -126,13 +134,42 @@ function updateGuildQuestProgress(type, value) {
                 if (quest.progress >= targetCount) {
                     quest.status = 'completed';
                     quest.progress = targetCount;
-                    alert(`クエスト「${quest.title}」を達成しました！`);
+                    
+                    // クエスト報酬を計算
+                    const rankValue = getRankValue(quest.rank);
+                    const coinReward = rankValue * 50; // ランク×50コイン
+                    const xpReward = rankValue * 100; // ランク×100XP
+                    let orbReward = null;
+                    
+                    // 高ランククエストでオーブ確定ドロップ
+                    if (rankValue >= 5) { // Bランク以上
+                        const orbTier = rankValue >= 7 ? 'tier4' : (rankValue >= 6 ? 'tier3' : 'tier2');
+                        orbReward = createOrb(orbTier);
+                    }
+                    
+                    // プレイヤーに報酬を付与
+                    player.coins = (player.coins || 0) + coinReward;
+                    player.xp = (player.xp || 0) + xpReward;
+                    if (orbReward) {
+                        if (!player.orbs) player.orbs = [];
+                        player.orbs.push(orbReward);
+                    }
+                    localStorage.setItem("player", JSON.stringify(player));
+                    
                     // ギルド貢献度を付与
                     const playerGuild = getPlayerGuild();
                     if (playerGuild) {
                         playerGuild.contribution = (playerGuild.contribution || 0) + (quest.reward || 0);
                         setPlayerGuild(playerGuild);
                     }
+                    
+                    // 報酬メッセージを表示
+                    let rewardMessage = `クエスト「${quest.title}」を達成しました！\n報酬: ${coinReward}コイン, ${xpReward}XP`;
+                    if (orbReward) {
+                        rewardMessage += `\n特別報酬: ${getOrbDisplayName(orbReward)}`;
+                    }
+                    alert(rewardMessage);
+                    
                     // クエストボードとアクティブクエストを更新
                     renderQuestBoard();
                     renderActiveQuests();
@@ -191,12 +228,23 @@ function renderQuestBoard(filterCategory = 'all') {
     const questBoard = document.getElementById('quest-board');
     if (!questBoard) return;
 
+    const playerGuild = getPlayerGuild();
+    if (!playerGuild) {
+        questBoard.innerHTML = '<p>ギルドに参加していないとクエストを受注できません。</p>';
+        return;
+    }
+
+    const player = getPlayerData();
+    if (!player) {
+        questBoard.innerHTML = '<p>キャラクターを作成してください。</p>';
+        return;
+    }
+
     const questsData = getGuildQuests();
-    const quests = (questsData.quests || []).filter(q => q.status === 'available' || q.status === 'completed');
-    questBoard.innerHTML = '';
+    const quests = questsData.quests || [];
 
     const filteredQuests = filterCategory === 'all'
-        ? quests
+        ? quests.filter(q => q.status === 'available')
         : quests.filter(q => q.category === filterCategory);
 
     if (filteredQuests.length === 0) {
@@ -207,13 +255,21 @@ function renderQuestBoard(filterCategory = 'all') {
     filteredQuests.forEach(quest => {
         const questCard = document.createElement('div');
         questCard.className = 'quest-card';
+        
+        // 冒険者ランクチェック
+        const playerRank = getAdventurerRank(player);
+        const canAccept = playerRank >= getRankValue(quest.rank);
+        
         questCard.innerHTML = `
             <h3>${quest.title} (${quest.rank || 'N/A'}ランク)</h3>
             <p>${quest.description}</p>
             <p>報酬: ${quest.reward || 0}貢献度</p>
+            <p>必要ランク: ${quest.rank || 'N/A'} (現在: ${playerRank})</p>
             ${quest.status === 'completed' 
                 ? '<button class="btn btn-disabled" disabled>完了</button>'
-                : `<button class="btn btn-primary accept-quest-btn" data-quest-id="${quest.id}">受注する</button>`
+                : canAccept 
+                    ? `<button class="btn btn-primary accept-quest-btn" data-quest-id="${quest.id}">受注する</button>`
+                    : `<button class="btn btn-disabled" disabled>ランク不足</button>`
             }
         `;
         questBoard.appendChild(questCard);
@@ -224,6 +280,28 @@ function renderQuestBoard(filterCategory = 'all') {
             acceptQuest(e.target.dataset.questId);
         });
     });
+}
+
+/**
+ * プレイヤーの冒険者ランクを取得する。
+ */
+function getAdventurerRank(player) {
+    // レベルに基づいてランクを決定
+    const level = player.level || 1;
+    if (level >= 50) return 'S';
+    if (level >= 40) return 'A';
+    if (level >= 30) return 'B';
+    if (level >= 20) return 'C';
+    if (level >= 10) return 'D';
+    return 'F';
+}
+
+/**
+ * ランク文字列を数値に変換する。
+ */
+function getRankValue(rank) {
+    const rankValues = { 'F': 1, 'E': 2, 'D': 3, 'C': 4, 'B': 5, 'A': 6, 'S': 7 };
+    return rankValues[rank] || 0;
 }
 
 /**
