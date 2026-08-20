@@ -11,6 +11,13 @@ function setupRankingEventListeners() {
         if (window.socket && window.socket.connected) {
             console.log('[Ranking] Requesting ranking data...');
             window.socket.emit('ranking:get');
+            
+            // タイムアウト設定（10秒）
+            setTimeout(() => {
+                if (container.innerHTML.includes('読み込み中')) {
+                    container.innerHTML = '<p>ランキングの取得に失敗しました。再度お試しください。</p>';
+                }
+            }, 10000);
         } else {
             console.warn('[Ranking] Cannot fetch ranking, socket not connected.');
             if (container) {
@@ -27,12 +34,34 @@ function setupRankingEventListeners() {
         refreshRankingBtn.addEventListener('click', fetchRanking);
     }
 
-    if (window.socket) {
-        window.socket.on('ranking:list', (ranking) => {
-            console.log('[Ranking] Received ranking data:', ranking);
-            renderRanking(ranking);
-        });
-    }
+    // ソケットイベントハンドラーを設定
+    const setupSocketHandler = () => {
+        if (window.socket) {
+            // 既存のハンドラーを削除して重複を防ぐ
+            window.socket.off('ranking:list');
+            
+            window.socket.on('ranking:list', (ranking) => {
+                console.log('[Ranking] Received ranking data:', ranking);
+                renderRanking(ranking);
+            });
+            
+            console.log('[Ranking] Socket handler set up');
+        }
+    };
+
+    // 即時設定
+    setupSocketHandler();
+    
+    // ソケットが後で初期化される場合に備えて、定期的にチェック
+    const checkInterval = setInterval(() => {
+        if (window.socket && window.socket.connected) {
+            setupSocketHandler();
+            clearInterval(checkInterval);
+        }
+    }, 1000);
+    
+    // 5秒後にチェックを停止
+    setTimeout(() => clearInterval(checkInterval), 5000);
 }
 
 function renderRanking(ranking) {

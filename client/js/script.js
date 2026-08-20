@@ -609,6 +609,15 @@ function applyStudyRewards(seconds) {
     if (typeof updateMissionProgress === 'function') {
         updateMissionProgress('study', seconds);
     }
+    
+    // ギルドに参加している場合、冒険者経験値を追加（1分あたり0.5経験値）
+    if (typeof addAdventurerExp === 'function') {
+        const adventurerExpGain = Math.floor(seconds / 120); // 2分で1経験値（上がりにくくする）
+        if (adventurerExpGain > 0) {
+            const player = getPlayerData();
+            addAdventurerExp(player, adventurerExpGain);
+        }
+    }
 }
 
 // プレイヤーIDの正規化（大文字・空白・全角の揺れを吸収）

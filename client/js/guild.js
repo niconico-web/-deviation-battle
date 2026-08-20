@@ -286,7 +286,30 @@ function renderQuestBoard(filterCategory = 'all') {
  * プレイヤーの冒険者ランクを取得する。
  */
 function getAdventurerRank(player) {
-    // レベルに基づいてランクを決定
+    // ギルドに参加している場合は、冒険者経験値に基づいてランクを決定
+    if (player.guild && player.adventurerExp) {
+        const exp = player.adventurerExp;
+        // ランクアップに必要な経験値（上がりにくくする）
+        const rankThresholds = {
+            'F': 0,
+            'E': 100,
+            'D': 300,
+            'C': 600,
+            'B': 1000,
+            'A': 1500,
+            'S': 2500
+        };
+        
+        if (exp >= rankThresholds.S) return 'S';
+        if (exp >= rankThresholds.A) return 'A';
+        if (exp >= rankThresholds.B) return 'B';
+        if (exp >= rankThresholds.C) return 'C';
+        if (exp >= rankThresholds.D) return 'D';
+        if (exp >= rankThresholds.E) return 'E';
+        return 'F';
+    }
+    
+    // ギルドに参加していない場合は、レベルに基づいてランクを決定
     const level = player.level || 1;
     if (level >= 50) return 'S';
     if (level >= 40) return 'A';
@@ -294,6 +317,24 @@ function getAdventurerRank(player) {
     if (level >= 20) return 'C';
     if (level >= 10) return 'D';
     return 'F';
+}
+
+/**
+ * 冒険者経験値を追加する。
+ */
+function addAdventurerExp(player, amount) {
+    if (!player.guild) return; // ギルドに参加していない場合は経験値を追加しない
+    
+    player.adventurerExp = (player.adventurerExp || 0) + amount;
+    
+    // ランクアップチェック
+    const oldRank = getAdventurerRank(player);
+    localStorage.setItem("player", JSON.stringify(player));
+    const newRank = getAdventurerRank(player);
+    
+    if (oldRank !== newRank) {
+        alert(`冒険者ランクが上がりました！ ${oldRank} → ${newRank}`);
+    }
 }
 
 /**
