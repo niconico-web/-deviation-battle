@@ -195,6 +195,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (typeof updateGuildQuestProgress === 'function') {
             updateGuildQuestProgress('win_online', 1);
         }
+        // ギルドに参加している場合、冒険者経験値を追加（勝利で2経験値）
+        if (typeof addAdventurerExp === 'function') {
+            addAdventurerExp(player, 2);
+        }
     }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
