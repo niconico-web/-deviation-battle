@@ -412,6 +412,8 @@ function initializeGuildSystem() {
         if (player) {
             window.socket.emit('guild:getPlayerGuild', player.id);
             window.socket.on('guild:playerGuild', (guild) => {
+                // サーバーからギルド情報が返ってきた場合のみ更新
+                // nullの場合はローカルのギルド情報を維持
                 if (guild) {
                     setPlayerGuild(guild);
                 }
