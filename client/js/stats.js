@@ -48,13 +48,27 @@ function generatePlayerId() {
     return result;
 }
 
+function isValidPlayerId(id) {
+    // IDが6文字の英大文字と数字で構成されているかチェック
+    if (!id || typeof id !== 'string' || id.length !== 6) {
+        return false;
+    }
+    const validChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (const char of id) {
+        if (!validChars.includes(char)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function migratePlayer(player) {
     if (!player) return null;
 
     // Create a mutable copy and ensure all essential properties are present with defaults
     const migratedPlayer = {
         ...player, // Start with existing player data
-        id: player.id || generatePlayerId(),
+        id: (player.id && isValidPlayerId(player.id)) ? player.id : generatePlayerId(), // Validate or regenerate ID
         name: player.name || "無名",
         xp: player.xp || 0,
         level: player.level || calcLevel(player.xp || 0), // Recalculate level based on XP if missing

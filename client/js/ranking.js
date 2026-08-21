@@ -47,22 +47,18 @@ function setupRankingEventListeners() {
 
     // ソケットイベントハンドラーを設定
     const setupSocketHandler = () => {
-        if (socketHandlerSetup) {
-            return; // 既に設定済みなら何もしない
-        }
+        if (!window.socket) return;
         
-        if (window.socket) {
-            // 既存のハンドラーを削除して重複を防ぐ
-            window.socket.off('ranking:list');
-            
-            window.socket.on('ranking:list', (ranking) => {
-                console.log('[Ranking] Received ranking data:', ranking);
-                renderRanking(ranking);
-            });
-            
-            socketHandlerSetup = true;
-            console.log('[Ranking] Socket handler set up');
-        }
+        // 既存のハンドラーを削除して重複を防ぐ
+        window.socket.off('ranking:list');
+        
+        window.socket.on('ranking:list', (ranking) => {
+            console.log('[Ranking] Received ranking data:', ranking);
+            renderRanking(ranking);
+        });
+        
+        socketHandlerSetup = true;
+        console.log('[Ranking] Socket handler set up');
     };
 
     // 即時設定

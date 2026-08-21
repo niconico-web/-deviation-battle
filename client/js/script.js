@@ -1171,6 +1171,32 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatGrowthInfo(); // 初期表示
         }
 
+        // データ管理ボタン
+        const saveDataBtn = document.getElementById('saveDataBtn');
+        if (saveDataBtn) {
+            saveDataBtn.addEventListener('click', () => {
+                syncPlayerToServer(false);
+            });
+        }
+
+        const loadDataBtn = document.getElementById('loadDataBtn');
+        if (loadDataBtn) {
+            loadDataBtn.addEventListener('click', () => {
+                const loadPlayerId = document.getElementById('loadPlayerId').value.trim().toUpperCase();
+                if (!loadPlayerId || loadPlayerId.length !== 6) {
+                    alert('プレイヤーIDは6文字で入力してください。');
+                    return;
+                }
+                if (!window.socket || !window.socket.connected) {
+                    alert('サーバーに接続されていません。ページを再読み込みしてください。');
+                    return;
+                }
+                if (confirm(`プレイヤーID: ${loadPlayerId} のデータを読み込みます。\n現在のデータは上書きされます。よろしいですか？`)) {
+                    window.socket.emit('data:load', loadPlayerId);
+                }
+            });
+        }
+
         // ソロボスバトル開始ボタン
         const startSoloBossBattleBtn = document.getElementById('startSoloBossBattleBtn');
         if (startSoloBossBattleBtn) {
