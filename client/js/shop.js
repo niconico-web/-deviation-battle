@@ -593,7 +593,7 @@ function showCreateWeaponDialog() {
         });
     });
     
-    modal.style.display = 'block';
+    modal.style.display = 'flex';
 }
 
 function getSelectedOrbs() {

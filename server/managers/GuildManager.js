@@ -88,14 +88,16 @@ function saveQuestData() {
 }
 
 // ギルドを作成
-function createGuild(guildData) {
-    const { name, leaderId, leaderName } = guildData;
+function createGuild(newGuildInput) {
+    const { name, leaderId, leaderName } = newGuildInput;
     
     if (!name || !leaderId || !leaderName) {
         return { success: false, message: '必須項目が不足しています' };
     }
     
     // ギルド名の重複チェック
+    // 以前はこの関数の引数名が module 直下の guildData ストアと同名だったため、
+    // 重複チェックが引数オブジェクト自身を調べてしまい機能していなかった。
     if (Object.values(guildData).some(g => g.name === name)) {
         return { success: false, message: 'このギルド名は既に使用されています' };
     }
@@ -117,9 +119,12 @@ function createGuild(guildData) {
             contribution: 0
         }],
         createdAt: Date.now(),
-        description: guildData.description || ''
+        description: newGuildInput.description || ''
     };
     
+    // 以前は引数のシャドーイングにより、ここで module 直下の guildData ではなく
+    // 引数オブジェクトに書き込んでしまっていたため、作成したギルドが
+    // 実際にはサーバーに一切保存されない（＝誰の一覧にも表示されない）不具合があった。
     guildData[guildId] = newGuild;
     saveGuildData();
     

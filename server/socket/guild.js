@@ -64,6 +64,21 @@ module.exports = function(io){
             socket.emit("guild:allGuilds", guilds);
         });
 
+        // ギルド一覧取得（ギルド一覧モーダル用）
+        // クライアント側(client/js/guild.js)は "guild:getList" を送信し、
+        // "guild:list" イベントで { id, name, description, memberCount } の配列を期待している。
+        // このハンドラが存在しなかったため、ギルド一覧モーダルが常に空のまま
+        // （検索欄などの静的な要素しか表示されない）不具合の原因になっていた。
+        socket.on("guild:getList", () => {
+            const guilds = GuildManager.getAllGuilds().map(g => ({
+                id: g.id,
+                name: g.name,
+                description: g.description || '',
+                memberCount: (g.members || []).length
+            }));
+            socket.emit("guild:list", guilds);
+        });
+
         // クエスト作成
         socket.on("quest:create", (data) => {
             const { guildId, title, description, category, rank, reward, playerId, playerName, type } = data;

@@ -131,6 +131,48 @@
                     <p>低ティアのオーブを複数使って、高ティアのオーブを作成できます。</p>
                     <button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
                 </div>
+
+                <!-- オリジナル武器作成モーダル -->
+                <div id="createWeaponModal" class="modal">
+                    <div class="modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3>オリジナル武器作成</h3>
+                        <p id="createWeaponCost">作成コスト: 0コイン</p>
+                        <label class="field-label" for="weaponName">武器名</label>
+                        <input type="text" id="weaponName" placeholder="武器名を入力" maxlength="20">
+                        <label class="field-label" for="weaponType">武器種</label>
+                        <select id="weaponType">
+                            <option value="sword_shield">片手剣＋盾</option>
+                            <option value="spear">長槍</option>
+                            <option value="greatsword">大剣</option>
+                            <option value="dual_swords">双剣</option>
+                            <option value="scythe">鎌</option>
+                            <option value="pistol">ピストル</option>
+                            <option value="katana">刀</option>
+                            <option value="magic_wand">魔法の杖</option>
+                        </select>
+                        <label class="field-label" for="ultimateName">必殺技名</label>
+                        <input type="text" id="ultimateName" placeholder="必殺技名を入力" maxlength="20">
+                        <label class="field-label">使用するオーブ（任意）</label>
+                        <div id="orbSelectContainer" class="orb-select-container">
+                            <!-- 所持オーブの選択肢がここに表示される -->
+                        </div>
+                        <div id="dualWeaponTypeSelect" class="field-group" style="display: none;">
+                            <label class="field-label" for="dualWeaponType">サブ武器種（デュアルウェポン）</label>
+                            <select id="dualWeaponType">
+                                <option value="sword_shield">片手剣＋盾</option>
+                                <option value="spear">長槍</option>
+                                <option value="greatsword">大剣</option>
+                                <option value="dual_swords">双剣</option>
+                                <option value="scythe">鎌</option>
+                                <option value="pistol">ピストル</option>
+                                <option value="katana">刀</option>
+                                <option value="magic_wand">魔法の杖</option>
+                            </select>
+                        </div>
+                        <button type="button" id="createWeaponBtn" class="btn btn-primary">作成する</button>
+                    </div>
+                </div>
                 <h3>素材管理</h3>
                 <div class="setting-box">
                     <p>モンスターから入手した素材を確認・管理できます。</p>
