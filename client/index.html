@@ -150,6 +150,8 @@
                             <option value="pistol">ピストル</option>
                             <option value="katana">刀</option>
                             <option value="magic_wand">魔法の杖</option>
+                            <option value="gloves">グローブ</option>
+                            <option value="shoes">シューズ</option>
                         </select>
                         <label class="field-label" for="ultimateName">必殺技名</label>
                         <input type="text" id="ultimateName" placeholder="必殺技名を入力" maxlength="20">
@@ -168,6 +170,8 @@
                                 <option value="pistol">ピストル</option>
                                 <option value="katana">刀</option>
                                 <option value="magic_wand">魔法の杖</option>
+                                <option value="gloves">グローブ</option>
+                                <option value="shoes">シューズ</option>
                             </select>
                         </div>
                         <button type="button" id="createWeaponBtn" class="btn btn-primary">作成する</button>
@@ -303,27 +307,6 @@
                 <div class="setting-box">
                     <h4>フレンド申請</h4>
                     <div id="friendRequests"></div>
-                </div>
-                <h3>ボスバトル</h3>
-                <div id="soloBossBattleControls" class="setting-box">
-                    <h4>ソロでボスに挑戦</h4>
-                    <label class="field-label" for="soloBossSelect">ボス選択</label>
-                    <select id="soloBossSelect"></select>
-                    <label class="field-label" for="soloBossDifficulty">難易度</label>
-                    <select id="soloBossDifficulty">
-                        <option value="easy">イージー</option>
-                        <option value="medium">ノーマル</option>
-                        <option value="hard">ハード</option>
-                    </select>
-                    <button type="button" id="startSoloBossBattleBtn" class="btn btn-danger">ソロで挑戦開始</button>
-                </div>
-                <h3>ランキング</h3>
-                <div class="setting-box">
-                    <p>プレイヤーの総合的な戦力を示すランキングです。</p>
-                    <button id="refreshRankingBtn" class="btn btn-secondary">ランキング更新</button>
-                </div>
-                <div id="ranking-list-container">
-                    <p>ランキングを読み込み中...</p>
                 </div>
             </section>
 
@@ -469,9 +452,7 @@
             <section id="section-help" class="content-section">
                 <h2>ヘルプ</h2>
                 <div class="setting-box">
-                    <h3>ユニーク能力一覧</h3>
-                    <div id="unique-abilities-list" class="ability-list">
-                        <!-- Unique abilities will be rendered here by help.js -->
+                    <iframe src="help.html" width="1000" height="1000"></iframe>
                     </div>
                 </div>
             </section>

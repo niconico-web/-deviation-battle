@@ -727,7 +727,9 @@ const WEAPON_TYPES = {
     scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 1.1 },
     pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
     katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} },
-    magic_wand:   { name: "魔法の杖",   primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } }
+    magic_wand:   { name: "魔法の杖",   primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } },
+    gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: [], debuff: { def: 0.9 } },
+    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: [], debuff: { atk: 0.9 } }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
