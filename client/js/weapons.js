@@ -742,7 +742,7 @@ const WEAPON_CATALOG = {
         tier1: { name: "鉄の盾剣", ultimate: "シールドバッシュ" },
         tier2: { name: "騎士の盾剣", ultimate: "ホーリーガード" },
         tier3: { name: "聖騎士の盾剣", ultimate: "ディバインプロテクション" },
-        unique: { name: "神盾剣ゼウス・ヘカテー", ultimate: "神々の裁き" }
+        unique: { name: "神盾剣ゼウス", ultimate: "神々の裁き" }
     },
     spear: {
         tier1: { name: "木の槍", ultimate: "突撃" },
@@ -786,6 +786,18 @@ const WEAPON_CATALOG = {
         tier2: { name: "魔術師の杖", ultimate: "ファイアボール" },
         tier3: { name: "賢者の杖", ultimate: "メテオストライク" },
         unique: { name: "魔導書　グリモワール", ultimate: "禁断の魔法" }
+    },
+    gloves: {
+        tier1: { name: "格闘家のグローブ", ultimate: "ぶん殴り" },
+        tier2: { name: "ドラゴングローブ", ultimate: "ドラコストライク" },
+        tier3: { name: "イグニッショングローブ", ultimate: "イグニストハート" },
+        unique: { name: "タイタン・クラッシャー", ultimate: "タイタンキル" }
+    },
+    shoes: {
+        tier1: { name: "下駄", ultimate: "三連蹴り" },
+        tier2: { name: "マグネティック・シューズ", ultimate: "マグネ・ストライク" },
+        tier3: { name: "サイクロン・レッグ", ultimate: "ゼファーエッジ" },
+        unique: { name: "ヘカテーの黒靴", ultimate: "エリュシオン・スタンプ" }
     }
 };
 
