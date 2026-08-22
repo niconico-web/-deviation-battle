@@ -491,6 +491,13 @@ function initializeGuildSystem() {
     // ギルド一覧表示
     document.getElementById('showGuildListBtn')?.addEventListener('click', () => {
         document.getElementById('guildListModal').style.display = 'flex';
+        // 開くたびに最新の一覧をサーバーから取得する
+        // （以前はページ読み込み時に一度取得したきりだったため、
+        //   その後に作成/参加したギルドが一覧に反映されないままだった）
+        if (window.socket && window.socket.connected) {
+            document.getElementById('guild-list-container').innerHTML = '<p>読み込み中...</p>';
+            window.socket.emit('guild:getList');
+        }
     });
     document.getElementById('closeGuildListBtn')?.addEventListener('click', () => {
         document.getElementById('guildListModal').style.display = 'none';
