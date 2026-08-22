@@ -444,25 +444,39 @@ function initializeGuildSystem() {
     document.getElementById('confirmCreateGuildBtn')?.addEventListener('click', () => {
         const guildName = document.getElementById('guildName').value.trim();
         const guildDescription = document.getElementById('guildDescription').value.trim();
-        if (guildName && guildDescription) {
-            const newGuild = { id: `guild_${Date.now()}`, name: guildName, description: guildDescription, members: [getPlayerData().id], contribution: 0 };
-            
-            // 新しいギルドにウィークリークエストを配布
-            const currentWeekId = getWeekId();
-            const quests = generateWeeklyQuests();
-            saveGuildQuests({ weekId: currentWeekId, quests: quests });
-
-            setPlayerGuild(newGuild);
-            document.getElementById('createGuildModal').style.display = 'none';
-            alert(`ギルド「${guildName}」を作成しました！`);
-        } else {
-            alert('ギルド名と説明を入力してください。');
+        const player = getPlayerData();
+        if (!player) {
+            alert('キャラクターを作成してください。');
+            return;
         }
+        if (!guildName || !guildDescription) {
+            alert('ギルド名と説明を入力してください。');
+            return;
+        }
+        if (!window.socket || !window.socket.connected) {
+            alert('サーバーに接続されていません。ページを再読み込みしてください。');
+            return;
+        }
+        // サーバーにギルドを作成してもらう（他プレイヤーのギルド一覧にも反映されるように）
+        window.socket.emit('guild:create', {
+            name: guildName,
+            description: guildDescription,
+            playerId: player.id,
+            playerName: player.name
+        });
     });
     document.getElementById('leaveGuildBtn')?.addEventListener('click', () => {
+        const playerGuild = getPlayerGuild();
+        const player = getPlayerData();
+        if (!playerGuild || !player) return;
         if (confirm('本当にギルドを脱退しますか？')) {
-            setPlayerGuild(null);
-            alert('ギルドから脱退しました。');
+            if (window.socket && window.socket.connected) {
+                window.socket.emit('guild:leave', { guildId: playerGuild.id, playerId: player.id });
+            } else {
+                // サーバーに接続できない場合でも、ローカルの所属状態は解除しておく
+                setPlayerGuild(null);
+                alert('ギルドから脱退しました。');
+            }
         }
     });
 
@@ -510,6 +524,38 @@ function initializeGuildSystem() {
                 document.getElementById('guildListModal').style.display = 'none';
             } else {
                 alert(result.message || 'ギルド参加に失敗しました');
+            }
+        });
+
+        // ギルド作成のサーバー応答
+        window.socket.on('guild:createResponse', (result) => {
+            if (result.success) {
+                const newGuild = result.guild;
+
+                // 新しいギルドにウィークリークエストを配布
+                const currentWeekId = getWeekId();
+                const quests = generateWeeklyQuests();
+                saveGuildQuests({ weekId: currentWeekId, quests: quests });
+
+                setPlayerGuild(newGuild);
+                document.getElementById('createGuildModal').style.display = 'none';
+                document.getElementById('guildName').value = '';
+                document.getElementById('guildDescription').value = '';
+                alert(`ギルド「${newGuild.name}」を作成しました！`);
+                window.socket.emit('guild:getList'); // 一覧を最新化
+            } else {
+                alert(result.message || 'ギルド作成に失敗しました');
+            }
+        });
+
+        // ギルド脱退のサーバー応答
+        window.socket.on('guild:leaveResponse', (result) => {
+            if (result.success) {
+                setPlayerGuild(null);
+                alert('ギルドから脱退しました。');
+                window.socket.emit('guild:getList'); // 一覧を最新化
+            } else {
+                alert(result.message || 'ギルド脱退に失敗しました');
             }
         });
 

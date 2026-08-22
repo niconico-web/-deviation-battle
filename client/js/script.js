@@ -782,40 +782,11 @@ function setupSocketEventHandlers() {
     console.log("Socket event handlers setup complete");
 }
 
-/**
- * サーバーから受け取った戦力ランキングを画面に描画する。
- * @param {Array<object>} ranking
- */
-function renderRanking(ranking) {
-    const container = document.getElementById("rankingList");
-    if (!container) return;
-
-    if (!Array.isArray(ranking) || ranking.length === 0) {
-        container.innerHTML = "<p>まだランキングデータがありません。他のプレイヤーがオンラインに接続すると表示されます。</p>";
-        return;
-    }
-
-    const myPlayer = getPlayerData();
-    const myId = myPlayer ? myPlayer.id : null;
-
-    container.innerHTML = "";
-    ranking.forEach((entry, index) => {
-        const item = document.createElement("div");
-        item.className = "ranking-item" + (entry.id === myId ? " me" : "");
-
-        const studyHours = (entry.studyMinutes / 60).toFixed(1);
-
-        item.innerHTML =
-            `<div class="ranking-rank">${index + 1}位</div>
-            <div class="ranking-info">
-                <div class="ranking-name">${entry.name}（Lv.${entry.level}）</div>
-                <div class="ranking-breakdown">勉強時間: ${studyHours}時間 / 対人戦勝利: ${entry.pvpWins}勝 / ボス周回: ${entry.bossRunCount}回</div>
-            </div>
-            <div class="ranking-score">${entry.powerScore.toLocaleString()}<br><span style="font-size:0.7em;color:var(--text-secondary);">戦力</span></div>`;
-
-        container.appendChild(item);
-    });
-}
+// 戦力ランキングの描画は ranking.js の renderRanking()（#ranking-list-container を使用）が担当する。
+// ここに同名の関数を重複定義すると、後から読み込まれる方が上書きしてしまい、
+// ranking.js側が期待する要素(#ranking-list-container)ではなく存在しない#rankingListを
+// 参照してしまうため、ランキングが「読み込み中」のまま止まる不具合の原因になっていた。
+// そのため、このファイルでは定義しない。
 
 // グローバルにアクセス可能に
 window.normalizePlayerId = normalizePlayerId;

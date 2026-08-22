@@ -65,10 +65,14 @@ function isValidPlayerId(id) {
 function migratePlayer(player) {
     if (!player) return null;
 
+    // プレイヤーID機能追加前に作られたデータなどはidが無い/不正な場合がある。
+    // その場合だけ新規IDを発行する（既存の有効なIDは絶対に上書きしない）。
+    const needsNewId = !(player.id && isValidPlayerId(player.id));
+
     // Create a mutable copy and ensure all essential properties are present with defaults
     const migratedPlayer = {
         ...player, // Start with existing player data
-        id: (player.id && isValidPlayerId(player.id)) ? player.id : generatePlayerId(), // Validate or regenerate ID
+        id: needsNewId ? generatePlayerId() : player.id, // Validate or regenerate ID
         name: player.name || "無名",
         xp: player.xp || 0,
         level: player.level || calcLevel(player.xp || 0), // Recalculate level based on XP if missing
@@ -145,6 +149,18 @@ function migratePlayer(player) {
     
     // Ensure current HP is not greater than max HP
     migratedPlayer.hp = migratedPlayer.hp != null ? Math.min(migratedPlayer.hp, migratedPlayer.maxHp) : migratedPlayer.maxHp;
+
+    // 新しくIDを発行した場合は、その場でlocalStorageに保存して確定させる。
+    // こうしないと、migratePlayerが呼ばれるたびに毎回別のランダムIDが
+    // 生成されてしまい（＝IDがコロコロ変わってしまい）、
+    // サーバー保存や引き継ぎのIDが一致しなくなるバグの原因になる。
+    if (needsNewId && typeof localStorage !== "undefined") {
+        try {
+            localStorage.setItem("player", JSON.stringify(migratedPlayer));
+        } catch (e) {
+            console.error("[Stats] Failed to persist newly generated player ID:", e);
+        }
+    }
 
     return migratedPlayer;
 }
