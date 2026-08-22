@@ -192,6 +192,15 @@ function initializeSocket() {
         forceNew: false
     });
 
+    // SocialSystem（フレンド申請など）は script.js より先に読み込まれ、
+    // 自身のDOMContentLoadedハンドラの中で window.socket の存在チェックを行うが、
+    // その時点ではまだここ（initializeSocket）が実行されておらず window.socket が
+    // 存在しないため、フレンド申請関連のソケットリスナーが一切登録されない状態だった。
+    // ここでsocket生成後に改めて呼び直すことで、リスナーを確実に登録する。
+    if (typeof socialSystem !== 'undefined' && socialSystem && typeof socialSystem.setupSocketListeners === 'function') {
+        socialSystem.setupSocketListeners();
+    }
+
     // Connection logging
     window.socket.on("connect", () => {
         console.log("接続:", window.socket.id);
@@ -1163,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 if (confirm(`プレイヤーID: ${loadPlayerId} のデータを読み込みます。\n現在のデータは上書きされます。よろしいですか？`)) {
-                    window.socket.emit('data:load', loadPlayerId);
+                    window.socket.emit('loadData', loadPlayerId);
                 }
             });
         }
