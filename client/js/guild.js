@@ -469,7 +469,17 @@ function initializeGuildSystem() {
         const playerGuild = getPlayerGuild();
         const player = getPlayerData();
         if (!playerGuild || !player) return;
-        if (confirm('本当にギルドを脱退しますか？')) {
+
+        const isLeader = playerGuild.leaderId === player.id;
+        const isOnlyMember = (playerGuild.members || []).length <= 1;
+        let confirmMessage = '本当にギルドを脱退しますか？';
+        if (isLeader) {
+            confirmMessage = isOnlyMember
+                ? 'あなたが最後のメンバーです。脱退するとギルドは解散されます。よろしいですか？'
+                : 'リーダーを脱退すると、他のメンバーにリーダー権限が引き継がれます。よろしいですか？';
+        }
+
+        if (confirm(confirmMessage)) {
             if (window.socket && window.socket.connected) {
                 window.socket.emit('guild:leave', { guildId: playerGuild.id, playerId: player.id });
             } else {
@@ -559,7 +569,7 @@ function initializeGuildSystem() {
         window.socket.on('guild:leaveResponse', (result) => {
             if (result.success) {
                 setPlayerGuild(null);
-                alert('ギルドから脱退しました。');
+                alert(result.disbanded ? 'ギルドを解散しました。' : 'ギルドから脱退しました。');
                 window.socket.emit('guild:getList'); // 一覧を最新化
             } else {
                 alert(result.message || 'ギルド脱退に失敗しました');

@@ -161,20 +161,30 @@ function leaveGuild(guildId, playerId) {
     if (!guild) {
         return { success: false, message: 'ギルドが見つかりません' };
     }
-    
-    // リーダーは脱退できない
-    if (guild.leaderId === playerId) {
-        return { success: false, message: 'リーダーはギルドを脱退できません' };
-    }
-    
+
     const memberIndex = guild.members.findIndex(m => m.id === playerId);
     if (memberIndex === -1) {
         return { success: false, message: 'メンバーが見つかりません' };
     }
-    
+
     guild.members.splice(memberIndex, 1);
+
+    if (guild.leaderId === playerId) {
+        if (guild.members.length === 0) {
+            // 最後の一人（リーダー）が抜けた場合はギルドごと解散する
+            delete guildData[guildId];
+            saveGuildData();
+            return { success: true, guild: null, disbanded: true };
+        }
+        // リーダーが抜けた場合は、残っているメンバーの中で最も古参の人に引き継ぐ
+        const nextLeader = guild.members[0];
+        guild.leaderId = nextLeader.id;
+        guild.leaderName = nextLeader.name;
+        nextLeader.role = 'leader';
+    }
+
     saveGuildData();
-    
+
     return { success: true, guild: guild };
 }
 

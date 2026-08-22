@@ -342,165 +342,107 @@ textarea {
 }
 
 /* ランキング */
-.ranking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+.ranking-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 6px;
 }
 
-.ranking-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
+.ranking-table thead th {
+    text-align: left;
     padding: 8px 12px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
 }
 
-.ranking-item.me {
-    border-color: var(--accent-blue);
-    background-color: rgba(74, 144, 226, 0.15);
+.ranking-table thead th:first-child {
+    text-align: center;
+    width: 3.5em;
 }
 
-.ranking-rank {
-    width: 2.2em;
-    flex-shrink: 0;
+.ranking-table tbody tr {
+    background-color: var(--bg-light);
+    box-shadow: var(--shadow-sm);
+}
+
+.ranking-table tbody td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ranking-table tbody td:first-child {
     text-align: center;
     font-weight: bold;
     color: var(--accent-yellow);
+    border-left: 1px solid var(--border-color);
+    border-radius: 6px 0 0 6px;
 }
 
-.ranking-info {
-    flex-grow: 1;
-    min-width: 0;
-}
-
-.ranking-name {
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ranking-breakdown {
-    font-size: 0.75rem;
+.ranking-table tbody td:last-child {
+    border-right: 1px solid var(--border-color);
+    border-radius: 0 6px 6px 0;
     color: var(--text-secondary);
+    font-size: 0.8rem;
 }
 
-.ranking-score {
-    flex-shrink: 0;
-    text-align: right;
+.ranking-table tbody tr:nth-child(1) td:first-child {
+    color: #ffd54f;
+    font-size: 1.1rem;
+}
+
+.ranking-table tbody tr:nth-child(2) td:first-child {
+    color: #d7d7d7;
+    font-size: 1.05rem;
+}
+
+.ranking-table tbody tr:nth-child(3) td:first-child {
+    color: #d8935a;
+    font-size: 1.02rem;
+}
+
+.ranking-table tbody tr:nth-child(1) {
+    box-shadow: 0 0 0 1px #ffd54f inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr:nth-child(2) {
+    box-shadow: 0 0 0 1px #d7d7d7 inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr:nth-child(3) {
+    box-shadow: 0 0 0 1px #d8935a inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr.current-user-rank {
+    background-color: rgba(91, 155, 213, 0.18);
+}
+
+.ranking-table tbody tr.current-user-rank td:first-child,
+.ranking-table tbody tr.current-user-rank td:last-child {
+    border-left-color: var(--accent-blue);
+    border-right-color: var(--accent-blue);
+}
+
+.ranking-table tbody tr.current-user-rank td {
+    border-top-color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
     font-weight: bold;
-    color: var(--accent-blue);
 }
 
-/* ランキング */
-.ranking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.ranking-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 8px 12px;
-}
-
-.ranking-item.me {
-    border-color: var(--accent-blue);
-    background-color: rgba(74, 144, 226, 0.15);
-}
-
-.ranking-rank {
-    width: 2.2em;
-    flex-shrink: 0;
-    text-align: center;
-    font-weight: bold;
-    color: var(--accent-yellow);
-}
-
-.ranking-info {
-    flex-grow: 1;
-    min-width: 0;
-}
-
-.ranking-name {
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ranking-breakdown {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.ranking-score {
-    flex-shrink: 0;
-    text-align: right;
-    font-weight: bold;
-    color: var(--accent-blue);
-}
-
-/* ランキング */
-.ranking-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.ranking-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background-color: var(--bg-light);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 8px 12px;
-}
-
-.ranking-item.me {
-    border-color: var(--accent-blue);
-    background-color: rgba(74, 144, 226, 0.15);
-}
-
-.ranking-rank {
-    width: 2.2em;
-    flex-shrink: 0;
-    text-align: center;
-    font-weight: bold;
-    color: var(--accent-yellow);
-}
-
-.ranking-info {
-    flex-grow: 1;
-    min-width: 0;
-}
-
-.ranking-name {
-    font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ranking-breakdown {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.ranking-score {
-    flex-shrink: 0;
-    text-align: right;
-    font-weight: bold;
-    color: var(--accent-blue);
+@media (max-width: 600px) {
+    .ranking-table {
+        font-size: 0.8rem;
+    }
+    .ranking-table thead th,
+    .ranking-table tbody td {
+        padding: 6px 6px;
+    }
+    .ranking-table thead th:nth-child(5),
+    .ranking-table tbody td:nth-child(5) {
+        display: none;
+    }
 }
 
 /* スキルツリー */

@@ -104,12 +104,13 @@ function renderRanking(ranking) {
 
     ranking.forEach((entry, index) => {
         const isCurrentUser = entry.id === playerId;
+        const rankLabel = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
         tableHtml += `
             <tr class="${isCurrentUser ? 'current-user-rank' : ''}">
-                <td>${index + 1}</td>
-                <td>${escapeHtml(entry.name)}</td>
-                <td>${entry.level}</td>
-                <td>${entry.powerScore}</td>
+                <td>${rankLabel}</td>
+                <td>${escapeHtml(entry.name)}${isCurrentUser ? ' <span style="color:var(--accent-blue);font-size:0.75em;">(自分)</span>' : ''}</td>
+                <td>Lv.${entry.level}</td>
+                <td>${entry.powerScore.toLocaleString()}</td>
                 <td>${entry.studyMinutes}分 / ${entry.pvpWins}勝 / ${entry.bossRunCount}回</td>
             </tr>
         `;
