@@ -74,9 +74,12 @@ function acceptQuest(questId) {
     const questIndex = quests.findIndex(q => q.id === questId);
     if (questIndex > -1 && quests[questIndex].status === 'available') {
         // ランクチェック
+        // 以前はプレイヤーランク（文字列 'F'〜'S'）とクエストランクの数値を
+        // 直接比較していたため、文字列 < 数値 の比較が常にfalseになり
+        // ランク制限が事実上機能していなかった。両方を数値化して比較する。
         const playerRank = getAdventurerRank(player);
         const questRank = quests[questIndex].rank;
-        if (playerRank < getRankValue(questRank)) {
+        if (getRankValue(playerRank) < getRankValue(questRank)) {
             alert(`ランク不足です。必要ランク: ${questRank} (現在: ${playerRank})`);
             return;
         }
@@ -385,11 +388,39 @@ function renderActiveQuests() {
  */
 function generateWeeklyQuests() {
     const questPool = [
+        // --- 素材納品クエスト（低〜中ランク） ---
         { id: 'collect_goblin_fang_10', type: 'collect_material', title: 'ゴブリンの牙収集', description: 'ゴブリンから牙を10本集める。', target: { materialId: 'goblin_fang', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
+        { id: 'collect_goblin_hide_10', type: 'collect_material', title: 'ゴブリンの皮収集', description: 'ゴブリンから皮を10枚集める。', target: { materialId: 'goblin_hide', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
         { id: 'collect_slime_jelly_10', type: 'collect_material', title: 'スライムゼリー収集', description: 'スライムからゼリーを10個集める。', target: { materialId: 'slime_jelly', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
-        { id: 'defeat_goblin_king_easy_3', type: 'defeat_boss', title: 'ゴブリンキング討伐(Easy) x3', description: 'ゴブリンキング(EASY)を3体討伐する。', target: { bossId: 'goblin_king', difficulty: 'easy', count: 3 }, reward: 150, category: 'BATTLE', rank: 'D' },
+        { id: 'collect_slime_core_8', type: 'collect_material', title: 'スライムコア収集', description: 'スライムからコアを8個集める。', target: { materialId: 'slime_core', count: 8 }, reward: 120, category: 'DELIVERY', rank: 'D' },
+        { id: 'collect_dragon_scale_5', type: 'collect_material', title: 'ドラゴンの鱗収集', description: 'フレイムドラゴンから鱗を5枚集める。', target: { materialId: 'dragon_scale', count: 5 }, reward: 250, category: 'DELIVERY', rank: 'C' },
+        { id: 'collect_dragon_heart_3', type: 'collect_material', title: 'ドラゴンの心臓収集', description: 'フレイムドラゴンから心臓を3個集める。', target: { materialId: 'dragon_heart', count: 3 }, reward: 300, category: 'DELIVERY', rank: 'C' },
+
+        // --- ボス討伐クエスト（中〜最高ランク） ---
+        // 序盤ボス（EASY〜MEDIUM）でもギルドクエストとしては相応の高ランクを設定
+        { id: 'defeat_goblin_king_easy_3', type: 'defeat_boss', title: 'ゴブリンキング討伐(Easy) x3', description: 'ゴブリンキング(EASY)を3体討伐する。', target: { bossId: 'goblin_king', difficulty: 'easy', count: 3 }, reward: 200, category: 'BATTLE', rank: 'C' },
+        { id: 'defeat_goblin_king_medium_2', type: 'defeat_boss', title: 'ゴブリンキング討伐(Medium) x2', description: 'ゴブリンキング(MEDIUM)を2体討伐する。', target: { bossId: 'goblin_king', difficulty: 'medium', count: 2 }, reward: 280, category: 'BATTLE', rank: 'B' },
+        { id: 'defeat_orc_warlord_easy_3', type: 'defeat_boss', title: 'オークの戦将討伐(Easy) x3', description: 'オークの戦将(EASY)を3体討伐する。', target: { bossId: 'orc_warlord', difficulty: 'easy', count: 3 }, reward: 220, category: 'BATTLE', rank: 'C' },
+        { id: 'defeat_orc_warlord_medium_2', type: 'defeat_boss', title: 'オークの戦将討伐(Medium) x2', description: 'オークの戦将(MEDIUM)を2体討伐する。', target: { bossId: 'orc_warlord', difficulty: 'medium', count: 2 }, reward: 300, category: 'BATTLE', rank: 'B' },
+        { id: 'defeat_shadow_serpent_medium_2', type: 'defeat_boss', title: 'ヨルムンガンド討伐(Medium) x2', description: 'ヨルムンガンド(MEDIUM)を2体討伐する。', target: { bossId: 'shadow_serpent', difficulty: 'medium', count: 2 }, reward: 320, category: 'BATTLE', rank: 'B' },
+        { id: 'defeat_shadow_serpent_hard_1', type: 'defeat_boss', title: 'ヨルムンガンド討伐(Hard)', description: 'ヨルムンガンド(HARD)を1体討伐する。', target: { bossId: 'shadow_serpent', difficulty: 'hard', count: 1 }, reward: 400, category: 'BATTLE', rank: 'A' },
+        { id: 'defeat_ice_golem_medium_2', type: 'defeat_boss', title: 'アイスゴーレム討伐(Medium) x2', description: 'アイスゴーレム(MEDIUM)を2体討伐する。', target: { bossId: 'ice_golem', difficulty: 'medium', count: 2 }, reward: 320, category: 'BATTLE', rank: 'B' },
+        { id: 'defeat_ice_golem_hard_1', type: 'defeat_boss', title: 'アイスゴーレム討伐(Hard)', description: 'アイスゴーレム(HARD)を1体討伐する。', target: { bossId: 'ice_golem', difficulty: 'hard', count: 1 }, reward: 400, category: 'BATTLE', rank: 'A' },
+        { id: 'defeat_flame_dragon_medium_2', type: 'defeat_boss', title: 'フレイムドラゴン討伐(Medium) x2', description: 'フレイムドラゴン(MEDIUM)を2体討伐する。', target: { bossId: 'flame_dragon', difficulty: 'medium', count: 2 }, reward: 380, category: 'BATTLE', rank: 'A' },
+        { id: 'defeat_flame_dragon_hard_1', type: 'defeat_boss', title: 'フレイムドラゴン討伐(Hard)', description: 'フレイムドラゴン(HARD)を1体討伐する。', target: { bossId: 'flame_dragon', difficulty: 'hard', count: 1 }, reward: 450, category: 'BATTLE', rank: 'A' },
+        { id: 'defeat_abyssal_knight_hard_1', type: 'defeat_boss', title: 'アビサルナイト討伐(Hard)', description: 'アビサルナイト(HARD)を1体討伐する。', target: { bossId: 'abyssal_knight', difficulty: 'hard', count: 1 }, reward: 550, category: 'BATTLE', rank: 'S' },
+        { id: 'defeat_celestial_guardian_hard_1', type: 'defeat_boss', title: 'セレスティアルガーディアン討伐(Hard)', description: 'セレスティアルガーディアン(HARD)を1体討伐する。', target: { bossId: 'celestial_guardian', difficulty: 'hard', count: 1 }, reward: 600, category: 'BATTLE', rank: 'S' },
+        { id: 'defeat_abyss_warden_hard_1', type: 'defeat_boss', title: '深淵ヲ廻ルモノ討伐(Hard)', description: '深淵ヲ廻ルモノ(HARD)を1体討伐する。', target: { bossId: 'abyss_warden', difficulty: 'hard', count: 1 }, reward: 700, category: 'BATTLE', rank: 'S' },
+
+        // --- 対人戦クエスト ---
+        { id: 'win_online_3', type: 'win_online', title: 'オンライン対戦3勝', description: 'オンライン対戦で3回勝利する。', target: { count: 3 }, reward: 150, category: 'BATTLE', rank: 'D' },
         { id: 'win_online_5', type: 'win_online', title: 'オンライン対戦5勝', description: 'オンライン対戦で5回勝利する。', target: { count: 5 }, reward: 200, category: 'BATTLE', rank: 'C' },
+        { id: 'win_online_10', type: 'win_online', title: 'オンライン対戦10勝', description: 'オンライン対戦で10回勝利する。', target: { count: 10 }, reward: 320, category: 'BATTLE', rank: 'B' },
+
+        // --- 勉強クエスト ---
+        { id: 'study_1_hour', type: 'study_time', title: '合計1時間勉強', description: '合計1時間勉強して学力を高める。', target: { seconds: 3600 }, reward: 100, category: 'SPECIAL', rank: 'E' },
         { id: 'study_3_hours', type: 'study_time', title: '合計3時間勉強', description: '合計3時間勉強して学力を高める。', target: { seconds: 10800 }, reward: 180, category: 'SPECIAL', rank: 'D' },
+        { id: 'study_5_hours', type: 'study_time', title: '合計5時間勉強', description: '合計5時間勉強して学力を高める。', target: { seconds: 18000 }, reward: 280, category: 'SPECIAL', rank: 'C' },
     ];
 
     const shuffled = questPool.sort(() => 0.5 - Math.random());
