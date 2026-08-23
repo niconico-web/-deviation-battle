@@ -602,6 +602,13 @@ function initializeGuildSystem() {
                 setPlayerGuild(null);
                 alert(result.disbanded ? 'ギルドを解散しました。' : 'ギルドから脱退しました。');
                 window.socket.emit('guild:getList'); // 一覧を最新化
+            } else if (result.message === 'ギルドが見つかりません' || result.message === 'メンバーが見つかりません') {
+                // サーバー側にはもうこのギルドの記録が無い（サーバー再起動でデータが
+                // リセットされた等）状態。ローカルにだけギルド所属情報が残っていて
+                // 脱退できなくなるのを防ぐため、ローカルの所属状態は解除しておく。
+                setPlayerGuild(null);
+                alert('このギルドはサーバー上に見つかりませんでした。所属状態をリセットします。');
+                window.socket.emit('guild:getList');
             } else {
                 alert(result.message || 'ギルド脱退に失敗しました');
             }

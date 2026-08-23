@@ -1,35 +1,122 @@
 {
     "goblin_king": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "forest_witch": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "orc_warlord": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "rock_troll": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "shadow_serpent": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "sand_worm": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "ice_golem": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "thunder_garuda": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "flame_dragon": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "kraken": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "abyssal_knight": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "blood_count": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
     "celestial_guardian": {
-        "medium": { "weapon": true },
-        "hard": { "skill": true }
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     },
-    "abyss_warden":{
-        "medium": { "weapon": true },
-        "hard": { "skill": true} 
+    "fallen_lucifer": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
+    },
+    "abyss_warden": {
+        "medium": {
+            "weapon": true
+        },
+        "hard": {
+            "skill": true
+        }
     }
-
 }

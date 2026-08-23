@@ -12,12 +12,19 @@ const BOSS_WEAPON_MAX_LIMIT_BREAK = 4;
 // ゴブリンキング（最弱）= 2.0倍、深淵ヲ廻ルモノ（最強の隠しボス）= 6.0倍。
 const BOSS_WEAPON_MULTIPLIER_BY_ID = {
     goblin_king: 2.0,
+    forest_witch: 2.2,
     orc_warlord: 2.5,
+    rock_troll: 2.75,
     shadow_serpent: 3.0,
+    sand_worm: 3.25,
     ice_golem: 3.5,
+    thunder_garuda: 3.75,
     flame_dragon: 4.0,
+    kraken: 4.25,
     abyssal_knight: 4.5,
+    blood_count: 4.75,
     celestial_guardian: 5.0,
+    fallen_lucifer: 5.5,
     abyss_warden: 6.0
 };
 
