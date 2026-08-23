@@ -340,7 +340,14 @@ function createCharacter() {
         orbs: existing?.orbs || [],
         skillTree: existing?.skillTree,
         skillSlots: existing?.skillSlots,
-        customSkills: existing?.customSkills
+        customSkills: existing?.customSkills,
+        bossDefeats: existing?.bossDefeats,
+        materials: existing?.materials,
+        pvpWins: existing?.pvpWins,
+        bossRunCount: existing?.bossRunCount,
+        dailyMissions: existing?.dailyMissions,
+        guild: existing?.guild,
+        adventurerExp: existing?.adventurerExp
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -571,7 +578,14 @@ function applyStudyRewards(seconds) {
         orbs: player.orbs || [],
         skillTree: player.skillTree,
         skillSlots: player.skillSlots,
-        customSkills: player.customSkills
+        customSkills: player.customSkills,
+        bossDefeats: player.bossDefeats || {},
+        materials: player.materials || {},
+        pvpWins: player.pvpWins || 0,
+        bossRunCount: player.bossRunCount || 0,
+        dailyMissions: player.dailyMissions,
+        guild: player.guild,
+        adventurerExp: player.adventurerExp || 0
     });
 
     // オーブを追加

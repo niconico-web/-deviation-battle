@@ -304,6 +304,14 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         alert(`レベルアップ！ Lv${newLevel}\nスキルポイントを ${ (newLevel - oldLevel) * SKILL_POINTS_PER_LEVEL } 獲得しました！`);
     }
 
+    // updateMissionProgress()はここより前の時点でlocalStorageへ直接read-modify-writeを
+    // 行っている（player.dailyMissionsの進捗更新）。しかしこの関数はその前に読み込んだ
+    // 古いplayerオブジェクトを保持し続けているため、そのままdailyMissionsを使って
+    // 最後に保存すると、たった今保存された進捗更新を上書きして消してしまう。
+    // そのため保存直前に最新のdailyMissionsだけを読み直す。
+    const latestRaw = localStorage.getItem("player");
+    const latestDailyMissions = latestRaw ? JSON.parse(latestRaw).dailyMissions : player.dailyMissions;
+
     const updated = buildPlayer(player.name, stats, newXp, {
         hp: player.hp,
         totalStudySeconds: player.totalStudySeconds || 0,
@@ -320,7 +328,10 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         bossDefeats: player.bossDefeats || {},
         materials: player.materials || {},
         pvpWins: player.pvpWins || 0,
-        bossRunCount: player.bossRunCount || 0
+        bossRunCount: player.bossRunCount || 0,
+        dailyMissions: latestDailyMissions,
+        guild: player.guild,
+        adventurerExp: player.adventurerExp || 0
     });
 
     // オーブを追加
@@ -423,7 +434,13 @@ function buildPlayer(name, stats, xp, options = {}) {
         bossDefeats: options.bossDefeats || {},
         materials: options.materials || {},
         pvpWins: options.pvpWins || 0,
-        bossRunCount: options.bossRunCount || 0
+        bossRunCount: options.bossRunCount || 0,
+        // 以前はここに無く、対戦・勉強・キャラ編集のたびにこれらのフィールドが
+        // 静かに失われていた（デイリーミッションが毎回リセットされる、
+        // ギルド所属が対戦後に消えるなどの不具合の原因）。
+        dailyMissions: options.dailyMissions !== undefined ? options.dailyMissions : null,
+        guild: options.guild !== undefined ? options.guild : null,
+        adventurerExp: options.adventurerExp || 0
     };
 }
 
