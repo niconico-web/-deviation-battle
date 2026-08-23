@@ -5,22 +5,22 @@
         "description": "ゴブリンの群れを率いる狡猾な王。素早く動き、トリッキーな攻撃を仕掛けてくる。",
         "difficulties": {
             "easy": {
-                "hp": 20000,
-                "atk": 5000,
-                "def": 8000,
-                "speed": 1200
+                "hp": 200000,
+                "atk": 50000,
+                "def": 80000,
+                "speed": 12000
             },
             "medium": {
-                "hp": 50000,
-                "atk": 8000,
-                "def": 12000,
-                "speed": 2000
+                "hp": 500000,
+                "atk": 80000,
+                "def": 120000,
+                "speed": 20000
             },
             "hard": {
-                "hp": 100000,
-                "atk": 15000,
-                "def": 15000,
-                "speed": 4000
+                "hp": 1000000,
+                "atk": 150000,
+                "def": 150000,
+                "speed": 40000
             }
         },
         "skills": [
@@ -38,7 +38,7 @@
                 "effect": {
                     "selfBuff": {
                         "type": "atk",
-                        "amount": 2.0,
+                        "amount": 2,
                         "turns": 2
                     }
                 }
@@ -62,27 +62,88 @@
         ]
     },
     {
+        "id": "forest_witch",
+        "name": "森の魔女",
+        "description": "深き森に棲み、呪いの魔法で獲物を弱らせる年老いた魔女。",
+        "difficulties": {
+            "easy": {
+                "hp": 250000,
+                "atk": 55000,
+                "def": 90000,
+                "speed": 25000
+            },
+            "medium": {
+                "hp": 550000,
+                "atk": 90000,
+                "def": 130000,
+                "speed": 45000
+            },
+            "hard": {
+                "hp": 1100000,
+                "atk": 165000,
+                "def": 165000,
+                "speed": 90000
+            }
+        },
+        "skills": [
+            {
+                "name": "呪いの霧",
+                "description": "敵全体の攻撃力を低下させる呪いの霧を放つ。",
+                "effect": {
+                    "debuff": {
+                        "type": "atk",
+                        "reduction": 0.15,
+                        "turns": 3
+                    }
+                }
+            },
+            {
+                "name": "ヘクスボルト",
+                "description": "呪いの力を込めた一撃を放つ。",
+                "effect": {
+                    "damageMultiplier": 1.8
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "魔女の杖",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "呪いの霧",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "orc_warlord",
         "name": "オークの戦将",
         "description": "圧倒的なパワーで全てを粉砕するオークのリーダー。その一撃は驚異的な力を持つ。",
         "difficulties": {
             "easy": {
-                "hp": 30000,
-                "atk": 6000,
-                "def": 10000,
-                "speed": 5000
+                "hp": 300000,
+                "atk": 60000,
+                "def": 100000,
+                "speed": 50000
             },
             "medium": {
-                "hp": 60000,
-                "atk": 12000,
-                "def": 16000,
-                "speed": 10000
+                "hp": 600000,
+                "atk": 120000,
+                "def": 160000,
+                "speed": 100000
             },
             "hard": {
-                "hp": 120000,
-                "atk": 24000,
-                "def": 20000,
-                "speed": 20000
+                "hp": 1200000,
+                "atk": 240000,
+                "def": 200000,
+                "speed": 200000
             }
         },
         "skills": [
@@ -90,7 +151,7 @@
                 "name": "ウォーハンマー",
                 "description": "防御力を一部無視する強力な一撃。",
                 "effect": {
-                    "damageMultiplier": 2.0,
+                    "damageMultiplier": 2,
                     "pierceDef": 0.3
                 }
             },
@@ -124,27 +185,88 @@
         ]
     },
     {
+        "id": "rock_troll",
+        "name": "岩石トロール",
+        "description": "山岳地帯に生息する巨大なトロール。硬い岩の皮膚で攻撃を弾き返す。",
+        "difficulties": {
+            "easy": {
+                "hp": 350000,
+                "atk": 65000,
+                "def": 120000,
+                "speed": 55000
+            },
+            "medium": {
+                "hp": 650000,
+                "atk": 130000,
+                "def": 180000,
+                "speed": 110000
+            },
+            "hard": {
+                "hp": 1300000,
+                "atk": 260000,
+                "def": 230000,
+                "speed": 220000
+            }
+        },
+        "skills": [
+            {
+                "name": "ロックスマッシュ",
+                "description": "巨大な岩の拳で叩き潰す。",
+                "effect": {
+                    "damageMultiplier": 2.2
+                }
+            },
+            {
+                "name": "石化の咆哮",
+                "description": "敵の素早さを大幅に低下させる。",
+                "effect": {
+                    "debuff": {
+                        "type": "speed",
+                        "reduction": 0.25,
+                        "turns": 2
+                    }
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "岩砕きのハンマー",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ロックスマッシュ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "shadow_serpent",
         "name": "ヨルムンガンド",
         "description": "影に潜み、毒と呪いで獲物を仕留める巨大な蛇。その姿を見ることは難しい。",
         "difficulties": {
             "easy": {
-                "hp": 50000,
-                "atk": 8000,
-                "def": 100,
-                "speed": 5000
+                "hp": 500000,
+                "atk": 80000,
+                "def": 1000,
+                "speed": 50000
             },
             "medium": {
-                "hp": 100000,
-                "atk": 9500,
-                "def": 140,
-                "speed": 6000
+                "hp": 1000000,
+                "atk": 95000,
+                "def": 1400,
+                "speed": 60000
             },
             "hard": {
-                "hp": 150000,
-                "atk": 12000,
-                "def": 300,
-                "speed": 7500
+                "hp": 1500000,
+                "atk": 120000,
+                "def": 3000,
+                "speed": 75000
             }
         },
         "skills": [
@@ -162,7 +284,7 @@
                 "name": "シャドウダイブ",
                 "description": "影に潜み、次の攻撃を完全に回避する。",
                 "effect": {
-                    "evasionBoost": 1.0,
+                    "evasionBoost": 1,
                     "turns": 1
                 }
             }
@@ -185,26 +307,87 @@
         ]
     },
     {
+        "id": "sand_worm",
+        "name": "サンドワーム",
+        "description": "砂漠の地中に潜み、獲物が近づくと突如として襲いかかる巨大な虫。",
+        "difficulties": {
+            "easy": {
+                "hp": 550000,
+                "atk": 85000,
+                "def": 1500,
+                "speed": 55000
+            },
+            "medium": {
+                "hp": 1100000,
+                "atk": 100000,
+                "def": 2000,
+                "speed": 65000
+            },
+            "hard": {
+                "hp": 1650000,
+                "atk": 130000,
+                "def": 4000,
+                "speed": 80000
+            }
+        },
+        "skills": [
+            {
+                "name": "サンドストーム",
+                "description": "砂嵐を巻き起こし、敵の命中率を低下させる。",
+                "effect": {
+                    "debuff": {
+                        "type": "accuracy",
+                        "reduction": 0.3,
+                        "turns": 2
+                    }
+                }
+            },
+            {
+                "name": "バーストダイブ",
+                "description": "地中から飛び出し、強烈な一撃を与える。",
+                "effect": {
+                    "damageMultiplier": 2.3
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "砂喰らいの刃",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "サンドストーム",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "ice_golem",
         "name": "アイスゴーレム",
         "description": "極寒の氷から生まれた魔法生物。絶対零度の冷気で全ての者の動きを封じる。",
         "difficulties": {
             "easy": {
-                "hp": 100000,
-                "atk": 1900,
-                "def": 15000,
+                "hp": 1000000,
+                "atk": 19000,
+                "def": 150000,
                 "speed": 15
             },
             "medium": {
-                "hp": 135000,
-                "atk": 2100,
-                "def": 30000,
+                "hp": 1350000,
+                "atk": 21000,
+                "def": 300000,
                 "speed": 30
             },
             "hard": {
-                "hp": 180000,
-                "atk": 3000,
-                "def": 60000,
+                "hp": 1800000,
+                "atk": 30000,
+                "def": 600000,
                 "speed": 60
             }
         },
@@ -246,27 +429,88 @@
         ]
     },
     {
+        "id": "thunder_garuda",
+        "name": "雷神ガルーダ",
+        "description": "空を統べる雷の化身。翼を羽ばたかせるたびに雷鳴が轟く。",
+        "difficulties": {
+            "easy": {
+                "hp": 1100000,
+                "atk": 20000,
+                "def": 160000,
+                "speed": 200000
+            },
+            "medium": {
+                "hp": 1450000,
+                "atk": 25000,
+                "def": 320000,
+                "speed": 400000
+            },
+            "hard": {
+                "hp": 1950000,
+                "atk": 35000,
+                "def": 640000,
+                "speed": 800000
+            }
+        },
+        "skills": [
+            {
+                "name": "サンダーストライク",
+                "description": "雷撃を落とし、大ダメージを与える。",
+                "effect": {
+                    "damageMultiplier": 2.6
+                }
+            },
+            {
+                "name": "疾風の舞",
+                "description": "自身の素早さを大幅に上昇させる。",
+                "effect": {
+                    "selfBuff": {
+                        "type": "speed",
+                        "amount": 2,
+                        "turns": 3
+                    }
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "雷鳴の弓",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "サンダーストライク",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "flame_dragon",
         "name": "フレイムドラゴン",
         "description": "灼熱の炎を操る伝説の竜。そのブレスは全てを焼き、吐息は大地を焦がす。",
         "difficulties": {
             "easy": {
-                "hp": 120000,
-                "atk": 25000,
-                "def": 16000,
-                "speed": 12000
+                "hp": 1200000,
+                "atk": 250000,
+                "def": 160000,
+                "speed": 120000
             },
             "medium": {
-                "hp": 140000,
-                "atk": 33000,
-                "def": 20000,
-                "speed": 25000
+                "hp": 1400000,
+                "atk": 330000,
+                "def": 200000,
+                "speed": 250000
             },
             "hard": {
-                "hp": 190000,
-                "atk": 50000,
-                "def": 40000,
-                "speed": 45000
+                "hp": 1900000,
+                "atk": 500000,
+                "def": 400000,
+                "speed": 450000
             }
         },
         "skills": [
@@ -274,7 +518,7 @@
                 "name": "インフェルノ",
                 "description": "全てを焼き尽くす業火。敵全体に火傷の継続ダメージを与える。",
                 "effect": {
-                    "damageMultiplier": 13.0,
+                    "damageMultiplier": 13,
                     "burn": {
                         "damage": 0.2,
                         "turns": 3
@@ -311,27 +555,88 @@
         ]
     },
     {
+        "id": "kraken",
+        "name": "深海クラーケン",
+        "description": "深海の底に潜む伝説の巨大生物。無数の触手で獲物を絡め取る。",
+        "difficulties": {
+            "easy": {
+                "hp": 1250000,
+                "atk": 260000,
+                "def": 170000,
+                "speed": 130000
+            },
+            "medium": {
+                "hp": 1450000,
+                "atk": 345000,
+                "def": 210000,
+                "speed": 260000
+            },
+            "hard": {
+                "hp": 2000000,
+                "atk": 520000,
+                "def": 420000,
+                "speed": 470000
+            }
+        },
+        "skills": [
+            {
+                "name": "テンタクルバインド",
+                "description": "触手で敵を拘束し、行動を封じる。",
+                "effect": {
+                    "debuff": {
+                        "type": "speed",
+                        "reduction": 0.4,
+                        "turns": 2
+                    }
+                }
+            },
+            {
+                "name": "深海の渦潮",
+                "description": "渦潮を発生させ、敵全体に大ダメージを与える。",
+                "effect": {
+                    "damageMultiplier": 2.8
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "クラーケンの触腕",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "深海の渦潮",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "abyssal_knight",
         "name": "アビサルナイト",
         "description": "深淵より現れし闇の騎士。その剣は魂を喰らい、力を奪う。",
         "difficulties": {
             "easy": {
-                "hp": 100000,
-                "atk": 180000,
-                "def": 1800,
-                "speed": 18000
+                "hp": 1000000,
+                "atk": 1800000,
+                "def": 18000,
+                "speed": 180000
             },
             "medium": {
-                "hp": 200000,
-                "atk": 350000,
-                "def": 3500,
-                "speed": 35000
+                "hp": 2000000,
+                "atk": 3500000,
+                "def": 35000,
+                "speed": 350000
             },
             "hard": {
-                "hp": 300000,
-                "atk": 700000,
-                "def": 7000,
-                "speed": 70000
+                "hp": 3000000,
+                "atk": 7000000,
+                "def": 70000,
+                "speed": 700000
             }
         },
         "skills": [
@@ -347,7 +652,7 @@
                 "name": "ヴォイドスラッシュ",
                 "description": "空間を切り裂く一撃。敵の防御と回避を無視する。",
                 "effect": {
-                    "damageMultiplier": 4.0,
+                    "damageMultiplier": 4,
                     "ignoreDef": true,
                     "sureHit": true
                 }
@@ -371,27 +676,86 @@
         ]
     },
     {
+        "id": "blood_count",
+        "name": "血の伯爵",
+        "description": "古城に住まう高貴なる吸血鬼。その牙は生命を吸い尽くす。",
+        "difficulties": {
+            "easy": {
+                "hp": 1050000,
+                "atk": 1900000,
+                "def": 20000,
+                "speed": 190000
+            },
+            "medium": {
+                "hp": 2100000,
+                "atk": 3700000,
+                "def": 38000,
+                "speed": 370000
+            },
+            "hard": {
+                "hp": 3150000,
+                "atk": 7400000,
+                "def": 75000,
+                "speed": 740000
+            }
+        },
+        "skills": [
+            {
+                "name": "ブラッドサック",
+                "description": "敵の生命力を吸い取り、自身のHPを回復する。",
+                "effect": {
+                    "damageMultiplier": 1.3,
+                    "lifeSteal": 0.6
+                }
+            },
+            {
+                "name": "ミッドナイトウェイブ",
+                "description": "闇の波動で敵全体を切り裂く。",
+                "effect": {
+                    "damageMultiplier": 4.2,
+                    "ignoreDef": true
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "血染めのレイピア",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ミッドナイトウェイブ",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
         "id": "celestial_guardian",
         "name": "セレスティアルガーディアン",
         "description": "神殿を守護する天空の使者。聖なる力で全ての不浄を浄化し、神の裁きを下す。",
         "difficulties": {
             "easy": {
-                "hp": 200000,
-                "atk": 250000,
-                "def": 25000,
-                "speed": 25000
+                "hp": 2000000,
+                "atk": 2500000,
+                "def": 250000,
+                "speed": 250000
             },
             "medium": {
-                "hp": 750000,
-                "atk": 500000,
-                "def": 50000,
-                "speed": 50000
+                "hp": 7500000,
+                "atk": 5000000,
+                "def": 500000,
+                "speed": 500000
             },
             "hard": {
-                "hp": 900000,
-                "atk": 900000,
-                "def": 900000,
-                "speed": 900000
+                "hp": 9000000,
+                "atk": 9000000,
+                "def": 9000000,
+                "speed": 9000000
             }
         },
         "skills": [
@@ -407,7 +771,7 @@
                 "name": "ジャッジメント",
                 "description": "神の裁き。聖なる光の力で敵を討つ、絶大な威力を持つ攻撃。",
                 "effect": {
-                    "damageMultiplier": 5.0,
+                    "damageMultiplier": 5,
                     "sureHit": true
                 }
             },
@@ -448,27 +812,86 @@
         ]
     },
     {
-        "id": "abyss_warden",
-        "name": "深淵ヲ廻ルモノ",
-        "description": "セレスティアルガーディアンがアビサルナイトによって侵食された姿",
+        "id": "fallen_lucifer",
+        "name": "堕天使ルシフェル",
+        "description": "かつて天界に仕えし最上位の天使。堕落し、闇の力を得て人々の前に立ちはだかる。",
         "difficulties": {
             "easy": {
-                "hp": 500000,
-                "atk": 500000,
-                "def": 500000,
-                "speed": 500000
+                "hp": 2200000,
+                "atk": 2700000,
+                "def": 270000,
+                "speed": 270000
             },
             "medium": {
-                "hp": 800000,
-                "atk": 800000,
-                "def": 800000,
-                "speed": 800000
+                "hp": 8000000,
+                "atk": 5500000,
+                "def": 550000,
+                "speed": 550000
             },
             "hard": {
-                "hp": 9999999,
-                "atk": 9999999,
-                "def": 999999,
-                "speed": 999999
+                "hp": 9500000,
+                "atk": 9500000,
+                "def": 9500000,
+                "speed": 9500000
+            }
+        },
+        "skills": [
+            {
+                "name": "ダークジャッジメント",
+                "description": "堕落した裁きの光で敵を討つ、絶大な威力を持つ攻撃。",
+                "effect": {
+                    "damageMultiplier": 5.5,
+                    "sureHit": true
+                }
+            },
+            {
+                "name": "フォールンプロテクション",
+                "description": "漆黒のバリアを展開し、全てのダメージを大幅に軽減する。",
+                "effect": {
+                    "damageReduction": 0.85,
+                    "turns": 1
+                }
+            }
+        ],
+        "drops": [
+            {
+                "name": "堕天の剣",
+                "type": "weapon",
+                "difficulty": [
+                    "medium"
+                ]
+            },
+            {
+                "name": "ダークジャッジメント",
+                "type": "skill",
+                "difficulty": [
+                    "hard"
+                ]
+            }
+        ]
+    },
+    {
+        "id": "abyss_warden",
+        "name": "深淵ヲ廻ルモノ",
+        "description": "セレスティアルガーディアンがアビサルナイトの怨念によって侵食された姿",
+        "difficulties": {
+            "easy": {
+                "hp": 5000000,
+                "atk": 5000000,
+                "def": 5000000,
+                "speed": 5000000
+            },
+            "medium": {
+                "hp": 8000000,
+                "atk": 8000000,
+                "def": 8000000,
+                "speed": 8000000
+            },
+            "hard": {
+                "hp": 99999999,
+                "atk": 99999999,
+                "def": 9999999,
+                "speed": 9999999
             }
         },
         "skills": [
@@ -476,7 +899,7 @@
                 "name": "アビスプロテクト",
                 "description": "深淵のバリアを展開し、全てのダメージを大幅に軽減する。",
                 "effect": {
-                    "damageReduction": 1.0,
+                    "damageReduction": 1,
                     "turns": 1
                 }
             },
@@ -484,8 +907,9 @@
                 "name": "ジ・インファーナル",
                 "description": "深淵の裁き。深淵の力で敵を討つ、絶大な威力を持つ攻撃。",
                 "effect": {
-                    "damageMultiplier": 7.0,
-                    "sureHit": true
+                    "damageMultiplier": 7,
+                    "sureHit": true,
+                    "ignoreDef": true
                 }
             },
             {
