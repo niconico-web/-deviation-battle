@@ -51,14 +51,23 @@ function getWeekId(date = new Date()) {
 /**
  * クライアントサイドでクエストリストを管理する (仮)
  * 実際にはサーバーから取得・更新されるべきです。
+ * ギルドごとに保存先を分けることで、複数のギルドに出入りした際に
+ * 別ギルドのクエスト状態が混ざって見えてしまうのを防ぐ。
  */
+function getGuildQuestStorageKey() {
+    const playerGuild = getPlayerGuild();
+    return playerGuild && playerGuild.id
+        ? `${GUILD_QUEST_STORAGE_KEY}_${playerGuild.id}`
+        : GUILD_QUEST_STORAGE_KEY; // 未所属時のフォールバック
+}
+
 function getGuildQuests() {
-    const data = localStorage.getItem(GUILD_QUEST_STORAGE_KEY);
+    const data = localStorage.getItem(getGuildQuestStorageKey());
     return data ? JSON.parse(data) : { weekId: null, quests: [] };
 }
 
 function saveGuildQuests(data) { // data is { weekId, quests }
-    localStorage.setItem(GUILD_QUEST_STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(getGuildQuestStorageKey(), JSON.stringify(data));
 }
 
 /**
@@ -290,7 +299,14 @@ function renderQuestBoard(filterCategory = 'all') {
  */
 function getAdventurerRank(player) {
     // ギルドに参加している場合は、冒険者経験値に基づいてランクを決定
-    if (player.guild && player.adventurerExp) {
+    // 以前は `player.adventurerExp` を truthy 判定していたため、
+    // ちょうど0（ギルドに入ったばかりでまだ経験値を得ていない、最も一般的な状態）
+    // の場合にこの分岐がスキップされ、代わりに下のレベルベースの計算が使われていた。
+    // その結果、入りたてのプレイヤーがレベルだけで実際より高いランクとして
+    // 扱われ（「ランクが上がりやすすぎる」）、少しでも経験値を得た瞬間に
+    // 本来のFランクへ急に下がる（「ランクが足りているのに受注できない」）
+    // という不具合の原因になっていた。
+    if (player.guild && player.adventurerExp != null) {
         const exp = player.adventurerExp;
         // ランクアップに必要な経験値（上がりにくくする）
         const rankThresholds = {
@@ -388,6 +404,13 @@ function renderActiveQuests() {
  */
 function generateWeeklyQuests() {
     const questPool = [
+        // --- Fランク（ギルド加入直後でも受けられる最も簡単なクエスト） ---
+        { id: 'collect_goblin_fang_3', type: 'collect_material', title: 'ゴブリンの牙採取(初級)', description: 'ゴブリンから牙を3本集める。', target: { materialId: 'goblin_fang', count: 3 }, reward: 40, category: 'DELIVERY', rank: 'F' },
+        { id: 'collect_slime_jelly_3', type: 'collect_material', title: 'スライムゼリー採取(初級)', description: 'スライムからゼリーを3個集める。', target: { materialId: 'slime_jelly', count: 3 }, reward: 40, category: 'DELIVERY', rank: 'F' },
+        { id: 'defeat_goblin_king_easy_1', type: 'defeat_boss', title: 'ゴブリンキング討伐(Easy)', description: 'ゴブリンキング(EASY)を1体討伐する。', target: { bossId: 'goblin_king', difficulty: 'easy', count: 1 }, reward: 80, category: 'BATTLE', rank: 'F' },
+        { id: 'win_online_1', type: 'win_online', title: 'オンライン対戦1勝', description: 'オンライン対戦で1回勝利する。', target: { count: 1 }, reward: 50, category: 'BATTLE', rank: 'F' },
+        { id: 'study_30_min', type: 'study_time', title: '30分勉強', description: '合計30分勉強して学力を高める。', target: { seconds: 1800 }, reward: 40, category: 'SPECIAL', rank: 'F' },
+
         // --- 素材納品クエスト（低〜中ランク） ---
         { id: 'collect_goblin_fang_10', type: 'collect_material', title: 'ゴブリンの牙収集', description: 'ゴブリンから牙を10本集める。', target: { materialId: 'goblin_fang', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
         { id: 'collect_goblin_hide_10', type: 'collect_material', title: 'ゴブリンの皮収集', description: 'ゴブリンから皮を10枚集める。', target: { materialId: 'goblin_hide', count: 10 }, reward: 100, category: 'DELIVERY', rank: 'E' },
@@ -580,12 +603,18 @@ function initializeGuildSystem() {
             if (result.success) {
                 const newGuild = result.guild;
 
+                // setPlayerGuild()を先に呼び、プレイヤーの所属ギルドを確定させてから
+                // クエストを生成・保存する。保存先のキーはギルドIDに紐づいているため、
+                // 順序を逆にすると「まだ所属していない状態」のキー（グローバルな
+                // フォールバック）に保存されてしまい、実際にギルド画面を開いた時には
+                // 別のキー（新ギルドのID付き）を見に行くため空に見えてしまう。
+                setPlayerGuild(newGuild);
+
                 // 新しいギルドにウィークリークエストを配布
                 const currentWeekId = getWeekId();
                 const quests = generateWeeklyQuests();
                 saveGuildQuests({ weekId: currentWeekId, quests: quests });
 
-                setPlayerGuild(newGuild);
                 document.getElementById('createGuildModal').style.display = 'none';
                 document.getElementById('guildName').value = '';
                 document.getElementById('guildDescription').value = '';

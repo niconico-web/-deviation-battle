@@ -12,20 +12,35 @@ function getBattleReadyPlayer(player) {
 }
 
 const BOT_MONSTERS = [
-    { 
-        name: "ゴブリン", monsterType: "ゴブリン", monsterEmoji: "👺", 
+    {
+        id: 'goblin', name: "ゴブリン", monsterType: "ゴブリン", monsterEmoji: "👺",
         baseStats: { maxHp: 80, atk: 60, def: 40, speed: 50 },
         materialDrops: [{ materialId: 'goblin_fang', chance: 0.5 }]
     },
-    { 
-        name: "スライム", monsterType: "スライム", monsterEmoji: "💧",
+    {
+        id: 'goblin_scout', name: "ゴブリンの偵察兵", monsterType: "ゴブリン", monsterEmoji: "🗡️",
+        baseStats: { maxHp: 70, atk: 55, def: 35, speed: 70 },
+        materialDrops: [{ materialId: 'goblin_hide', chance: 0.5 }]
+    },
+    {
+        id: 'slime', name: "スライム", monsterType: "スライム", monsterEmoji: "💧",
         baseStats: { maxHp: 100, atk: 50, def: 60, speed: 30 },
         materialDrops: [{ materialId: 'slime_jelly', chance: 0.6 }]
     },
-    { 
-        name: "ベビードラゴン", monsterType: "ドラゴン", monsterEmoji: "🐲",
+    {
+        id: 'slime_king', name: "スライムキング", monsterType: "スライム", monsterEmoji: "👑",
+        baseStats: { maxHp: 130, atk: 55, def: 65, speed: 25 },
+        materialDrops: [{ materialId: 'slime_core', chance: 0.4 }]
+    },
+    {
+        id: 'baby_dragon', name: "ベビードラゴン", monsterType: "ドラゴン", monsterEmoji: "🐲",
         baseStats: { maxHp: 120, atk: 70, def: 50, speed: 40 },
         materialDrops: [{ materialId: 'dragon_scale', chance: 0.4 }]
+    },
+    {
+        id: 'wild_wyvern', name: "野生のワイバーン", monsterType: "ドラゴン", monsterEmoji: "🐉",
+        baseStats: { maxHp: 150, atk: 85, def: 55, speed: 60 },
+        materialDrops: [{ materialId: 'dragon_heart', chance: 0.3 }]
     }
 ];
 
@@ -34,7 +49,18 @@ function setupOnlineEventHandlers() {
         return;
     }
     onlineHandlersSetup = true;
-    
+
+    // モンスター選択欄に選択肢を追加
+    const botMonsterSelectEl = document.getElementById("botMonsterSelect");
+    if (botMonsterSelectEl) {
+        BOT_MONSTERS.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = m.id;
+            opt.textContent = `${m.monsterEmoji} ${m.name}`;
+            botMonsterSelectEl.appendChild(opt);
+        });
+    }
+
     // ボタンイベントハンドラーの設定
     const createRoomBtn = document.getElementById("createRoom");
     const joinRoomBtn = document.getElementById("joinRoom");
@@ -127,9 +153,13 @@ function setupOnlineEventHandlers() {
             }
 
             const battleStats = getBattleStats(player);
-            
-            // ランダムなモンスターを選択
-            const randomMonster = BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
+
+            // モンスター選択欄で選ばれたモンスターを使用（「おまかせ」ならランダム）
+            const monsterSelect = document.getElementById("botMonsterSelect");
+            const selectedId = monsterSelect ? monsterSelect.value : "random";
+            const randomMonster = (selectedId && selectedId !== "random")
+                ? (BOT_MONSTERS.find(m => m.id === selectedId) || BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)])
+                : BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
 
             // プレイヤーの学年に合わせてボットの学年を設定
             const playerGrade = player.grade || 1;

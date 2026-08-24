@@ -333,10 +333,10 @@
         "skills": [
             {
                 "name": "サンドストーム",
-                "description": "砂嵐を巻き起こし、敵の命中率を低下させる。",
+                "description": "砂嵐を巻き起こし、敵の素早さを低下させる。",
                 "effect": {
                     "debuff": {
-                        "type": "accuracy",
+                        "type": "speed",
                         "reduction": 0.3,
                         "turns": 2
                     }

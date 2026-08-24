@@ -334,6 +334,46 @@ function applyBossSkillEffect(damage, attacker, defender, skill, result) {
         });
         result.bossBuffed = effect.selfBuff;
     }
+    // 全体強化（ソロ/パーティ問わず、ボス自身の強化として扱う）
+    if (effect.partyBuff) {
+        if (!attacker.buffs) attacker.buffs = [];
+        attacker.buffs.push({
+            stat: effect.partyBuff.type,
+            amount: effect.partyBuff.amount,
+            turns: 3
+        });
+        result.bossBuffed = effect.partyBuff;
+    }
+    // 防御貫通（一部無視）：ダメージを上乗せして近似する
+    if (effect.pierceDef) {
+        modifiedDamage = Math.floor(modifiedDamage * (1 + effect.pierceDef));
+        result.bossPierceDef = effect.pierceDef;
+    }
+    // 多段攻撃
+    if (effect.multiHit && effect.multiHit > 1) {
+        modifiedDamage = Math.max(1, Math.floor(modifiedDamage * 0.6)) * effect.multiHit;
+        result.bossMultiHit = effect.multiHit;
+    }
+    // 回避率上昇（次に受けるダメージの軽減として近似する）
+    if (effect.evasionBoost) {
+        attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, effect.evasionBoost);
+        result.bossEvasionBoost = effect.evasionBoost;
+    }
+    // ダメージ軽減バリア（次に受けるプレイヤーの攻撃を軽減）
+    if (effect.damageReduction) {
+        attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, effect.damageReduction);
+        result.bossDamageReduction = effect.damageReduction;
+    }
+    // 毒（プレイヤーに付与）
+    if (effect.poison) {
+        defender.poisonTurns = effect.poison.turns || 3;
+        result.playerPoisoned = true;
+    }
+    // 火傷（プレイヤーに付与）
+    if (effect.burn) {
+        defender.burnTurns = effect.burn.turns || 3;
+        result.playerBurned = true;
+    }
 
     return modifiedDamage;
 }
@@ -408,6 +448,17 @@ function tickBurn(player, result, key) {
     player.hp = Math.max(0, player.hp - burnDamage);
     player.burnTurns--;
     result[key] = { damage: burnDamage, remaining: player.burnTurns, hp: player.hp };
+}
+
+/**
+ * 毒の継続ダメージを処理する
+ */
+function tickPoison(player, result, key) {
+    if (!player.poisonTurns || player.poisonTurns <= 0) return;
+    const poisonDamage = Math.max(1, Math.floor(player.maxHp * 0.03));
+    player.hp = Math.max(0, player.hp - poisonDamage);
+    player.poisonTurns--;
+    result[key] = { damage: poisonDamage, remaining: player.poisonTurns, hp: player.hp };
 }
 
 /**
@@ -587,6 +638,11 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
 
         damage = applyUniqueAbilityDamageBonus(damage, player);
 
+        // ボスがスキルで得た「次のダメージ軽減」バリアを消費する
+        if (damage > 0 && boss.pendingDamageReduction > 0) {
+            damage = applyPendingDamageReduction(boss, damage, result);
+        }
+
         if (damage > 0) {
             boss.hp = Math.max(0, boss.hp - damage);
             result.damage = damage;
@@ -672,9 +728,20 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
         alivePlayers.forEach(p => {
             tickDebuffs(p);
             tickBuffs(p);
+            tickBurn(p, result, 'playerBurnTick_' + p.id);
+            tickPoison(p, result, 'playerPoisonTick_' + p.id);
         });
         tickBurn(boss, result, 'bossBurnTick');
         tickBuffs(boss);
+
+        // 毒・火傷のダメージでプレイヤーが倒れていないか確認する
+        const stillAlive = Object.values(battle.players).some(p => !p.isBoss && p.hp > 0);
+        if (!stillAlive) {
+            battle.finished = true;
+            result.winner = boss.id;
+            result.raidDefeat = true;
+        }
+
         result.nextQuestion = battle.currentQuestion;
         result.roundComplete = true;
     }
