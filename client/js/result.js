@@ -22,6 +22,10 @@ const lostWeaponRaw = localStorage.getItem("lostWeapon");
 const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
 const lostWeapon = lostWeaponRaw ? JSON.parse(lostWeaponRaw) : null;
 
+// applyBattleRewards()内でこのキーは読み取られた後すぐに削除されてしまうため、
+// 結果画面に表示するために呼び出し前の値を控えておく
+const droppedMaterialId = localStorage.getItem("droppedMaterial");
+
 console.log(`[Result] Result page loaded: result=${result}, won=${won}`);
 
 // 強制的にバトル報酬を適用（デバッグ用）
@@ -81,6 +85,20 @@ if (orbEl) {
         orbEl.style.display = "block";
     } else {
         orbEl.style.display = "none";
+    }
+}
+
+// 通常モンスターからの素材ドロップ表示
+// （以前はplayer.materialsへの反映は正しく行われていたが、
+// この結果画面に表示するUIが無かったため、入手していても
+// プレイヤーからは「素材がドロップしない」ように見えていた）
+const materialDropEl = document.getElementById("materialDropText");
+if (materialDropEl) {
+    if (droppedMaterialId && typeof MATERIAL_DATA !== "undefined" && MATERIAL_DATA[droppedMaterialId]) {
+        materialDropEl.textContent = "★素材を入手！★\n" + MATERIAL_DATA[droppedMaterialId].name;
+        materialDropEl.style.display = "block";
+    } else {
+        materialDropEl.style.display = "none";
     }
 }
 

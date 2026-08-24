@@ -17,7 +17,7 @@ let usedSkills = [];
 let skillActivationWindow = false;
 let skillActivationTimer = null;
 let bossAutoAnswerTimer = null; // Boss auto-answer timer
-const BOSS_AUTO_ANSWER_TIMEOUT = 5000; // 5 seconds for boss to auto-answer
+const BOSS_AUTO_ANSWER_TIMEOUT = 3000; // 3 seconds for boss to auto-answer
 
 // クリティカル関連
 const BASE_CRIT_CHANCE = 0.05; // 通常時、常に5%の確率でクリティカルが発生する
@@ -40,6 +40,9 @@ let enemyAccuracyDebuff = 0;      // 敵の命中率低下率
 let enemyAccuracyDebuffTurns = 0; // 敵の命中率低下残りターン
 let myMultiHit = 0;               // 複数回攻撃の回数
 let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
+let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
+let myPoisonTurns = 0;            // 自分（プレイヤー）の毒残りターン
+let enemyNextDamageShield = 0;    // ボスが得た「次に受けるダメージ軽減」（1回限り）
 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -1453,6 +1456,73 @@ function applyBossSkillEffect(damage, attacker, defender, skill) {
         addLog(`スキル効果: 次の攻撃が必ずクリティカル！`);
     }
 
+    // 防御貫通（一部無視）：無視した割合ぶんダメージを上乗せして近似する
+    if (effect.pierceDef) {
+        modifiedDamage = Math.floor(modifiedDamage * (1 + effect.pierceDef));
+        addLog(`スキル効果: 防御貫通！ダメージが上昇した！`);
+    }
+
+    // 多段攻撃（ボスが使用する場合）
+    if (effect.multiHit && effect.multiHit > 1) {
+        const perHitRate = 0.6;
+        modifiedDamage = Math.max(1, Math.floor(modifiedDamage * perHitRate)) * effect.multiHit;
+        addLog(`スキル効果: ${effect.multiHit}連撃！`);
+    }
+
+    // 自己バフ（攻撃力・素早さなどを自身に付与）
+    if (effect.selfBuff) {
+        const buffAmount = effect.selfBuff.amount || 1.2;
+        switch (effect.selfBuff.type) {
+            case 'atk':
+                attacker.atk = Math.floor(attacker.atk * buffAmount);
+                addLog(`スキル効果: ${attacker.name}の攻撃力が上昇した！`);
+                break;
+            case 'speed':
+                attacker.speed = Math.floor(attacker.speed * buffAmount);
+                addLog(`スキル効果: ${attacker.name}の素早さが上昇した！`);
+                break;
+            case 'all_stats':
+                attacker.atk = Math.floor(attacker.atk * buffAmount);
+                attacker.def = Math.floor(attacker.def * buffAmount);
+                attacker.speed = Math.floor(attacker.speed * buffAmount);
+                addLog(`スキル効果: ${attacker.name}の能力が全体的に上昇した！`);
+                break;
+        }
+    }
+
+    // 全体強化（味方全体だが、パーティのいないソロ戦では自身に適用する）
+    if (effect.partyBuff) {
+        const buffAmount = effect.partyBuff.amount || 1.2;
+        if (effect.partyBuff.type === 'all_stats') {
+            attacker.atk = Math.floor(attacker.atk * buffAmount);
+            attacker.def = Math.floor(attacker.def * buffAmount);
+            attacker.speed = Math.floor(attacker.speed * buffAmount);
+            addLog(`スキル効果: ${attacker.name}の能力が飛躍的に上昇した！`);
+        }
+    }
+
+    // ダメージ軽減バリア（ボスが自身にかける場合、次に受けるプレイヤーの攻撃を軽減）
+    if (!isPlayerUsing && effect.damageReduction) {
+        enemyNextDamageShield = effect.damageReduction;
+        addLog(`スキル効果: ${attacker.name}が身を守る態勢に入った！`);
+    }
+
+    // 回避率上昇（一時的にダメージ軽減バリアとして近似する）
+    if (!isPlayerUsing && effect.evasionBoost) {
+        enemyNextDamageShield = Math.max(enemyNextDamageShield, effect.evasionBoost);
+        addLog(`スキル効果: ${attacker.name}が次の攻撃を回避しようとしている！`);
+    }
+
+    // 継続ダメージ（毒・火傷）をプレイヤーに付与（ボスが使用する場合）
+    if (!isPlayerUsing && effect.poison) {
+        myPoisonTurns = effect.poison.turns || 3;
+        addLog(`スキル効果: ${me.name}は毒状態になった！`);
+    }
+    if (!isPlayerUsing && effect.burn) {
+        myBurnTurns = effect.burn.turns || 3;
+        addLog(`スキル効果: ${me.name}は火傷状態になった！`);
+    }
+
     // プレイヤーへのデバフ（ボスが使用する場合）
     if (!isPlayerUsing && effect.debuff) {
         switch (effect.debuff.type) {
@@ -1493,6 +1563,22 @@ function applyBossSkillEffect(damage, attacker, defender, skill) {
     }
 
     return modifiedDamage;
+}
+
+/**
+ * プレイヤーが受けるダメージに、直前のスキルで得た「次のダメージ軽減」効果を適用する。
+ * 使用すると1回限りで消費される。
+ * @param {number} damage
+ * @returns {number}
+ */
+function applyIncomingDamageReduction(damage) {
+    if (myPendingDamageReduction > 0) {
+        const reduced = Math.max(0, Math.floor(damage * (1 - myPendingDamageReduction)));
+        addLog(`シールド効果でダメージを${Math.round(myPendingDamageReduction * 100)}%軽減！`);
+        myPendingDamageReduction = 0; // 使い切り
+        return reduced;
+    }
+    return damage;
 }
 
 // スキル使用後の処理
@@ -1539,12 +1625,15 @@ function handleChoiceClick(selectedOption) {
     if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
-        // サーバーに回答を送信
+        // サーバーに回答を送信（スキルを選択していた場合はskillIdも一緒に送る）
+        const usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
         socket.emit("battle:submitAnswer", {
             answer: selectedOption,
-            // 将来的にスキル使用を実装する場合
-            // skillId: selectedSkill ? selectedSkill.id : null
+            skillId: usedSkill ? usedSkill.id : null
         });
+        if (usedSkill) {
+            afterSkillUse(usedSkill);
+        }
         // 次の問題が表示されるまで待機
         questionDisplay.textContent = "回答送信済み。次の問題を待っています...";
         choicesContainer.innerHTML = '';
@@ -1625,6 +1714,7 @@ function generateBotQuestion() {
             
             // 継続効果の処理（火傷・防御低下）
             tickBotBattleStatus();
+            if (battleEnd) return;
             if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
             // スキル選択ウィンドウをカウントダウンと同時に開始
@@ -2032,6 +2122,7 @@ function generateBotQuestion() {
 
     // 継続効果の処理（火傷・防御低下）
     tickBotBattleStatus();
+    if (battleEnd) return;
     if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
     // スキル選択ウィンドウをカウントダウンと同時に開始
@@ -2084,6 +2175,23 @@ function displayQuestion(question) {
 
 // ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
 function tickBotBattleStatus() {
+    // プレイヤー自身の毒・火傷（ボスのスキルで付与されたもの）
+    if (myBurnTurns > 0) {
+        const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.05));
+        me.hp = Math.max(0, me.hp - burnDamage);
+        myBurnTurns--;
+        addLog(`火傷ダメージ！${me.name}に${burnDamage}のダメージ（残り${myBurnTurns}ターン）`);
+        updateHP();
+        if (me.hp <= 0) { finishBotBattle("lose"); return; }
+    }
+    if (myPoisonTurns > 0) {
+        const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.03));
+        me.hp = Math.max(0, me.hp - poisonDamage);
+        myPoisonTurns--;
+        addLog(`毒ダメージ！${me.name}に${poisonDamage}のダメージ（残り${myPoisonTurns}ターン）`);
+        updateHP();
+        if (me.hp <= 0) { finishBotBattle("lose"); return; }
+    }
     if (enemyBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.05));
         enemy.hp = Math.max(0, enemy.hp - burnDamage);
@@ -2277,6 +2385,13 @@ function handleBotAnswer(userAnswer) {
             mySkipThisTurn = false;
             damage = 0;
             addLog(`${me.name}は身を固めていて攻撃できない！`);
+        }
+
+        // ボスが直前に得た「次のダメージ軽減」バリアを消費する
+        if (enemyNextDamageShield > 0 && damage > 0) {
+            damage = Math.max(0, Math.floor(damage * (1 - enemyNextDamageShield)));
+            addLog(`${enemy.name}のバリアでダメージが軽減された！`);
+            enemyNextDamageShield = 0; // 使い切り
         }
         
         // 回避判定（敵の回避率）
