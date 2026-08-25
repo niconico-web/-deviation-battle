@@ -269,8 +269,10 @@ function renderQuestBoard(filterCategory = 'all') {
         questCard.className = 'quest-card';
         
         // 冒険者ランクチェック
+        // acceptQuest()と同様、文字列ランクと数値を直接比較していたため
+        // 常にfalseになり、受注ボタンが一度も表示されない不具合があった。
         const playerRank = getAdventurerRank(player);
-        const canAccept = playerRank >= getRankValue(quest.rank);
+        const canAccept = getRankValue(playerRank) >= getRankValue(quest.rank);
         
         questCard.innerHTML = `
             <h3>${quest.title} (${quest.rank || 'N/A'}ランク)</h3>

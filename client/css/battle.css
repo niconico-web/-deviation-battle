@@ -495,6 +495,57 @@ body {
     flex-wrap: wrap;
 }
 
+.command-menu {
+    text-align: center;
+    margin: 8px 0;
+    padding: 10px;
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px solid rgba(255, 215, 0, 0.4);
+    border-radius: 8px;
+}
+
+.command-menu h3 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: #ffd700;
+}
+
+.command-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-command {
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    background: #4a5568;
+    color: #fff;
+    transition: transform 0.1s, background 0.2s;
+}
+
+.btn-command:hover:not(:disabled) {
+    background: #2d3748;
+    transform: translateY(-2px);
+}
+
+.btn-command:disabled {
+    background: #2a2a2a;
+    color: #666;
+    cursor: not-allowed;
+}
+
+#cmdUltimateBtn:not(:disabled) {
+    background: #d4af37;
+    color: #1a1a1a;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+}
+
 .skill-slot {
     padding: 6px 10px;
     font-size: 12px;

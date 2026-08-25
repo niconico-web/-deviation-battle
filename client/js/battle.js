@@ -43,6 +43,8 @@ let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
 let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
 let myPoisonTurns = 0;            // 自分（プレイヤー）の毒残りターン
 let enemyNextDamageShield = 0;    // ボスが得た「次に受けるダメージ軽減」（1回限り）
+let pendingSkillEffect = null;    // 正解時、コマンド選択待ちの間だけ保持するスキル効果
+let pendingUsedSkill = null;      // 正解時、コマンド選択待ちの間だけ保持する使用スキル
 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -63,16 +65,24 @@ const ultimateEffect = document.getElementById("ultimateEffect");
 const myAtk = document.getElementById("myAtk");
 const myDef = document.getElementById("myDef");
 const mySpeed = document.getElementById("mySpeed");
+const mySpecial = document.getElementById("mySpecial");
 const myGrade = document.getElementById("myGrade");
 const enemyAtk = document.getElementById("enemyAtk");
 const enemyDef = document.getElementById("enemyDef");
 const enemySpeed = document.getElementById("enemySpeed");
+const enemySpecial = document.getElementById("enemySpecial");
 const enemyGrade = document.getElementById("enemyGrade");
 const questionDisplay = document.getElementById("questionDisplay");
 const choicesContainer = document.getElementById("choicesContainer");
 const timerDisplay = document.getElementById("timer");
 const log = document.getElementById("log");
 const skillsContainer = document.getElementById("skillSlotsContainer");
+
+// コマンドメニューのボタン配線
+document.getElementById("cmdAttackBtn")?.addEventListener("click", () => resolvePlayerCommand("attack"));
+document.getElementById("cmdSpecialBtn")?.addEventListener("click", () => resolvePlayerCommand("special"));
+document.getElementById("cmdDefendBtn")?.addEventListener("click", () => resolvePlayerCommand("defend"));
+document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => resolvePlayerCommand("ultimate"));
 
 function statLabel(k, v) {
     return I18N[k] + I18N.colon + v;
@@ -296,6 +306,7 @@ function updateStats() {
     myDef.textContent = statLabel("def", me.def);
     const myDodgeChance = calculateDodgeChance(me.speed);
     mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
+    if (mySpecial) mySpecial.textContent = "特殊" + I18N.colon + (me.special != null ? me.special : me.atk);
     myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
     
     // ボスと通常のボットでステータスの持ち方が違うため、直接プロパティを参照する
@@ -307,6 +318,7 @@ function updateStats() {
     enemyDef.textContent = statLabel("def", enemyDefVal);
     const enemyDodgeChance = calculateDodgeChance(enemySpeedVal);
     enemySpeed.textContent = statLabel("speed", enemySpeedVal) + ` (回避${enemyDodgeChance}%)`;
+    if (enemySpecial) enemySpecial.textContent = "特殊" + I18N.colon + (enemy.special != null ? enemy.special : enemy.atk);
     enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
 }
 
@@ -2266,7 +2278,7 @@ function handleBotAnswer(userAnswer) {
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
         showCorrectEffect();
-        
+
         // 必殺技ゲージの初期化（存在しない場合）
         if (!me.ultimateGauge) {
             me.ultimateGauge = { current: 0, max: 100 };
@@ -2274,12 +2286,87 @@ function handleBotAnswer(userAnswer) {
         if (!enemy.ultimateGauge) {
             enemy.ultimateGauge = { current: 0, max: 100 };
         }
-        
-        // 必殺技ゲージを増加
+
+        // 必殺技ゲージを増加（コマンドの選択に関わらず、正解すれば貯まる）
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
         updateUltimateGauge();
 
-        let attackerAtk = me.atk;
+        // ここで即座に攻撃を確定させず、プレイヤーに「攻撃・特殊・防御・必殺技」を選ばせる。
+        // 選択後の実際の処理は resolvePlayerCommand() で行う。
+        pendingSkillEffect = skillEffect;
+        pendingUsedSkill = usedSkill;
+        showCommandMenu();
+        return;
+    } else {
+        handleWrongAnswer(skillEffect);
+    }
+}
+
+/**
+ * 「攻撃・特殊・防御・必殺技」のコマンド選択メニューを表示する。
+ * 必殺技はゲージが満タンの時のみ選択可能。
+ */
+function showCommandMenu() {
+    const commandMenu = document.getElementById('commandMenu');
+    if (!commandMenu) {
+        // メニューが無い場合（古いキャッシュ等）は、従来通り「攻撃」で即実行する
+        resolvePlayerCommand('attack');
+        return;
+    }
+    commandMenu.style.display = 'block';
+
+    const ultimateBtn = document.getElementById('cmdUltimateBtn');
+    const isUltimateReady = me.ultimateGauge && me.ultimateGauge.current >= me.ultimateGauge.max;
+    if (ultimateBtn) {
+        ultimateBtn.disabled = !isUltimateReady;
+        ultimateBtn.title = isUltimateReady ? '' : '必殺技ゲージが満タンの時のみ選択できます';
+    }
+
+    // スキルはこのコマンド選択のタイミングでも選び直せるようにしておく
+    if (typeof enableSkillButtons === 'function') {
+        enableSkillButtons(true);
+    }
+}
+
+function hideCommandMenu() {
+    const commandMenu = document.getElementById('commandMenu');
+    if (commandMenu) commandMenu.style.display = 'none';
+}
+
+/**
+ * プレイヤーがコマンド（攻撃/特殊/防御/必殺技）を選択した時に呼ばれる。
+ * @param {'attack'|'special'|'defend'|'ultimate'} command
+ */
+function resolvePlayerCommand(command) {
+    hideCommandMenu();
+
+    // コマンド選択の直前にスキルが選び直された場合、そちらを優先して反映する
+    let usedSkill = pendingUsedSkill;
+    let skillEffect = pendingSkillEffect || {};
+    if (typeof selectedSkill !== 'undefined' && selectedSkill && (!usedSkill || selectedSkill.id !== usedSkill.id)) {
+        usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : selectedSkill;
+        skillEffect = (usedSkill && usedSkill.effect) || {};
+        applyInstantSkillEffects(skillEffect);
+        if (usedSkill) afterSkillUse(usedSkill);
+    }
+    pendingUsedSkill = null;
+    pendingSkillEffect = null;
+
+    if (command === 'ultimate' && !(me.ultimateGauge && me.ultimateGauge.current >= me.ultimateGauge.max)) {
+        // ゲージ不足時は誤操作防止のため通常攻撃にフォールバック
+        command = 'attack';
+    }
+
+    if (command === 'defend') {
+        addLog(`${me.name}は防御の構えを取った！`);
+        myPendingDamageReduction = Math.max(myPendingDamageReduction, 0.5);
+        updateHP();
+        updateUltimateGauge();
+        setTimeout(generateBotQuestion, 1000);
+        return;
+    }
+
+    let attackerAtk = (command === 'special' || skillEffect.useSpecialStat) ? (me.special || me.atk) : me.atk;
 
         // 敵の攻撃デバフ適用（自分が攻撃する場合）
         if (enemyAtkDebuff > 0) {
@@ -2294,8 +2381,10 @@ function handleBotAnswer(userAnswer) {
         
         // 必殺技名を取得
         const ultimateName = getWeaponUltimateName(me.equippedWeapon);
-        if (me.ultimateGauge.current >= me.ultimateGauge.max) {
-            addLog("必殺技ゲージMAX！次の正解で「" + ultimateName + "」発動！");
+        if (command === 'ultimate') {
+            // ログは下の発動判定でまとめて出す
+        } else if (me.ultimateGauge.current >= me.ultimateGauge.max) {
+            addLog("必殺技ゲージMAX！「" + ultimateName + "」が選択可能です！");
         }
         
         // ユニーク能力適用
@@ -2338,9 +2427,9 @@ function handleBotAnswer(userAnswer) {
             damage += attackBonus;
         }
         
-        // 必殺技発動判定（ゲージが満タンの場合）
+        // 必殺技発動判定（「必殺技」コマンドを選んだ場合のみ）
         let ultimateActivated = false;
-        if (me.ultimateGauge.current >= me.ultimateGauge.max) {
+        if (command === 'ultimate') {
             damage = Math.floor(damage * 1.5);
             ultimateActivated = true;
             addLog("必殺技「" + ultimateName + "」発動！ダメージ1.5倍！");
@@ -2348,6 +2437,8 @@ function handleBotAnswer(userAnswer) {
             // 必殺技発動後、ゲージをリセット
             me.ultimateGauge.current = 0;
             updateUltimateGauge();
+        } else if (command === 'special') {
+            addLog("特殊攻撃！");
         }
         
         // クリティカル判定：常時 BASE_CRIT_CHANCE（5%）の確率で発生する。
@@ -2450,7 +2541,9 @@ function handleBotAnswer(userAnswer) {
             // 即座に次の問題へ
             setTimeout(generateBotQuestion, 1000);
         }
-    } else {
+}
+
+function handleWrongAnswer(skillEffect) {
         addLog("不正解...");
         
         // 不正解時、即座にダメージを受ける
@@ -2596,7 +2689,6 @@ function handleBotAnswer(userAnswer) {
                 setTimeout(generateBotQuestion, 1000);
             }
         }, 500);
-    }
 }
 
 function finishBotBattle(result) {
