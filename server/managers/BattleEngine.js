@@ -219,7 +219,7 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
     if (!options.isSureHit && defender) {
         const defenderSpeed = defender.speed || 0;
         // 素早さ7500で最大回避率45%に到達する、二次関数的な上昇カーブ
-        const maxSpeed = 7500;
+        const maxSpeed = 750000;
         const maxDodge = 45; // 45%
         if (defenderSpeed > 0) {
             const calculatedDodge = maxDodge * Math.pow(defenderSpeed / maxSpeed, 2);
