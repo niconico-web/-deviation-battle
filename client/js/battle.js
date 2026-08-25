@@ -298,7 +298,7 @@ function joinOnlineBattle() {
 function calculateDodgeChance(speed) {
     if (!speed || speed <= 0) return 0;
     // 素早さ7500で45%回避率に到達
-    return Math.min(45, Math.floor((speed / 7500) * 45));
+    return Math.min(45, Math.floor((speed / 750000) * 45));
 }
 
 function updateStats() {
@@ -2421,8 +2421,8 @@ function resolvePlayerCommand(command) {
         const dodgeChance = calculateDodgeChance(mySpeed);
         
         // 45%を超える分は攻撃ボーナスに変換
-        if (mySpeed > 7500) {
-            const excessSpeed = mySpeed - 7500;
+        if (mySpeed > 750000) {
+            const excessSpeed = mySpeed - 750000;
             const attackBonus = Math.floor(excessSpeed * 0.001); // 超過分の0.1%を攻撃ボーナス
             damage += attackBonus;
         }
@@ -2642,8 +2642,8 @@ function handleWrongAnswer(skillEffect) {
                 const enemyDodgeChance = calculateDodgeChance(enemy.speed);
                 
                 // 45%を超える分は攻撃ボーナスに変換
-                if (enemy.speed > 7500) {
-                    const excessSpeed = enemy.speed - 7500;
+                if (enemy.speed > 750000) {
+                    const excessSpeed = enemy.speed - 750000;
                     const attackBonus = Math.floor(excessSpeed * 0.001);
                     damage += attackBonus;
                 }
