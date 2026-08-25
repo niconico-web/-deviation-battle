@@ -393,6 +393,11 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
     }
     if (effect.selfDefDebuff) {
         if (!player.debuffs) player.debuffs = [];
+        // 同じステータスへのデバフが既にある場合は積み重ねず上書きする。
+        // 以前は毎回push()するだけだったため、同じスキルを連発すると
+        // 防御・速さなどが多重にかかり続け、無限に近い形で弱体化してしまう
+        // （オンライン対戦で一方が実質何もできなくなる）不具合の原因になっていた。
+        player.debuffs = player.debuffs.filter(d => d.stat !== 'def');
         player.debuffs.push({
             stat: 'def',
             reduction: effect.selfDefDebuff,
@@ -412,6 +417,8 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
     }
     if (effect.speedDebuff && enemy) {
         if (!enemy.debuffs) enemy.debuffs = [];
+        // 同上の理由により、既存の速さデバフを上書きしてから追加する
+        enemy.debuffs = enemy.debuffs.filter(d => d.stat !== 'speed');
         enemy.debuffs.push({
             stat: 'speed',
             reduction: effect.speedDebuff,

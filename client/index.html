@@ -51,15 +51,16 @@
                     <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
                     <div class="stat-allocation">
                         <h3>ステータス配分</h3>
-                        <p id="statAllocationDesc">持ち点200ポイントを自由に振り分けてください。</p>
+                        <p id="statAllocationDesc">持ち点250ポイントを自由に振り分けてください。</p>
                         <div class="stat-inputs">
                             <label>HP: <input id="statMaxHp" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>攻撃: <input id="statAtk" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>防御: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>速さ: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
+                            <label>特殊: <input id="statSpecial" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>学年: <input id="statGrade" type="number" value="1" min="1" max="12" step="1"></label>
                         </div>
-                        <p id="remainingPoints" class="remaining-points">残り持ち点：0 / 200</p>
+                        <p id="remainingPoints" class="remaining-points">残り持ち点：0 / 250</p>
                     </div>
                     <button type="button" class="btn btn-primary" id="createCharBtn">キャラクター作成</button>
                 </div>
@@ -458,7 +459,9 @@
             <section id="section-help" class="content-section">
                 <h2>ヘルプ</h2>
                 <div class="setting-box">
-                    <iframe src="help.html" width="500" height="1000"></iframe>
+                    <h3>ユニーク能力一覧</h3>
+                    <div id="unique-abilities-list" class="ability-list">
+                        <!-- Unique abilities will be rendered here by help.js -->
                     </div>
                 </div>
             </section>

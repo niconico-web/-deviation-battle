@@ -142,6 +142,11 @@ const SKILL_TREE = {
             // --- 遠距離・魔法ルート (上部) ---
             { id: "magic_path_1", name: "魔力", description: "攻撃+5, 速さ+5", cost: 2, x: 0, y: -3, requires: "core_hp_1", type: "stat", effect: { atk: 5, speed: 5 } },
             { id: "magic_path_2", name: "魔力II", description: "攻撃+10", cost: 2, x: 0, y: -5, requires: "magic_path_1", type: "stat", effect: { atk: 10 } },
+            // 特殊ステータス（第二の攻撃）ルート
+            { id: "special_awakening", name: "特殊の目覚め", description: "特殊+20", cost: 3, x: 4, y: -5, requires: "magic_path_2", type: "stat", effect: { special: 20 } },
+            { id: "psychic_blast", name: "サイキックブラスト", description: "特殊ステータスを使った一撃。次の攻撃1.3倍（特殊基準）", cost: 4, x: 6, y: -7, requires: "special_awakening", type: "active", effect: { type: "active", damageMultiplier: 1.3, useSpecialStat: true } },
+            { id: "special_mastery", name: "特殊の極意", description: "常時特殊+15%", cost: 5, x: 6, y: -9, requires: "psychic_blast", type: "passive", effect: { specialPercent: 0.15 } },
+            { id: "psychic_overload", name: "サイキックオーバーロード", description: "特殊ステータスを使った渾身の一撃。次の攻撃2.2倍（特殊基準）", cost: 6, x: 8, y: -11, requires: "special_mastery", type: "active", effect: { type: "active", damageMultiplier: 2.2, useSpecialStat: true } },
             { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", cost: 3, x: 2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.2, burn: true } },
             { id: "mw_ice_lance", name: "アイスランス", description: "次の攻撃のダメージ1.1倍、敵の速さを低下", cost: 3, x: -2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.1, speedDebuff: 0.2 } },
             { id: "magic_mastery", name: "魔力の極意", description: "常時 攻撃+5%, 速さ+5%", cost: 5, x: 0, y: -8, requires: ["mw_fireball", "mw_ice_lance"], type: "passive", effect: { atkPercent: 0.05, speedPercent: 0.05 } },
@@ -374,8 +379,8 @@ function getSkillNodeEffects(player) {
     
     const effects = {
         passive: {
-            maxHp: 0, atk: 0, def: 0, speed: 0,
-            maxHpPercent: 0, atkPercent: 0, defPercent: 0, speedPercent: 0,
+            maxHp: 0, atk: 0, def: 0, speed: 0, special: 0,
+            maxHpPercent: 0, atkPercent: 0, defPercent: 0, speedPercent: 0, specialPercent: 0,
             critChance: 0, critMultiplier: 0, skillCostReduction: 0
         },
         active: []
@@ -457,6 +462,7 @@ function applySkillEffectsToStats(baseStats, player, weaponType) {
     stats.atk += effects.passive.atk;
     stats.def += effects.passive.def;
     stats.speed += effects.passive.speed;
+    stats.special = (stats.special || 0) + effects.passive.special;
     
     return stats;
 }

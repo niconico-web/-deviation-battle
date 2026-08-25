@@ -8,3 +8,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+    # 【重要】現在 plan: free のため永続ディスクは使えず、サーバーが
+    # 再起動されるたびに server/data/ 以下（ギルド・プレイヤーデータ等）が
+    # 消えてしまいます（「ギルドがしばらくすると消える」不具合の原因）。
+    # 有料プラン（例: starter）にアップグレードした上で、下記の disk 設定の
+    # コメントを外すとデータが永続化されます。
+    # disk:
+    #   name: schoolbattle-data
+    #   mountPath: /opt/render/project/src/server/data
+    #   sizeGB: 1

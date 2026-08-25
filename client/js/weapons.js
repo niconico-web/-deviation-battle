@@ -923,7 +923,7 @@ function applyWeaponStats(baseStats, weapon) {
         }
         
         // カスタム補正を考慮した倍率計算
-        const statMultipliers = { atk: mult, def: mult, speed: mult, maxHp: mult };
+        const statMultipliers = { atk: mult, def: mult, speed: mult, maxHp: mult, special: mult };
         
         // カスタム補正を倍率に反映
         if (weapon.statBonuses) {
@@ -960,7 +960,7 @@ function applyWeaponStats(baseStats, weapon) {
             }
         } else {
             // 武器種がない場合は全ステータスに基本倍率適用
-            for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+            for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
                 if (result[stat] !== undefined) {
                     result[stat] = Math.floor(result[stat] * statMultipliers[stat]);
                 }
@@ -968,7 +968,7 @@ function applyWeaponStats(baseStats, weapon) {
         }
         
         // 最小値を保証（最低でも基礎ステータス以上）
-        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+        for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
             if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
                 result[stat] = baseStats[stat];
             }
@@ -992,7 +992,7 @@ function applyWeaponStats(baseStats, weapon) {
         }
         
         // 最小値を保証（最低でも基礎ステータス以上）
-        for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+        for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
             if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
                 result[stat] = baseStats[stat];
             }
@@ -1029,7 +1029,7 @@ function applyWeaponStats(baseStats, weapon) {
     }
     
     // 最小値を保証（最低でも基礎ステータス以上）
-    for (const stat of ['atk', 'def', 'speed', 'maxHp']) {
+    for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
         if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
             result[stat] = baseStats[stat];
         }

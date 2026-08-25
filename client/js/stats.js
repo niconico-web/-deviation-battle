@@ -1,10 +1,10 @@
-const STAT_KEYS = ["maxHp", "atk", "def", "speed"];
+const STAT_KEYS = ["maxHp", "atk", "def", "speed", "special"];
 const STAT_LABELS = {
-    maxHp: "HP", atk: I18N.atk, def: I18N.def, speed: I18N.speed
+    maxHp: "HP", atk: I18N.atk, def: I18N.def, speed: I18N.speed, special: "特殊"
 };
-const TOTAL_STAT_POINTS = 200;
+const TOTAL_STAT_POINTS = 250;
 const MIN_STAT = 10;
-const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30 };
+const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30, special: 50 };
 
 function getSubjectDisplayName(subject) {
     const subjectNames = {
@@ -331,7 +331,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: latestDailyMissions,
         guild: player.guild,
-        adventurerExp: player.adventurerExp || 0
+        adventurerExp: player.adventurerExp || 0,
+        special: player.special
     });
 
     // オーブを追加
@@ -366,6 +367,7 @@ function getStatsFromPlayer(player, withPassives = false) {
             atk: Number(p.atk) || DEFAULT_STATS.atk,
             def: Number(p.def) || DEFAULT_STATS.def,
             speed: Number(p.speed) || DEFAULT_STATS.speed,
+            special: Number(p.special) || DEFAULT_STATS.special,
             grade: Number(p.grade) || 1
         };
 
@@ -377,6 +379,7 @@ function getStatsFromPlayer(player, withPassives = false) {
         baseStats.atk = Math.floor((baseStats.atk + (passive.atk || 0)) * (1 + (passive.atkPercent || 0)));
         baseStats.def = Math.floor((baseStats.def + (passive.def || 0)) * (1 + (passive.defPercent || 0)));
         baseStats.speed = Math.floor((baseStats.speed + (passive.speed || 0)) * (1 + (passive.speedPercent || 0)));
+        baseStats.special = Math.floor((baseStats.special + (passive.special || 0)) * (1 + (passive.specialPercent || 0)));
         // クリティカル関連のスキルツリー効果（クリティカルルート）を引き継ぐ
         baseStats.critChance = passive.critChance || 0;
         baseStats.critMultiplier = passive.critMultiplier || 0;
@@ -390,6 +393,7 @@ function getStatsFromPlayer(player, withPassives = false) {
         atk: Number(p.atk) || DEFAULT_STATS.atk,
         def: Number(p.def) || DEFAULT_STATS.def,
         speed: Number(p.speed) || DEFAULT_STATS.speed,
+        special: Number(p.special) || DEFAULT_STATS.special,
         grade: Number(p.grade) || 1,
         critChance: 0,
         critMultiplier: 0
@@ -421,6 +425,7 @@ function buildPlayer(name, stats, xp, options = {}) {
         atk: stats.atk,
         def: stats.def,
         speed: stats.speed,
+        special: stats.special != null ? stats.special : (options.special != null ? options.special : Math.floor(stats.atk * 0.6)),
         grade: options.grade || stats.grade || 1,
         totalStudySeconds: options.totalStudySeconds || 0,
         coins: options.coins != null ? options.coins : 0,

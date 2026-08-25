@@ -271,6 +271,7 @@ function getStatsFromInputs() {
         atk: Math.floor(Number(document.getElementById("statAtk").value)),
         def: Math.floor(Number(document.getElementById("statDef").value)),
         speed: Math.floor(Number(document.getElementById("statSpeed").value)),
+        special: Math.floor(Number(document.getElementById("statSpecial").value)),
         grade: Math.floor(Number(document.getElementById("statGrade").value))
     };
 }
@@ -280,6 +281,9 @@ function setStatsToInputs(stats) {
     document.getElementById("statAtk").value = stats.atk;
     document.getElementById("statDef").value = stats.def;
     document.getElementById("statSpeed").value = stats.speed;
+    if (document.getElementById("statSpecial")) {
+        document.getElementById("statSpecial").value = stats.special != null ? stats.special : Math.floor(stats.atk * 0.6);
+    }
     if (stats.grade) {
         document.getElementById("statGrade").value = stats.grade;
     }
@@ -347,7 +351,8 @@ function createCharacter() {
         bossRunCount: existing?.bossRunCount,
         dailyMissions: existing?.dailyMissions,
         guild: existing?.guild,
-        adventurerExp: existing?.adventurerExp
+        adventurerExp: existing?.adventurerExp,
+        special: existing?.special
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -429,6 +434,7 @@ function updateStatus(player) {
         "<p>" + I18N.atk + I18N.colon + battleStats.atk + "</p>" +
         "<p>" + I18N.def + I18N.colon + battleStats.def + "</p>" +
         "<p>" + I18N.speed + I18N.colon + battleStats.speed + "</p>" +
+        "<p>特殊" + I18N.colon + (battleStats.special != null ? battleStats.special : battleStats.atk) + "</p>" +
         "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>";
 }
@@ -585,7 +591,8 @@ function applyStudyRewards(seconds) {
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: player.dailyMissions,
         guild: player.guild,
-        adventurerExp: player.adventurerExp || 0
+        adventurerExp: player.adventurerExp || 0,
+        special: player.special
     });
 
     // オーブを追加
