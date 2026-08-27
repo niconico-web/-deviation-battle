@@ -106,7 +106,7 @@ function renderInventory() {
             if (weapon.statBonuses) {
                 const bonusParts = [];
                 for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
-                    const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP" }[stat] || stat;
+                    const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP", special: "特殊" }[stat] || stat;
                     const sign = bonus > 0 ? "+" : "";
                     bonusParts.push(`${statLabel}${sign}${(bonus * 100).toFixed(0)}%`);
                 }
@@ -268,7 +268,7 @@ function renderOriginalWeapons() {
         if (weapon.statBonuses) {
             const bonusParts = [];
             for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
-                const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP" }[stat] || stat;
+                const statLabel = { atk: "攻撃", def: "防御", speed: "速さ", maxHp: "HP", special: "特殊" }[stat] || stat;
                 const sign = bonus > 0 ? "+" : "";
                 bonusParts.push(`${statLabel}${sign}${(bonus * 100).toFixed(0)}%`);
             }

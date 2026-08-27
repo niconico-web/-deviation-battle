@@ -185,6 +185,17 @@
                     <p>モンスターから入手した素材を確認・管理できます。</p>
                     <button id="openMaterialManagementBtn" class="btn btn-primary">素材管理</button>
                 </div>
+
+                <!-- 素材管理モーダル -->
+                <div id="materialManagementModal" class="modal">
+                    <div class="modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3>素材インベントリ</h3>
+                        <div id="materialsInventoryList" class="materials-inventory-list">
+                            <!-- renderMaterialsInventory() によってここに一覧が描画される -->
+                        </div>
+                    </div>
+                </div>
                 <h3>インベントリ</h3>
                 <h4>所持武器</h4>
                 <div id="inventoryList" class="inventory-list">

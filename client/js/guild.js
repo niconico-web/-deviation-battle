@@ -169,10 +169,15 @@ function updateGuildQuestProgress(type, value) {
                     localStorage.setItem("player", JSON.stringify(player));
                     
                     // ギルド貢献度を付与
+                    // サーバーが権威を持つデータのため、ローカルを直接書き換えるのではなく
+                    // サーバーに加算をリクエストし、サーバーからの応答で同期する。
                     const playerGuild = getPlayerGuild();
-                    if (playerGuild) {
-                        playerGuild.contribution = (playerGuild.contribution || 0) + (quest.reward || 0);
-                        setPlayerGuild(playerGuild);
+                    if (playerGuild && window.socket && window.socket.connected) {
+                        window.socket.emit('guild:addContribution', {
+                            guildId: playerGuild.id,
+                            playerId: player.id,
+                            amount: quest.reward || 0
+                        });
                     }
                     
                     // 報酬メッセージを表示
@@ -643,6 +648,19 @@ function initializeGuildSystem() {
             } else {
                 alert(result.message || 'ギルド脱退に失敗しました');
             }
+        });
+
+        // ギルド貢献度加算のサーバー応答
+        window.socket.on('guild:addContributionResponse', (result) => {
+            if (result.success && result.guild) {
+                // サーバーの権威あるギルド情報（貢献度・ランク等）でローカルを同期する
+                setPlayerGuild(result.guild);
+                if (result.rankUp) {
+                    alert(`ギルドランクが${result.newRank}にアップしました！`);
+                }
+            }
+            // 失敗時は静かに無視する（ネットワーク瞬断等でも、後続の
+            // guild:playerGuild再取得で最終的にサーバーと同期される）
         });
 
         window.socket.on('guild:list', (guilds) => {

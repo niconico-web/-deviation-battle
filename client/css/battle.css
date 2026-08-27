@@ -605,3 +605,8 @@ body {
     color: #aaa;
     text-align: center;
 }
+
+.btn-command.selected {
+    outline: 3px solid #ffd700;
+    outline-offset: -3px;
+}
