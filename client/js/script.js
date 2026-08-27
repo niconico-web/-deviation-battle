@@ -617,9 +617,9 @@ function applyStudyRewards(seconds) {
     const subjectMap = {
         jp: I18N.hpDef || "HP・防御",
         math: I18N.mathAtk || "攻撃・速さ",
-        eng: I18N.engDefSpeed || "防御・速さ",
-        sci: I18N.sciAtk || "攻撃・HP",
-        soc: I18N.socHp || "HP・防御"
+        eng: I18N.engDefAtk || "防御・攻撃",
+        sci: I18N.sciAtkSpe || "攻撃・特殊",
+        soc: I18N.socHpSpe || "HP・特殊"
     };
     const subjectLabel = subjectMap[subject] || "";
 
