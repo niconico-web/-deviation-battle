@@ -371,7 +371,7 @@ function generateBossWeapon(boss, weaponName, tierIndex = 0) {
 
     // Give a significant boost to two random stats
     const statBonuses = {};
-    const statsToBoost = ["atk", "def", "speed", "maxHp"];
+    const statsToBoost = ["atk", "def", "speed", "maxHp", "special"];
     const shuffledStats = statsToBoost.sort(() => 0.5 - Math.random());
     statBonuses[shuffledStats[0]] = 0.25; // +25%
     statBonuses[shuffledStats[1]] = 0.25; // +25%

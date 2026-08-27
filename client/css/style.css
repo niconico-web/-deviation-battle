@@ -899,3 +899,35 @@ textarea {
     font-size: 2.5rem;
     margin: 8px 0;
 }
+
+/* 素材インベントリ */
+.materials-inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.material-item {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.material-item .material-name {
+    font-weight: bold;
+    color: var(--accent-yellow);
+    margin-right: 10px;
+}
+
+.material-item .material-count {
+    color: var(--text-secondary);
+}
+
+.material-item .material-description {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}

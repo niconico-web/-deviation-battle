@@ -46,6 +46,21 @@ module.exports = function(io){
             socket.emit("guild:leaveResponse", result);
         });
 
+        // ギルド貢献度の追加（ギルドクエスト達成時など）
+        // 以前はクライアント側でローカルのplayer.guild.contributionを
+        // 書き換えるだけで、サーバーには一切反映していなかった。
+        // そのため、サーバーからギルド情報を再取得した瞬間に古い値で
+        // 上書きされ、「貢献度が獲得できない」ように見える不具合があった。
+        socket.on("guild:addContribution", (data) => {
+            const { guildId, playerId, amount } = data || {};
+            if (!guildId || !playerId || !amount) {
+                socket.emit("guild:addContributionResponse", { success: false, message: '不正なリクエストです' });
+                return;
+            }
+            const result = GuildManager.addContribution(guildId, playerId, amount);
+            socket.emit("guild:addContributionResponse", result);
+        });
+
         // ギルド情報取得
         socket.on("guild:getInfo", (guildId) => {
             const guild = GuildManager.getGuild(guildId);

@@ -1046,6 +1046,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (statDesc) {
                 statDesc.textContent = (window.I18N ? I18N.fixedStats : "ステータスは固定されています。");
             }
+            // データ管理UIの初期化
+            // 以前はcreateCharacter()内でしかこのボタンを有効化しておらず、
+            // 一度ページを再読み込みした「既存プレイヤー」はこのボタンが
+            // 永久に disabled のままになり、一切データ保存ができなかった
+            // （＝他端末へのデータ引き継ぎが不可能だった）不具合があった。
+            const playerIdEl = document.getElementById("currentPlayerId");
+            if (playerIdEl) playerIdEl.textContent = initialPlayer.id;
+            const saveDataBtnEl = document.getElementById("saveDataBtn");
+            if (saveDataBtnEl) saveDataBtnEl.disabled = false;
         } else {
             // 新規作成時の処理
             if (typeof updateRemainingPoints === "function") {
@@ -1232,6 +1241,26 @@ document.addEventListener('DOMContentLoaded', () => {
         // 素材管理の初期化
         if (typeof initMaterials === "function") {
             initMaterials();
+        }
+
+        // 素材管理モーダルの開閉
+        // （ボタンにクリックイベントが一切設定されておらず、押しても何も起きなかった。
+        //   モーダルのHTML自体も存在しなかったため、あわせて追加した）
+        const openMaterialManagementBtn = document.getElementById('openMaterialManagementBtn');
+        const materialManagementModal = document.getElementById('materialManagementModal');
+        if (openMaterialManagementBtn && materialManagementModal) {
+            openMaterialManagementBtn.addEventListener('click', () => {
+                if (typeof renderMaterialsInventory === "function") {
+                    renderMaterialsInventory();
+                }
+                materialManagementModal.style.display = 'flex';
+            });
+            const closeMaterialManagementBtn = materialManagementModal.querySelector('.close');
+            if (closeMaterialManagementBtn) {
+                closeMaterialManagementBtn.addEventListener('click', () => {
+                    materialManagementModal.style.display = 'none';
+                });
+            }
         }
 
         // ギルドシステムの初期化

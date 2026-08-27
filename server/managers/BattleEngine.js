@@ -530,7 +530,7 @@ function getStatWithBuffs(player, statName) {
  * @param {object} usedSkill
  * @returns {object} result
  */
-function processRaidAnswer(battle, playerId, answer, usedSkill) {
+function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attack') {
     const player = battle.players[playerId];
     const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
     const boss = battle.players[bossId];
@@ -596,79 +596,92 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
         let isAttackerIgnoreDef = hasUniqueAbility(player, "ignore_def_half");
         if (skillIsActive && activeSkillEffect.ignoreDef) isAttackerIgnoreDef = true;
 
-        // 「根性」の攻撃力アップ効果
-        let attackerAtk = player.atk;
-        if (player.hp === 1 && hasUniqueAbility(player, 'guts')) {
-            attackerAtk = Math.floor(attackerAtk * 3);
-            result.gutsAtkBoost = true;
-            result.gutsAtkBoostPlayerName = player.name;
-        }
+        // コマンド選択制バトルシステム：攻撃/特殊/防御/必殺技
+        // ゲージが満タンでないのに「必殺技」が指定された場合は通常攻撃として扱う
+        const ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+        const effectiveCommand = (command === 'ultimate' && !ultimateReady) ? 'attack' : command;
+        result.command = effectiveCommand;
 
-        // レイドボスは基本的に回避しない（多人数を相手取る巨大な敵という前提の簡略化）
-        let damageResult = calculateDamage(player, boss, answerTime, {
-            isSureHit: true,
-            attackerAtk,
-            ignoreDef: isAttackerIgnoreDef,
-            defenderDef: boss.def
-        });
-        let damage = damageResult.damage;
-
-        if (skillIsActive) {
-            if (activeSkillEffect.damageMultiplier) damage = Math.floor(damage * activeSkillEffect.damageMultiplier);
-            if (activeSkillEffect.nextAttackCrit) {
-                damage = Math.floor(damage * 1.5);
-                result.skillCrit = true;
+        if (effectiveCommand === 'defend') {
+            // 防御コマンド：この行動では攻撃せず、次に受けるダメージを軽減する
+            player.pendingDamageReduction = Math.max(player.pendingDamageReduction || 0, 0.5);
+            result.defended = true;
+            result.damage = 0;
+        } else {
+            // 「特殊」コマンドの場合は特殊ステータスを攻撃力の代わりに使う
+            let attackerAtk = (effectiveCommand === 'special') ? (player.special || player.atk) : player.atk;
+            if (player.hp === 1 && hasUniqueAbility(player, 'guts')) {
+                attackerAtk = Math.floor(attackerAtk * 3);
+                result.gutsAtkBoost = true;
+                result.gutsAtkBoostPlayerName = player.name;
             }
-            const strikeCount = Math.max(1, Math.min(5, activeSkillEffect.multiStrike || 1));
-            if (strikeCount > 1) {
-                const perHitRate = activeSkillEffect.multiStrikeMultiplier || 0.6;
-                damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
-                result.multiStrike = strikeCount;
-            }
-        }
 
-        if (player.skipTurn) {
-            player.skipTurn = false;
-            damage = 0;
-            result.skippedTurn = true;
-        }
+            // レイドボスは基本的に回避しない（多人数を相手取る巨大な敵という前提の簡略化）
+            let damageResult = calculateDamage(player, boss, answerTime, {
+                isSureHit: true,
+                attackerAtk,
+                ignoreDef: isAttackerIgnoreDef,
+                defenderDef: boss.def
+            });
+            let damage = damageResult.damage;
 
-        // 必殺技発動判定（ゲージが満タンの場合）
-        if (player.ultimateGauge.current >= player.ultimateGauge.max && damage > 0) {
-            damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
-            result.ultimateActivated = true;
-            result.ultimateDamage = damage;
-            player.ultimateGauge.current = 0;
-            result.ultimateGauge = 0;
-            result.ultimateReady = false;
-        }
-
-        damage = applyUniqueAbilityDamageBonus(damage, player);
-
-        // ボスがスキルで得た「次のダメージ軽減」バリアを消費する
-        if (damage > 0 && boss.pendingDamageReduction > 0) {
-            damage = applyPendingDamageReduction(boss, damage, result);
-        }
-
-        if (damage > 0) {
-            boss.hp = Math.max(0, boss.hp - damage);
-            result.damage = damage;
-            result.enemyHp = boss.hp;
-
-            if (skillIsActive && activeSkillEffect.lifeSteal) {
-                const stolen = Math.floor(damage * activeSkillEffect.lifeSteal);
-                if (stolen > 0) {
-                    player.hp = Math.min(player.maxHp, player.hp + stolen);
-                    result.skillLifeSteal = stolen;
+            if (skillIsActive) {
+                if (activeSkillEffect.damageMultiplier) damage = Math.floor(damage * activeSkillEffect.damageMultiplier);
+                if (activeSkillEffect.nextAttackCrit) {
+                    damage = Math.floor(damage * 1.5);
+                    result.skillCrit = true;
+                }
+                const strikeCount = Math.max(1, Math.min(5, activeSkillEffect.multiStrike || 1));
+                if (strikeCount > 1) {
+                    const perHitRate = activeSkillEffect.multiStrikeMultiplier || 0.6;
+                    damage = Math.max(1, Math.floor(damage * perHitRate)) * strikeCount;
+                    result.multiStrike = strikeCount;
                 }
             }
-            const healAmount = applyLifeDrain(player, damage);
-            if (healAmount > 0) {
-                player.hp = Math.min(player.maxHp, player.hp + healAmount);
-                result.lifedrainHealed = healAmount;
+
+            if (player.skipTurn) {
+                player.skipTurn = false;
+                damage = 0;
+                result.skippedTurn = true;
             }
-        } else {
-            result.damage = 0;
+
+            // 必殺技発動判定（「必殺技」コマンドを選び、ゲージが満タンの場合のみ）
+            if (effectiveCommand === 'ultimate' && damage > 0) {
+                damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+                result.ultimateActivated = true;
+                result.ultimateDamage = damage;
+                player.ultimateGauge.current = 0;
+                result.ultimateGauge = 0;
+                result.ultimateReady = false;
+            }
+
+            damage = applyUniqueAbilityDamageBonus(damage, player);
+
+            // ボスがスキルで得た「次のダメージ軽減」バリアを消費する
+            if (damage > 0 && boss.pendingDamageReduction > 0) {
+                damage = applyPendingDamageReduction(boss, damage, result);
+            }
+
+            if (damage > 0) {
+                boss.hp = Math.max(0, boss.hp - damage);
+                result.damage = damage;
+                result.enemyHp = boss.hp;
+
+                if (skillIsActive && activeSkillEffect.lifeSteal) {
+                    const stolen = Math.floor(damage * activeSkillEffect.lifeSteal);
+                    if (stolen > 0) {
+                        player.hp = Math.min(player.maxHp, player.hp + stolen);
+                        result.skillLifeSteal = stolen;
+                    }
+                }
+                const healAmount = applyLifeDrain(player, damage);
+                if (healAmount > 0) {
+                    player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                    result.lifedrainHealed = healAmount;
+                }
+            } else {
+                result.damage = 0;
+            }
         }
 
         if (boss.hp <= 0) {
@@ -766,7 +779,7 @@ function processRaidAnswer(battle, playerId, answer, usedSkill) {
 // 回答を処理
 // -----------------------------
 
-function processAnswer(battle, playerId, answer, usedSkill) {
+function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') {
     const player = battle.players[playerId];
     // ボス戦（レイドで3人以上いる場合を含む）では、常にisBoss:trueのプレイヤーを敵として扱う。
     // 通常のPvP（1対1）では、自分以外の唯一のプレイヤーが敵になる。
@@ -848,8 +861,22 @@ function processAnswer(battle, playerId, answer, usedSkill) {
                 if (activeSkillEffect.sureHit) isAttackerSureHit = true;
             }
 
-            // 「根性」の攻撃力アップ効果
-            let attackerAtk = attacker.atk;
+            // コマンド選択制バトルシステム：攻撃/特殊/防御/必殺技
+            // ゲージが満タンでないのに「必殺技」が指定された場合は通常攻撃として扱う
+            const ultimateReady = attacker.ultimateGauge.current >= attacker.ultimateGauge.max;
+            const effectiveCommand = (command === 'ultimate' && !ultimateReady) ? 'attack' : command;
+            result.command = effectiveCommand;
+
+            if (effectiveCommand === 'defend') {
+                // 防御コマンド：この行動では攻撃せず、次に受けるダメージを軽減する
+                attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, 0.5);
+                result.defended = true;
+                result.damage = 0;
+                result.firstCorrect = true;
+            } else {
+
+            // 「特殊」コマンドの場合は特殊ステータスを攻撃力の代わりに使う
+            let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
             if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
                 attackerAtk = Math.floor(attackerAtk * 3);
                 result.gutsAtkBoost = true;
@@ -947,6 +974,7 @@ function processAnswer(battle, playerId, answer, usedSkill) {
                     result.lifedrainHealed = healAmount;
                 }
             }
+            } // effectiveCommand === 'defend' の else 終わり
             
             // 勝利判定
             if (defender.hp <= 0) {

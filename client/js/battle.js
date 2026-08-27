@@ -45,6 +45,8 @@ let myPoisonTurns = 0;            // 自分（プレイヤー）の毒残りタ�
 let enemyNextDamageShield = 0;    // ボスが得た「次に受けるダメージ軽減」（1回限り）
 let pendingSkillEffect = null;    // 正解時、コマンド選択待ちの間だけ保持するスキル効果
 let pendingUsedSkill = null;      // 正解時、コマンド選択待ちの間だけ保持する使用スキル
+let selectedCommand = 'attack';   // オンライン/パーティ戦で回答と同時に選ぶコマンド（攻撃/特殊/防御/必殺技）
+let myUltimateReady = false;      // オンライン/パーティ戦でのサーバー側必殺技ゲージ状態
 
 // 武器システムの関数をインポート（weapons.jsが読み込まれている前提）
 // getWeaponUltimateName関数を使用するために必要
@@ -79,10 +81,31 @@ const log = document.getElementById("log");
 const skillsContainer = document.getElementById("skillSlotsContainer");
 
 // コマンドメニューのボタン配線
-document.getElementById("cmdAttackBtn")?.addEventListener("click", () => resolvePlayerCommand("attack"));
-document.getElementById("cmdSpecialBtn")?.addEventListener("click", () => resolvePlayerCommand("special"));
-document.getElementById("cmdDefendBtn")?.addEventListener("click", () => resolvePlayerCommand("defend"));
-document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => resolvePlayerCommand("ultimate"));
+document.getElementById("cmdAttackBtn")?.addEventListener("click", () => selectCommand("attack"));
+document.getElementById("cmdSpecialBtn")?.addEventListener("click", () => selectCommand("special"));
+document.getElementById("cmdDefendBtn")?.addEventListener("click", () => selectCommand("defend"));
+document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => selectCommand("ultimate"));
+
+/**
+ * コマンドボタンが押された時の共通入口。
+ * ボット戦：既に正解が確定しているので、即座にそのコマンドで攻撃を解決する。
+ * オンライン/パーティ戦：まだ正解かどうかサーバー側でしか分からないため、
+ * 「どのコマンドを使うか」を選んでおくだけにして、実際の判定・ダメージ計算は
+ * 回答送信時にサーバー側で行う（1往復のプロトコルに乗せるための簡略化）。
+ */
+function selectCommand(command) {
+    if (isBotBattle) {
+        resolvePlayerCommand(command);
+        return;
+    }
+    if (command === 'ultimate' && !myUltimateReady) {
+        return; // ゲージ不足時は選択させない
+    }
+    selectedCommand = command;
+    document.querySelectorAll('#commandMenu .btn-command').forEach(btn => btn.classList.remove('selected'));
+    const btnId = { attack: 'cmdAttackBtn', special: 'cmdSpecialBtn', defend: 'cmdDefendBtn', ultimate: 'cmdUltimateBtn' }[command];
+    document.getElementById(btnId)?.classList.add('selected');
+}
 
 function statLabel(k, v) {
     return I18N[k] + I18N.colon + v;
@@ -1637,15 +1660,18 @@ function handleChoiceClick(selectedOption) {
     if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
-        // サーバーに回答を送信（スキルを選択していた場合はskillIdも一緒に送る）
+        // サーバーに回答を送信（スキル・コマンドを選択していた場合は一緒に送る）
         const usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
         socket.emit("battle:submitAnswer", {
             answer: selectedOption,
-            skillId: usedSkill ? usedSkill.id : null
+            skillId: usedSkill ? usedSkill.id : null,
+            command: selectedCommand
         });
         if (usedSkill) {
             afterSkillUse(usedSkill);
         }
+        hideCommandMenu();
+        selectedCommand = 'attack'; // 次のターンのためにリセット
         // 次の問題が表示されるまで待機
         questionDisplay.textContent = "回答送信済み。次の問題を待っています...";
         choicesContainer.innerHTML = '';
@@ -2176,6 +2202,13 @@ function displayQuestion(question) {
     // スキル選択ウィンドウをカウントダウンと同時に開始
     startSkillActivationWindow();
 
+    // オンライン/パーティ戦では、正解かどうかはサーバー側でしか判定できないため、
+    // 回答前にコマンド（攻撃/特殊/防御/必殺技）を選んでおく形にする。
+    if (!isBotBattle) {
+        selectedCommand = 'attack';
+        showCommandMenu();
+    }
+
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
         generateChoices(currentQuestion);
@@ -2309,14 +2342,22 @@ function handleBotAnswer(userAnswer) {
 function showCommandMenu() {
     const commandMenu = document.getElementById('commandMenu');
     if (!commandMenu) {
-        // メニューが無い場合（古いキャッシュ等）は、従来通り「攻撃」で即実行する
-        resolvePlayerCommand('attack');
+        // メニューが無い場合（古いキャッシュ等）は、ボット戦のみ従来通り「攻撃」で即実行する。
+        // オンライン/パーティ戦はコマンド選択が回答前なので、ここでは何もしない
+        // （デフォルトのselectedCommand='attack'のまま回答が送信される）。
+        if (isBotBattle) {
+            resolvePlayerCommand('attack');
+        }
         return;
     }
     commandMenu.style.display = 'block';
+    document.querySelectorAll('#commandMenu .btn-command').forEach(btn => btn.classList.remove('selected'));
+    document.getElementById('cmdAttackBtn')?.classList.add('selected');
 
     const ultimateBtn = document.getElementById('cmdUltimateBtn');
-    const isUltimateReady = me.ultimateGauge && me.ultimateGauge.current >= me.ultimateGauge.max;
+    const isUltimateReady = isBotBattle
+        ? (me.ultimateGauge && me.ultimateGauge.current >= me.ultimateGauge.max)
+        : myUltimateReady;
     if (ultimateBtn) {
         ultimateBtn.disabled = !isUltimateReady;
         ultimateBtn.title = isUltimateReady ? '' : '必殺技ゲージが満タンの時のみ選択できます';
@@ -2772,7 +2813,12 @@ function syncBattleState(stateUpdate) {
             // 自分
             if (data.hp !== undefined) me.hp = data.hp;
             if (data.maxHp !== undefined) me.maxHp = data.maxHp;
-            if (data.ultimateGauge !== undefined) me.ultimateGauge = data.ultimateGauge;
+            if (data.ultimateGauge !== undefined) {
+                me.ultimateGauge = data.ultimateGauge;
+                myUltimateReady = typeof me.ultimateGauge === 'object'
+                    ? me.ultimateGauge.current >= me.ultimateGauge.max
+                    : false;
+            }
         } else if (id === enemy.id) {
             // 敵
             if (data.hp !== undefined) enemy.hp = data.hp;

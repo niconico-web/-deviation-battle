@@ -42,7 +42,7 @@ module.exports = function(io){
         // これに対応するサーバー側ハンドラが存在しなかったため、回答を送信しても
         // 何も返ってこず「読み込み中」のまま止まっていた。
         socket.on("battle:submitAnswer", (data) => {
-            const { answer, skillId } = data || {};
+            const { answer, skillId, command } = data || {};
 
             // battle:join / requestBattleStart で socket.join(roomId) 済みのはずなので、
             // 自分自身のデフォルトルーム以外のルームIDを取得する
@@ -76,7 +76,7 @@ module.exports = function(io){
 
             // レイドボス戦（パーティ対ボス、3人以上いる場合を含む）と、通常の1対1対戦とで処理を分ける
             if (battle.isBossBattle) {
-                const result = BattleEngine.processRaidAnswer(battle, playerId, answer, usedSkill);
+                const result = BattleEngine.processRaidAnswer(battle, playerId, answer, usedSkill, command || 'attack');
 
                 if (result.error) {
                     socket.emit("answerError", { message: result.error });
@@ -149,7 +149,7 @@ module.exports = function(io){
                 return;
             }
 
-            const result = BattleEngine.processAnswer(battle, playerId, answer, usedSkill);
+            const result = BattleEngine.processAnswer(battle, playerId, answer, usedSkill, command || 'attack');
 
             if (result.error) {
                 socket.emit("answerError", { message: result.error });

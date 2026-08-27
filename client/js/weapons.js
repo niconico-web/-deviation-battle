@@ -462,13 +462,14 @@ const ORB_UNIQUE_ABILITIES = {
     }
 };
 
-const ORB_STAT_TYPES = ["atk", "def", "speed", "maxHp"];
+const ORB_STAT_TYPES = ["atk", "def", "speed", "maxHp", "special"];
 
 const ORB_STAT_LABELS = {
     atk: "攻撃",
     def: "防御",
     speed: "速さ",
-    maxHp: "HP"
+    maxHp: "HP",
+    special: "特殊"
 };
 
 function createOrb(tier) {
@@ -720,16 +721,16 @@ function calculateDefenseWithAbilities(baseDamage, defender, weapon) {
 }
 
 const WEAPON_TYPES = {
-    sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: [], debuff: {} },
-    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: [], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp"] } },
-    greatsword:   { name: "大剣",       primary: ["atk"], secondary: [], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
-    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: [], debuff: {} },
-    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed"], secondary: [], debuff: {}, bonusMult: 1.1 },
-    pistol:       { name: "ピストル",   primary: ["speed","maxHp"], secondary: ["atk"], debuff: {} },
-    katana:       { name: "刀",         primary: ["def", "speed"], secondary: [], debuff: {} },
-    magic_wand:   { name: "魔法の杖",   primary: ["atk", "maxHp"], secondary: ["def"], debuff: { speed: 0.9 } },
-    gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: [], debuff: { def: 0.9 } },
-    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: [], debuff: { atk: 0.9 } }
+    sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: ["special"], debuff: {} },
+    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: ["special"], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp", "special"] } },
+    greatsword:   { name: "大剣",       primary: ["atk"], secondary: ["special"], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
+    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: ["special"], debuff: {} },
+    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed", "special"], secondary: [], debuff: {}, bonusMult: 1.1 },
+    pistol:       { name: "ピストル",   primary: ["speed", "maxHp", "special"], secondary: ["atk"], debuff: {} },
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: ["special"], debuff: {} },
+    magic_wand:   { name: "魔法の杖",   primary: ["special", "maxHp"], secondary: ["atk", "def"], debuff: { speed: 0.9 } },
+    gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: ["special"], debuff: { def: 0.9 } },
+    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
