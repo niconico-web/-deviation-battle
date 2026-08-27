@@ -2199,20 +2199,24 @@ function displayQuestion(question) {
     console.log("displayQuestion called with:", question);
     currentQuestion = question;
 
+    // まずコマンドメニューを隠す（前の問題の状態をクリア）
+    hideCommandMenu();
+
     // スキル選択ウィンドウをカウントダウンと同時に開始
     startSkillActivationWindow();
-
-    // オンライン/パーティ戦では、正解かどうかはサーバー側でしか判定できないため、
-    // 回答前にコマンド（攻撃/特殊/防御/必殺技）を選んでおく形にする。
-    if (!isBotBattle) {
-        selectedCommand = 'attack';
-        showCommandMenu();
-    }
 
     showCountdown(() => {
         questionDisplay.textContent = currentQuestion.question;
         generateChoices(currentQuestion);
         startTimer();
+        
+        // オンライン/パーティ戦では、正解かどうかはサーバー側でしか判定できないため、
+        // 回答前にコマンド（攻撃/特殊/防御/必殺技）を選んでおく形にする。
+        if (!isBotBattle) {
+            selectedCommand = 'attack';
+            showCommandMenu();
+        }
+        
         const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
         addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
     });
@@ -2324,12 +2328,19 @@ function handleBotAnswer(userAnswer) {
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
         updateUltimateGauge();
 
-        // ここで即座に攻撃を確定させず、プレイヤーに「攻撃・特殊・防御・必殺技」を選ばせる。
-        // 選択後の実際の処理は resolvePlayerCommand() で行う。
-        pendingSkillEffect = skillEffect;
-        pendingUsedSkill = usedSkill;
-        showCommandMenu();
-        return;
+        // ボット戦の場合はコマンド選択UIを表示して、プレイヤーに選ばせる
+        if (isBotBattle) {
+            // ここで即座に攻撃を確定させず、プレイヤーに「攻撃・特殊・防御・必殺技」を選ばせる。
+            // 選択後の実際の処理は resolvePlayerCommand() で行う。
+            pendingSkillEffect = skillEffect;
+            pendingUsedSkill = usedSkill;
+            showCommandMenu();
+            return;
+        } else {
+            // オンライン/パーティ戦の場合は回答済みなので、コマンドメニューを隠す
+            hideCommandMenu();
+            return;
+        }
     } else {
         handleWrongAnswer(skillEffect);
     }
