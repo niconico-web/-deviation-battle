@@ -530,6 +530,128 @@ function getStatWithBuffs(player, statName) {
  * @param {object} usedSkill
  * @returns {object} result
  */
+// 回答のみを処理し、コマンド選択を待つ関数
+function processAnswerOnly(battle, playerId, answer, usedSkill) {
+    const player = battle.players[playerId];
+    const enemyId = battle.isBossBattle
+        ? Object.keys(battle.players).find(id => battle.players[id].isBoss)
+        : Object.keys(battle.players).find(id => id !== playerId);
+    const enemy = battle.players[enemyId];
+
+    if (!battle.currentQuestion) {
+        return { error: "No active question" };
+    }
+
+    const answerTime = Date.now() - battle.currentQuestion.startTime;
+    player.answerTime = answerTime;
+
+    const isCorrect = QuestionManager.checkAnswer(battle.currentQuestion, answer);
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        isCorrect,
+        answerTime,
+        question: battle.currentQuestion.question,
+        skillUsed: null,
+    };
+
+    // スキルの発動判定と、攻撃を伴わない効果の即時適用
+    let activeSkillEffect = null;
+    if (usedSkill && usedSkill.effect) {
+        const eff = usedSkill.effect;
+        let canApply = true;
+        if (eff.condition && eff.condition.type === 'hp_below') {
+            if (player.maxHp > 0 && player.hp / player.maxHp > eff.condition.value) {
+                canApply = false;
+            }
+        }
+        if (canApply) {
+            console.log(`[BattleEngine] Applying skill "${usedSkill.name}" for player ${player.name}`);
+            activeSkillEffect = eff;
+            result.skillUsed = usedSkill;
+            applyInstantSkillEffects(player, enemy, eff, result);
+        } else {
+            result.skillFailed = usedSkill.name;
+        }
+    }
+
+    if (isCorrect) {
+        // 正解の場合：必殺技ゲージを増加するが、ダメージは与えない
+        player.correctAnswers++;
+
+        if (!player.ultimateGauge) {
+            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        }
+        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + ULTIMATE_GAUGE_PER_CORRECT);
+        result.ultimateGauge = player.ultimateGauge.current;
+        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+        result.showCommandMenu = true; // クライアントにコマンドメニューを表示させるフラグ
+    } else {
+        // 不正解の場合：反撃ダメージを受ける
+        const attacker = enemy;
+        const defender = player;
+
+        let attackerAtk = attacker.atk;
+        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = attacker.name;
+        }
+
+        const isEnemySureHit = hasUniqueAbility(attacker, "ignore_evasion");
+
+        const damageResult = calculateDamage(attacker, defender, 0, {
+            isSureHit: isEnemySureHit,
+            attackerAtk: attackerAtk,
+            defenderDef: getStatWithDebuffs(defender, 'def')
+        });
+        let damage = damageResult.damage;
+        const dodgeChance = damageResult.dodgeChance;
+
+        damage = applyUniqueAbilityDamageBonus(damage, attacker);
+
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            let finalDamage = applyUniqueAbilityDefense(damage, defender);
+
+            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                defender.hp = 1;
+                result.gutsSurvive = true;
+                result.gutsSurvivePlayerName = defender.name;
+            } else {
+                defender.hp = Math.max(0, defender.hp - finalDamage);
+            }
+            result.damage = finalDamage;
+            result.playerHp = defender.hp;
+            result.wrongAnswer = true;
+
+            const healAmount = applyLifeDrain(attacker, finalDamage);
+            if (healAmount > 0) {
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+                result.enemyLifedrainHealed = healAmount;
+            }
+        }
+
+        if (defender.hp <= 0) {
+            battle.finished = true;
+            result.winner = enemyId;
+        }
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
 function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attack') {
     const player = battle.players[playerId];
     const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
@@ -1160,11 +1282,133 @@ function finalizeBattle(battle) {
     };
 }
 
+// コマンド選択後の処理
+function processCommand(battle, playerId, command) {
+    const player = battle.players[playerId];
+    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    const enemy = battle.players[enemyId];
+
+    if (!player || !enemy) {
+        return { error: "Invalid battle state" };
+    }
+
+    // 正解していること確認
+    if (!player.answerTime) {
+        return { error: "No answer submitted" };
+    }
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        command,
+    };
+
+    const attacker = player;
+    const defender = enemy;
+
+    // コマンド選択制バトルシステム
+    const ultimateReady = attacker.ultimateGauge && attacker.ultimateGauge.current >= attacker.ultimateGauge.max;
+    const effectiveCommand = (command === 'ultimate' && !ultimateReady) ? 'attack' : command;
+    result.command = effectiveCommand;
+
+    if (effectiveCommand === 'defend') {
+        // 防御コマンド
+        attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, 0.5);
+        result.defended = true;
+        result.damage = 0;
+    } else {
+        // 攻撃・特殊・必殺技
+        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+
+        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = attacker.name;
+        }
+
+        let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
+        let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
+
+        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        let damageResult = calculateDamage(attacker, defender, 0, {
+            isSureHit: isAttackerSureHit,
+            attackerAtk: attackerAtk,
+            ignoreDef: isAttackerIgnoreDef,
+            defenderDef: defenderEffectiveDef
+        });
+        let damage = damageResult.damage;
+
+        // 必殺技発動判定
+        let ultimateActivated = false;
+        if (effectiveCommand === 'ultimate' && ultimateReady) {
+            damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+            ultimateActivated = true;
+            result.ultimateActivated = true;
+            result.ultimateDamage = damage;
+            attacker.ultimateGauge.current = 0;
+            result.ultimateGauge = 0;
+        }
+
+        damage = applyUniqueAbilityDamageBonus(damage, attacker);
+
+        const dodgeChance = damageResult.dodgeChance;
+
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            let finalDamage = applyUniqueAbilityDefense(damage, defender);
+
+            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                defender.hp = 1;
+                result.gutsSurvive = true;
+                result.gutsSurvivePlayerName = defender.name;
+            } else {
+                defender.hp = Math.max(0, defender.hp - finalDamage);
+            }
+            result.damage = finalDamage;
+            result.enemyHp = defender.hp;
+
+            const healAmount = applyLifeDrain(attacker, finalDamage);
+            if (healAmount > 0) {
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+        }
+
+        if (defender.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        }
+    }
+
+    // 両方のプレイヤーが回答済みであれば次の問題へ
+    const bothAnswered = player.answerTime !== null && enemy.answerTime !== null;
+    if (bothAnswered && !battle.finished) {
+        generateQuestion(battle);
+        tickDebuffs(player);
+        tickDebuffs(enemy);
+        result.nextQuestion = battle.currentQuestion;
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
 module.exports = {
     generateQuestion,
     calculateDamage,
     processAnswer,
     processRaidAnswer,
+    processAnswerOnly,
+    processCommand,
     initializeBattle,
     finalizeBattle
 };

@@ -167,6 +167,12 @@ function updateGuildQuestProgress(type, value) {
                         player.orbs.push(orbReward);
                     }
                     localStorage.setItem("player", JSON.stringify(player));
+
+                    // ギルドクエスト達成でも冒険者経験値を付与する（ランク×20経験値）
+                    const adventurerExpReward = rankValue * 20;
+                    if (typeof addAdventurerExp === 'function') {
+                        addAdventurerExp(player, adventurerExpReward);
+                    }
                     
                     // ギルド貢献度を付与
                     // サーバーが権威を持つデータのため、ローカルを直接書き換えるのではなく

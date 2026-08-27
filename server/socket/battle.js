@@ -42,7 +42,7 @@ module.exports = function(io){
         // これに対応するサーバー側ハンドラが存在しなかったため、回答を送信しても
         // 何も返ってこず「読み込み中」のまま止まっていた。
         socket.on("battle:submitAnswer", (data) => {
-            const { answer, skillId, command } = data || {};
+            const { answer, skillId } = data || {};
 
             // battle:join / requestBattleStart で socket.join(roomId) 済みのはずなので、
             // 自分自身のデフォルトルーム以外のルームIDを取得する
@@ -74,82 +74,59 @@ module.exports = function(io){
                 usedSkill = player.skillSlots.find(s => s && s.id === skillId) || null;
             }
 
-            // レイドボス戦（パーティ対ボス、3人以上いる場合を含む）と、通常の1対1対戦とで処理を分ける
-            if (battle.isBossBattle) {
-                const result = BattleEngine.processRaidAnswer(battle, playerId, answer, usedSkill, command || 'attack');
+            // 回答のみを処理し、コマンド選択を待つ
+            const result = BattleEngine.processAnswerOnly(battle, playerId, answer, usedSkill);
 
-                if (result.error) {
-                    socket.emit("answerError", { message: result.error });
-                    return;
-                }
-
-                const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
-
-                const logs = [];
-                if (result.isCorrect) {
-                    logs.push(`${result.playerName}が正解した！`);
-                    if (result.damage) {
-                        logs.push(`ボスに${result.damage}のダメージ！`);
-                    }
-                    if (result.ultimateActivated) {
-                        logs.push(`${result.playerName}の必殺技が発動！`);
-                    }
-                } else {
-                    logs.push(`${result.playerName}は不正解…ボスの反撃を受けた！`);
-                    if (result.dodged) {
-                        logs.push(`${result.playerName}は回避した！`);
-                    } else if (result.damage) {
-                        logs.push(`${result.playerName}は${result.damage}のダメージを受けた！`);
-                    }
-                    if (result.playerDown) {
-                        logs.push(`${result.playerName}は戦闘不能になった！`);
-                    }
-                }
-                if (result.skillUsed) {
-                    logs.push(`スキル「${result.skillUsed.name}」を発動！`);
-                }
-                if (result.gutsSurvive) {
-                    logs.push(`${result.gutsSurvivePlayerName}は根性で持ちこたえた！`);
-                }
-
-                const damageEvents = [];
-                if (result.damage) {
-                    const targetId = result.isCorrect ? bossId : playerId;
-                    damageEvents.push({ targetId, dodged: !!result.dodged, damage: result.damage });
-                }
-
-                const effectEvents = [];
-                if (result.ultimateActivated) {
-                    effectEvents.push({ type: 'ultimate', playerId });
-                }
-                if (result.isCorrect) {
-                    effectEvents.push({ type: 'correct', playerId });
-                }
-
-                // レイド戦は参加者全員分の状態を送る（ボス＋パーティメンバー全員）
-                const stateUpdate = {};
-                Object.keys(battle.players).forEach(id => {
-                    const p = battle.players[id];
-                    if (p) {
-                        stateUpdate[id] = { hp: p.hp, maxHp: p.maxHp, ultimateGauge: p.ultimateGauge };
-                    }
-                });
-
-                const updatePayload = { logs, damageEvents, effectEvents, stateUpdate };
-                if (result.nextQuestion) {
-                    updatePayload.nextQuestion = result.nextQuestion;
-                }
-
-                io.to(roomId).emit("battle:update", updatePayload);
-
-                if (result.winner) {
-                    io.to(roomId).emit("battle:finished", { winner: result.winner, draw: false });
-                    BattleManager.deleteBattle(roomId);
-                }
+            if (result.error) {
+                socket.emit("answerError", { message: result.error });
                 return;
             }
 
-            const result = BattleEngine.processAnswer(battle, playerId, answer, usedSkill, command || 'attack');
+            const logs = [];
+            if (result.isCorrect) {
+                logs.push(`${result.playerName}が正解した！`);
+            } else {
+                logs.push(`${result.playerName}は不正解…`);
+                if (result.damage) {
+                    logs.push(`${result.damage}のダメージを受けた！`);
+                }
+            }
+            if (result.skillUsed) {
+                logs.push(`スキル「${result.skillUsed.name}」を発動！`);
+            }
+
+            const damageEvents = [];
+            if (result.damage) {
+                const targetId = playerId;
+                damageEvents.push({ targetId, dodged: !!result.dodged, damage: result.damage });
+            }
+
+            const effectEvents = [];
+            if (result.isCorrect) {
+                effectEvents.push({ type: 'correct', playerId });
+            }
+
+            // 全プレイヤーの状態を送る
+            const stateUpdate = {};
+            Object.keys(battle.players).forEach(id => {
+                const p = battle.players[id];
+                if (p) {
+                    stateUpdate[id] = { hp: p.hp, maxHp: p.maxHp, ultimateGauge: p.ultimateGauge };
+                }
+            });
+
+            const updatePayload = { logs, damageEvents, effectEvents, stateUpdate };
+            if (result.nextQuestion) {
+                updatePayload.nextQuestion = result.nextQuestion;
+            }
+
+            io.to(roomId).emit("battle:update", updatePayload);
+
+            if (result.winner) {
+                io.to(roomId).emit("battle:finished", { winner: result.winner, draw: false });
+                BattleManager.deleteBattle(roomId);
+            }
+        });
 
             if (result.error) {
                 socket.emit("answerError", { message: result.error });
@@ -162,13 +139,8 @@ module.exports = function(io){
             const logs = [];
             if (result.isCorrect) {
                 logs.push(`${result.playerName}が正解した！`);
-                if (result.dodged) {
-                    logs.push("回避された！ダメージなし");
-                } else if (result.damage) {
-                    logs.push(`${result.damage}のダメージ！`);
-                }
             } else if (result.wrongAnswer) {
-                logs.push(`${result.playerName}は不正解…反撃を受けた！`);
+                logs.push(`${result.playerName}は不正解…`);
                 if (result.dodged) {
                     logs.push("回避した！ダメージなし");
                 } else if (result.damage) {
@@ -184,16 +156,97 @@ module.exports = function(io){
 
             const damageEvents = [];
             if (result.damage) {
-                const targetId = result.isCorrect ? enemyId : playerId;
+                const targetId = playerId;
                 damageEvents.push({ targetId, dodged: !!result.dodged, damage: result.damage });
             }
 
             const effectEvents = [];
-            if (result.ultimateActivated) {
-                effectEvents.push({ type: 'ultimate', playerId: result.isCorrect ? playerId : enemyId });
-            }
             if (result.isCorrect) {
                 effectEvents.push({ type: 'correct', playerId });
+            }
+
+            const stateUpdate = {};
+            [playerId, enemyId].forEach(id => {
+                const p = battle.players[id];
+                if (p) {
+                    stateUpdate[id] = { hp: p.hp, maxHp: p.maxHp, ultimateGauge: p.ultimateGauge };
+                }
+            });
+
+            const updatePayload = { logs, damageEvents, effectEvents, stateUpdate };
+            if (result.nextQuestion) {
+                updatePayload.nextQuestion = result.nextQuestion;
+            }
+
+            io.to(roomId).emit("battle:update", updatePayload);
+
+            if (result.winner) {
+                io.to(roomId).emit("battle:finished", { winner: result.winner, draw: false });
+                BattleManager.deleteBattle(roomId);
+            }
+        });
+
+        // コマンド選択後の処理
+        socket.on("battle:submitCommand", (data) => {
+            const { command } = data || {};
+
+            const roomId = [...socket.rooms].find(r => r !== socket.id);
+            if (!roomId) {
+                socket.emit("answerError", { message: "バトルルームが見つかりません" });
+                return;
+            }
+
+            const battle = BattleManager.getBattle(roomId);
+            if (!battle) {
+                socket.emit("answerError", { message: "バトルが見つかりません" });
+                return;
+            }
+            if (battle.finished) {
+                socket.emit("answerError", { message: "バトルは終了しています" });
+                return;
+            }
+
+            const playerId = BattleManager.findPlayerIdBySocket(battle, socket.id);
+            if (!playerId) {
+                socket.emit("answerError", { message: "プレイヤーが見つかりません" });
+                return;
+            }
+
+            const player = battle.players[playerId];
+            if (!player.answerTime) {
+                socket.emit("answerError", { message: "まだ回答していません" });
+                return;
+            }
+
+            // コマンドを処理してダメージを適用
+            const result = BattleEngine.processCommand(battle, playerId, command);
+
+            if (result.error) {
+                socket.emit("answerError", { message: result.error });
+                return;
+            }
+
+            const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+
+            const logs = [];
+            if (result.damage) {
+                logs.push(`${result.damage}のダメージ！`);
+            }
+            if (result.defended) {
+                logs.push("防御姿勢をとった！");
+            }
+            if (result.ultimateActivated) {
+                logs.push("必殺技が発動！");
+            }
+
+            const damageEvents = [];
+            if (result.damage) {
+                damageEvents.push({ targetId: enemyId, dodged: !!result.dodged, damage: result.damage });
+            }
+
+            const effectEvents = [];
+            if (result.ultimateActivated) {
+                effectEvents.push({ type: 'ultimate', playerId });
             }
 
             const stateUpdate = {};
