@@ -488,11 +488,11 @@ function updateStudyTimerDisplay() {
 
 // Map subjects to the 2 stats they strengthen
 const SUBJECT_STATS = {
-    jp: ["maxHp", "def"],     // 国語 → HP・防御
-    math: ["atk", "speed"],   // 算数・数学 → 攻撃・速さ
-    eng: ["def", "speed"],    // 英語 → 防御・速さ
-    sci: ["atk", "maxHp"],    // 理科 → 攻撃・HP
-    soc: ["maxHp", "def"]     // 社会 → HP・防御
+    jp: ["maxHp", "def"],     // 国語 → HP・防御・特殊
+    math: ["atk", "speed",],   // 算数・数学 → 攻撃・速さ・特殊
+    eng: ["def", "atk"],    // 英語 → 防御・速さ・特殊
+    sci: ["atk", "special"],    // 理科 → 攻撃・HP・特殊
+    soc: ["maxHp", "special"]     // 社会 → HP・防御・特殊
 };
 
 // Subject display names
@@ -511,16 +511,18 @@ function getSubjectDisplayName(subject) {
 // Display stat growth info based on selected subject
 function updateStatGrowthInfo() {
     const subject = document.getElementById("studyFocus").value;
-    const [stat1, stat2] = SUBJECT_STATS[subject];
+    const [stat1, stat2, stat3] = SUBJECT_STATS[subject];
     const statNames = {
         maxHp: "HP",
         atk: I18N.atk,
         def: I18N.def,
-        speed: I18N.speed
+        speed: I18N.speed,
+        special: "特殊"
     };
     const infoEl = document.getElementById("statGrowthInfo");
     if (infoEl) {
-        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${statNames[stat1]}・${statNames[stat2]}</p>`;
+        const stats = stat3 ? `${statNames[stat1]}・${statNames[stat2]}・${statNames[stat3]}` : `${statNames[stat1]}・${statNames[stat2]}`;
+        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}</p>`;
     }
 }
 
@@ -545,11 +547,14 @@ function applyStudyRewards(seconds) {
         statGain *= 2;
     }
     
-    const [stat1, stat2] = SUBJECT_STATS[subject];
+    const [stat1, stat2, stat3] = SUBJECT_STATS[subject];
     stats[stat1] += statGain;
     stats[stat2] += statGain;
+    if (stat3) {
+        stats[stat3] += statGain;
+    }
 
-    const hp = (stat1 === "maxHp" || stat2 === "maxHp")
+    const hp = (stat1 === "maxHp" || stat2 === "maxHp" || stat3 === "maxHp")
         ? (player.hp || player.maxHp) + statGain
         : (player.hp || player.maxHp);
 

@@ -82,6 +82,10 @@ function updateMissionProgress(type, value = 1) {
                         mission.progress += 1;
                         progressMade = true;
                     }
+                } else {
+                    // 条件がない場合はどのボスでもカウント
+                    mission.progress += 1;
+                    progressMade = true;
                 }
             } else if (type === 'collect_material') {
                 if (mission.target.materialId === value.materialId) {
