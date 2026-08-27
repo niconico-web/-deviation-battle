@@ -90,9 +90,9 @@
                     <select id="studyFocus">
                         <option value="jp">国語（HP・防御）</option>
                         <option value="math">算数・数学（攻撃・速さ）</option>
-                        <option value="eng">英語（防御・速さ）</option>
-                        <option value="sci">理科（攻撃・HP）</option>
-                        <option value="soc">社会（HP・防御）</option>
+                        <option value="eng">英語（防御・攻撃）</option>
+                        <option value="sci">理科（攻撃・特殊）</option>
+                        <option value="soc">社会（HP・特殊）</option>
                     </select>
                     <div id="statGrowthInfo" class="help-text"></div>
                     <p id="studyTimer" class="study-timer">00:00:00</p>
@@ -470,10 +470,7 @@
             <section id="section-help" class="content-section">
                 <h2>ヘルプ</h2>
                 <div class="setting-box">
-                    <h3>ユニーク能力一覧</h3>
-                    <div id="unique-abilities-list" class="ability-list">
-                        <!-- Unique abilities will be rendered here by help.js -->
-                    </div>
+                    <iframe src="help.html" width="100%" height="800" style="border: none;"></iframe>
                 </div>
             </section>
         </main>

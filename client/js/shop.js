@@ -33,8 +33,11 @@ function renderShop() {
             
             // 武器が作成できない場合はスキップ（デバッグ武器など）
             if (!weapon || !weapon.id) {
+                console.log(`[Shop] Skipping weapon for type=${type}, tier=${tier} - weapon creation failed`);
                 continue;
             }
+            
+            console.log(`[Shop] Creating shop item for ${weapon.name} (${type}/${tier})`);
             
             const price = TIER_PRICES[tier];
             const owned = playerOwnsWeapon(player, weapon.id);
