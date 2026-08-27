@@ -1277,6 +1277,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // オーブ作成モーダルの開閉
+        const openOrbCraftingBtn = document.getElementById('openOrbCraftingBtn');
+        const orbCraftingModal = document.getElementById('orbCraftingModal');
+        if (openOrbCraftingBtn && orbCraftingModal) {
+            openOrbCraftingBtn.addEventListener('click', () => {
+                if (typeof showMaterialCraftingUI === "function") {
+                    showMaterialCraftingUI();
+                }
+                orbCraftingModal.style.display = 'flex';
+            });
+            const closeOrbCraftingBtn = orbCraftingModal.querySelector('.close');
+            if (closeOrbCraftingBtn) {
+                closeOrbCraftingBtn.addEventListener('click', () => {
+                    orbCraftingModal.style.display = 'none';
+                });
+            }
+        }
+
         // ギルドシステムの初期化
         if (typeof initializeGuildSystem === "function") {
             initializeGuildSystem();

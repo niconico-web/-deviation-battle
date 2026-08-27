@@ -931,3 +931,56 @@ textarea {
     font-size: 0.8rem;
     color: var(--text-secondary);
 }
+
+/* 素材選択UI */
+.material-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 40vh;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.material-select-item {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.material-select-item:hover {
+    background-color: var(--bg-light);
+}
+
+.material-select-item .material-rarity {
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+}
+
+.selected-materials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 40px;
+    padding: 10px;
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.selected-material-item {
+    background-color: var(--accent-blue);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.selected-material-item .material-rarity {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}

@@ -227,10 +227,14 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (typeof updateGuildQuestProgress === 'function') {
             updateGuildQuestProgress('win_online', 1);
         }
-        // ギルドに参加している場合、冒険者経験値を追加（勝利で2経験値）
-        if (typeof addAdventurerExp === 'function') {
-            addAdventurerExp(player, 2);
-        }
+    }
+    // ギルドに参加した状態で戦った場合、勝敗の種類（対人戦・ボット戦・ボス戦）を問わず
+    // 冒険者経験値を追加する（勝利で2経験値）。
+    // 以前は対人戦（ボット戦・ボス戦以外）に勝利した場合のみ加算していたため、
+    // ヘルプ画面が説明する「ギルドに加入した状態で戦うと冒険者経験値が上がる」という
+    // 挙動が、ボットバトルでの通常モンスター討伐やボス戦では機能していなかった。
+    if (won && typeof addAdventurerExp === 'function') {
+        addAdventurerExp(player, 2);
     }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);

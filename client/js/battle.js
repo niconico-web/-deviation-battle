@@ -1660,17 +1660,15 @@ function handleChoiceClick(selectedOption) {
     if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
-        // サーバーに回答を送信（スキル・コマンドを選択していた場合は一緒に送る）
+        // サーバーに回答を送信（コマンドは送らない）
         const usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
         socket.emit("battle:submitAnswer", {
             answer: selectedOption,
-            skillId: usedSkill ? usedSkill.id : null,
-            command: selectedCommand
+            skillId: usedSkill ? usedSkill.id : null
         });
         if (usedSkill) {
             afterSkillUse(usedSkill);
         }
-        hideCommandMenu();
         selectedCommand = 'attack'; // 次のターンのためにリセット
         // オンライン戦では回答送信後、正解かどうかの結果を待ってからコマンド選択UIを表示
         questionDisplay.textContent = "回答送信済み。結果を待っています...";
@@ -2348,12 +2346,6 @@ function handleBotAnswer(userAnswer) {
 function showCommandMenu() {
     const commandMenu = document.getElementById('commandMenu');
     if (!commandMenu) {
-        // メニューが無い場合（古いキャッシュ等）は、ボット戦のみ従来通り「攻撃」で即実行する。
-        // オンライン/パーティ戦はコマンド選択が回答前なので、ここでは何もしない
-        // （デフォルトのselectedCommand='attack'のまま回答が送信される）。
-        if (isBotBattle) {
-            resolvePlayerCommand('attack');
-        }
         return;
     }
     commandMenu.style.display = 'block';
@@ -2404,6 +2396,14 @@ function resolvePlayerCommand(command) {
         command = 'attack';
     }
 
+    // オンライン/パーティ戦の場合はサーバーにコマンドを送信
+    if (!isBotBattle) {
+        socket.emit("battle:submitCommand", { command });
+        selectedCommand = 'attack'; // 次のターンのためにリセット
+        return;
+    }
+
+    // ボット戦の場合はローカルで処理
     if (command === 'defend') {
         addLog(`${me.name}は防御の構えを取った！`);
         myPendingDamageReduction = Math.max(myPendingDamageReduction, 0.5);
@@ -3013,7 +3013,7 @@ if (!isBotBattle && socket) {
                 showDamage(damageElId, event.dodged ? 0 : event.damage);
             });
         }
-        
+
         if (data.effectEvents && Array.isArray(data.effectEvents)) {
             data.effectEvents.forEach(event => {
                 if (event.type === 'ultimate' && (event.playerId === me.id || event.playerId === enemy.id || allies.some(a => a.id === event.playerId))) {
@@ -3021,6 +3021,10 @@ if (!isBotBattle && socket) {
                 }
                 if (event.type === 'correct' && event.playerId === me.id) {
                     showCorrectEffect();
+                    // 正解後にコマンドメニューを表示
+                    pendingSkillEffect = null;
+                    pendingUsedSkill = null;
+                    showCommandMenu();
                 }
             });
         }
