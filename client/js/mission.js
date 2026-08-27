@@ -67,8 +67,12 @@ function initializeDailyMissions() {
  */
 function updateMissionProgress(type, value = 1) {
     let player = getPlayerData();
-    if (!player || !player.dailyMissions) return;
+    if (!player || !player.dailyMissions) {
+        console.log(`[Mission] Cannot update mission progress: player=${!!player}, dailyMissions=${!!player?.dailyMissions}`);
+        return;
+    }
 
+    console.log(`[Mission] Updating progress for type=${type}, value=${JSON.stringify(value)}`);
     let missionsUpdated = false;
     player.dailyMissions.missions.forEach(mission => {
         if (mission.type === type && !mission.completed) {
@@ -81,11 +85,13 @@ function updateMissionProgress(type, value = 1) {
                     if (bossIdMatch && difficultyMatch) {
                         mission.progress += 1;
                         progressMade = true;
+                        console.log(`[Mission] defeat_boss progress updated: ${mission.progress}/${mission.target}`);
                     }
                 } else {
                     // 条件がない場合はどのボスでもカウント
                     mission.progress += 1;
                     progressMade = true;
+                    console.log(`[Mission] defeat_boss progress updated (no condition): ${mission.progress}/${mission.target}`);
                 }
             } else if (type === 'collect_material') {
                 if (mission.target.materialId === value.materialId) {
@@ -95,11 +101,13 @@ function updateMissionProgress(type, value = 1) {
             } else {
                 mission.progress += value;
                 progressMade = true;
+                console.log(`[Mission] ${type} progress updated: ${mission.progress}/${mission.target}`);
             }
 
             if (progressMade) {
                 if (mission.progress >= mission.target) {
                     mission.completed = true;
+                    console.log(`[Mission] Mission ${mission.id} completed!`);
                 }
                 missionsUpdated = true;
             }

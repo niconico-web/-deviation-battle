@@ -253,11 +253,15 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         
         // デイリーミッションの進捗を更新
         if (typeof updateMissionProgress === 'function') {
+            console.log(`[Stats] Updating mission progress: isBossBattle=${isBossBattle}, isBotBattle=${isBotBattle}, won=${won}`);
             if (isBossBattle && options.enemy) {
+                console.log(`[Stats] Calling updateMissionProgress for defeat_boss with bossId=${options.enemy.id}, difficulty=${options.enemy.difficulty}`);
                 updateMissionProgress('defeat_boss', { bossId: options.enemy.id, difficulty: options.enemy.difficulty });
             } else if (isBotBattle) {
+                console.log(`[Stats] Calling updateMissionProgress for win_bot`);
                 updateMissionProgress('win_bot');
             } else {
+                console.log(`[Stats] Calling updateMissionProgress for win_online`);
                 updateMissionProgress('win_online');
             }
         }

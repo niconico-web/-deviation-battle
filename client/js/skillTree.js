@@ -142,11 +142,29 @@ const SKILL_TREE = {
             // --- 遠距離・魔法ルート (上部) ---
             { id: "magic_path_1", name: "魔力", description: "攻撃+5, 速さ+5", cost: 2, x: 0, y: -3, requires: "core_hp_1", type: "stat", effect: { atk: 5, speed: 5 } },
             { id: "magic_path_2", name: "魔力II", description: "攻撃+10", cost: 2, x: 0, y: -5, requires: "magic_path_1", type: "stat", effect: { atk: 10 } },
-            // 特殊ステータス（第二の攻撃）ルート
+            // 特殊ステータス（第二の攻撃）ルート - 大幅拡張
             { id: "special_awakening", name: "特殊の目覚め", description: "特殊+20", cost: 3, x: 4, y: -5, requires: "magic_path_2", type: "stat", effect: { special: 20 } },
-            { id: "psychic_blast", name: "サイキックブラスト", description: "特殊ステータスを使った一撃。次の攻撃1.3倍（特殊基準）", cost: 4, x: 6, y: -7, requires: "special_awakening", type: "active", effect: { type: "active", damageMultiplier: 1.3, useSpecialStat: true } },
-            { id: "special_mastery", name: "特殊の極意", description: "常時特殊+15%", cost: 5, x: 6, y: -9, requires: "psychic_blast", type: "passive", effect: { specialPercent: 0.15 } },
-            { id: "psychic_overload", name: "サイキックオーバーロード", description: "特殊ステータスを使った渾身の一撃。次の攻撃2.2倍（特殊基準）", cost: 6, x: 8, y: -11, requires: "special_mastery", type: "active", effect: { type: "active", damageMultiplier: 2.2, useSpecialStat: true } },
+            { id: "special_path_1", name: "精神力+", description: "特殊+15", cost: 2, x: 6, y: -5, requires: "special_awakening", type: "stat", effect: { special: 15 } },
+            { id: "special_path_2", name: "精神力++", description: "特殊+20", cost: 2, x: 8, y: -5, requires: "special_path_1", type: "stat", effect: { special: 20 } },
+            { id: "special_path_3", name: "精神力+++", description: "特殊+25", cost: 2, x: 10, y: -5, requires: "special_path_2", type: "stat", effect: { special: 25 } },
+            { id: "psychic_blast", name: "サイキックブラスト", description: "特殊ステータスを使った一撃。次の攻撃1.3倍（特殊基準）", cost: 4, x: 12, y: -7, requires: "special_path_3", type: "active", effect: { type: "active", damageMultiplier: 1.3, useSpecialStat: true } },
+            { id: "special_mastery", name: "特殊の極意", description: "常時特殊+15%", cost: 5, x: 12, y: -9, requires: "psychic_blast", type: "passive", effect: { specialPercent: 0.15 } },
+            { id: "special_path_4", name: "超能力+", description: "特殊+30", cost: 3, x: 14, y: -7, requires: "special_mastery", type: "stat", effect: { special: 30 } },
+            { id: "special_path_5", name: "超能力++", description: "特殊+35", cost: 3, x: 16, y: -7, requires: "special_path_4", type: "stat", effect: { special: 35 } },
+            { id: "psychic_overload", name: "サイキックオーバーロード", description: "特殊ステータスを使った渾身の一撃。次の攻撃2.2倍（特殊基準）", cost: 6, x: 18, y: -9, requires: "special_path_5", type: "active", effect: { type: "active", damageMultiplier: 2.2, useSpecialStat: true } },
+            { id: "special_mastery_ii", name: "特殊の極意II", description: "常時特殊+20%", cost: 6, x: 18, y: -11, requires: "psychic_overload", type: "passive", effect: { specialPercent: 0.2 } },
+            { id: "special_path_6", name: "念力+", description: "特殊+40", cost: 4, x: 20, y: -9, requires: "special_mastery_ii", type: "stat", effect: { special: 40 } },
+            { id: "special_path_7", name: "念力++", description: "特殊+45", cost: 4, x: 22, y: -9, requires: "special_path_6", type: "stat", effect: { special: 45 } },
+            { id: "psychic_annihilation", name: "サイキックアニヒレーション", description: "特殊ステータスを使った破壊的一撃。次の攻撃3.0倍（特殊基準）", cost: 7, x: 24, y: -11, requires: "special_path_7", type: "active", effect: { type: "active", damageMultiplier: 3.0, useSpecialStat: true } },
+            { id: "special_apex", name: "特殊の頂点", description: "常時特殊+25%, 攻撃+10%", cost: 7, x: 24, y: -13, requires: "psychic_annihilation", type: "passive", effect: { specialPercent: 0.25, atkPercent: 0.1 } },
+            // 特殊ステータスブランチ（防御系）
+            { id: "special_def_1", name: "精神防御", description: "特殊+20, 防御+10", cost: 3, x: 8, y: -8, requires: "special_path_2", type: "stat", effect: { special: 20, def: 10 } },
+            { id: "special_def_2", name: "念動防御", description: "特殊+25, 防御+15", cost: 3, x: 10, y: -10, requires: "special_def_1", type: "stat", effect: { special: 25, def: 15 } },
+            { id: "psychic_shield", name: "サイキックシールド", description: "特殊ステータスを使った防御。次に受けるダメージ30%軽減（特殊基準）", cost: 5, x: 12, y: -12, requires: "special_def_2", type: "active", effect: { type: "active", damageReduction: 0.3, useSpecialStat: true } },
+            // 特殊ステータスブランチ（速さ系）
+            { id: "special_spd_1", name: "精神加速", description: "特殊+20, 速さ+10", cost: 3, x: 16, y: -8, requires: "special_path_4", type: "stat", effect: { special: 20, speed: 10 } },
+            { id: "special_spd_2", name: "念動加速", description: "特殊+25, 速さ+15", cost: 3, x: 18, y: -10, requires: "special_spd_1", type: "stat", effect: { special: 25, speed: 15 } },
+            { id: "psychic_speed", name: "サイキックスピード", description: "特殊ステータスを使った加速。次のターン速さ30%上昇（特殊基準）", cost: 5, x: 20, y: -12, requires: "special_spd_2", type: "active", effect: { type: "active", speedBuff: 0.3, useSpecialStat: true } },
             { id: "mw_fireball", name: "ファイアボール", description: "次の攻撃のダメージ1.2倍、敵に火傷付与", cost: 3, x: 2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.2, burn: true } },
             { id: "mw_ice_lance", name: "アイスランス", description: "次の攻撃のダメージ1.1倍、敵の速さを低下", cost: 3, x: -2, y: -6, requires: "magic_path_2", type: "active", effect: { type: "active", damageMultiplier: 1.1, speedDebuff: 0.2 } },
             { id: "magic_mastery", name: "魔力の極意", description: "常時 攻撃+5%, 速さ+5%", cost: 5, x: 0, y: -8, requires: ["mw_fireball", "mw_ice_lance"], type: "passive", effect: { atkPercent: 0.05, speedPercent: 0.05 } },
@@ -167,6 +185,35 @@ const SKILL_TREE = {
             { id: "thunder_path_1", name: "雷魔法", description: "攻撃+15, クリティカル率+5%", cost: 3, x: -10, y: -12, requires: "magic_path_4", type: "stat", effect: { atk: 15, critChance: 0.05 } },
             { id: "thunder_path_2", name: "雷神", description: "攻撃+20, クリティカル率+8%", cost: 3, x: -13, y: -13, requires: "thunder_path_1", type: "stat", effect: { atk: 20, critChance: 0.08 } },
             { id: "thunder_storm", name: "サンダーストーム", description: "次の攻撃2.2倍、必ずクリティカルになる", cost: 6, x: -16, y: -14, requires: "thunder_path_2", type: "active", effect: { type: "active", damageMultiplier: 2.2, nextAttackCrit: true } },
+            // 魔法ルートの拡張（3倍拡張）
+            { id: "magic_path_5", name: "魔力V", description: "攻撃+25", cost: 3, x: 0, y: -18, requires: "archmage", type: "stat", effect: { atk: 25 } },
+            { id: "magic_path_6", name: "魔力VI", description: "攻撃+30", cost: 3, x: 0, y: -20, requires: "magic_path_5", type: "stat", effect: { atk: 30 } },
+            { id: "magic_path_7", name: "魔力VII", description: "攻撃+35", cost: 4, x: 0, y: -22, requires: "magic_path_6", type: "stat", effect: { atk: 35 } },
+            { id: "magic_path_8", name: "魔力VIII", description: "攻撃+40", cost: 4, x: 0, y: -24, requires: "magic_path_7", type: "stat", effect: { atk: 40 } },
+            { id: "ultimate_arcane", name: "究極の魔導", description: "次の攻撃3.0倍ダメージ、特殊ステータス使用", cost: 7, x: 0, y: -26, requires: "magic_path_8", type: "active", effect: { type: "active", damageMultiplier: 3.0, useSpecialStat: true } },
+            { id: "magic_apex", name: "魔力の頂点", description: "常時攻撃+30%, 速さ+15%, 特殊+20%", cost: 7, x: 0, y: -28, requires: "ultimate_arcane", type: "passive", effect: { atkPercent: 0.3, speedPercent: 0.15, specialPercent: 0.2 } },
+            // 火魔法の拡張
+            { id: "magic_branch_3", name: "炎の熟練", description: "攻撃+25, 火傷付与率+15%", cost: 3, x: -9, y: -14, requires: "inferno", type: "stat", effect: { atk: 25, burnChance: 0.15 } },
+            { id: "magic_branch_4", name: "炎の極意", description: "攻撃+30, 火傷付与率+20%", cost: 4, x: -11, y: -15, requires: "magic_branch_3", type: "stat", effect: { atk: 30, burnChance: 0.2 } },
+            { id: "magic_branch_5", name: "炎神", description: "攻撃+35, 火傷付与率+25%", cost: 4, x: -13, y: -16, requires: "magic_branch_4", type: "stat", effect: { atk: 35, burnChance: 0.25 } },
+            { id: "inferno_apex", name: "炎の頂点", description: "次の攻撃3.0倍、敵に火傷5ターン、火傷付与率+30%", cost: 7, x: -15, y: -17, requires: "magic_branch_5", type: "active", effect: { type: "active", damageMultiplier: 3.0, burn: true, burnTurns: 5, burnChance: 0.3 } },
+            // 氷魔法の拡張
+            { id: "magic_branch_r3", name: "氷の熟練", description: "攻撃+25, 敵速さ低下率+15%", cost: 3, x: 9, y: -14, requires: "blizzard", type: "stat", effect: { atk: 25, speedDebuff: 0.15 } },
+            { id: "magic_branch_r4", name: "氷の極意", description: "攻撃+30, 敵速さ低下率+20%", cost: 4, x: 11, y: -15, requires: "magic_branch_r3", type: "stat", effect: { atk: 30, speedDebuff: 0.2 } },
+            { id: "magic_branch_r5", name: "氷神", description: "攻撃+35, 敵速さ低下率+25%", cost: 4, x: 13, y: -16, requires: "magic_branch_r4", type: "stat", effect: { atk: 35, speedDebuff: 0.25 } },
+            { id: "blizzard_apex", name: "氷の頂点", description: "次の攻撃2.5倍、敵速さ5ターン低下、敵速さ低下率+30%", cost: 7, x: 15, y: -17, requires: "magic_branch_r5", type: "active", effect: { type: "active", damageMultiplier: 2.5, speedDebuff: 0.4, speedDebuffTurns: 5 } },
+            // 雷魔法の拡張
+            { id: "thunder_path_3", name: "雷の熟練", description: "攻撃+25, クリティカル率+11%", cost: 3, x: -19, y: -15, requires: "thunder_storm", type: "stat", effect: { atk: 25, critChance: 0.11 } },
+            { id: "thunder_path_4", name: "雷の極意", description: "攻撃+30, クリティカル率+14%", cost: 4, x: -22, y: -16, requires: "thunder_path_3", type: "stat", effect: { atk: 30, critChance: 0.14 } },
+            { id: "thunder_path_5", name: "雷の神", description: "攻撃+35, クリティカル率+17%", cost: 4, x: -25, y: -17, requires: "thunder_path_4", type: "stat", effect: { atk: 35, critChance: 0.17 } },
+            { id: "thunder_apex", name: "雷の頂点", description: "次の攻撃2.8倍、必ずクリティカル、クリティカル率+20%", cost: 7, x: -28, y: -18, requires: "thunder_path_5", type: "active", effect: { type: "active", damageMultiplier: 2.8, nextAttackCrit: true, critChance: 0.2 } },
+            // 毒魔法の追加（4本目の魔法分岐）
+            { id: "poison_path_1", name: "毒魔法", description: "攻撃+15, 毒付与率+5%", cost: 3, x: 10, y: -14, requires: "magic_path_4", type: "stat", effect: { atk: 15, poisonChance: 0.05 } },
+            { id: "poison_path_2", name: "毒の熟練", description: "攻撃+20, 毒付与率+10%", cost: 3, x: 13, y: -15, requires: "poison_path_1", type: "stat", effect: { atk: 20, poisonChance: 0.1 } },
+            { id: "poison_path_3", name: "毒の極意", description: "攻撃+25, 毒付与率+15%", cost: 3, x: 16, y: -16, requires: "poison_path_2", type: "stat", effect: { atk: 25, poisonChance: 0.15 } },
+            { id: "toxic_cloud", name: "トキシッククラウド", description: "次の攻撃1.8倍、敵に毒3ターン", cost: 6, x: 19, y: -17, requires: "poison_path_3", type: "active", effect: { type: "active", damageMultiplier: 1.8, poison: true, poisonTurns: 3 } },
+            { id: "poison_path_4", name: "毒の神", description: "攻撃+30, 毒付与率+20%", cost: 4, x: 22, y: -18, requires: "toxic_cloud", type: "stat", effect: { atk: 30, poisonChance: 0.2 } },
+            { id: "poison_apex", name: "毒の頂点", description: "次の攻撃2.2倍、敵に毒5ターン、毒付与率+25%", cost: 7, x: 25, y: -19, requires: "poison_path_4", type: "active", effect: { type: "active", damageMultiplier: 2.2, poison: true, poisonTurns: 5, poisonChance: 0.25 } },
 
             // --- 特殊・クリティカルルート (左側) ---
             { id: "crit_path_1", name: "精密", description: "クリティカル率+2%（基礎5%に加算）", cost: 2, x: -8, y: 0, requires: "atk_path_1", type: "passive", effect: { critChance: 0.02 } },
