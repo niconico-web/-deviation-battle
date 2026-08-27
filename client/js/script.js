@@ -521,7 +521,14 @@ function updateStatGrowthInfo() {
     };
     const infoEl = document.getElementById("statGrowthInfo");
     if (infoEl) {
-        const stats = stat3 ? `${statNames[stat1]}・${statNames[stat2]}・${statNames[stat3]}` : `${statNames[stat1]}・${statNames[stat2]}`;
+        let stats;
+        if (stat3) {
+            stats = `${statNames[stat1]}・${statNames[stat2]}・${statNames[stat3]}`;
+        } else if (stat2) {
+            stats = `${statNames[stat1]}・${statNames[stat2]}`;
+        } else {
+            stats = statNames[stat1];
+        }
         infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}</p>`;
     }
 }
@@ -549,7 +556,9 @@ function applyStudyRewards(seconds) {
     
     const [stat1, stat2, stat3] = SUBJECT_STATS[subject];
     stats[stat1] += statGain;
-    stats[stat2] += statGain;
+    if (stat2) {
+        stats[stat2] += statGain;
+    }
     if (stat3) {
         stats[stat3] += statGain;
     }

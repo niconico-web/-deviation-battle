@@ -1672,8 +1672,8 @@ function handleChoiceClick(selectedOption) {
         }
         hideCommandMenu();
         selectedCommand = 'attack'; // 次のターンのためにリセット
-        // 次の問題が表示されるまで待機
-        questionDisplay.textContent = "回答送信済み。次の問題を待っています...";
+        // オンライン戦では回答送信後、正解かどうかの結果を待ってからコマンド選択UIを表示
+        questionDisplay.textContent = "回答送信済み。結果を待っています...";
         choicesContainer.innerHTML = '';
     }
 }
@@ -2210,13 +2210,6 @@ function displayQuestion(question) {
         generateChoices(currentQuestion);
         startTimer();
         
-        // オンライン/パーティ戦では、正解かどうかはサーバー側でしか判定できないため、
-        // 回答前にコマンド（攻撃/特殊/防御/必殺技）を選んでおく形にする。
-        if (!isBotBattle) {
-            selectedCommand = 'attack';
-            showCommandMenu();
-        }
-        
         const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
         addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
     });
@@ -2337,8 +2330,10 @@ function handleBotAnswer(userAnswer) {
             showCommandMenu();
             return;
         } else {
-            // オンライン/パーティ戦の場合は回答済みなので、コマンドメニューを隠す
-            hideCommandMenu();
+            // オンライン/パーティ戦の場合は、正解後にコマンドを選択させる
+            pendingSkillEffect = skillEffect;
+            pendingUsedSkill = usedSkill;
+            showCommandMenu();
             return;
         }
     } else {
