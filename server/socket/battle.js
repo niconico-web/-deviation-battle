@@ -128,64 +128,6 @@ module.exports = function(io){
             }
         });
 
-            if (result.error) {
-                socket.emit("answerError", { message: result.error });
-                return;
-            }
-
-            const enemyId = Object.keys(battle.players).find(id => id !== playerId);
-
-            // クライアントが期待する battle:update の形に変換する
-            const logs = [];
-            if (result.isCorrect) {
-                logs.push(`${result.playerName}が正解した！`);
-            } else if (result.wrongAnswer) {
-                logs.push(`${result.playerName}は不正解…`);
-                if (result.dodged) {
-                    logs.push("回避した！ダメージなし");
-                } else if (result.damage) {
-                    logs.push(`${result.damage}のダメージを受けた！`);
-                }
-            }
-            if (result.skillUsed) {
-                logs.push(`スキル「${result.skillUsed.name}」を発動！`);
-            }
-            if (result.gutsSurvive) {
-                logs.push(`${result.gutsSurvivePlayerName}は根性で持ちこたえた！`);
-            }
-
-            const damageEvents = [];
-            if (result.damage) {
-                const targetId = playerId;
-                damageEvents.push({ targetId, dodged: !!result.dodged, damage: result.damage });
-            }
-
-            const effectEvents = [];
-            if (result.isCorrect) {
-                effectEvents.push({ type: 'correct', playerId });
-            }
-
-            const stateUpdate = {};
-            [playerId, enemyId].forEach(id => {
-                const p = battle.players[id];
-                if (p) {
-                    stateUpdate[id] = { hp: p.hp, maxHp: p.maxHp, ultimateGauge: p.ultimateGauge };
-                }
-            });
-
-            const updatePayload = { logs, damageEvents, effectEvents, stateUpdate };
-            if (result.nextQuestion) {
-                updatePayload.nextQuestion = result.nextQuestion;
-            }
-
-            io.to(roomId).emit("battle:update", updatePayload);
-
-            if (result.winner) {
-                io.to(roomId).emit("battle:finished", { winner: result.winner, draw: false });
-                BattleManager.deleteBattle(roomId);
-            }
-        });
-
         // コマンド選択後の処理
         socket.on("battle:submitCommand", (data) => {
             const { command } = data || {};
@@ -503,5 +445,6 @@ module.exports = function(io){
             console.log('[Battle] Sending battle:initialState with question:', initialState.question);
             socket.emit('battle:initialState', initialState);
         });
-    };
+    });
 
+};
