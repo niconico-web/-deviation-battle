@@ -152,3 +152,12 @@
     opacity: 0.35;
     cursor: not-allowed;
 }
+
+.practice-highlight-box {
+    border: 1px solid rgba(255, 215, 0, 0.5);
+    box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.15) inset;
+}
+
+.practice-highlight-box h3 {
+    color: #ffd700;
+}

@@ -107,6 +107,107 @@
                     body: '「カスタムスキル」タブでは、名前と内容を自由に決めて自分だけのオリジナルスキルを作成できます。\n自分の戦い方をイメージしながら、オリジナルの一枠を作ってみましょう。'
                 }
             ]
+        },
+        study: {
+            storageKey: 'sb_tutorial_study_seen',
+            buttonId: 'tutorialOpenBtn-study',
+            steps: [
+                {
+                    icon: '📖',
+                    title: '勉強でステータスを伸ばそう',
+                    body: 'キャラクター作成後は、ここで勉強することでステータスを伸ばしていきます。\n伸ばしたいステータスに対応する科目を選んで「勉強開始」を押しましょう。'
+                },
+                {
+                    icon: '⏱️',
+                    title: '勉強時間と経験値',
+                    body: '勉強時間が長いほど経験値がたまり、1分ごとに選んだ科目に対応するステータスが1ポイント上昇します。\n「勉強終了」を押すまで継続します。'
+                }
+            ]
+        },
+        missions: {
+            storageKey: 'sb_tutorial_missions_seen',
+            buttonId: 'tutorialOpenBtn-missions',
+            steps: [
+                {
+                    icon: '🎯',
+                    title: 'デイリーミッション',
+                    body: '毎日決まったミッションが用意されます。\n条件を満たすとミッションが達成扱いになり、報酬を受け取れます。\nミッションは日付が変わるとリセットされます。'
+                },
+                {
+                    icon: '🏅',
+                    title: '最終報酬',
+                    body: 'その日のミッションを全て達成して報酬を受け取ると、まとめて「最終報酬」も受け取れます。\n毎日コツコツこなして、素材やオーブを手に入れましょう。'
+                }
+            ]
+        },
+        online: {
+            storageKey: 'sb_tutorial_online_seen',
+            buttonId: 'tutorialOpenBtn-online',
+            steps: [
+                {
+                    icon: '🔰',
+                    title: 'まずは練習から',
+                    body: '初めての方は、ページ上部の「スライムと実戦形式で練習する」から始めるのがおすすめです。\n実際のバトル画面で、操作方法を教わりながら練習できます。'
+                },
+                {
+                    icon: '🌐',
+                    title: 'ランダムマッチ・ルームマッチ',
+                    body: '「ランダムマッチ」は誰かとすぐに対戦できます。\n「ルームマッチ」はルームコードを使って、友達など特定の相手と対戦できます。\n「セーフモード」を有効にすると、負けても武器を奪われません。'
+                },
+                {
+                    icon: '🤖',
+                    title: 'ボットバトル',
+                    body: '対戦相手のモンスターを選んで、一人でいつでも練習できます。\n「おまかせ」を選ぶとランダムなモンスターと対戦します。'
+                },
+                {
+                    icon: '🎉',
+                    title: 'パーティ',
+                    body: '「パーティ作成」または「パーティ参加」で仲間を集めて、みんなでボスバトルに挑戦できます。\n全員が「準備OK」を押すと開始できます。'
+                }
+            ]
+        },
+        boss: {
+            storageKey: 'sb_tutorial_boss_seen',
+            buttonId: 'tutorialOpenBtn-boss',
+            steps: [
+                {
+                    icon: '👹',
+                    title: 'ボスバトルとは',
+                    body: '通常のバトルより手強いボスに挑戦するモードです。\nボスと難易度（イージー・ノーマル・ハード）を選んで挑戦しましょう。'
+                },
+                {
+                    icon: '🧍',
+                    title: 'ソロ／パーティで挑戦',
+                    body: '一人で挑む「ソロ」と、オンラインのパーティタブで仲間を集めてから挑む「パーティ」の2つの挑戦方法があります。\nパーティ戦では、問題に最初に正解した1人だけがコマンドを選べます。'
+                }
+            ]
+        },
+        ranking: {
+            storageKey: 'sb_tutorial_ranking_seen',
+            buttonId: 'tutorialOpenBtn-ranking',
+            steps: [
+                {
+                    icon: '🏆',
+                    title: '戦力ランキング',
+                    body: 'プレイヤーの総合的な戦力をランキング形式で確認できます。\n「ランキング更新」を押すと最新の順位を取得できます。\nステータスや武器・スキルを強化して、上位を目指しましょう。'
+                }
+            ]
+        },
+        guild: {
+            storageKey: 'sb_tutorial_guild_seen',
+            buttonId: 'tutorialOpenBtn-guild',
+            steps: [
+                {
+                    icon: '🏰',
+                    title: 'ギルドに参加しよう',
+                    body: '「ギルドを作成」で新しいギルドを作るか、「ギルド一覧を見る」から既存のギルドに参加できます。\nギルドに入ると、マイギルド欄で詳細を確認できます。'
+                },
+                {
+                    icon: '🚪',
+                    title: 'ギルドを抜ける',
+                    body: '合わないと感じたら、マイギルド欄の「ギルドを脱退」からいつでも抜けられます。\n別のギルドに参加し直すこともできます。'
+                }
+            ]
         }
     };
 
@@ -115,8 +216,14 @@
     // 場合（ショップ＝武器・オーブ）は、自動表示は最初の1つだけに絞る。
     const SECTION_AUTO_TOPIC = {
         stats: 'character',
+        study: 'study',
+        missions: 'missions',
         shop: 'weapon',
-        skills: 'skill'
+        skills: 'skill',
+        online: 'online',
+        'boss-battle': 'boss',
+        ranking: 'ranking',
+        guild: 'guild'
     };
 
     let currentTopicKey = null;
