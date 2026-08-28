@@ -503,6 +503,5 @@ module.exports = function(io){
             console.log('[Battle] Sending battle:initialState with question:', initialState.question);
             socket.emit('battle:initialState', initialState);
         });
-    });
+    };
 
-};
