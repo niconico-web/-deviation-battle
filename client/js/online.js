@@ -804,6 +804,55 @@ function setupOnlineEventHandlers() {
         };
     }
 
+    // 「実戦形式」の練習バトル：常にスライムを相手に、実際のバトル画面で
+    // 操作方法を教えながら戦う（battle.html側のPracticeCoachが吹き出しを表示する）。
+    const practiceBotMatchBtn = document.getElementById("practiceBotMatch");
+    if (practiceBotMatchBtn) {
+        practiceBotMatchBtn.onclick = function() {
+            const player = migratePlayer(JSON.parse(localStorage.getItem("player")));
+            if (!player) {
+                alert("まずはキャラクターを作成してください。");
+                return;
+            }
+
+            const battleStats = getBattleStats(player);
+            const slimeMonster = BOT_MONSTERS.find(m => m.id === "slime") || BOT_MONSTERS[0];
+            const playerGrade = player.grade || 1;
+
+            const statMultiplier = slimeMonster.statMultiplier != null ? slimeMonster.statMultiplier : 1.0;
+            const botBaseStats = {
+                maxHp: Math.max(1, Math.round(battleStats.maxHp * statMultiplier)),
+                atk: Math.max(1, Math.round(battleStats.atk * statMultiplier)),
+                def: Math.max(1, Math.round(battleStats.def * statMultiplier)),
+                speed: Math.max(1, Math.round(battleStats.speed * statMultiplier))
+            };
+
+            const botPlayer = {
+                id: "bot_" + Date.now(),
+                name: slimeMonster.name,
+                ...botBaseStats,
+                hp: botBaseStats.maxHp,
+                grade: playerGrade,
+                isBot: true,
+                monsterType: slimeMonster.monsterType,
+                monsterEmoji: slimeMonster.monsterEmoji,
+                materialDrops: slimeMonster.materialDrops
+            };
+
+            const battlePlayer = getBattleReadyPlayer(player);
+
+            localStorage.setItem("roomId", "bot_battle_" + Date.now());
+            localStorage.setItem("battlePlayer", JSON.stringify(battlePlayer));
+            localStorage.setItem("enemy", JSON.stringify(botPlayer));
+            localStorage.setItem("isBotBattle", "true");
+            localStorage.setItem("sb_practice_tutorial", "true");
+
+            setTimeout(() => {
+                location.href = "battle.html";
+            }, 50);
+        };
+    }
+
     if (createRoomBtn) {
         createRoomBtn.onclick = function() {
             const player = migratePlayer(JSON.parse(localStorage.getItem("player")));

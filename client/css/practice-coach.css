@@ -1,0 +1,136 @@
+/* ===== 実戦形式チュートリアル（練習バトル）用コーチマーク ===== */
+
+.coach-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10050;
+    background: linear-gradient(90deg, #2a5298, #1e3c72);
+    color: #fff;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.coach-banner .coach-banner-icon {
+    font-size: 16px;
+}
+
+.coach-banner button {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.coach-banner button:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.coach-highlight {
+    position: relative;
+    z-index: 10041;
+    outline: 3px solid #ffd700;
+    outline-offset: 3px;
+    border-radius: 10px;
+    box-shadow: 0 0 0 6px rgba(255, 215, 0, 0.25);
+    animation: coachPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes coachPulse {
+    0%, 100% { box-shadow: 0 0 0 6px rgba(255, 215, 0, 0.25); }
+    50% { box-shadow: 0 0 0 10px rgba(255, 215, 0, 0.12); }
+}
+
+.coach-bubble {
+    position: fixed;
+    z-index: 10060;
+    max-width: 280px;
+    background: #1a1a2e;
+    border: 1px solid #ffd700;
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.6;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.coach-bubble .coach-bubble-text {
+    white-space: pre-line;
+    margin-bottom: 10px;
+}
+
+.coach-bubble .coach-bubble-btn {
+    display: block;
+    margin-left: auto;
+    background: #ffd700;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.coach-bubble .coach-bubble-btn:hover {
+    background: #ffe14d;
+}
+
+.coach-finish-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10070;
+    padding: 16px;
+}
+
+.coach-finish-modal {
+    max-width: 340px;
+    background: linear-gradient(160deg, #1c2a4a, #16213e);
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 14px;
+    padding: 26px 20px;
+    text-align: center;
+    color: #fff;
+}
+
+.coach-finish-modal .coach-finish-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.coach-finish-modal h3 {
+    color: #ffd700;
+    margin-bottom: 10px;
+}
+
+.coach-finish-modal p {
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 16px;
+    white-space: pre-line;
+}
+
+.coach-finish-modal button {
+    background: #ffd700;
+    color: #1a1a1a;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    font-weight: bold;
+    cursor: pointer;
+}

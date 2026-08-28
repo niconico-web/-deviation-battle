@@ -10,6 +10,14 @@ let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
 let allies = []; // 自分以外のパーティメンバー
 
+// 「実戦形式」の練習バトル（オンライン画面の「スライムと練習」から開始）かどうか。
+// 一度読み取ったら消費し、リロードでは再度発動しないようにする。
+const isPracticeTutorial = isBotBattle && localStorage.getItem("sb_practice_tutorial") === "true";
+if (isPracticeTutorial) {
+    localStorage.removeItem("sb_practice_tutorial");
+}
+const practiceCoachShown = { question: false, command: false, skill: false };
+
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
 let activeSkills = [];
 let selectedSkill = null;
@@ -269,7 +277,12 @@ function initialize() {
     updateHP();
     updateUltimateGauge();
     addLog(I18N.battleBegin);
-    
+
+    // 実戦形式チュートリアル（練習バトル）の場合、上部にバナーを表示する
+    if (isPracticeTutorial && window.PracticeCoach) {
+        window.PracticeCoach.start();
+    }
+
     // スキルを初期化
     initializeBattleSkills();
 
@@ -1207,6 +1220,19 @@ function startSkillActivationWindow() {
     try {
         skillActivationWindow = true;
         enableSkillButtons(true);
+
+        // 実戦形式チュートリアル：スキルボタンが実際にある場合のみ、使い方を教える
+        if (isPracticeTutorial && !practiceCoachShown.skill && window.PracticeCoach) {
+            const skillContainer = document.getElementById('skillSlotsContainer');
+            if (skillContainer && skillContainer.querySelector('.skill-slot')) {
+                practiceCoachShown.skill = true;
+                window.PracticeCoach.point(
+                    skillContainer,
+                    "問題が出てから数秒間だけ、ここのスキルボタンが使えるよ。\n効果を見て、使いたいタイミングで押してみよう。",
+                    { buttonLabel: 'わかった' }
+                );
+            }
+        }
         
         // 3秒後にウィンドウを閉じる
         if (skillActivationTimer) {
@@ -2211,6 +2237,16 @@ function displayQuestion(question) {
         
         const subjectDisplay = currentQuestion.subjectDisplayName || getSubjectDisplayName(currentQuestion.subject);
         addLog("問題が出されました！" + (subjectDisplay ? "（" + subjectDisplay + "）" : ""));
+
+        // 実戦形式チュートリアル：最初の問題でのみ、回答方法を教える
+        if (isPracticeTutorial && !practiceCoachShown.question && window.PracticeCoach) {
+            practiceCoachShown.question = true;
+            window.PracticeCoach.point(
+                choicesContainer,
+                "この中から正解だと思うものをタップしよう！\n制限時間内に答えてね。",
+                { buttonLabel: 'わかった' }
+            );
+        }
     });
 }
 
@@ -2365,6 +2401,16 @@ function showCommandMenu() {
     // スキルはこのコマンド選択のタイミングでも選び直せるようにしておく
     if (typeof enableSkillButtons === 'function') {
         enableSkillButtons(true);
+    }
+
+    // 実戦形式チュートリアル：初めて正解した時だけ、コマンドの選び方を教える
+    if (isPracticeTutorial && !practiceCoachShown.command && window.PracticeCoach) {
+        practiceCoachShown.command = true;
+        window.PracticeCoach.point(
+            commandMenu,
+            "正解！ここから行動を選ぼう。\nまずは「攻撃」を試してみよう。選ぶとすぐに行動が確定するよ。",
+            { buttonLabel: 'わかった' }
+        );
     }
 }
 
@@ -2791,7 +2837,17 @@ function finishBotBattle(result) {
     }
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
-    setTimeout(() => location.href = "result.html", 2000);
+    if (isPracticeTutorial && window.PracticeCoach) {
+        // 練習バトルの場合は、閉じるボタンを押すまで結果画面への遷移を待つ
+        window.PracticeCoach.finish(
+            win
+                ? "問題に答えて、コマンドを選ぶ。これがバトルの基本の流れだよ。\nこの調子でオンライン対戦にも挑戦してみよう！"
+                : "負けてしまったけど、操作の流れはつかめたはず。\nもう一度練習するか、オンライン対戦に挑戦してみよう！"
+        );
+        setTimeout(() => location.href = "result.html", 4000);
+    } else {
+        setTimeout(() => location.href = "result.html", 2000);
+    }
 }
 
 function showCountdown(callback) {
