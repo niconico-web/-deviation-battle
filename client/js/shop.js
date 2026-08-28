@@ -558,6 +558,9 @@ function upgradeOriginalWeaponUI(weapon) {
     updateStatus(updatedPlayer);
 }
 
+// オリジナル武器作成時に組み込めるオーブの最大数（help.htmlの説明と一致させる）
+const MAX_WEAPON_ORBS = 3;
+
 function showCreateWeaponDialog() {
     const modal = document.getElementById('createWeaponModal');
     if (!modal) return;
@@ -577,6 +580,11 @@ function showCreateWeaponDialog() {
     if (orbs.length === 0) {
         orbSelectContainer.innerHTML = '<p>使用できるオーブがありません。</p>';
     } else {
+        const orbLimitNote = document.createElement('p');
+        orbLimitNote.className = 'orb-select-note';
+        orbLimitNote.textContent = `オーブは最大${MAX_WEAPON_ORBS}つまで選択できます。`;
+        orbSelectContainer.appendChild(orbLimitNote);
+
         orbs.forEach((orb, index) => {
             const checkbox = document.createElement('div');
             checkbox.className = 'orb-checkbox';
@@ -588,13 +596,27 @@ function showCreateWeaponDialog() {
     // デュアルウェポン用の武器種選択を表示/非表示
     const dualWeaponSelect = document.getElementById('dualWeaponTypeSelect');
     dualWeaponSelect.style.display = 'none';
+
+    // 選択中のオーブ数が上限に達したら、それ以上チェックできないようにする
+    function updateOrbCheckboxLimit() {
+        const allCheckboxes = orbSelectContainer.querySelectorAll('input[type="checkbox"]');
+        const checkedCount = orbSelectContainer.querySelectorAll('input[type="checkbox"]:checked').length;
+        allCheckboxes.forEach(cb => {
+            cb.disabled = !cb.checked && checkedCount >= MAX_WEAPON_ORBS;
+        });
+    }
+
     orbSelectContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
         checkbox.addEventListener('change', () => {
+            // 以前は選択数の上限チェックが無く、オーブを4つ以上選べてしまっていた
+            updateOrbCheckboxLimit();
+
             const selectedOrbs = getSelectedOrbs();
             const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
             dualWeaponSelect.style.display = hasDualWeapon ? 'block' : 'none';
         });
     });
+    updateOrbCheckboxLimit();
     
     modal.style.display = 'flex';
 }

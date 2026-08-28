@@ -730,7 +730,9 @@ const WEAPON_TYPES = {
     katana:       { name: "刀",         primary: ["def", "speed"], secondary: ["special"], debuff: {} },
     magic_wand:   { name: "魔法の杖",   primary: ["special", "maxHp"], secondary: ["atk", "def"], debuff: { speed: 0.9 } },
     gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: ["special"], debuff: { def: 0.9 } },
-    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } }
+    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } },
+    bow:          { name: "弓",         primary: ["speed", "atk"], secondary: ["special"], debuff: { def: 0.9 } },
+    esper:        { name: "超能力",     primary: ["special", "def"], secondary: ["maxHp"], debuff: { atk: 0.9 } }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -787,6 +789,30 @@ const WEAPON_CATALOG = {
         tier2: { name: "魔術師の杖", ultimate: "ファイアボール" },
         tier3: { name: "賢者の杖", ultimate: "メテオストライク" },
         unique: { name: "魔導書　グリモワール", ultimate: "禁断の魔法" }
+    },
+    gloves: {
+        tier1: { name: "布の拳当て", ultimate: "連撃" },
+        tier2: { name: "闘士の籠手", ultimate: "乱打拳" },
+        tier3: { name: "覇拳の籠手", ultimate: "百裂拳" },
+        unique: { name: "金剛の拳　ヴァジュラ", ultimate: "金剛連牙拳" }
+    },
+    shoes: {
+        tier1: { name: "布の靴", ultimate: "疾走蹴り" },
+        tier2: { name: "疾風のブーツ", ultimate: "旋風脚" },
+        tier3: { name: "俊足の神靴", ultimate: "光速蹴撃" },
+        unique: { name: "風神の脚甲　フウジン", ultimate: "神速の一撃" }
+    },
+    bow: {
+        tier1: { name: "木の弓", ultimate: "速射" },
+        tier2: { name: "鋼の弓", ultimate: "貫通矢" },
+        tier3: { name: "精霊の弓", ultimate: "百裂矢" },
+        unique: { name: "神弓　アルテミス", ultimate: "月光の一矢" }
+    },
+    esper: {
+        tier1: { name: "念動リング", ultimate: "念力弾" },
+        tier2: { name: "精神増幅器", ultimate: "サイコバースト" },
+        tier3: { name: "第三の眼", ultimate: "マインドクラッシュ" },
+        unique: { name: "全能の意識体　アカシャ", ultimate: "アカシックレコード" }
     }
 };
 
