@@ -542,6 +542,13 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
         return { error: "No active question" };
     }
 
+    // 既に誰か（自分を含む）がこの問題に正解し、コマンド選択待ちになっている場合は
+    // それ以上の回答を受け付けない。以前はこのチェックが無く、片方が正解して
+    // コマンド選択中でも、もう片方（や既に正解した本人）が問題に回答し続けられてしまっていた。
+    if (battle.currentQuestion.lockedBy) {
+        return { error: "この問題は既に正解されました。コマンド選択が終わるまでお待ちください", locked: true };
+    }
+
     const answerTime = Date.now() - battle.currentQuestion.startTime;
     player.answerTime = answerTime;
 
@@ -587,6 +594,10 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
         result.ultimateGauge = player.ultimateGauge.current;
         result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
         result.showCommandMenu = true; // クライアントにコマンドメニューを表示させるフラグ
+
+        // この問題をロックし、他のプレイヤーがこれ以上回答できないようにする
+        battle.currentQuestion.lockedBy = playerId;
+        result.lockedBy = playerId;
     } else {
         // 不正解の場合：反撃ダメージを受ける
         const attacker = enemy;
@@ -1285,7 +1296,11 @@ function finalizeBattle(battle) {
 // コマンド選択後の処理
 function processCommand(battle, playerId, command) {
     const player = battle.players[playerId];
-    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    // パーティでのボス戦（プレイヤーが3人以上）では、単純に「自分以外」を敵として扱うと
+    // 味方を誤って攻撃対象にしてしまう。ボス戦では必ずボスを敵として扱う。
+    const enemyId = battle.isBossBattle
+        ? Object.keys(battle.players).find(id => battle.players[id].isBoss)
+        : Object.keys(battle.players).find(id => id !== playerId);
     const enemy = battle.players[enemyId];
 
     if (!player || !enemy) {
@@ -1384,9 +1399,13 @@ function processCommand(battle, playerId, command) {
         }
     }
 
-    // 両方のプレイヤーが回答済みであれば次の問題へ
-    const bothAnswered = player.answerTime !== null && enemy.answerTime !== null;
-    if (bothAnswered && !battle.finished) {
+    // コマンド選択は「この問題に正解した1人」が行うものなので、
+    // コマンドが解決した時点でこのラウンドは終了。次の問題を生成して
+    // 全員の回答をロック解除する。
+    // （以前は「両方のプレイヤーが回答済みか」を次の問題への条件にしていたが、
+    //   正解した1人以外は回答できないよう修正したことで、この条件が
+    //   永遠に満たされなくなり、次の問題が配信されなくなってしまう）
+    if (!battle.finished) {
         generateQuestion(battle);
         tickDebuffs(player);
         tickDebuffs(enemy);

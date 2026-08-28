@@ -88,23 +88,24 @@ document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => selec
 
 /**
  * コマンドボタンが押された時の共通入口。
- * ボット戦：既に正解が確定しているので、即座にそのコマンドで攻撃を解決する。
- * オンライン/パーティ戦：まだ正解かどうかサーバー側でしか分からないため、
- * 「どのコマンドを使うか」を選んでおくだけにして、実際の判定・ダメージ計算は
- * 回答送信時にサーバー側で行う（1往復のプロトコルに乗せるための簡略化）。
+ * ボット戦・オンライン/パーティ戦のどちらでも、ボタンを押した瞬間にコマンドを確定させる。
+ * （以前はオンライン/パーティ戦の場合、ハイライト表示を切り替えるだけで実際には
+ *   resolvePlayerCommand() が呼ばれておらず、コマンドボタンを押しても何も起きなかった。
+ *   実際の判定・ダメージ計算やサーバーへの送信は resolvePlayerCommand() 側で
+ *   isBotBattle かどうかに応じて分岐して行われる。）
  */
 function selectCommand(command) {
-    if (isBotBattle) {
-        resolvePlayerCommand(command);
-        return;
-    }
-    if (command === 'ultimate' && !myUltimateReady) {
+    const isUltimateReady = isBotBattle
+        ? (me.ultimateGauge && me.ultimateGauge.current >= me.ultimateGauge.max)
+        : myUltimateReady;
+    if (command === 'ultimate' && !isUltimateReady) {
         return; // ゲージ不足時は選択させない
     }
     selectedCommand = command;
     document.querySelectorAll('#commandMenu .btn-command').forEach(btn => btn.classList.remove('selected'));
     const btnId = { attack: 'cmdAttackBtn', special: 'cmdSpecialBtn', defend: 'cmdDefendBtn', ultimate: 'cmdUltimateBtn' }[command];
     document.getElementById(btnId)?.classList.add('selected');
+    resolvePlayerCommand(command);
 }
 
 function statLabel(k, v) {
@@ -2373,6 +2374,23 @@ function hideCommandMenu() {
 }
 
 /**
+ * 相手（または他のパーティメンバー）が先にこの問題に正解した場合、
+ * 自分側の回答UIをロックする。次の問題が届く（displayQuestion）まで
+ * 選択肢は押せなくなる。
+ */
+function lockAnsweringForRound() {
+    if (bossAutoAnswerTimer) {
+        clearTimeout(bossAutoAnswerTimer);
+        bossAutoAnswerTimer = null;
+    }
+    stopTimer();
+    const buttons = choicesContainer.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => btn.disabled = true);
+    enableSkillButtons(false);
+    questionDisplay.textContent = "相手が正解しました。結果を待っています...";
+}
+
+/**
  * プレイヤーがコマンド（攻撃/特殊/防御/必殺技）を選択した時に呼ばれる。
  * @param {'attack'|'special'|'defend'|'ultimate'} command
  */
@@ -3029,6 +3047,14 @@ if (!isBotBattle && socket) {
             });
         }
 
+        // 誰か（自分以外）がこの問題に正解し、コマンド選択中になった場合、
+        // 自分はこの問題にはもう回答できないようにする（二重回答の防止）。
+        // 以前はこの通知が無く、正解者がコマンドを選んでいる間も、
+        // まだ回答していない側のプレイヤーが問題に回答できてしまっていた。
+        if (data.roundLockedBy && data.roundLockedBy !== me.id) {
+            lockAnsweringForRound();
+        }
+
         if (data.stateUpdate) {
             syncBattleState(data.stateUpdate);
         }
@@ -3053,6 +3079,12 @@ if (!isBotBattle && socket) {
 
     socket.on("answerError", data => {
         addLog("エラー: " + data.message);
+        // 「既に誰かが正解済み」が理由のエラーの場合は、ボタンを再度押せるようにしない
+        // （再度押しても同じエラーになるだけで、正解者のコマンド選択を待つべきラウンドのため）
+        if (data.locked) {
+            lockAnsweringForRound();
+            return;
+        }
         const buttons = choicesContainer.querySelectorAll('.choice-btn');
         buttons.forEach(btn => btn.disabled = false);
     });

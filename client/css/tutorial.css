@@ -1,0 +1,154 @@
+/* ===== 遊び方チュートリアル ===== */
+
+.battle-header {
+    position: relative;
+}
+
+.tutorial-open-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 215, 0, 0.7);
+    background: rgba(0, 0, 0, 0.25);
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tutorial-open-btn:hover {
+    background: rgba(255, 215, 0, 0.2);
+}
+
+.tutorial-open-btn-inline {
+    position: static;
+    display: inline-flex;
+    vertical-align: middle;
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+    margin-left: 6px;
+}
+
+.tutorial-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 10001;
+    padding: 16px;
+}
+
+.tutorial-modal {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    background: linear-gradient(160deg, #1c2a4a, #16213e);
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 14px;
+    padding: 28px 22px 20px;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    color: #fff;
+}
+
+.tutorial-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #aaa;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+
+.tutorial-close:hover {
+    color: #fff;
+}
+
+.tutorial-step-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+}
+
+.tutorial-step-title {
+    color: #ffd700;
+    font-size: 18px;
+    margin-bottom: 12px;
+}
+
+.tutorial-step-body {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #e8e8e8;
+    min-height: 84px;
+    white-space: pre-line;
+}
+
+.tutorial-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin: 16px 0 18px;
+}
+
+.tutorial-dots .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.tutorial-dots .dot.active {
+    background: #ffd700;
+}
+
+.tutorial-nav {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.tutorial-btn {
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+}
+
+.tutorial-btn-primary {
+    background: #ffd700;
+    color: #1a1a1a;
+}
+
+.tutorial-btn-primary:hover {
+    background: #ffe14d;
+}
+
+.tutorial-btn-secondary {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.tutorial-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.tutorial-btn-secondary:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}

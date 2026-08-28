@@ -9,6 +9,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
 <link rel="stylesheet" href="css/battle.css?v=1783932440567">
+<link rel="stylesheet" href="css/tutorial.css?v=1783932440584">
 <style>
 .modal-overlay {
     position: fixed;
@@ -78,7 +79,9 @@ if ('serviceWorker' in navigator) {
 </head>
 <body>
 <div class="battle-container">
-<header class="battle-header"><h1>&#12496;&#12488;&#12523;</h1><p id="turnText" class="turn-text"></p></header>
+<header class="battle-header">
+<button type="button" id="tutorialOpenBtn" class="tutorial-open-btn" aria-label="遊び方">?</button>
+<h1>&#12496;&#12488;&#12523;</h1><p id="turnText" class="turn-text"></p></header>
 <div class="players">
 <div class="card player-card" id="playerCard"><p class="card-label">&#12354;&#12394;&#12383;</p><h2 id="myName">----</h2>
 <div id="myDamage" class="damage"></div><div class="hpbar"><div id="myHPBar" class="fill"></div></div>
@@ -132,6 +135,21 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 </div>
+
+<!-- バトルの遊び方チュートリアル -->
+<div id="tutorial-overlay" class="tutorial-overlay" style="display: none;">
+    <div class="tutorial-modal">
+        <button type="button" id="tutorialSkipBtn" class="tutorial-close" aria-label="閉じる">&times;</button>
+        <div class="tutorial-step-icon" id="tutorialStepIcon">📖</div>
+        <h2 id="tutorialStepTitle" class="tutorial-step-title"></h2>
+        <p id="tutorialStepBody" class="tutorial-step-body"></p>
+        <div id="tutorialDots" class="tutorial-dots"></div>
+        <div class="tutorial-nav">
+            <button type="button" id="tutorialPrevBtn" class="btn tutorial-btn tutorial-btn-secondary">戻る</button>
+            <button type="button" id="tutorialNextBtn" class="btn tutorial-btn tutorial-btn-primary">次へ</button>
+        </div>
+    </div>
+</div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="js/i18n.js?v=1783932440584"></script>
@@ -139,6 +157,7 @@ if ('serviceWorker' in navigator) {
 <script src="js/weapons.js?v=1783932440584"></script>
 <script src="js/skillTree.js?v=1783932440584"></script>
 <script src="js/materials.js?v=1783932440584"></script>
+<script src="js/tutorial.js?v=1783932440584"></script>
 <script src="js/battle.js?v=1783932440584"></script>
 </body>
 </html>

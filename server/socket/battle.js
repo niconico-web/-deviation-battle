@@ -78,7 +78,7 @@ module.exports = function(io){
             const result = BattleEngine.processAnswerOnly(battle, playerId, answer, usedSkill);
 
             if (result.error) {
-                socket.emit("answerError", { message: result.error });
+                socket.emit("answerError", { message: result.error, locked: !!result.locked });
                 return;
             }
 
@@ -116,6 +116,11 @@ module.exports = function(io){
             });
 
             const updatePayload = { logs, damageEvents, effectEvents, stateUpdate };
+            if (result.lockedBy) {
+                // 誰がこの問題に正解してコマンド選択中かを全員に通知する。
+                // 正解した本人はコマンドメニューを、それ以外は回答不可の待機表示を出す。
+                updatePayload.roundLockedBy = result.lockedBy;
+            }
             if (result.nextQuestion) {
                 updatePayload.nextQuestion = result.nextQuestion;
             }
@@ -168,7 +173,10 @@ module.exports = function(io){
                 return;
             }
 
-            const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+            // パーティでのボス戦では「自分以外」ではなく、必ずボスを敵として扱う
+            const enemyId = battle.isBossBattle
+                ? Object.keys(battle.players).find(id => battle.players[id].isBoss)
+                : Object.keys(battle.players).find(id => id !== playerId);
 
             const logs = [];
             if (result.damage) {
@@ -191,8 +199,9 @@ module.exports = function(io){
                 effectEvents.push({ type: 'ultimate', playerId });
             }
 
+            // 全プレイヤー（パーティメンバー含む）の状態を送る
             const stateUpdate = {};
-            [playerId, enemyId].forEach(id => {
+            Object.keys(battle.players).forEach(id => {
                 const p = battle.players[id];
                 if (p) {
                     stateUpdate[id] = { hp: p.hp, maxHp: p.maxHp, ultimateGauge: p.ultimateGauge };
