@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/ability-popup.css">
     <link rel="stylesheet" href="css/guild.css">
+    <link rel="stylesheet" href="css/tutorial.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -46,7 +47,7 @@
             <section id="section-stats" class="content-section active">
                 <h2>ステータス</h2>
                 <div class="setting-box">
-                    <h3>キャラクター作成</h3>
+                    <h3>キャラクター作成 <button type="button" id="tutorialOpenBtn-character" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="キャラクター作成の遊び方">?</button></h3>
                     <label class="field-label" for="playerName">プレイヤー名</label>
                     <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
                     <div class="stat-allocation">
@@ -124,12 +125,12 @@
                 <div id="shopList" class="shop-list">
                     <!-- Shop items will be rendered here -->
                 </div>
-                <h3>オリジナル武器作成</h3>
+                <h3>オリジナル武器作成 <button type="button" id="tutorialOpenBtn-weapon" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="武器作成の遊び方">?</button></h3>
                 <div class="setting-box">
                     <p>オリジナル武器を作成して、自分だけの最強武器を目指そう！</p>
                     <button id="showCreateWeaponModalBtn" class="btn btn-primary">オリジナル武器を作成</button>
                 </div>
-                <h3>オーブ合成</h3>
+                <h3>オーブ合成 <button type="button" id="tutorialOpenBtn-orb" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="オーブの遊び方">?</button></h3>
                 <div class="setting-box">
                     <p>低ティアのオーブを複数使って、高ティアのオーブを作成できます。</p>
                     <button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
@@ -236,7 +237,7 @@
             </section>
 
             <section id="section-skills" class="content-section">
-                <h2>スキル</h2>
+                <h2>スキル <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="スキルの遊び方">?</button></h2>
                 <div class="sub-tabs">
                     <button class="sub-tab-btn active" data-subtab="skill-tree-content">スキルツリー</button>
                     <button class="sub-tab-btn" data-subtab="equipped-skills-content">装備中スキル</button>
@@ -488,6 +489,21 @@
         </main>
     </div>
 
+    <!-- 遊び方チュートリアル（キャラクター作成・オーブ・武器・スキル共通） -->
+    <div id="tutorial-overlay" class="tutorial-overlay" style="display: none;">
+        <div class="tutorial-modal">
+            <button type="button" id="tutorialSkipBtn" class="tutorial-close" aria-label="閉じる">&times;</button>
+            <div class="tutorial-step-icon" id="tutorialStepIcon">📖</div>
+            <h2 id="tutorialStepTitle" class="tutorial-step-title"></h2>
+            <p id="tutorialStepBody" class="tutorial-step-body"></p>
+            <div id="tutorialDots" class="tutorial-dots"></div>
+            <div class="tutorial-nav">
+                <button type="button" id="tutorialPrevBtn" class="btn tutorial-btn tutorial-btn-secondary">戻る</button>
+                <button type="button" id="tutorialNextBtn" class="btn tutorial-btn tutorial-btn-primary">次へ</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/stats.js"></script>
@@ -503,6 +519,7 @@
     <script src="js/help.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/guild.js"></script>
+    <script src="js/tutorial-topics.js"></script>
     <script src="js/script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
