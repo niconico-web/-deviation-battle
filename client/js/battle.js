@@ -1935,10 +1935,11 @@ function startATBBattleLoop() {
     updateATBBars();
     addLog(`バトル開始！正解を重ねて行動ゲージを溜めよう！（必要な正解数: ${playerRequiredCount}回 / すばやさ ${me.name}:${me.speed || 0} vs ${enemy.name}:${enemy.speed || 0}）`);
 
-    // 最初の1問だけ、心の準備ができるよう3秒の間を空けてから始める
+    // 最初の1問だけ、これまでと同じ「3, 2, 1, GO!!」のカウントダウンを見せてから始める
     // （2問目以降は待ち時間なしで即座に出題される。ボス側のゲージ進行も
-    // 同じタイミングで開始するので、開始直後にボスだけ先に有利になることもない）
-    setTimeout(() => {
+    // カウントダウン終了と同じタイミングで開始するので、待っている間にボスだけ
+    // 先に有利になることもない）
+    showCountdown(() => {
         if (battleEnd) return;
 
         // ボス側のゲージのみ、今まで通りリアルタイムで進行させる
@@ -1966,7 +1967,7 @@ function startATBBattleLoop() {
 
         // プレイヤー側の最初の問題を出題する（2問目以降は待ち時間なし）
         askNextPlayerQuestion();
-    }, 3000);
+    });
 }
 
 /**
