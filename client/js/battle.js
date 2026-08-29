@@ -27,6 +27,22 @@ let skillActivationTimer = null;
 let bossAutoAnswerTimer = null; // Boss auto-answer timer
 const BOSS_AUTO_ANSWER_TIMEOUT = 3000; // 3 seconds for boss to auto-answer
 
+// ==== ATB（アクティブタイムバトル）システム（ボス戦のみ・アクティブ型） ====
+// プレイヤー・ボスそれぞれが独立した「行動ゲージ」を持ち、素早さに応じてリアルタイムで
+// 溜まっていく。相手の行動待ち・自分の行動待ちで完全に止まることがないのが「アクティブ型」。
+let playerATB = 0;                    // 自分の行動ゲージ（0〜100）
+let enemyATB = 0;                     // ボスの行動ゲージ（0〜100）
+let atbInterval = null;               // ゲージ進行用のタイマー
+let atbPlayerActionPending = false;   // 出題中〜コマンド確定まで。この間だけ自分のゲージは止まる
+let atbBossTelegraphActive = false;   // ボスの攻撃予備動作（テレグラフ）中。この間だけボスのゲージは止まる
+let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中かどうか
+let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
+const ATB_TICK_MS = 100;              // ゲージ更新の間隔
+const ATB_MAX = 100;
+const ATB_BASE_FILL_MS = 4500;        // 素早さが五分五分なら約4.5秒でゲージ満タンになる基準値
+const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分の行動権が発生してから答えられる制限時間
+const ATB_BOSS_TELEGRAPH_MS = 1300;      // ボスの攻撃予備動作の時間（この間にガードできる）
+
 // クリティカル関連
 const BASE_CRIT_CHANCE = 0.05; // 通常時、常に5%の確率でクリティカルが発生する
 const CRITICAL_ABILITY_CRIT_CHANCE = 0.30; // 「必殺」の固有能力を持つ武器を装備している場合の基本クリティカル率
@@ -93,6 +109,7 @@ document.getElementById("cmdAttackBtn")?.addEventListener("click", () => selectC
 document.getElementById("cmdSpecialBtn")?.addEventListener("click", () => selectCommand("special"));
 document.getElementById("cmdDefendBtn")?.addEventListener("click", () => selectCommand("defend"));
 document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => selectCommand("ultimate"));
+document.getElementById("atbGuardBtn")?.addEventListener("click", () => activateATBGuard());
 
 /**
  * コマンドボタンが押された時の共通入口。
@@ -605,7 +622,13 @@ function startBotBattle() {
     // ステータス更新を反映
     updateStats();
     updateHP();
-    generateBotQuestion();
+
+    if (isBossBattle) {
+        // ボス戦はアクティブ型ATBバトルとして進行する
+        startATBBattleLoop();
+    } else {
+        generateBotQuestion();
+    }
 }
 
 function generateChoices(question) {
@@ -1720,7 +1743,9 @@ function handleChoiceClick(selectedOption) {
     buttons.forEach(btn => btn.disabled = true);
     enableSkillButtons(false); // スキルボタンを無効化
     
-    if (isBotBattle) {
+    if (isBotBattle && isBossBattle) {
+        handleATBAnswer(selectedOption);
+    } else if (isBotBattle) {
         handleBotAnswer(selectedOption);
     } else {
         // サーバーに回答を送信（コマンドは送らない）
@@ -1845,6 +1870,266 @@ function performBossTimeoutAttack() {
         setTimeout(generateBotQuestion, 1000);
     }
 }
+
+// ==== ここからATB（アクティブ型）バトルシステム本体 ====
+
+/**
+ * 自分と相手、双方の素早さから「1tickあたりのゲージ増加量」を求める。
+ * 絶対的な素早さの値の大小に関わらず、五分五分の速さなら ATB_BASE_FILL_MS で
+ * ゲージが満タンになるよう相対的に計算する（武器やスキルで素早さの桁が
+ * 大きく変わっても破綻しないようにするため）。
+ */
+function getATBGainPerTick(selfSpeed, opponentSpeed) {
+    const s = Math.max(1, selfSpeed || 1);
+    const o = Math.max(1, opponentSpeed || 1);
+    const avg = (s + o) / 2;
+    const speedFactor = s / avg;
+    const ticksToFill = ATB_BASE_FILL_MS / ATB_TICK_MS;
+    return (ATB_MAX / ticksToFill) * speedFactor;
+}
+
+function updateATBBars() {
+    const myBar = document.getElementById('myAtbBar');
+    const enemyBar = document.getElementById('enemyAtbBar');
+    if (myBar) myBar.style.width = Math.min(100, Math.max(0, playerATB)) + '%';
+    if (enemyBar) enemyBar.style.width = Math.min(100, Math.max(0, enemyATB)) + '%';
+}
+
+/**
+ * ボス戦のATBループを開始する。プレイヤー・ボスのゲージがそれぞれ独立して
+ * リアルタイムに進行し、満タンになった側から即座に行動が発生する（アクティブ型）。
+ */
+function startATBBattleLoop() {
+    playerATB = 0;
+    enemyATB = 0;
+    atbPlayerActionPending = false;
+    atbBossTelegraphActive = false;
+    atbGuardWindowOpen = false;
+    atbGuardActivated = false;
+    if (atbInterval) clearInterval(atbInterval);
+    updateATBBars();
+    addLog(`バトル開始！ゲージが溜まった方から行動できる！（すばやさ ${me.name}:${me.speed || 0} / ${enemy.name}:${enemy.speed || 0}）`);
+
+    atbInterval = setInterval(() => {
+        if (battleEnd) {
+            clearInterval(atbInterval);
+            atbInterval = null;
+            return;
+        }
+
+        // 自分のゲージ（出題中〜コマンド確定までは止まる）
+        if (!atbPlayerActionPending) {
+            playerATB += getATBGainPerTick(me.speed, enemy.speed);
+            if (playerATB >= ATB_MAX) {
+                playerATB = ATB_MAX;
+                triggerPlayerATBAction();
+            }
+        }
+
+        // ボスのゲージ（アクティブ型：自分が出題中でも止まらずに進み続ける）
+        if (!atbBossTelegraphActive) {
+            enemyATB += getATBGainPerTick(enemy.speed, me.speed);
+            if (enemyATB >= ATB_MAX) {
+                enemyATB = ATB_MAX;
+                triggerBossTelegraph();
+            }
+        }
+
+        updateATBBars();
+    }, ATB_TICK_MS);
+}
+
+/**
+ * 自分のゲージが満タンになった時に呼ばれる。問題を即座に出題する
+ * （テンポ重視のため、通常戦にあるカウントダウン演出は挟まない）。
+ */
+function triggerPlayerATBAction() {
+    if (battleEnd) return;
+    atbPlayerActionPending = true;
+
+    const bossSubjects = ['math', 'jp', 'eng', 'sci', 'soc'];
+    const bossSubject = bossSubjects[Math.floor(Math.random() * bossSubjects.length)];
+    const bossQuestions = getLocalBossQuestions(bossSubject);
+
+    if (!bossQuestions || bossQuestions.length === 0) {
+        console.warn(`[ATB] grade=${me.grade}, subject=${bossSubject} の問題が見つからないため、この行動権をスキップします。`);
+        atbPlayerActionPending = false;
+        playerATB = 0;
+        return;
+    }
+
+    const randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+    currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+
+    tickBotBattleStatus();
+    if (battleEnd) return;
+    if (enemy.hp <= 0) { finishBotBattle("win"); return; }
+
+    startSkillActivationWindow();
+
+    questionDisplay.textContent = currentQuestion.question;
+    generateChoices(currentQuestion);
+    startTimer();
+    addLog("ゲージMAX！問題に答えて攻撃しよう！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+
+    if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+    bossAutoAnswerTimer = setTimeout(() => {
+        // 制限時間内に答えられなければ行動権を逃す。
+        // （ボスへの反撃は発生しない。ボスの攻撃はボス自身のゲージで独立して発生するため）
+        if (battleEnd || !atbPlayerActionPending) return;
+        addLog("時間切れ！行動のチャンスを逃した…");
+        const buttons = choicesContainer.querySelectorAll('.choice-btn');
+        buttons.forEach(btn => btn.disabled = true);
+        enableSkillButtons(false);
+        currentQuestion = null;
+        atbPlayerActionPending = false;
+        playerATB = ATB_MAX * 0.3; // ゲージは0に戻さず一部残す
+        updateATBBars();
+    }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
+}
+
+/**
+ * ATBボス戦専用の回答処理。handleBotAnswer() と違い、不正解時にボスの反撃を
+ * 発生させない（ボスの攻撃は独立したゲージで発生するため、二重に不利にしないよう分離している）。
+ */
+function handleATBAnswer(selectedOption) {
+    let usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
+    const skillEffect = (usedSkill && usedSkill.effect) || {};
+    applyInstantSkillEffects(skillEffect);
+    if (usedSkill) afterSkillUse(usedSkill);
+
+    const isCorrect = selectedOption.trim() === currentQuestion.answer;
+    const answerTime = Date.now() - questionStartTime;
+
+    if (isCorrect) {
+        addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
+        showCorrectEffect();
+
+        if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
+        if (!enemy.ultimateGauge) enemy.ultimateGauge = { current: 0, max: 100 };
+        me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
+        updateUltimateGauge();
+
+        pendingSkillEffect = skillEffect;
+        pendingUsedSkill = usedSkill;
+        currentQuestion = null; // タイムアウト処理との重複判定を避ける
+        showCommandMenu();
+        // 実際のダメージ計算は、コマンド確定後に resolvePlayerCommand() が行う。
+        // ボスのゲージはこの間も止まらずに進み続ける（アクティブ型）。
+    } else {
+        addLog("不正解…行動のチャンスを逃した！");
+        currentQuestion = null;
+        atbPlayerActionPending = false;
+        playerATB = ATB_MAX * 0.3;
+        updateATBBars();
+    }
+}
+
+/**
+ * プレイヤー側の行動（コマンド確定）が終わった後に呼ばれる。
+ * ボス戦のATBループ中なら自分のゲージを0に戻して自動進行に戻し、
+ * それ以外（通常のボット戦）では今まで通り次の問題を生成する。
+ */
+function continueBattleLoop() {
+    if (isBossBattle && atbInterval) {
+        atbPlayerActionPending = false;
+        playerATB = 0;
+        updateATBBars();
+    } else {
+        setTimeout(generateBotQuestion, 1000);
+    }
+}
+
+/**
+ * ボスのゲージが満タンになった時に呼ばれる。攻撃の予備動作（テレグラフ）を見せ、
+ * その間だけプレイヤーはガードボタンを押して反応することができる。
+ */
+function triggerBossTelegraph() {
+    if (battleEnd) return;
+    atbBossTelegraphActive = true;
+    atbGuardWindowOpen = true;
+    atbGuardActivated = false;
+
+    addLog(`⚠️ ${enemy.name}が攻撃の構えを見せた！ガードで身構えよう！`);
+
+    const telegraphIndicator = document.getElementById('atbTelegraphIndicator');
+    const guardBtn = document.getElementById('atbGuardBtn');
+    if (telegraphIndicator) telegraphIndicator.style.display = 'block';
+    if (guardBtn) {
+        guardBtn.style.display = 'inline-block';
+        guardBtn.disabled = false;
+        guardBtn.classList.remove('guard-success');
+    }
+
+    setTimeout(() => {
+        atbGuardWindowOpen = false;
+        if (guardBtn) guardBtn.disabled = true;
+        resolveBossAttack();
+    }, ATB_BOSS_TELEGRAPH_MS);
+}
+
+/** ガードボタンが押された時に呼ばれる。予備動作中のみ有効。 */
+function activateATBGuard() {
+    if (!atbGuardWindowOpen || atbGuardActivated) return;
+    atbGuardActivated = true;
+    addLog("ガードの構え！");
+    const guardBtn = document.getElementById('atbGuardBtn');
+    if (guardBtn) {
+        guardBtn.disabled = true;
+        guardBtn.classList.add('guard-success');
+    }
+}
+
+/** ボスの攻撃予備動作が終わった時点で実際にダメージを解決する。 */
+function resolveBossAttack() {
+    if (battleEnd) return;
+
+    let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
+    const botAtk = enemy.atk;
+
+    // ボスのアクティブスキル使用（一定確率）
+    let bossUsedSkill = null;
+    if (enemy.skills && enemy.skills.length > 0 && Math.random() < 0.5) {
+        bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+    }
+
+    const defReduction = Math.floor(myDef * 0.1);
+    let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
+
+    if (bossUsedSkill) {
+        damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+    }
+
+    if (atbGuardActivated) {
+        damage = Math.floor(damage * 0.5);
+        addLog("ガード成功！ダメージ半減！");
+    }
+
+    if (hasUniqueAbility(me, 'damage_cut_half')) {
+        damage = Math.floor(damage * 0.5);
+        addLog("鉄壁発動！ダメージ50%カット");
+    }
+
+    me.hp = Math.max(0, me.hp - damage);
+    showDamage("myDamage", damage);
+    addLog(`${enemy.name}から ${damage} のダメージ！`);
+    updateHP();
+
+    const telegraphIndicator = document.getElementById('atbTelegraphIndicator');
+    const guardBtn = document.getElementById('atbGuardBtn');
+    if (telegraphIndicator) telegraphIndicator.style.display = 'none';
+    if (guardBtn) guardBtn.style.display = 'none';
+
+    atbBossTelegraphActive = false;
+    enemyATB = 0;
+    updateATBBars();
+
+    if (me.hp <= 0) {
+        finishBotBattle("lose");
+    }
+}
+
+// ==== ここまでATBバトルシステム本体 ====
 
 function generateBotQuestion() {
     console.log("generateBotQuestion called, isBossBattle:", isBossBattle);
@@ -2511,7 +2796,7 @@ function resolvePlayerCommand(command) {
         myPendingDamageReduction = Math.max(myPendingDamageReduction, 0.5);
         updateHP();
         updateUltimateGauge();
-        setTimeout(generateBotQuestion, 1000);
+        continueBattleLoop();
         return;
     }
 
@@ -2687,8 +2972,8 @@ function resolvePlayerCommand(command) {
         if (enemy.hp <= 0) {
             finishBotBattle("win");
         } else {
-            // 即座に次の問題へ
-            setTimeout(generateBotQuestion, 1000);
+            // 即座に次の問題へ（ボス戦のATBループ中なら自分のゲージをリセットして自動進行に戻す）
+            continueBattleLoop();
         }
 }
 
@@ -2846,6 +3131,7 @@ function finishBotBattle(result) {
     if (timerInterval) clearInterval(timerInterval);
     if (countdownInterval) clearInterval(countdownInterval);
     if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+    if (atbInterval) { clearInterval(atbInterval); atbInterval = null; }
 
     const buttons = choicesContainer.querySelectorAll('.choice-btn');
     buttons.forEach(btn => btn.disabled = true);
