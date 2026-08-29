@@ -135,20 +135,56 @@ function getSubjectDisplayName(subject) {
         'math': '算数・数学',
         'jp': '国語',
         'english': '英語',
+        'eng': '英語',
         'science': '理科',
-        'social': '社会'
+        'sci': '理科',
+        'social': '社会',
+        'soc': '社会'
     };
     return subjectNames[subject] || subject;
 }
 
 /**
- * ボス戦用の問題をローカルから取得する（暫定的なダミー関数）
- * @param {string} bossSubject - ボスの教科
- * @returns {Array} 問題の配列（現在は空）
+ * プレイヤーの学年（1〜12）を1〜12の範囲に正規化する。
+ * @param {number|string} rawGrade
+ * @returns {number}
+ */
+function normalizeBossQuestionGrade(rawGrade) {
+    let grade = parseInt(rawGrade, 10);
+    if (!Number.isFinite(grade) || Number.isNaN(grade)) {
+        grade = 1;
+    }
+    if (grade < 1) grade = 1;
+    if (grade > 12) grade = 12;
+    return grade;
+}
+
+/**
+ * ボス戦用の問題をローカル（boss_questions.js に埋め込まれたデータ）から取得する。
+ * プレイヤーの学年（me.grade）と指定された教科に応じた問題一覧を返す。
+ * @param {string} bossSubject - ボスの教科（math/jp/eng/sci/soc）
+ * @returns {Array} 問題の配列（見つからない場合は空配列）
  */
 function getLocalBossQuestions(bossSubject) {
-    console.warn(`[TEMP] getLocalBossQuestions for ${bossSubject} is not implemented. Returning empty array.`);
-    return [];
+    if (typeof BOSS_QUESTIONS_DATA === 'undefined' || !BOSS_QUESTIONS_DATA.boss) {
+        console.error('[BossQuestions] BOSS_QUESTIONS_DATA が読み込まれていません（boss_questions.js の読み込みを確認してください）。');
+        return [];
+    }
+
+    const grade = normalizeBossQuestionGrade(me && me.grade);
+    const gradeData = BOSS_QUESTIONS_DATA.boss[String(grade)];
+    if (!gradeData) {
+        console.warn(`[BossQuestions] grade=${grade} の問題データが見つかりません。`);
+        return [];
+    }
+
+    const subjectQuestions = gradeData[bossSubject];
+    if (!subjectQuestions || subjectQuestions.length === 0) {
+        console.warn(`[BossQuestions] grade=${grade}, subject=${bossSubject} の問題データが見つかりません。`);
+        return [];
+    }
+
+    return subjectQuestions;
 }
 
 function renderPartyStatus() {
@@ -1753,6 +1789,63 @@ function calculateBotDifficulty() {
     };
 }
 
+/**
+ * 制限時間内にプレイヤーが回答できなかった場合、ボスが自動的に正解し、
+ * プレイヤーを攻撃する処理。
+ * ・「プレイヤーが正解した」ことにしてしまわないよう、handleChoiceClick() /
+ *   handleBotAnswer() は使わず、直接ボスの攻撃処理を行う。
+ * ・ボス戦の場合、通常の不正解時と同様に一定確率でボスのアクティブスキルを使用する。
+ */
+function performBossTimeoutAttack() {
+    if (battleEnd || !currentQuestion) return;
+
+    console.log('[Boss Auto-Answer] Player timed out. Boss answers correctly and attacks.');
+    addLog(`時間切れ！ ${enemy.name} が正解した！（正解: ${currentQuestion.answer}）`);
+
+    // 選択肢を無効化（プレイヤーはもう回答できない）
+    const buttons = choicesContainer.querySelectorAll('.choice-btn');
+    buttons.forEach(btn => btn.disabled = true);
+    if (typeof enableSkillButtons === 'function') enableSkillButtons(false);
+
+    // ボスの攻撃処理
+    let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
+    let botAtk = enemy.atk;
+
+    // ボスのアクティブスキル使用（一定確率）
+    let bossUsedSkill = null;
+    if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
+        if (Math.random() < 0.5) { // 50%の確率でスキル使用
+            bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
+        }
+    }
+
+    const defReduction = Math.floor(myDef * 0.1);
+    let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
+
+    if (bossUsedSkill) {
+        damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
+    }
+
+    // 鉄壁適用
+    if (hasUniqueAbility(me, 'damage_cut_half')) {
+        damage = Math.floor(damage * 0.5);
+        addLog("鉄壁発動！ダメージ50%カット");
+    }
+
+    // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
+    me.hp = Math.max(0, me.hp - damage);
+    showDamage("myDamage", damage);
+    addLog(`${enemy.name}から ${damage} のダメージ！`);
+
+    updateHP();
+
+    if (me.hp <= 0) {
+        finishBotBattle("lose");
+    } else {
+        setTimeout(generateBotQuestion, 1000);
+    }
+}
+
 function generateBotQuestion() {
     console.log("generateBotQuestion called, isBossBattle:", isBossBattle);
     
@@ -1790,57 +1883,10 @@ function generateBotQuestion() {
                 startTimer();
                 addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
                 
-                // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+                // ボス戦の場合、制限時間内にプレイヤーが答えられなければボスが自動で正解する
                 if (isBossBattle) {
                     if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-                    bossAutoAnswerTimer = setTimeout(() => {
-                        if (!battleEnd && currentQuestion) { // プレイヤーが時間内に回答できなかった場合
-                            console.log('[Boss Auto-Answer] Player timed out. Boss attacks.');
-                            addLog(`時間切れ！ ${enemy.name} の攻撃！`);
-                            
-                            // 選択肢を無効化
-                            const buttons = choicesContainer.querySelectorAll('.choice-btn');
-                            buttons.forEach(btn => btn.disabled = true);
-                            
-                            // ボスの攻撃処理
-                            let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-                            let botAtk = enemy.atk;
-                    
-                            // ボススキル使用
-                            let bossUsedSkill = null;
-                            if (isBossBattle && enemy.skills && enemy.skills.length > 0) {
-                                if (Math.random() < 0.5) { // 50%の確率でスキル使用
-                                    bossUsedSkill = enemy.skills[Math.floor(Math.random() * enemy.skills.length)];
-                                }
-                            }
-                            
-                            const defReduction = Math.floor(myDef * 0.1);
-                            let damage = Math.max(1, Math.floor(botAtk * 0.5) - defReduction);
-                    
-                            if (bossUsedSkill) {
-                                damage = applyBossSkillEffect(damage, enemy, me, bossUsedSkill);
-                            }
-                    
-                            // 鉄壁適用
-                            if (hasUniqueAbility(me, 'damage_cut_half')) {
-                                damage = Math.floor(damage * 0.5);
-                                addLog("鉄壁発動！ダメージ50%カット");
-                            }
-                            
-                            // ダメージ軽減と回避判定は省略（ボスの攻撃は必中とするなど、ゲームデザインによる）
-                            me.hp = Math.max(0, me.hp - damage);
-                            showDamage("myDamage", damage);
-                            addLog(`${enemy.name}から ${damage} のダメージ！`);
-                            
-                            updateHP();
-                            
-                            if (me.hp <= 0) {
-                                finishBotBattle("lose");
-                            } else {
-                                setTimeout(generateBotQuestion, 1000);
-                            }
-                        }
-                    }, BOSS_AUTO_ANSWER_TIMEOUT);
+                    bossAutoAnswerTimer = setTimeout(performBossTimeoutAttack, BOSS_AUTO_ANSWER_TIMEOUT);
                 }
             });
             return;
@@ -2198,18 +2244,10 @@ function generateBotQuestion() {
         startTimer();
         addLog("問題が出されました！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
         
-        // ボス戦の場合、5秒以内にプレイヤーが答えられなければボスが自動で正解する
+        // ボス戦の場合、制限時間内にプレイヤーが答えられなければボスが自動で正解する
         if (isBossBattle) {
             if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-            bossAutoAnswerTimer = setTimeout(() => {
-                if (!battleEnd && currentQuestion) {
-                    console.log('[Boss Auto-Answer] Boss auto-answer triggered');
-                    // ボスが正解する
-                    const bossCorrectAnswer = currentQuestion.answer;
-                    addLog(`ボスが正解しました！: ${bossCorrectAnswer}`);
-                    handleChoiceClick(bossCorrectAnswer);
-                }
-            }, BOSS_AUTO_ANSWER_TIMEOUT);
+            bossAutoAnswerTimer = setTimeout(performBossTimeoutAttack, BOSS_AUTO_ANSWER_TIMEOUT);
         }
     });
 }

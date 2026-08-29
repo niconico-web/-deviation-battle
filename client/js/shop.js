@@ -368,6 +368,19 @@ function renderOriginalWeapons() {
             actionContainer.appendChild(originalLimitBreakBtn);
         }
 
+        // デュアルウェポン能力を持つ武器のサブ武器種設定ボタン
+        // （作成時にオーブでデュアルウェポン能力が付与された場合や、ボス武器のように
+        //   最初からランダムでデュアルウェポン能力を持つ場合は、secondaryType が
+        //   未設定のままになるため、ここから後付けで設定できるようにする）
+        const hasDualWeaponAbility = (weapon.uniqueAbilities || []).some(a => a && a.effect === 'dual_weapon');
+        if (hasDualWeaponAbility) {
+            const secondaryWeaponBtn = document.createElement("button");
+            secondaryWeaponBtn.className = "btn btn-small";
+            secondaryWeaponBtn.textContent = weapon.secondaryType ? "サブ武器種を変更" : "サブ武器種を設定";
+            secondaryWeaponBtn.onclick = () => openSecondaryWeaponTypeModal(weapon);
+            actionContainer.appendChild(secondaryWeaponBtn);
+        }
+
         container.appendChild(item);
     }
 }
@@ -515,6 +528,87 @@ function limitBreakOriginalWeaponUI(weapon) {
     renderOriginalWeapons();
     renderInventory();
     updateStatus(result.player);
+}
+
+/**
+ * サブ武器種設定モーダルを（無ければ生成して）取得する。
+ * オリジナル武器作成モーダルにある「サブ武器種（デュアルウェポン）」の選択肢と
+ * 同じ考え方で、後付けでも同じ選択ができるようにするためのモーダル。
+ * @returns {HTMLElement}
+ */
+function ensureSecondaryWeaponModal() {
+    let modal = document.getElementById('secondaryWeaponModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'secondaryWeaponModal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+            <h3>サブ武器種を設定（デュアルウェポン）</h3>
+            <p id="secondaryWeaponModalWeaponName"></p>
+            <label class="field-label" for="secondaryWeaponTypeSelect">サブ武器種</label>
+            <select id="secondaryWeaponTypeSelect"></select>
+            <button type="button" id="confirmSecondaryWeaponBtn" class="btn btn-primary">設定する</button>
+        </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector('.close').onclick = () => {
+        modal.style.display = 'none';
+    };
+
+    return modal;
+}
+
+/**
+ * 指定した武器のサブ武器種を設定するモーダルを開く。
+ * @param {object} weapon - サブ武器種を設定する対象の武器（デュアルウェポン能力を持つもの）
+ */
+function openSecondaryWeaponTypeModal(weapon) {
+    const modal = ensureSecondaryWeaponModal();
+
+    const nameEl = document.getElementById('secondaryWeaponModalWeaponName');
+    if (nameEl) nameEl.textContent = `対象の武器: ${weapon.name}（メイン武器種: ${getWeaponTypeLabel(weapon.type)}）`;
+
+    const select = document.getElementById('secondaryWeaponTypeSelect');
+    select.innerHTML = '';
+    for (const type of Object.keys(WEAPON_TYPES)) {
+        if (type === weapon.type) continue; // メインと同じ武器種は選べない
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = getWeaponTypeLabel(type);
+        if (type === weapon.secondaryType) option.selected = true;
+        select.appendChild(option);
+    }
+
+    const confirmBtn = document.getElementById('confirmSecondaryWeaponBtn');
+    confirmBtn.onclick = () => {
+        const secondaryType = select.value;
+        if (!secondaryType) return;
+
+        const player = getPlayerData();
+        if (!player) return;
+
+        const updatedPlayer = { ...player };
+        updatedPlayer.weapons = (updatedPlayer.weapons || []).map(w =>
+            w.id === weapon.id ? { ...w, secondaryType } : w
+        );
+        if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weapon.id) {
+            updatedPlayer.equippedWeapon = { ...updatedPlayer.equippedWeapon, secondaryType };
+        }
+
+        localStorage.setItem("player", JSON.stringify(updatedPlayer));
+
+        modal.style.display = 'none';
+        alert(`${weapon.name} のサブ武器種を「${getWeaponTypeLabel(secondaryType)}」に設定しました！`);
+
+        renderOriginalWeapons();
+        renderInventory();
+        updateStatus(updatedPlayer);
+    };
+
+    modal.style.display = 'flex';
 }
 
 function upgradeOriginalWeaponUI(weapon) {
