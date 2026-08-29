@@ -27,23 +27,24 @@ let skillActivationTimer = null;
 let bossAutoAnswerTimer = null; // Boss auto-answer timer
 const BOSS_AUTO_ANSWER_TIMEOUT = 3000; // 3 seconds for boss to auto-answer
 
-// ==== ATB（アクティブタイムバトル）システム（ボス戦のみ・アクティブ型） ====
-// プレイヤー・ボスそれぞれが独立した「行動ゲージ」を持ち、素早さに応じてリアルタイムで
-// 溜まっていく。相手の行動待ち・自分の行動待ちで完全に止まることがないのが「アクティブ型」。
-let playerATB = 0;                    // 自分の行動ゲージ（0〜100）
-let playerLastActionAt = null;        // 直近で自分に行動権が発生した時刻（保険用）
+// ==== ATB（アクティブ型）バトルシステム（ボス戦のみ） ====
+// ボス側は素早さに応じてリアルタイムで行動ゲージが進行する。
+// プレイヤー側は「正解した数」で行動ゲージが進行する方式（問題間の待ち時間は0）。
+// どちらも、相手の行動待ちで完全に止まることがないのが「アクティブ型」。
+let playerATB = 0;                    // 自分の行動ゲージの表示用の値（0〜100 = 正解数/必要正解数）
+let playerCorrectCount = 0;           // 今の行動ゲージ内での連続正解数
+let playerRequiredCount = 7;          // 行動ゲージを満タンにするために必要な正解数（素早さで決まる）
 let enemyATB = 0;                     // ボスの行動ゲージ（0〜100）
-let atbInterval = null;               // ゲージ進行用のタイマー
-let atbPlayerActionPending = false;   // 出題中〜コマンド確定まで。この間だけ自分のゲージは止まる
+let atbInterval = null;               // ボスのゲージ進行用のタイマー
+let atbPlayerActionPending = false;   // 出題中〜コマンド確定まで。この間は次の問題を出題しない
 let atbBossTelegraphActive = false;   // ボスの攻撃予備動作（テレグラフ）中。この間だけボスのゲージは止まる
 let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中かどうか
 let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
-const ATB_TICK_MS = 100;              // ゲージ更新の間隔
+const ATB_TICK_MS = 100;              // ボス側ゲージ更新の間隔
 const ATB_MAX = 100;
-const ATB_BASE_FILL_MS = 6000;        // 素早さが五分五分なら約6秒でゲージ満タンになる基準値
-const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分の行動権が発生してから答えられる制限時間
-const ATB_BOSS_TELEGRAPH_MS = 1300;      // ボスの攻撃予備動作の時間（この間にガードできる）
-const ATB_PLAYER_STARVATION_MS = 12000;  // これだけ経っても自分のゲージが満タンにならない場合、強制的に行動権を発生させる（保険）
+const ATB_BASE_FILL_MS = 6000;        // ボス側：素早さが五分五分なら約6秒でゲージ満タンになる基準値
+const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分が1問答えられる制限時間
+const ATB_BOSS_TELEGRAPH_MS = 700;       // ボスの攻撃予備動作の時間（この間にガードできる）
 
 // クリティカル関連
 const BASE_CRIT_CHANCE = 0.05; // 通常時、常に5%の確率でクリティカルが発生する
@@ -1876,21 +1877,11 @@ function performBossTimeoutAttack() {
 // ==== ここからATB（アクティブ型）バトルシステム本体 ====
 
 /**
- * 自分と相手、双方の素早さから「1tickあたりのゲージ増加量」を求める。
- * 絶対的な素早さの値の大小に関わらず、五分五分の速さなら ATB_BASE_FILL_MS で
- * ゲージが満タンになるよう相対的に計算する（武器やスキルで素早さの桁が
- * 大きく変わっても破綻しないようにするため）。
- */
-/**
- * 自分と相手、双方の素早さから「1tickあたりのゲージ増加量」を求める。
+ * 敵（ボス）側の素早さから「1tickあたりのゲージ増加量」を求める（ボス側は今まで通りリアルタイム進行）。
  * ボスの素早さ（1万〜4万程度）とプレイヤーの素早さ（数十〜数百程度）は
  * 桁が大きく違うため、単純な比率をそのまま使うと片方がほぼ止まって
  * 見えるほどの差になってしまう。そのため比率をsqrtで圧縮したうえで、
  * 有利/不利が一定の範囲（0.5倍〜2.0倍）を超えないようクランプする。
- * これにより、どんなに素早さの差が大きくても
- * ・行動が止まって見えるほど遅くなる（＝出題が来ない）
- * ・逆に一瞬で満タンになる
- * ということが起きないようにしている。
  */
 function getATBGainPerTick(selfSpeed, opponentSpeed) {
     const s = Math.max(1, selfSpeed || 1);
@@ -1901,6 +1892,24 @@ function getATBGainPerTick(selfSpeed, opponentSpeed) {
     return (ATB_MAX / ticksToFill) * speedFactor;
 }
 
+/**
+ * 自分の行動ゲージを満タンにするために必要な「正解数」を素早さから求める。
+ * 素早さ50を基準に7回。素早さが上がるほど必要回数は減っていくが、
+ * 「とてもとても上がりにくい」という指定の通り、効果を強く圧縮してあるため
+ * 実際に必要回数が減っていくには素早さをかなり大きく積む必要がある。
+ * どれだけ素早さを積んでも必要回数は3回より少なくはならない（下限）。
+ */
+function getRequiredCorrectCount(speed) {
+    const baseSpeed = 50;
+    const baseCount = 7;
+    const minCount = 3;
+    const s = Math.max(1, speed || 1);
+    // 指数を小さくすることで、素早さの効果を強く圧縮している
+    const ratio = Math.pow(s / baseSpeed, 0.15);
+    const count = baseCount / ratio;
+    return Math.max(minCount, Math.min(baseCount, Math.round(count)));
+}
+
 function updateATBBars() {
     const myBar = document.getElementById('myAtbBar');
     const enemyBar = document.getElementById('enemyAtbBar');
@@ -1909,8 +1918,12 @@ function updateATBBars() {
 }
 
 /**
- * ボス戦のATBループを開始する。プレイヤー・ボスのゲージがそれぞれ独立して
- * リアルタイムに進行し、満タンになった側から即座に行動が発生する（アクティブ型）。
+ * ボス戦のATBループを開始する。
+ * ・ボス側は今まで通り、素早さに応じてリアルタイムにゲージが進行する。
+ * ・プレイヤー側は「正解した数」でゲージが進行する方式に変更。問題と問題の間の
+ *   待ち時間は0で、正解するたびに小さな追撃ダメージ（自分の攻撃力の0.5倍）を
+ *   与えつつゲージが進み、ゲージが満タンになったらコマンド（攻撃/特殊/防御/必殺技）
+ *   を選べるようになる。
  */
 function startATBBattleLoop() {
     playerATB = 0;
@@ -1919,11 +1932,13 @@ function startATBBattleLoop() {
     atbBossTelegraphActive = false;
     atbGuardWindowOpen = false;
     atbGuardActivated = false;
-    playerLastActionAt = Date.now();
+    playerCorrectCount = 0;
+    playerRequiredCount = getRequiredCorrectCount(me.speed);
     if (atbInterval) clearInterval(atbInterval);
     updateATBBars();
-    addLog(`バトル開始！ゲージが溜まった方から行動できる！（すばやさ ${me.name}:${me.speed || 0} / ${enemy.name}:${enemy.speed || 0}）`);
+    addLog(`バトル開始！正解を重ねて行動ゲージを溜めよう！（必要な正解数: ${playerRequiredCount}回 / すばやさ ${me.name}:${me.speed || 0} vs ${enemy.name}:${enemy.speed || 0}）`);
 
+    // ボス側のゲージのみ、今まで通りリアルタイムで進行させる
     atbInterval = setInterval(() => {
         if (battleEnd) {
             clearInterval(atbInterval);
@@ -1931,85 +1946,100 @@ function startATBBattleLoop() {
             return;
         }
 
-        // 自分のゲージ（出題中〜コマンド確定までは止まる）
-        if (!atbPlayerActionPending) {
-            playerATB += getATBGainPerTick(me.speed, enemy.speed);
-            // 保険：素早さの差などにより万一なかなかゲージが満タンにならない場合でも、
-            // 一定時間（ATB_PLAYER_STARVATION_MS）操作の機会が来ないまま放置されないようにする
-            const starved = playerLastActionAt && (Date.now() - playerLastActionAt > ATB_PLAYER_STARVATION_MS);
-            if (playerATB >= ATB_MAX || starved) {
-                playerATB = ATB_MAX;
-                triggerPlayerATBAction();
+        try {
+            if (!atbBossTelegraphActive) {
+                enemyATB += getATBGainPerTick(enemy.speed, me.speed);
+                if (enemyATB >= ATB_MAX) {
+                    enemyATB = ATB_MAX;
+                    triggerBossTelegraph();
+                }
             }
+            updateATBBars();
+        } catch (error) {
+            // 1tick分の処理が失敗しても、そのままバトル全体が止まってしまわないようにする
+            console.error('[ATB] ループ処理でエラーが発生しました。', error);
         }
-
-        // ボスのゲージ（アクティブ型：自分が出題中でも止まらずに進み続ける）
-        if (!atbBossTelegraphActive) {
-            enemyATB += getATBGainPerTick(enemy.speed, me.speed);
-            if (enemyATB >= ATB_MAX) {
-                enemyATB = ATB_MAX;
-                triggerBossTelegraph();
-            }
-        }
-
-        updateATBBars();
     }, ATB_TICK_MS);
+
+    // プレイヤー側は待ち時間なしで即座に最初の問題を出題する
+    askNextPlayerQuestion();
 }
 
 /**
- * 自分のゲージが満タンになった時に呼ばれる。問題を即座に出題する
- * （テンポ重視のため、通常戦にあるカウントダウン演出は挟まない）。
+ * プレイヤーに次の問題を即座に出題する（問題と問題の間の待ち時間は0）。
  */
-function triggerPlayerATBAction() {
+function askNextPlayerQuestion() {
     if (battleEnd) return;
-    atbPlayerActionPending = true;
-    playerLastActionAt = Date.now();
+    atbPlayerActionPending = true; // 出題中〜回答確定までは二重出題を防ぐ
 
-    const bossSubjects = ['math', 'jp', 'eng', 'sci', 'soc'];
-    const bossSubject = bossSubjects[Math.floor(Math.random() * bossSubjects.length)];
-    const bossQuestions = getLocalBossQuestions(bossSubject);
+    try {
+        // 1つの教科のデータが（何らかの理由で）空でも出題自体が止まらないよう、
+        // 教科をシャッフルして順番に確認する
+        const bossSubjects = shuffleArray(['math', 'jp', 'eng', 'sci', 'soc']);
+        let bossSubject = null;
+        let bossQuestions = null;
+        for (const subject of bossSubjects) {
+            const qs = getLocalBossQuestions(subject);
+            if (qs && qs.length > 0) {
+                bossSubject = subject;
+                bossQuestions = qs;
+                break;
+            }
+        }
 
-    if (!bossQuestions || bossQuestions.length === 0) {
-        console.warn(`[ATB] grade=${me.grade}, subject=${bossSubject} の問題が見つからないため、この行動権をスキップします。`);
+        let randomQuestion;
+        if (bossQuestions && bossQuestions.length > 0) {
+            randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+        } else {
+            // 保険：ボス問題データが一切見つからない場合でも「出題が止まったまま」に
+            // ならないよう、簡単な問題にフォールバックする
+            // （本来は起きないはず。起きた場合は boss_questions.js が読み込めているか要確認）
+            console.error('[ATB] ボス問題データが見つかりません。boss_questions.js の読み込みを確認してください。フォールバック問題を使用します。');
+            bossSubject = 'math';
+            randomQuestion = { question: '3 + 4 = ?', answer: '7' };
+        }
+
+        currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+
+        tickBotBattleStatus();
+        if (battleEnd) return;
+        if (enemy.hp <= 0) { finishBotBattle("win"); return; }
+
+        startSkillActivationWindow();
+
+        questionDisplay.textContent = currentQuestion.question;
+        generateChoices(currentQuestion);
+        startTimer();
+        addLog(`問題！（行動ゲージ ${playerCorrectCount}/${playerRequiredCount}）` + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
+
+        if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
+        bossAutoAnswerTimer = setTimeout(() => {
+            // 制限時間内に答えられなければこの問題はスキップ（ペナルティなし）し、
+            // 待ち時間なしで次の問題へ進む
+            if (battleEnd || !atbPlayerActionPending) return;
+            addLog("時間切れ！");
+            const buttons = choicesContainer.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => btn.disabled = true);
+            enableSkillButtons(false);
+            currentQuestion = null;
+            atbPlayerActionPending = false;
+            askNextPlayerQuestion();
+        }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
+    } catch (error) {
+        // 何らかの理由でここまでの処理が失敗しても、「出題中のまま何も起きない」
+        // 状態に陥らないよう、必ず状態をリセットして次の問題に備える
+        console.error('[ATB] askNextPlayerQuestion でエラーが発生しました。状態をリセットします。', error);
         atbPlayerActionPending = false;
-        playerATB = 0;
-        return;
     }
-
-    const randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
-    currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
-
-    tickBotBattleStatus();
-    if (battleEnd) return;
-    if (enemy.hp <= 0) { finishBotBattle("win"); return; }
-
-    startSkillActivationWindow();
-
-    questionDisplay.textContent = currentQuestion.question;
-    generateChoices(currentQuestion);
-    startTimer();
-    addLog("ゲージMAX！問題に答えて攻撃しよう！" + (currentQuestion.subjectDisplayName ? "（" + currentQuestion.subjectDisplayName + "）" : ""));
-
-    if (bossAutoAnswerTimer) clearTimeout(bossAutoAnswerTimer);
-    bossAutoAnswerTimer = setTimeout(() => {
-        // 制限時間内に答えられなければ行動権を逃す。
-        // （ボスへの反撃は発生しない。ボスの攻撃はボス自身のゲージで独立して発生するため）
-        if (battleEnd || !atbPlayerActionPending) return;
-        addLog("時間切れ！行動のチャンスを逃した…");
-        const buttons = choicesContainer.querySelectorAll('.choice-btn');
-        buttons.forEach(btn => btn.disabled = true);
-        enableSkillButtons(false);
-        currentQuestion = null;
-        atbPlayerActionPending = false;
-        playerATB = ATB_MAX * 0.3; // ゲージは0に戻さず一部残す
-        playerLastActionAt = Date.now();
-        updateATBBars();
-    }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
 }
 
 /**
- * ATBボス戦専用の回答処理。handleBotAnswer() と違い、不正解時にボスの反撃を
- * 発生させない（ボスの攻撃は独立したゲージで発生するため、二重に不利にしないよう分離している）。
+ * ATBボス戦専用の回答処理。
+ * ・正解のたびに自分の攻撃力の0.5倍の追撃ダメージを与え、行動ゲージ（正解数）を1進める。
+ * ・行動ゲージが満タンになったらコマンドメニューを開く（それまでは待ち時間なしで次の問題へ）。
+ * ・不正解の場合はダメージなし・ゲージ増加なしで、待ち時間なしで次の問題へ進む
+ *   （handleBotAnswer() と違い、不正解でボスの反撃が発生することはない。
+ *   　ボスの攻撃は独立したゲージで発生するため、二重に不利にしないよう分離している）。
  */
 function handleATBAnswer(selectedOption) {
     let usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
@@ -2017,45 +2047,67 @@ function handleATBAnswer(selectedOption) {
     applyInstantSkillEffects(skillEffect);
     if (usedSkill) afterSkillUse(usedSkill);
 
-    const isCorrect = selectedOption.trim() === currentQuestion.answer;
+    const isCorrect = currentQuestion && selectedOption.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
+    currentQuestion = null;
+    atbPlayerActionPending = false;
 
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
         showCorrectEffect();
 
+        // 正解のたびに小さな追撃ダメージ（自分の攻撃力の0.5倍）
+        const myAtkStat = me.atk || 0;
+        const defReduction = Math.floor((enemy.def || 0) * 0.1);
+        const chipDamage = Math.max(1, Math.floor(myAtkStat * 0.5) - defReduction);
+        enemy.hp = Math.max(0, enemy.hp - chipDamage);
+        showDamage("enemyDamage", chipDamage);
+        addLog(`${me.name}の連続攻撃！ ${enemy.name}に ${chipDamage} のダメージ！`);
+        updateHP();
+
         if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
-        if (!enemy.ultimateGauge) enemy.ultimateGauge = { current: 0, max: 100 };
-        me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
+        me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 10);
         updateUltimateGauge();
 
-        pendingSkillEffect = skillEffect;
-        pendingUsedSkill = usedSkill;
-        currentQuestion = null; // タイムアウト処理との重複判定を避ける
-        showCommandMenu();
-        // 実際のダメージ計算は、コマンド確定後に resolvePlayerCommand() が行う。
-        // ボスのゲージはこの間も止まらずに進み続ける（アクティブ型）。
-    } else {
-        addLog("不正解…行動のチャンスを逃した！");
-        currentQuestion = null;
-        atbPlayerActionPending = false;
-        playerATB = ATB_MAX * 0.3;
-        playerLastActionAt = Date.now();
+        if (enemy.hp <= 0) {
+            finishBotBattle("win");
+            return;
+        }
+
+        playerCorrectCount++;
+        playerATB = Math.min(100, (playerCorrectCount / playerRequiredCount) * 100);
         updateATBBars();
+
+        if (playerCorrectCount >= playerRequiredCount) {
+            // 行動ゲージ満タン！コマンドを選べる（この間は次の問題を出さない）
+            addLog("行動ゲージが満タンになった！コマンドを選ぼう！");
+            pendingSkillEffect = skillEffect;
+            pendingUsedSkill = usedSkill;
+            atbPlayerActionPending = true;
+            showCommandMenu();
+        } else {
+            askNextPlayerQuestion(); // 待ち時間0で次の問題
+        }
+    } else {
+        addLog("不正解…");
+        askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
     }
 }
 
 /**
  * プレイヤー側の行動（コマンド確定）が終わった後に呼ばれる。
- * ボス戦のATBループ中なら自分のゲージを0に戻して自動進行に戻し、
- * それ以外（通常のボット戦）では今まで通り次の問題を生成する。
+ * ボス戦のATBループ中なら、行動ゲージ（正解数）をリセットして、
+ * 待ち時間なしで次の問題を出題する。それ以外（通常のボット戦）では
+ * 今まで通り次の問題を生成する。
  */
 function continueBattleLoop() {
     if (isBossBattle && atbInterval) {
         atbPlayerActionPending = false;
+        playerCorrectCount = 0;
+        playerRequiredCount = getRequiredCorrectCount(me.speed); // 素早さの変化（バフ等）を反映
         playerATB = 0;
-        playerLastActionAt = Date.now();
         updateATBBars();
+        askNextPlayerQuestion();
     } else {
         setTimeout(generateBotQuestion, 1000);
     }
@@ -2063,7 +2115,7 @@ function continueBattleLoop() {
 
 /**
  * ボスのゲージが満タンになった時に呼ばれる。攻撃の予備動作（テレグラフ）を見せ、
- * その間だけプレイヤーはガードボタンを押して反応することができる。
+ * その間だけプレイヤーはガードポップアップのボタンを押して反応することができる。
  */
 function triggerBossTelegraph() {
     if (battleEnd) return;
@@ -2073,11 +2125,10 @@ function triggerBossTelegraph() {
 
     addLog(`⚠️ ${enemy.name}が攻撃の構えを見せた！ガードで身構えよう！`);
 
-    const telegraphIndicator = document.getElementById('atbTelegraphIndicator');
+    const guardPopup = document.getElementById('atbGuardPopup');
     const guardBtn = document.getElementById('atbGuardBtn');
-    if (telegraphIndicator) telegraphIndicator.style.display = 'block';
+    if (guardPopup) guardPopup.style.display = 'flex';
     if (guardBtn) {
-        guardBtn.style.display = 'inline-block';
         guardBtn.disabled = false;
         guardBtn.classList.remove('guard-success');
     }
@@ -2122,8 +2173,8 @@ function resolveBossAttack() {
     }
 
     if (atbGuardActivated) {
-        damage = Math.floor(damage * 0.5);
-        addLog("ガード成功！ダメージ半減！");
+        damage = Math.floor(damage * 0.2);
+        addLog("ガード成功！ダメージ80%カット！");
     }
 
     if (hasUniqueAbility(me, 'damage_cut_half')) {
@@ -2136,10 +2187,8 @@ function resolveBossAttack() {
     addLog(`${enemy.name}から ${damage} のダメージ！`);
     updateHP();
 
-    const telegraphIndicator = document.getElementById('atbTelegraphIndicator');
-    const guardBtn = document.getElementById('atbGuardBtn');
-    if (telegraphIndicator) telegraphIndicator.style.display = 'none';
-    if (guardBtn) guardBtn.style.display = 'none';
+    const guardPopup = document.getElementById('atbGuardPopup');
+    if (guardPopup) guardPopup.style.display = 'none';
 
     atbBossTelegraphActive = false;
     enemyATB = 0;

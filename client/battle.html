@@ -84,7 +84,6 @@ if ('serviceWorker' in navigator) {
 <button type="button" id="tutorialOpenBtn" class="tutorial-open-btn" aria-label="遊び方">?</button>
 <h1>&#12496;&#12488;&#12523;</h1><p id="turnText" class="turn-text"></p></header>
 <div class="players">
-<div id="atbTelegraphIndicator" class="atb-telegraph" style="display:none;">⚠️ 相手が攻撃してくる！</div>
 <div class="card player-card" id="playerCard"><p class="card-label">&#12354;&#12394;&#12383;</p><h2 id="myName">----</h2>
 <div id="myDamage" class="damage"></div><div class="hpbar"><div id="myHPBar" class="fill"></div></div>
 <p id="myHPText" class="hp-text">HP 100 / 100</p>
@@ -93,7 +92,6 @@ if ('serviceWorker' in navigator) {
     <div class="atb-gauge"><p class="atb-label">行動ゲージ</p><div class="atb-bar"><div id="myAtbBar" class="atb-fill"></div></div></div>
 </div>
 <div class="stats"><p id="myAtk">&#25915;&#25731;&#65306;-</p><p id="myDef">&#38450;&#24481;&#65306;-</p><p id="mySpeed">&#36895;&#12373;&#65306;-</p><p id="mySpecial">&#29305;&#27530;&#65306;-</p><p id="myGrade">&#23398;&#24180;&#65306;-</p></div>
-<button type="button" id="atbGuardBtn" class="btn btn-guard" style="display:none;">🛡️ ガード！</button>
 </div>
 <div class="vs">VS</div>
 <div class="card enemy-card" id="enemyCard"><p class="card-label">&#30456;&#25163;</p><h2 id="enemyName">&#35501;&#36796;&#20013;...</h2>
@@ -128,6 +126,14 @@ if ('serviceWorker' in navigator) {
 <div id="ultimateEffect" class="ultimate-effect">
     <div class="ultimate-text">必殺技発動！</div>
     <div class="ultimate-particles"></div>
+</div>
+
+<!-- ボスの攻撃予備動作（テレグラフ）ガードポップアップ -->
+<div id="atbGuardPopup" class="atb-guard-popup" style="display:none;">
+    <div class="atb-guard-popup-content">
+        <p class="atb-guard-warning">⚠️ 相手が攻撃してくる！</p>
+        <button type="button" id="atbGuardBtn" class="atb-guard-big-btn">🛡️<br>ガード！</button>
+    </div>
 </div>
 
 <!-- PWA Install Prompt -->
