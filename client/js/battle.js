@@ -42,7 +42,7 @@ let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中
 let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
 const ATB_TICK_MS = 100;              // ボス側ゲージ更新の間隔
 const ATB_MAX = 100;
-const ATB_BASE_FILL_MS = 6000;        // ボス側：素早さが五分五分なら約6秒でゲージ満タンになる基準値
+const ATB_BASE_FILL_MS = 10000;       // ボス側：素早さが五分五分なら約10秒でゲージ満タンになる基準値
 const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分が1問答えられる制限時間
 const ATB_BOSS_TELEGRAPH_MS = 700;       // ボスの攻撃予備動作の時間（この間にガードできる）
 
@@ -626,12 +626,8 @@ function startBotBattle() {
     updateStats();
     updateHP();
 
-    if (isBossBattle) {
-        // ボス戦はアクティブ型ATBバトルとして進行する
-        startATBBattleLoop();
-    } else {
-        generateBotQuestion();
-    }
+    // ボット戦（ボス戦・通常戦とも）はアクティブ型ATBバトルとして進行する
+    startATBBattleLoop();
 }
 
 function generateChoices(question) {
@@ -1746,10 +1742,9 @@ function handleChoiceClick(selectedOption) {
     buttons.forEach(btn => btn.disabled = true);
     enableSkillButtons(false); // スキルボタンを無効化
     
-    if (isBotBattle && isBossBattle) {
+    if (isBotBattle) {
+        // ボット戦（ボス戦・通常戦とも）はATB方式で処理する
         handleATBAnswer(selectedOption);
-    } else if (isBotBattle) {
-        handleBotAnswer(selectedOption);
     } else {
         // サーバーに回答を送信（コマンドは送らない）
         const usedSkill = typeof consumeSelectedSkill === 'function' ? consumeSelectedSkill() : null;
@@ -1895,8 +1890,10 @@ function getATBGainPerTick(selfSpeed, opponentSpeed) {
 /**
  * 自分の行動ゲージを満タンにするために必要な「正解数」を素早さから求める。
  * 素早さ50を基準に7回。素早さが上がるほど必要回数は減っていくが、
- * 「とてもとても上がりにくい」という指定の通り、効果を強く圧縮してあるため
- * 実際に必要回数が減っていくには素早さをかなり大きく積む必要がある。
+ * 「とてもとても上がりにくい（以前よりさらに約100倍上がりにくい）」という指定の通り、
+ * 効果をかなり強く圧縮してある。以前は素早さが基準の約280倍（≒14000）で
+ * 必要回数が下限の3回に達していたが、今は基準の約28000倍（≒140万）まで
+ * 積まないと下限に届かない。
  * どれだけ素早さを積んでも必要回数は3回より少なくはならない（下限）。
  */
 function getRequiredCorrectCount(speed) {
@@ -1904,8 +1901,8 @@ function getRequiredCorrectCount(speed) {
     const baseCount = 7;
     const minCount = 3;
     const s = Math.max(1, speed || 1);
-    // 指数を小さくすることで、素早さの効果を強く圧縮している
-    const ratio = Math.pow(s / baseSpeed, 0.15);
+    // 指数を非常に小さくすることで、素早さの効果を極めて強く圧縮している
+    const ratio = Math.pow(s / baseSpeed, 0.08);
     const count = baseCount / ratio;
     return Math.max(minCount, Math.min(baseCount, Math.round(count)));
 }
@@ -1938,31 +1935,38 @@ function startATBBattleLoop() {
     updateATBBars();
     addLog(`バトル開始！正解を重ねて行動ゲージを溜めよう！（必要な正解数: ${playerRequiredCount}回 / すばやさ ${me.name}:${me.speed || 0} vs ${enemy.name}:${enemy.speed || 0}）`);
 
-    // ボス側のゲージのみ、今まで通りリアルタイムで進行させる
-    atbInterval = setInterval(() => {
-        if (battleEnd) {
-            clearInterval(atbInterval);
-            atbInterval = null;
-            return;
-        }
+    // 最初の1問だけ、心の準備ができるよう3秒の間を空けてから始める
+    // （2問目以降は待ち時間なしで即座に出題される。ボス側のゲージ進行も
+    // 同じタイミングで開始するので、開始直後にボスだけ先に有利になることもない）
+    setTimeout(() => {
+        if (battleEnd) return;
 
-        try {
-            if (!atbBossTelegraphActive) {
-                enemyATB += getATBGainPerTick(enemy.speed, me.speed);
-                if (enemyATB >= ATB_MAX) {
-                    enemyATB = ATB_MAX;
-                    triggerBossTelegraph();
-                }
+        // ボス側のゲージのみ、今まで通りリアルタイムで進行させる
+        atbInterval = setInterval(() => {
+            if (battleEnd) {
+                clearInterval(atbInterval);
+                atbInterval = null;
+                return;
             }
-            updateATBBars();
-        } catch (error) {
-            // 1tick分の処理が失敗しても、そのままバトル全体が止まってしまわないようにする
-            console.error('[ATB] ループ処理でエラーが発生しました。', error);
-        }
-    }, ATB_TICK_MS);
 
-    // プレイヤー側は待ち時間なしで即座に最初の問題を出題する
-    askNextPlayerQuestion();
+            try {
+                if (!atbBossTelegraphActive) {
+                    enemyATB += getATBGainPerTick(enemy.speed, me.speed);
+                    if (enemyATB >= ATB_MAX) {
+                        enemyATB = ATB_MAX;
+                        triggerBossTelegraph();
+                    }
+                }
+                updateATBBars();
+            } catch (error) {
+                // 1tick分の処理が失敗しても、そのままバトル全体が止まってしまわないようにする
+                console.error('[ATB] ループ処理でエラーが発生しました。', error);
+            }
+        }, ATB_TICK_MS);
+
+        // プレイヤー側の最初の問題を出題する（2問目以降は待ち時間なし）
+        askNextPlayerQuestion();
+    }, 3000);
 }
 
 /**
@@ -2101,7 +2105,7 @@ function handleATBAnswer(selectedOption) {
  * 今まで通り次の問題を生成する。
  */
 function continueBattleLoop() {
-    if (isBossBattle && atbInterval) {
+    if (isBotBattle && atbInterval) {
         atbPlayerActionPending = false;
         playerCorrectCount = 0;
         playerRequiredCount = getRequiredCorrectCount(me.speed); // 素早さの変化（バフ等）を反映
