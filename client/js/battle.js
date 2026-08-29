@@ -31,6 +31,7 @@ const BOSS_AUTO_ANSWER_TIMEOUT = 3000; // 3 seconds for boss to auto-answer
 // プレイヤー・ボスそれぞれが独立した「行動ゲージ」を持ち、素早さに応じてリアルタイムで
 // 溜まっていく。相手の行動待ち・自分の行動待ちで完全に止まることがないのが「アクティブ型」。
 let playerATB = 0;                    // 自分の行動ゲージ（0〜100）
+let playerLastActionAt = null;        // 直近で自分に行動権が発生した時刻（保険用）
 let enemyATB = 0;                     // ボスの行動ゲージ（0〜100）
 let atbInterval = null;               // ゲージ進行用のタイマー
 let atbPlayerActionPending = false;   // 出題中〜コマンド確定まで。この間だけ自分のゲージは止まる
@@ -39,9 +40,10 @@ let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中
 let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
 const ATB_TICK_MS = 100;              // ゲージ更新の間隔
 const ATB_MAX = 100;
-const ATB_BASE_FILL_MS = 4500;        // 素早さが五分五分なら約4.5秒でゲージ満タンになる基準値
+const ATB_BASE_FILL_MS = 6000;        // 素早さが五分五分なら約6秒でゲージ満タンになる基準値
 const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分の行動権が発生してから答えられる制限時間
 const ATB_BOSS_TELEGRAPH_MS = 1300;      // ボスの攻撃予備動作の時間（この間にガードできる）
+const ATB_PLAYER_STARVATION_MS = 12000;  // これだけ経っても自分のゲージが満タンにならない場合、強制的に行動権を発生させる（保険）
 
 // クリティカル関連
 const BASE_CRIT_CHANCE = 0.05; // 通常時、常に5%の確率でクリティカルが発生する
@@ -1879,11 +1881,22 @@ function performBossTimeoutAttack() {
  * ゲージが満タンになるよう相対的に計算する（武器やスキルで素早さの桁が
  * 大きく変わっても破綻しないようにするため）。
  */
+/**
+ * 自分と相手、双方の素早さから「1tickあたりのゲージ増加量」を求める。
+ * ボスの素早さ（1万〜4万程度）とプレイヤーの素早さ（数十〜数百程度）は
+ * 桁が大きく違うため、単純な比率をそのまま使うと片方がほぼ止まって
+ * 見えるほどの差になってしまう。そのため比率をsqrtで圧縮したうえで、
+ * 有利/不利が一定の範囲（0.5倍〜2.0倍）を超えないようクランプする。
+ * これにより、どんなに素早さの差が大きくても
+ * ・行動が止まって見えるほど遅くなる（＝出題が来ない）
+ * ・逆に一瞬で満タンになる
+ * ということが起きないようにしている。
+ */
 function getATBGainPerTick(selfSpeed, opponentSpeed) {
     const s = Math.max(1, selfSpeed || 1);
     const o = Math.max(1, opponentSpeed || 1);
-    const avg = (s + o) / 2;
-    const speedFactor = s / avg;
+    const rawRatio = Math.sqrt(s / o);
+    const speedFactor = Math.min(2.0, Math.max(0.5, rawRatio));
     const ticksToFill = ATB_BASE_FILL_MS / ATB_TICK_MS;
     return (ATB_MAX / ticksToFill) * speedFactor;
 }
@@ -1906,6 +1919,7 @@ function startATBBattleLoop() {
     atbBossTelegraphActive = false;
     atbGuardWindowOpen = false;
     atbGuardActivated = false;
+    playerLastActionAt = Date.now();
     if (atbInterval) clearInterval(atbInterval);
     updateATBBars();
     addLog(`バトル開始！ゲージが溜まった方から行動できる！（すばやさ ${me.name}:${me.speed || 0} / ${enemy.name}:${enemy.speed || 0}）`);
@@ -1920,7 +1934,10 @@ function startATBBattleLoop() {
         // 自分のゲージ（出題中〜コマンド確定までは止まる）
         if (!atbPlayerActionPending) {
             playerATB += getATBGainPerTick(me.speed, enemy.speed);
-            if (playerATB >= ATB_MAX) {
+            // 保険：素早さの差などにより万一なかなかゲージが満タンにならない場合でも、
+            // 一定時間（ATB_PLAYER_STARVATION_MS）操作の機会が来ないまま放置されないようにする
+            const starved = playerLastActionAt && (Date.now() - playerLastActionAt > ATB_PLAYER_STARVATION_MS);
+            if (playerATB >= ATB_MAX || starved) {
                 playerATB = ATB_MAX;
                 triggerPlayerATBAction();
             }
@@ -1946,6 +1963,7 @@ function startATBBattleLoop() {
 function triggerPlayerATBAction() {
     if (battleEnd) return;
     atbPlayerActionPending = true;
+    playerLastActionAt = Date.now();
 
     const bossSubjects = ['math', 'jp', 'eng', 'sci', 'soc'];
     const bossSubject = bossSubjects[Math.floor(Math.random() * bossSubjects.length)];
@@ -1984,6 +2002,7 @@ function triggerPlayerATBAction() {
         currentQuestion = null;
         atbPlayerActionPending = false;
         playerATB = ATB_MAX * 0.3; // ゲージは0に戻さず一部残す
+        playerLastActionAt = Date.now();
         updateATBBars();
     }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
 }
@@ -2021,6 +2040,7 @@ function handleATBAnswer(selectedOption) {
         currentQuestion = null;
         atbPlayerActionPending = false;
         playerATB = ATB_MAX * 0.3;
+        playerLastActionAt = Date.now();
         updateATBBars();
     }
 }
@@ -2034,6 +2054,7 @@ function continueBattleLoop() {
     if (isBossBattle && atbInterval) {
         atbPlayerActionPending = false;
         playerATB = 0;
+        playerLastActionAt = Date.now();
         updateATBBars();
     } else {
         setTimeout(generateBotQuestion, 1000);
