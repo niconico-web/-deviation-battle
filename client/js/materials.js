@@ -201,6 +201,71 @@ function renderMaterialsInventory() {
 function initMaterials() {
     console.log("Initializing materials system.");
     renderMaterialsInventory();
+    
+    // 素材管理モーダルのイベント設定
+    const openMaterialManagementBtn = document.getElementById('openMaterialManagementBtn');
+    const materialManagementModal = document.getElementById('materialManagementModal');
+    const closeMaterialManagementBtn = materialManagementModal?.querySelector('.close');
+    
+    if (openMaterialManagementBtn) {
+        openMaterialManagementBtn.onclick = () => {
+            renderMaterialsInventory();
+            materialManagementModal.style.display = 'flex';
+        };
+    }
+    
+    if (closeMaterialManagementBtn) {
+        closeMaterialManagementBtn.onclick = () => {
+            materialManagementModal.style.display = 'none';
+        };
+    }
+    
+    // オーブ作成ボタン
+    const openOrbCraftingBtn = document.getElementById('openOrbCraftingBtn');
+    const orbCraftingModal = document.getElementById('orbCraftingModal');
+    const closeOrbCraftingBtn = orbCraftingModal?.querySelector('.close');
+    
+    if (openOrbCraftingBtn) {
+        openOrbCraftingBtn.onclick = () => {
+            showMaterialCraftingUI();
+            materialManagementModal.style.display = 'none';
+            orbCraftingModal.style.display = 'flex';
+        };
+    }
+    
+    if (closeOrbCraftingBtn) {
+        closeOrbCraftingBtn.onclick = () => {
+            orbCraftingModal.style.display = 'none';
+        };
+    }
+    
+    // 魔術使用ボタン
+    const openMagicCraftingBtn = document.getElementById('openMagicCraftingBtn');
+    if (openMagicCraftingBtn) {
+        openMagicCraftingBtn.onclick = () => {
+            materialManagementModal.style.display = 'none';
+            // 魔術セクションに移動
+            const magicSection = document.getElementById('section-magic');
+            const magicMenuBtn = document.querySelector('.menu-btn[data-section="magic"]');
+            if (magicSection && magicMenuBtn) {
+                // 全てのセクションを非表示
+                document.querySelectorAll('.content-section').forEach(section => {
+                    section.classList.remove('active');
+                });
+                // 全てのメニューボタンのactiveクラスを削除
+                document.querySelectorAll('.menu-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                // 魔術セクションを表示
+                magicSection.classList.add('active');
+                magicMenuBtn.classList.add('active');
+                // 魔術メニューを表示
+                if (typeof showMagicMenu === 'function') {
+                    showMagicMenu();
+                }
+            }
+        };
+    }
 }
 
 /**
@@ -241,25 +306,33 @@ function calculateOrbRarity(materialIds) {
     }
 }
 
-// 武器素材ボーナス定義
+// 武器素材ボーナス定義（レア度による基本倍率）
 const WEAPON_MATERIAL_BONUSES = {
-    goblin_fang: { atk: 0.02 },
-    orc_horn: { atk: 0.03 },
-    minotaur_horn: { atk: 0.04 },
-    ogre_fist: { atk: 0.03, def: 0.01 },
-    silver_ore: { atk: 0.02, special: 0.02 },
-    dragon_bone: { atk: 0.05, def: 0.02 },
-    griffin_claw: { atk: 0.04, speed: 0.02 },
-    titan_stone: { atk: 0.05, def: 0.03, maxHp: 0.02 },
-    dragon_soul: { atk: 0.08, def: 0.04, speed: 0.04, special: 0.04 },
-    divine_crystal: { atk: 0.06, def: 0.06, special: 0.06 },
-    hornet_stinger: { atk: 0.02 },
-    scorpion_tail: { atk: 0.02 },
-    jackal_fang: { atk: 0.01, speed: 0.01 },
-    oni_horn_fragment: { atk: 0.02 },
-    manticore_stinger: { atk: 0.03 },
-    werebear_claw: { atk: 0.04, def: 0.02 },
-    world_serpent_fang: { atk: 0.07, def: 0.03, speed: 0.03 }
+    goblin_fang: { rarity: 1, atk: 0.01 },
+    orc_horn: { rarity: 2, atk: 0.02 },
+    minotaur_horn: { rarity: 2, atk: 0.03 },
+    ogre_fist: { rarity: 2, atk: 0.02, def: 0.01 },
+    silver_ore: { rarity: 2, atk: 0.015, special: 0.015 },
+    dragon_bone: { rarity: 3, atk: 0.03, def: 0.015 },
+    griffin_claw: { rarity: 3, atk: 0.025, speed: 0.015 },
+    titan_stone: { rarity: 3, atk: 0.03, def: 0.02, maxHp: 0.015 },
+    dragon_soul: { rarity: 4, atk: 0.05, def: 0.025, speed: 0.025, special: 0.025 },
+    divine_crystal: { rarity: 4, atk: 0.04, def: 0.04, special: 0.04 },
+    hornet_stinger: { rarity: 1, atk: 0.01 },
+    scorpion_tail: { rarity: 1, atk: 0.01 },
+    jackal_fang: { rarity: 1, atk: 0.008, speed: 0.008 },
+    oni_horn_fragment: { rarity: 2, atk: 0.015 },
+    manticore_stinger: { rarity: 3, atk: 0.02 },
+    werebear_claw: { rarity: 3, atk: 0.025, def: 0.015 },
+    world_serpent_fang: { rarity: 4, atk: 0.045, def: 0.02, speed: 0.02 }
+};
+
+// レア度による倍率
+const RARITY_MULTIPLIERS = {
+    1: 1.0,
+    2: 1.5,
+    3: 2.0,
+    4: 2.5
 };
 
 /**
@@ -275,8 +348,14 @@ function calculateWeaponMaterialBonus(materialIds) {
     for (const materialId of materialIds) {
         const bonus = WEAPON_MATERIAL_BONUSES[materialId];
         if (bonus) {
+            const rarity = bonus.rarity || 1;
+            const multiplier = RARITY_MULTIPLIERS[rarity] || 1.0;
+            
+            // レア度以外のステータスボーナスを取得
             for (const [stat, value] of Object.entries(bonus)) {
-                totalBonus[stat] = (totalBonus[stat] || 0) + value;
+                if (stat !== 'rarity') {
+                    totalBonus[stat] = (totalBonus[stat] || 0) + (value * multiplier);
+                }
             }
         }
     }
