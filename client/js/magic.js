@@ -114,24 +114,28 @@ function useMagic(materialId) {
     if (materials[materialId] <= 0) {
         delete materials[materialId];
     }
+    player.materials = materials;
     
     // 効果を適用
-    player.activeMagicEffects = player.activeMagicEffects || [];
-    
     if (magic.duration > 0) {
         // 時間制限のある効果
         const expiryTime = Date.now() + magic.duration;
+        if (!player.activeMagicEffects) {
+            player.activeMagicEffects = [];
+        }
         player.activeMagicEffects.push({
             effect: magic.effect,
             expiryTime: expiryTime,
             description: magic.description
         });
+        console.log("Added active magic effect:", magic.effect, "expires at:", new Date(expiryTime));
     } else {
         // バトル限定効果（次のバトルで使用）
         player.pendingMagicEffect = {
             effect: magic.effect,
             description: magic.description
         };
+        console.log("Added pending magic effect:", magic.effect);
     }
     
     localStorage.setItem("player", JSON.stringify(player));
@@ -147,32 +151,42 @@ function getMagicDamageMultiplier() {
     const effects = getActiveMagicEffects();
     let multiplier = 1.0;
     
+    console.log("Active magic effects:", effects);
+    
     for (const effect of effects) {
         switch (effect.effect) {
             case 'damage_boost_1.1':
                 multiplier *= 1.1;
+                console.log("Applied 1.1x damage boost");
                 break;
             case 'damage_boost_1.15':
                 multiplier *= 1.15;
+                console.log("Applied 1.15x damage boost");
                 break;
             case 'damage_boost_1.2':
                 multiplier *= 1.2;
+                console.log("Applied 1.2x damage boost");
                 break;
             case 'damage_boost_1.25':
                 multiplier *= 1.25;
+                console.log("Applied 1.25x damage boost");
                 break;
             case 'damage_boost_1.3':
                 multiplier *= 1.3;
+                console.log("Applied 1.3x damage boost");
                 break;
             case 'damage_boost_1.35':
                 multiplier *= 1.35;
+                console.log("Applied 1.35x damage boost");
                 break;
             case 'damage_boost_1.4':
                 multiplier *= 1.4;
+                console.log("Applied 1.4x damage boost");
                 break;
         }
     }
     
+    console.log("Final magic multiplier:", multiplier);
     return multiplier;
 }
 
