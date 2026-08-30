@@ -708,6 +708,10 @@ function setupOnlineEventHandlers() {
                 randomMatchBtn.disabled = false;
 
                 localStorage.removeItem("isBotBattle");
+                // 以前のローカル戦（ボス戦）の"isBossBattle"フラグが残ったままだと、
+                // オンライン対戦なのにボス戦用のロジックが動いてしまうため、必ずリセットする
+                localStorage.removeItem("isBossBattle");
+                localStorage.removeItem("partyData");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -887,6 +891,10 @@ function setupOnlineEventHandlers() {
             const handleRoomReadyForHost = (data) => {
                 console.log("Room is ready for host!", data);
                 localStorage.removeItem("isBotBattle");
+                // 以前のローカル戦（ボス戦）の"isBossBattle"フラグが残ったままだと、
+                // オンライン対戦なのにボス戦用のロジックが動いてしまうため、必ずリセットする
+                localStorage.removeItem("isBossBattle");
+                localStorage.removeItem("partyData");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
@@ -972,6 +980,10 @@ function setupOnlineEventHandlers() {
                 joinRoomBtn.textContent = "ルーム参加";
 
                 localStorage.removeItem("isBotBattle");
+                // 以前のローカル戦（ボス戦）の"isBossBattle"フラグが残ったままだと、
+                // オンライン対戦なのにボス戦用のロジックが動いてしまうため、必ずリセットする
+                localStorage.removeItem("isBossBattle");
+                localStorage.removeItem("partyData");
                 localStorage.setItem("roomId", data.roomId);
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
