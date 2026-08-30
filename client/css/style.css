@@ -28,6 +28,106 @@
     --gradient-success: linear-gradient(135deg, #3ddc84 0%, #6ee8b5 100%);
 }
 
+/* 魔術メニュー */
+.active-magic-effects {
+    background: var(--bg-light);
+    border: 1px solid var(--accent-purple);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.magic-effect-active {
+    background: rgba(155, 89, 182, 0.2);
+    border-left: 3px solid var(--accent-purple);
+    padding: 10px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.magic-effect-pending {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid var(--accent-yellow);
+    padding: 10px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.magic-list {
+    background: var(--bg-light);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.magic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.magic-info {
+    flex: 1;
+}
+
+.magic-name {
+    font-weight: bold;
+    color: var(--accent-purple);
+}
+
+.magic-count {
+    color: var(--accent-green);
+    margin-left: 10px;
+    font-size: 0.9em;
+}
+
+.magic-description {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin: 5px 0 0 0;
+}
+
+/* 素材選択 */
+.material-select-container {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.material-select-note {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin-bottom: 10px;
+}
+
+.material-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.material-checkbox:last-child {
+    border-bottom: none;
+}
+
+.material-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.material-checkbox label {
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
 body {
     font-family: var(--font-family);
     margin: 0;

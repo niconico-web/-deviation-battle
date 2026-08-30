@@ -687,6 +687,35 @@ function showCreateWeaponDialog() {
         });
     }
     
+    // ボーナス素材選択肢を生成
+    const materialSelectContainer = document.getElementById('materialSelectContainer');
+    if (materialSelectContainer) {
+        materialSelectContainer.innerHTML = '';
+        const materials = player.materials || {};
+        const weaponMaterials = typeof WEAPON_MATERIALS !== 'undefined' ? WEAPON_MATERIALS : [];
+        
+        const availableWeaponMaterials = weaponMaterials.filter(matId => materials[matId] && materials[matId] > 0);
+        
+        if (availableWeaponMaterials.length === 0) {
+            materialSelectContainer.innerHTML = '<p>使用できる武器素材がありません。</p>';
+        } else {
+            const materialLimitNote = document.createElement('p');
+            materialLimitNote.className = 'material-select-note';
+            materialLimitNote.textContent = 'ボーナス素材は最大3つまで選択できます。オーブとは別に追加でボーナスを得られます。';
+            materialSelectContainer.appendChild(materialLimitNote);
+
+            availableWeaponMaterials.forEach(matId => {
+                const material = typeof MATERIAL_DATA !== 'undefined' ? MATERIAL_DATA[matId] : null;
+                if (material) {
+                    const checkbox = document.createElement('div');
+                    checkbox.className = 'material-checkbox';
+                    checkbox.innerHTML = `<input type="checkbox" id="mat-${matId}" value="${matId}"> <label for="mat-${matId}">${material.name} (x${materials[matId]})</label>`;
+                    materialSelectContainer.appendChild(checkbox);
+                }
+            });
+        }
+    }
+    
     // デュアルウェポン用の武器種選択を表示/非表示
     const dualWeaponSelect = document.getElementById('dualWeaponTypeSelect');
     dualWeaponSelect.style.display = 'none';
@@ -726,6 +755,18 @@ function getSelectedOrbs() {
         }
     });
     return selectedOrbs;
+}
+
+function getSelectedBonusMaterials() {
+    const selectedMaterials = [];
+    const materialCheckboxes = document.querySelectorAll('#materialSelectContainer input[type="checkbox"]:checked');
+    materialCheckboxes.forEach(checkbox => {
+        if (checkbox.value) {
+            selectedMaterials.push(checkbox.value);
+        }
+    });
+    // 最大3つに制限
+    return selectedMaterials.slice(0, 3);
 }
 
 function initShop() {
@@ -768,6 +809,16 @@ function initShop() {
             }
             
             const selectedOrbs = getSelectedOrbs();
+            const selectedBonusMaterials = getSelectedBonusMaterials();
+            
+            // ボーナス素材の所持チェック
+            const materials = player.materials || {};
+            for (const matId of selectedBonusMaterials) {
+                if (!materials[matId] || materials[matId] < 1) {
+                    alert('素材が足りません');
+                    return;
+                }
+            }
             
             // デュアルウェポン能力があるかチェック
             const hasDualWeapon = selectedOrbs.some(orb => orb.uniqueAbility && orb.uniqueAbility.effect === 'dual_weapon');
@@ -784,8 +835,18 @@ function initShop() {
             const remainingOrbs = (player.orbs || []).filter(orb => !selectedOrbs.some(selected => selected.id === orb.id));
             playerAfterCost.orbs = remainingOrbs;
             
-            // 武器を作成
-            let weapon = createOriginalWeapon(name, type, {}, ultimateName);
+            // ボーナス素材を消費
+            const remainingMaterials = { ...materials };
+            for (const matId of selectedBonusMaterials) {
+                remainingMaterials[matId]--;
+                if (remainingMaterials[matId] <= 0) {
+                    delete remainingMaterials[matId];
+                }
+            }
+            playerAfterCost.materials = remainingMaterials;
+            
+            // 武器を作成（ボーナス素材を含む）
+            let weapon = createOriginalWeapon(name, type, {}, ultimateName, selectedBonusMaterials);
             weapon = applyOrbToWeapon(weapon, selectedOrbs);
             
             // デュアルウェポン情報を追加

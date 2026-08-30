@@ -1305,6 +1305,11 @@ document.addEventListener('DOMContentLoaded', () => {
             renderSkillTreeUI();
         }
 
+        // 魔術システムの初期化
+        if (typeof initMagicSystem === "function") {
+            initMagicSystem();
+        }
+
         // ステータス入力欄のイベントリスナー
         const statInputs = document.querySelectorAll('.stat-allocation input, .stat-allocation select');
         statInputs.forEach(input => {

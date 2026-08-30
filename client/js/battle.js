@@ -2064,7 +2064,17 @@ function handleATBAnswer(selectedOption) {
         // 正解のたびに小さな追撃ダメージ（自分の攻撃力の0.5倍）
         const myAtkStat = me.atk || 0;
         const defReduction = Math.floor((enemy.def || 0) * 0.1);
-        const chipDamage = Math.max(1, Math.floor(myAtkStat * 0.5) - defReduction);
+        let chipDamage = Math.max(1, Math.floor(myAtkStat * 0.5) - defReduction);
+        
+        // 魔術によるダメージ倍率を適用
+        if (typeof getMagicDamageMultiplier === 'function') {
+            const magicMultiplier = getMagicDamageMultiplier();
+            if (magicMultiplier > 1.0) {
+                chipDamage = Math.floor(chipDamage * magicMultiplier);
+                addLog(`魔術効果発動！ダメージ${magicMultiplier.toFixed(2)}倍！`);
+            }
+        }
+        
         enemy.hp = Math.max(0, enemy.hp - chipDamage);
         showDamage("enemyDamage", chipDamage);
         addLog(`${me.name}の連続攻撃！ ${enemy.name}に ${chipDamage} のダメージ！`);
@@ -2924,6 +2934,15 @@ function resolvePlayerCommand(command) {
         
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
+        
+        // 魔術によるダメージ倍率を適用（プレイヤー攻撃時のみ）
+        if (attacker === me && typeof getMagicDamageMultiplier === 'function') {
+            const magicMultiplier = getMagicDamageMultiplier();
+            if (magicMultiplier > 1.0) {
+                damage = Math.floor(damage * magicMultiplier);
+                addLog(`魔術効果発動！ダメージ${magicMultiplier.toFixed(2)}倍！`);
+            }
+        }
         
         // ★★★デバッグ武器のチェック★★★
         if (hasUniqueAbility(me, 'one_shot_kill')) {

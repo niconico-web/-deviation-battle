@@ -241,6 +241,49 @@ function calculateOrbRarity(materialIds) {
     }
 }
 
+// 武器素材ボーナス定義
+const WEAPON_MATERIAL_BONUSES = {
+    goblin_fang: { atk: 0.02 },
+    orc_horn: { atk: 0.03 },
+    minotaur_horn: { atk: 0.04 },
+    ogre_fist: { atk: 0.03, def: 0.01 },
+    silver_ore: { atk: 0.02, special: 0.02 },
+    dragon_bone: { atk: 0.05, def: 0.02 },
+    griffin_claw: { atk: 0.04, speed: 0.02 },
+    titan_stone: { atk: 0.05, def: 0.03, maxHp: 0.02 },
+    dragon_soul: { atk: 0.08, def: 0.04, speed: 0.04, special: 0.04 },
+    divine_crystal: { atk: 0.06, def: 0.06, special: 0.06 },
+    hornet_stinger: { atk: 0.02 },
+    scorpion_tail: { atk: 0.02 },
+    jackal_fang: { atk: 0.01, speed: 0.01 },
+    oni_horn_fragment: { atk: 0.02 },
+    manticore_stinger: { atk: 0.03 },
+    werebear_claw: { atk: 0.04, def: 0.02 },
+    world_serpent_fang: { atk: 0.07, def: 0.03, speed: 0.03 }
+};
+
+/**
+ * 素材から武器ボーナスを計算する
+ * @param {Array<string>} materialIds - 素材IDの配列（最大3つ）
+ * @returns {object} ボーナスオブジェクト
+ */
+function calculateWeaponMaterialBonus(materialIds) {
+    if (!materialIds || materialIds.length === 0) return {};
+    
+    const totalBonus = { atk: 0, def: 0, speed: 0, maxHp: 0, special: 0 };
+    
+    for (const materialId of materialIds) {
+        const bonus = WEAPON_MATERIAL_BONUSES[materialId];
+        if (bonus) {
+            for (const [stat, value] of Object.entries(bonus)) {
+                totalBonus[stat] = (totalBonus[stat] || 0) + value;
+            }
+        }
+    }
+    
+    return totalBonus;
+}
+
 /**
  * 素材からオーブを作成する。
  * @param {Array<string>} materialIds - 素材IDの配列（最大5つ）

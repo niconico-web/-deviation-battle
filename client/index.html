@@ -34,6 +34,7 @@
                 <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
                 <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
                 <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
+                <button class="menu-btn" data-section="magic"><span>✨</span> 魔術</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
                 <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
@@ -165,6 +166,10 @@
                         <div id="orbSelectContainer" class="orb-select-container">
                             <!-- 所持オーブの選択肢がここに表示される -->
                         </div>
+                        <label class="field-label">ボーナス素材（任意・最大3つ）</label>
+                        <div id="materialSelectContainer" class="material-select-container">
+                            <!-- 所持武器素材の選択肢がここに表示される -->
+                        </div>
                         <div id="dualWeaponTypeSelect" class="field-group" style="display: none;">
                             <label class="field-label" for="dualWeaponType">サブ武器種（デュアルウェポン）</label>
                             <select id="dualWeaponType">
@@ -278,6 +283,16 @@
                     </div>
                     <h3>オリジナルスキルリスト</h3>
                     <div id="customSkillList" class="custom-skill-list"></div>
+                </div>
+            </section>
+
+            <section id="section-magic" class="content-section">
+                <h2>魔術</h2>
+                <div class="setting-box">
+                    <p>素材を使って魔術を発動させよう！魔術はバトルで有利な効果を与える。</p>
+                </div>
+                <div id="magicMenuContainer">
+                    <!-- 魔術メニューがここに表示される -->
                 </div>
             </section>
 
@@ -527,6 +542,7 @@
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>
     <script src="js/materials.js"></script>
+    <script src="js/magic.js"></script>
     <script src="js/guild.js"></script>
     <script src="js/tutorial-topics.js"></script>
     <script src="js/script.js"></script>
