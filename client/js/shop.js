@@ -847,6 +847,16 @@ function initShop() {
             
             // 武器を作成（ボーナス素材を含む）
             let weapon = createOriginalWeapon(name, type, {}, ultimateName, selectedBonusMaterials);
+            
+            // ボーナス素材による補正をログ出力
+            if (selectedBonusMaterials.length > 0) {
+                console.log("Bonus materials:", selectedBonusMaterials);
+                if (typeof calculateWeaponMaterialBonus === 'function') {
+                    const bonus = calculateWeaponMaterialBonus(selectedBonusMaterials);
+                    console.log("Calculated bonus:", bonus);
+                }
+            }
+            
             weapon = applyOrbToWeapon(weapon, selectedOrbs);
             
             // デュアルウェポン情報を追加
