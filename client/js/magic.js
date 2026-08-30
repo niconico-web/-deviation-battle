@@ -29,6 +29,7 @@ const MAGIC_DATA = {
     reaper_scythe_shard: { id: 'reaper_scythe_shard', name: '死神の鎌の欠片', type: 'magic', effect: 'instant_kill_chance', duration: 1, description: '次のバトルで10%の確率で即死させる' },
     dream_dust: { id: 'dream_dust', name: '夢の砂', type: 'magic', effect: 'enemy_sleep', duration: 1, description: '次のバトルで相手を眠らせる' },
     gravity_orb: { id: 'gravity_orb', name: '重力の球', type: 'magic', effect: 'enemy_speed_debuff_strong', duration: 1, description: '次のバトルで相手の速さを大幅に下げる' },
+    sphinx_riddle_stone: { id: 'sphinx_riddle_stone', name: 'スフィンクスの謎石', type: 'magic', effect: 'damage_boost_1.3', duration: 30 * 60 * 1000, description: '30分間、ダメージが1.3倍になる' },
     
     // 呪術系
     crow_feather: { id: 'crow_feather', name: 'カラスの羽', type: 'curse', effect: 'enemy_atk_debuff', duration: 1, description: '次のバトルで相手の攻撃を下げる' },

@@ -44,7 +44,7 @@ const MATERIAL_DATA = {
     chimera_eye: { id: 'chimera_eye', name: 'キメラの目', description: 'キメラの怪しい目。予知の魔法の素材になる。', rarity: 3 },
     hydra_venom: { id: 'hydra_venom', name: 'ヒドラの毒', description: 'ヒドラの猛毒。強力な毒の素材になる。', rarity: 3 },
     titan_stone: { id: 'titan_stone', name: 'タイタンの石', description: 'タイタンの力が宿る石。巨大な武器の素材になる。', rarity: 3 },
-    elemental_core: { id: 'elemental_core', description: 'エレメンタルの核。元素魔法の素材になる。', rarity: 3 },
+    elemental_core: { id: 'elemental_core', name: 'エレメンタルの核', description: 'エレメンタルの核。元素魔法の素材になる。', rarity: 3 },
     gold_ore: { id: 'gold_ore', name: '金鉱石', description: '金を含む鉱石。高級装飾の素材になる。', rarity: 3 },
     mithril_ore: { id: 'mithril_ore', name: 'ミスリル鉱石', description: '軽くて丈夫なミスリル。最強の防具の素材になる。', rarity: 3 },
     star_fragment: { id: 'star_fragment', name: '星の欠片', description: '星から落ちた欠片。宇宙の力を宿す。', rarity: 3 },
@@ -306,6 +306,29 @@ function calculateOrbRarity(materialIds) {
     }
 }
 
+// 武器素材として使用できる素材ID（説明欄に「武器の素材」とあるもの）
+const WEAPON_MATERIALS = [
+    'goblin_fang',
+    'orc_horn',
+    'minotaur_horn',
+    'ogre_fist',
+    'silver_ore',
+    'dragon_bone',
+    'griffin_claw',
+    'titan_stone',
+    'dragon_soul',
+    'divine_crystal',
+    'hornet_stinger',
+    'scorpion_tail',
+    'jackal_fang',
+    'oni_horn_fragment',
+    'manticore_stinger',
+    'werebear_claw',
+    'world_serpent_fang',
+    'boar_tusk',
+    'iron_ore'
+];
+
 // 武器素材ボーナス定義（レア度による基本倍率）
 const WEAPON_MATERIAL_BONUSES = {
     goblin_fang: { rarity: 1, atk: 0.01 },
@@ -324,7 +347,9 @@ const WEAPON_MATERIAL_BONUSES = {
     oni_horn_fragment: { rarity: 2, atk: 0.015 },
     manticore_stinger: { rarity: 3, atk: 0.02 },
     werebear_claw: { rarity: 3, atk: 0.025, def: 0.015 },
-    world_serpent_fang: { rarity: 4, atk: 0.045, def: 0.02, speed: 0.02 }
+    world_serpent_fang: { rarity: 4, atk: 0.045, def: 0.02, speed: 0.02 },
+    boar_tusk: { rarity: 1, atk: 0.008 },
+    iron_ore: { rarity: 2, atk: 0.01, def: 0.005 }
 };
 
 // レア度による倍率
