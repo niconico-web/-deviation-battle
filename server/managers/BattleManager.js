@@ -422,6 +422,11 @@ function remapPlayerSocket(roomId, oldPlayerId, newSocketId){
 
 function deleteBattle(roomId){
 
+    const battle = battles[roomId];
+    if (battle && battle.bossAtbInterval) {
+        clearInterval(battle.bossAtbInterval);
+    }
+
     delete battles[roomId];
 
 }

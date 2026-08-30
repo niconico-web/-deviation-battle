@@ -2145,7 +2145,10 @@ function triggerBossTelegraph() {
     }, ATB_BOSS_TELEGRAPH_MS);
 }
 
-/** ガードボタンが押された時に呼ばれる。予備動作中のみ有効。 */
+/** ガードボタンが押された時に呼ばれる。予備動作中のみ有効。
+ *  ローカル戦（isBotBattle）はその場で判定するが、オンライン戦は
+ *  サーバーに通知するだけで、実際の判定はサーバー側（socket/battle.js）で行う。
+ */
 function activateATBGuard() {
     if (!atbGuardWindowOpen || atbGuardActivated) return;
     atbGuardActivated = true;
@@ -2154,6 +2157,10 @@ function activateATBGuard() {
     if (guardBtn) {
         guardBtn.disabled = true;
         guardBtn.classList.add('guard-success');
+    }
+
+    if (!isBotBattle && typeof socket !== 'undefined' && socket) {
+        socket.emit('battle:guard', { roomId });
     }
 }
 
@@ -3298,11 +3305,16 @@ function syncBattleState(stateUpdate) {
                     ? me.ultimateGauge.current >= me.ultimateGauge.max
                     : false;
             }
+            if (data.gaugeCount !== undefined) playerCorrectCount = data.gaugeCount;
+            if (data.gaugeRequired !== undefined) playerRequiredCount = data.gaugeRequired;
         } else if (id === enemy.id) {
             // 敵
             if (data.hp !== undefined) enemy.hp = data.hp;
             if (data.maxHp !== undefined) enemy.maxHp = data.maxHp;
             if (data.ultimateGauge !== undefined) enemy.ultimateGauge = data.ultimateGauge;
+            if (data.gaugeCount !== undefined && data.gaugeRequired) {
+                enemyATB = Math.min(100, (data.gaugeCount / data.gaugeRequired) * 100);
+            }
         } else {
             // 味方
             const ally = allies.find(a => a.id === id);
@@ -3320,6 +3332,10 @@ function syncBattleState(stateUpdate) {
     localStorage.setItem("enemy", JSON.stringify(enemy));
     updateHP();
     updateUltimateGauge();
+    if (!isBossBattle) {
+        playerATB = Math.min(100, playerRequiredCount ? (playerCorrectCount / playerRequiredCount) * 100 : 0);
+        updateATBBars();
+    }
     
     // HPが0になった場合は即座にバトル終了チェック
     if (me.hp <= 0 || enemy.hp <= 0) {
@@ -3465,7 +3481,43 @@ if (!isBotBattle && socket) {
         displayQuestion(data.question);
     });
 
-    // サーバーからのリアルタイム更新を受け取る
+    // 通常のPvP戦：自分専用の次の問題を受け取る（相手の問題は届かない）
+    socket.on('battle:yourQuestion', (data) => {
+        console.log('battle:yourQuestion received', data);
+        if (data && data.question) {
+            displayQuestion(data.question);
+        }
+    });
+
+    // ボス・レイド戦：ボスの行動ゲージが満タンになり、攻撃の予備動作が始まったことの通知
+    // （自分が狙われている時だけガードポップアップを出す）
+    socket.on('battle:bossTelegraph', (data) => {
+        console.log('battle:bossTelegraph received', data);
+        if (!data) return;
+
+        const isTargetingMe = data.targetId === me.id;
+        const targetName = isTargetingMe ? me.name : ((allies.find(a => a.id === data.targetId) || {}).name || '仲間');
+        addLog(`⚠️ ${data.bossName || enemy.name}が攻撃の構えを見せた！（狙われているのは${targetName}）`);
+
+        if (!isTargetingMe) return;
+
+        atbGuardWindowOpen = true;
+        atbGuardActivated = false;
+
+        const guardPopup = document.getElementById('atbGuardPopup');
+        const guardBtn = document.getElementById('atbGuardBtn');
+        if (guardPopup) guardPopup.style.display = 'flex';
+        if (guardBtn) {
+            guardBtn.disabled = false;
+            guardBtn.classList.remove('guard-success');
+        }
+
+        setTimeout(() => {
+            atbGuardWindowOpen = false;
+            if (guardPopup) guardPopup.style.display = 'none';
+        }, data.telegraphMs || 700);
+    });
+
     socket.on('battle:update', (data) => {
         console.log('battle:update received', data);
 
@@ -3494,12 +3546,23 @@ if (!isBotBattle && socket) {
                 }
                 if (event.type === 'correct' && event.playerId === me.id) {
                     showCorrectEffect();
-                    // 正解後にコマンドメニューを表示
-                    pendingSkillEffect = null;
-                    pendingUsedSkill = null;
-                    showCommandMenu();
+                    if (isBossBattle) {
+                        // ボス・レイド戦は今まで通り、正解したら常にコマンドメニューを出す
+                        pendingSkillEffect = null;
+                        pendingUsedSkill = null;
+                        showCommandMenu();
+                    }
+                    // 通常のPvP戦では、正解＝即コマンドメニューではなく、行動ゲージが
+                    // 満タンになった時だけメニューを出す（下のgaugeFullPlayerIdの判定を参照）
                 }
             });
+        }
+
+        // 通常のPvP戦：自分の行動ゲージが満タンになったら、ここでコマンドメニューを出す
+        if (!isBossBattle && data.gaugeFullPlayerId === me.id) {
+            pendingSkillEffect = null;
+            pendingUsedSkill = null;
+            showCommandMenu();
         }
 
         // 誰か（自分以外）がこの問題に正解し、コマンド選択中になった場合、
