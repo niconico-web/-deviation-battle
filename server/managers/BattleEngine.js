@@ -20,6 +20,28 @@ const ULTIMATE_GAUGE_PER_CORRECT = 20; // 正解ごとのゲージ増加量
 const ULTIMATE_DAMAGE_MULTIPLIER = 1.5; // 必殺技発動時のダメージ倍率
 
 // -----------------------------
+// ATB（アクティブ型）行動ゲージシステム（オンライン対戦のPvP用）
+// クライアント側のローカル戦（bot戦・ボス戦）と同じ考え方：
+// 正解のたびに小さな追撃ダメージ（0.5倍）を与えつつ行動ゲージが進み、
+// 満タンになったらコマンド（攻撃/特殊/防御/必殺技）を選べる。
+// 素早さで必要正解数が変わるが、変化はごくわずかにしてある。
+// -----------------------------
+
+/**
+ * 行動ゲージを満タンにするために必要な「正解数」を素早さから求める。
+ * クライアント側（battle.js）のgetRequiredCorrectCount()と同じ式。
+ */
+function getRequiredCorrectCount(speed) {
+    const baseSpeed = 50;
+    const baseCount = 7;
+    const minCount = 3;
+    const s = Math.max(1, speed || 1);
+    const ratio = Math.pow(s / baseSpeed, 0.08);
+    const count = baseCount / ratio;
+    return Math.max(minCount, Math.min(baseCount, Math.round(count)));
+}
+
+// -----------------------------
 // ランダム
 // -----------------------------
 
@@ -174,6 +196,49 @@ function generateQuestion(battle) {
     console.log(`[BattleEngine] Generated question:`, battle.currentQuestion);
 
     return battle.currentQuestion;
+}
+
+/**
+ * PvP戦（ボス・レイド戦以外）専用：プレイヤー1人だけに紐づく、独立した問題を生成する。
+ * 通常のgenerateQuestion()と違い、battle全体で共有される問題ではなく
+ * player.currentQuestionに保存する。教科はボス戦と同じ5教科のデータ
+ * （boss_questions.json）を使い、その人自身の学年に応じて出題する。
+ */
+function generatePlayerQuestion(battle, playerId) {
+    const player = battle.players[playerId];
+    const subjects = ['math', 'jp', 'eng', 'sci', 'soc'];
+    let subject = subjects[Math.floor(Math.random() * subjects.length)];
+    let bossQuestion = QuestionManager.getBossBattleQuestion(subject, player.grade || 1);
+
+    if (!bossQuestion) {
+        for (const nextSubject of subjects.filter(s => s !== subject)) {
+            bossQuestion = QuestionManager.getBossBattleQuestion(nextSubject, player.grade || 1);
+            if (bossQuestion) {
+                subject = nextSubject;
+                break;
+            }
+        }
+    }
+
+    if (!bossQuestion) {
+        // 保険：問題が一切見つからない場合でも出題が止まらないようにする
+        console.error(`[BattleEngine] generatePlayerQuestion: 問題が見つかりません grade=${player.grade}`);
+        bossQuestion = { question: "3 + 4 = ?", answer: "7" };
+        subject = 'math';
+    }
+
+    const options = QuestionManager.generateOptions(bossQuestion.answer);
+    const question = {
+        ...bossQuestion,
+        options,
+        subject,
+        subjectDisplayName: QuestionManager.getSubjectDisplayName(subject),
+        startTime: Date.now()
+    };
+
+    player.currentQuestion = question;
+    player.answerTime = null;
+    return question;
 }
 
 // -----------------------------
@@ -652,6 +717,115 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
             battle.finished = true;
             result.winner = enemyId;
         }
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
+/**
+ * PvP戦（ボス・レイド戦以外）専用の回答処理。
+ * processAnswerOnly() と違い、問題は battle.currentQuestion で共有せず
+ * player.currentQuestion で1人ずつ独立して持つ。
+ * ・正解のたびに自分の攻撃力の0.5倍の追撃ダメージを与え、行動ゲージ（正解数）を1進める。
+ * ・行動ゲージが満タンになったらコマンド選択待ちにする（それまでは待ち時間なしで次の問題）。
+ * ・不正解の場合はダメージなし・ゲージ増加なしで、待ち時間なしで次の問題へ
+ *   （相手からの反撃は発生しない。相手の行動ゲージは相手自身の正解数で独立して進むため）。
+ */
+function processPlayerAnswer(battle, playerId, answer, usedSkill) {
+    const player = battle.players[playerId];
+    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    const enemy = battle.players[enemyId];
+
+    if (!player || !enemy) {
+        return { error: "Invalid battle state" };
+    }
+
+    if (!player.currentQuestion) {
+        return { error: "No active question for this player" };
+    }
+
+    const isCorrect = QuestionManager.checkAnswer(player.currentQuestion, answer);
+    const answerTime = Date.now() - player.currentQuestion.startTime;
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        isCorrect,
+        answerTime,
+        question: player.currentQuestion.question,
+        skillUsed: null,
+        gaugeRequired: player.gaugeRequired
+    };
+
+    // スキルの発動判定と、攻撃を伴わない効果の即時適用（processAnswerOnly()と同じ考え方）
+    if (usedSkill && usedSkill.effect) {
+        const eff = usedSkill.effect;
+        let canApply = true;
+        if (eff.condition && eff.condition.type === 'hp_below') {
+            if (player.maxHp > 0 && player.hp / player.maxHp > eff.condition.value) {
+                canApply = false;
+            }
+        }
+        if (canApply) {
+            result.skillUsed = usedSkill;
+            applyInstantSkillEffects(player, enemy, eff, result);
+        } else {
+            result.skillFailed = usedSkill.name;
+        }
+    }
+
+    player.currentQuestion = null;
+
+    if (isCorrect) {
+        player.correctAnswers = (player.correctAnswers || 0) + 1;
+
+        // 正解のたびに自分の攻撃力の0.5倍の追撃ダメージ
+        const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+        let chipDamage = Math.max(1, Math.floor(player.atk * 0.5) - defReduction);
+        chipDamage = applyUniqueAbilityDamageBonus(chipDamage, player);
+        chipDamage = applyUniqueAbilityDefense(chipDamage, enemy);
+        enemy.hp = Math.max(0, enemy.hp - chipDamage);
+        result.chipDamage = chipDamage;
+        result.enemyHp = enemy.hp;
+
+        if (!player.ultimateGauge) {
+            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        }
+        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + 10);
+        result.ultimateGauge = player.ultimateGauge.current;
+        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+
+        if (enemy.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+            return {
+                ...result,
+                battleState: { players: battle.players, finished: battle.finished }
+            };
+        }
+
+        player.gaugeCount = (player.gaugeCount || 0) + 1;
+        result.gaugeCount = player.gaugeCount;
+
+        if (player.gaugeCount >= player.gaugeRequired) {
+            // 行動ゲージ満タン！コマンドを選べる（この間は次の問題を出さない）
+            player.readyForCommand = true;
+            player.pendingSkillEffect = usedSkill && usedSkill.effect ? usedSkill.effect : null;
+            player.pendingUsedSkill = usedSkill || null;
+            result.showCommandMenu = true;
+            result.gaugeFull = true;
+        } else {
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        }
+    } else {
+        result.gaugeCount = player.gaugeCount || 0;
+        result.nextQuestion = generatePlayerQuestion(battle, playerId);
     }
 
     return {
@@ -1251,13 +1425,25 @@ function applyBattleStartEffects(battle) {
 function initializeBattle(battle) {
     // バトル開始時のエフェクトを適用（リ・ミゼラブルなど）
     applyBattleStartEffects(battle);
-    
-    // 最初の問題を生成
-    generateQuestion(battle);
-    
+
+    // ボス・レイド戦、通常のPvP戦のいずれも、プレイヤーごとに独立した
+    // 行動ゲージ・問題を用意する（ボス自身の攻撃は、リアルタイムに進行する
+    // 別のゲージ・タイマーで socket/battle.js 側が管理する）。
+    const playerIds = Object.keys(battle.players).filter(id => !battle.players[id].isBoss);
+    const initialQuestions = {};
+    playerIds.forEach(id => {
+        const p = battle.players[id];
+        p.gaugeCount = 0;
+        p.gaugeRequired = getRequiredCorrectCount(p.speed);
+        p.readyForCommand = false;
+        p.pendingSkillEffect = null;
+        p.pendingUsedSkill = null;
+        initialQuestions[id] = generatePlayerQuestion(battle, id);
+    });
+
     return {
         battle,
-        initialQuestion: battle.currentQuestion
+        initialQuestions // プレイヤーIDごとの最初の問題
     };
 }
 
@@ -1421,13 +1607,427 @@ function processCommand(battle, playerId, command) {
     };
 }
 
+/**
+ * PvP戦（ボス・レイド戦以外）専用のコマンド処理。processCommand() をベースに、
+ * 「この問題に正解した1人だけがコマンドを選べる」共有問題方式ではなく、
+ * 「行動ゲージが満タンになった本人だけがコマンドを選べる」方式に変えてある。
+ * コマンド確定後は、そのプレイヤーの行動ゲージだけをリセットして
+ * 待ち時間なしで次の問題を生成する（相手側の独立したゲージには影響しない）。
+ */
+function processPvpCommand(battle, playerId, command) {
+    const player = battle.players[playerId];
+    const enemyId = Object.keys(battle.players).find(id => id !== playerId);
+    const enemy = battle.players[enemyId];
+
+    if (!player || !enemy) {
+        return { error: "Invalid battle state" };
+    }
+
+    if (!player.readyForCommand) {
+        return { error: "行動ゲージがまだ満タンではありません" };
+    }
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        command,
+    };
+
+    const attacker = player;
+    const defender = enemy;
+
+    const ultimateReady = attacker.ultimateGauge && attacker.ultimateGauge.current >= attacker.ultimateGauge.max;
+    const effectiveCommand = (command === 'ultimate' && !ultimateReady) ? 'attack' : command;
+    result.command = effectiveCommand;
+
+    if (effectiveCommand === 'defend') {
+        attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, 0.5);
+        result.defended = true;
+        result.damage = 0;
+    } else {
+        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+
+        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = attacker.name;
+        }
+
+        let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
+        let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
+
+        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        let damageResult = calculateDamage(attacker, defender, 0, {
+            isSureHit: isAttackerSureHit,
+            attackerAtk: attackerAtk,
+            ignoreDef: isAttackerIgnoreDef,
+            defenderDef: defenderEffectiveDef
+        });
+        let damage = damageResult.damage;
+
+        let ultimateActivated = false;
+        if (effectiveCommand === 'ultimate' && ultimateReady) {
+            damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+            ultimateActivated = true;
+            result.ultimateActivated = true;
+            result.ultimateDamage = damage;
+            attacker.ultimateGauge.current = 0;
+            result.ultimateGauge = 0;
+        }
+
+        damage = applyUniqueAbilityDamageBonus(damage, attacker);
+
+        const dodgeChance = damageResult.dodgeChance;
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            let finalDamage = applyUniqueAbilityDefense(damage, defender);
+
+            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+                defender.hp = 1;
+                result.gutsSurvive = true;
+                result.gutsSurvivePlayerName = defender.name;
+            } else {
+                defender.hp = Math.max(0, defender.hp - finalDamage);
+            }
+            result.damage = finalDamage;
+            result.enemyHp = defender.hp;
+
+            const healAmount = applyLifeDrain(attacker, finalDamage);
+            if (healAmount > 0) {
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+        }
+
+        if (defender.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        }
+    }
+
+    // このプレイヤーの行動ゲージだけをリセットし、待ち時間なしで次の問題を生成する
+    // （相手側の独立したゲージ・出題サイクルには影響しない）
+    if (!battle.finished) {
+        player.gaugeCount = 0;
+        player.readyForCommand = false;
+        player.pendingSkillEffect = null;
+        player.pendingUsedSkill = null;
+        tickDebuffs(player);
+        tickDebuffs(enemy);
+        result.nextQuestion = generatePlayerQuestion(battle, playerId);
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
+/**
+ * 素早さから「行動ゲージの進みやすさ係数」を求める（ボスのリアルタイムゲージ用）。
+ * クライアント側（battle.js）のgetATBGainPerTick()と同じ考え方で、
+ * 極端な素早さの差でも0.5倍〜2.0倍の範囲に収まるようにする。
+ */
+function getATBSpeedFactor(selfSpeed, opponentSpeed) {
+    const s = Math.max(1, selfSpeed || 1);
+    const o = Math.max(1, opponentSpeed || 1);
+    const rawRatio = Math.sqrt(s / o);
+    return Math.min(2.0, Math.max(0.5, rawRatio));
+}
+
+/**
+ * オンラインのレイド（パーティ vs ボス）戦専用の回答処理。
+ * PvP用のprocessPlayerAnswer()と同じ考え方：プレイヤーごとに独立した問題・行動ゲージを持つ。
+ * ボス自身の攻撃は行動ゲージ（正解数）ではなく、別途サーバー側でリアルタイムに
+ * 進行するタイマー（socket/battle.js側）で管理する。
+ */
+function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
+    const player = battle.players[playerId];
+    const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
+    const boss = battle.players[bossId];
+
+    if (!player || !boss) {
+        return { error: "Invalid battle state" };
+    }
+    if (!player.currentQuestion) {
+        return { error: "No active question for this player" };
+    }
+
+    const isCorrect = QuestionManager.checkAnswer(player.currentQuestion, answer);
+    const answerTime = Date.now() - player.currentQuestion.startTime;
+
+    let result = {
+        playerId,
+        playerName: player.name,
+        isCorrect,
+        answerTime,
+        question: player.currentQuestion.question,
+        skillUsed: null,
+        gaugeRequired: player.gaugeRequired
+    };
+
+    if (usedSkill && usedSkill.effect) {
+        const eff = usedSkill.effect;
+        let canApply = true;
+        if (eff.condition && eff.condition.type === 'hp_below') {
+            if (player.maxHp > 0 && player.hp / player.maxHp > eff.condition.value) {
+                canApply = false;
+            }
+        }
+        if (canApply) {
+            result.skillUsed = usedSkill;
+            applyInstantSkillEffects(player, boss, eff, result);
+        } else {
+            result.skillFailed = usedSkill.name;
+        }
+    }
+
+    player.currentQuestion = null;
+
+    if (isCorrect) {
+        player.correctAnswers = (player.correctAnswers || 0) + 1;
+
+        const defReduction = Math.floor(getStatWithDebuffs(boss, 'def') * 0.1);
+        let chipDamage = Math.max(1, Math.floor(player.atk * 0.5) - defReduction);
+        chipDamage = applyUniqueAbilityDamageBonus(chipDamage, player);
+        chipDamage = applyUniqueAbilityDefense(chipDamage, boss);
+        boss.hp = Math.max(0, boss.hp - chipDamage);
+        result.chipDamage = chipDamage;
+        result.bossHp = boss.hp;
+
+        if (!player.ultimateGauge) {
+            player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+        }
+        player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + 10);
+        result.ultimateGauge = player.ultimateGauge.current;
+        result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+
+        if (boss.hp <= 0) {
+            battle.finished = true;
+            result.winner = 'party';
+            result.raidVictory = true;
+            return {
+                ...result,
+                battleState: { players: battle.players, finished: battle.finished }
+            };
+        }
+
+        player.gaugeCount = (player.gaugeCount || 0) + 1;
+        result.gaugeCount = player.gaugeCount;
+
+        if (player.gaugeCount >= player.gaugeRequired) {
+            player.readyForCommand = true;
+            player.pendingSkillEffect = usedSkill && usedSkill.effect ? usedSkill.effect : null;
+            player.pendingUsedSkill = usedSkill || null;
+            result.showCommandMenu = true;
+            result.gaugeFull = true;
+        } else {
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        }
+    } else {
+        result.gaugeCount = player.gaugeCount || 0;
+        result.nextQuestion = generatePlayerQuestion(battle, playerId);
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
+/**
+ * オンラインのレイド戦専用のコマンド処理（対象は常にボス）。processPvpCommand()と同じ考え方。
+ */
+function processRaidPlayerCommand(battle, playerId, command) {
+    const player = battle.players[playerId];
+    const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
+    const boss = battle.players[bossId];
+
+    if (!player || !boss) {
+        return { error: "Invalid battle state" };
+    }
+    if (!player.readyForCommand) {
+        return { error: "行動ゲージがまだ満タンではありません" };
+    }
+
+    let result = { playerId, playerName: player.name, command };
+
+    const attacker = player;
+    const defender = boss;
+
+    const ultimateReady = attacker.ultimateGauge && attacker.ultimateGauge.current >= attacker.ultimateGauge.max;
+    const effectiveCommand = (command === 'ultimate' && !ultimateReady) ? 'attack' : command;
+    result.command = effectiveCommand;
+
+    if (effectiveCommand === 'defend') {
+        attacker.pendingDamageReduction = Math.max(attacker.pendingDamageReduction || 0, 0.5);
+        result.defended = true;
+        result.damage = 0;
+    } else {
+        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+
+        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
+            attackerAtk = Math.floor(attackerAtk * 3);
+            result.gutsAtkBoost = true;
+            result.gutsAtkBoostPlayerName = attacker.name;
+        }
+
+        let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
+        let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
+
+        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        let damageResult = calculateDamage(attacker, defender, 0, {
+            isSureHit: isAttackerSureHit,
+            attackerAtk: attackerAtk,
+            ignoreDef: isAttackerIgnoreDef,
+            defenderDef: defenderEffectiveDef
+        });
+        let damage = damageResult.damage;
+
+        if (effectiveCommand === 'ultimate' && ultimateReady) {
+            damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
+            result.ultimateActivated = true;
+            result.ultimateDamage = damage;
+            attacker.ultimateGauge.current = 0;
+            result.ultimateGauge = 0;
+        }
+
+        damage = applyUniqueAbilityDamageBonus(damage, attacker);
+        const dodgeChance = damageResult.dodgeChance;
+        const dodgeRoll = Math.random() * 100;
+        if (dodgeRoll < dodgeChance) {
+            result.damage = 0;
+            result.dodged = true;
+            result.dodgeChance = dodgeChance;
+        } else {
+            let finalDamage = applyUniqueAbilityDefense(damage, defender);
+            defender.hp = Math.max(0, defender.hp - finalDamage);
+            result.damage = finalDamage;
+            result.bossHp = defender.hp;
+
+            const healAmount = applyLifeDrain(attacker, finalDamage);
+            if (healAmount > 0) {
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+        }
+
+        if (defender.hp <= 0) {
+            battle.finished = true;
+            result.winner = 'party';
+            result.raidVictory = true;
+        }
+    }
+
+    if (!battle.finished) {
+        player.gaugeCount = 0;
+        player.readyForCommand = false;
+        player.pendingSkillEffect = null;
+        player.pendingUsedSkill = null;
+        tickDebuffs(player);
+        result.nextQuestion = generatePlayerQuestion(battle, playerId);
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
+/**
+ * レイド戦のボスが、自身のリアルタイムゲージが満タンになった時に実行する攻撃。
+ * クライアントのローカル戦にあるresolveBossAttack()と同じ考え方：
+ * ボススキルを一定確率で使用し、ガード成功時はダメージ80%カット。
+ * 対象（targetPlayerId）と、ガードが間に合ったか（guardActivated）は
+ * 呼び出し側（socket/battle.js のタイマー処理）が決める。
+ */
+function resolveRaidBossAttack(battle, targetPlayerId, guardActivated) {
+    const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
+    const boss = battle.players[bossId];
+    const player = battle.players[targetPlayerId];
+
+    if (!boss || !player) {
+        return { error: "Invalid battle state" };
+    }
+
+    let result = { targetPlayerId, playerName: player.name };
+
+    const bossAtkWithBuffs = getStatWithBuffs(boss, 'atk');
+    const damageResult = calculateDamage(boss, player, 0, {
+        attackerAtk: bossAtkWithBuffs,
+        defenderDef: getStatWithDebuffs(player, 'def')
+    });
+    let damage = damageResult.damage;
+
+    let bossUsedSkill = null;
+    if (boss.skills && boss.skills.length > 0 && Math.random() < 0.5) {
+        bossUsedSkill = boss.skills[Math.floor(Math.random() * boss.skills.length)];
+        damage = applyBossSkillEffect(damage, boss, player, bossUsedSkill, result);
+    }
+
+    if (guardActivated) {
+        damage = Math.floor(damage * 0.2);
+        result.guarded = true;
+    }
+
+    let finalDamage = applyUniqueAbilityDefense(damage, player);
+    if (player.hp - finalDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
+        player.hp = 1;
+        result.gutsSurvive = true;
+        result.gutsSurvivePlayerName = player.name;
+    } else {
+        player.hp = Math.max(0, player.hp - finalDamage);
+    }
+    result.damage = finalDamage;
+    result.playerHp = player.hp;
+
+    if (player.hp <= 0) {
+        result.playerDown = true;
+        const anyoneAlive = Object.values(battle.players).some(p => !p.isBoss && p.hp > 0);
+        if (!anyoneAlive) {
+            battle.finished = true;
+            result.winner = bossId;
+            result.raidDefeat = true;
+        }
+    }
+
+    return {
+        ...result,
+        battleState: {
+            players: battle.players,
+            finished: battle.finished
+        }
+    };
+}
+
 module.exports = {
     generateQuestion,
+    generatePlayerQuestion,
+    getRequiredCorrectCount,
+    getATBSpeedFactor,
     calculateDamage,
     processAnswer,
     processRaidAnswer,
+    processRaidPlayerAnswer,
+    processRaidPlayerCommand,
+    resolveRaidBossAttack,
     processAnswerOnly,
+    processPlayerAnswer,
     processCommand,
+    processPvpCommand,
     initializeBattle,
     finalizeBattle
 };
