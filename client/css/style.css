@@ -748,7 +748,7 @@ textarea {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    overflow-y: auto;
+    position: relative;
 }
 
 /* PWAインストールポップアップ */
@@ -1019,10 +1019,16 @@ textarea {
     padding: 10px 12px;
 }
 
+.material-item .material-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
 .material-item .material-name {
     font-weight: bold;
     color: var(--accent-yellow);
-    margin-right: 10px;
 }
 
 .material-item .material-count {
