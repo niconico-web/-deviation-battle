@@ -1763,52 +1763,17 @@ function handleChoiceClick(selectedOption) {
 }
 
 function calculateBotDifficulty() {
-    // プレイヤーのステータス合計値を計算
-    const playerAtk = me.atk || 10;
-    const playerDef = me.def || 10;
-    const playerSpeed = me.speed || 10;
-    const playerMaxHp = me.maxHp || 50;
-    const playerTotalStats = playerAtk + playerDef + playerSpeed + playerMaxHp;
-    
-    // ボットのステータス合計値をプレイヤーと同じにする
-    const botTotalStats = playerTotalStats;
-    
-    // ステータスをランダムに振り分ける
-    // 最小値を確保するために、各ステータスに最低値を割り当て
-    const minAtk = 5;
-    const minDef = 5;
-    const minSpeed = 5;
-    const minMaxHp = 20;
-    const reservedStats = minAtk + minDef + minSpeed + minMaxHp;
-    
-    // 残りのステータスポイント
-    let remainingStats = Math.max(0, botTotalStats - reservedStats);
-    
-    // ランダムに振り分ける
-    const randomAtk = Math.floor(Math.random() * remainingStats * 0.3);
-    remainingStats -= randomAtk;
-    
-    const randomDef = Math.floor(Math.random() * remainingStats * 0.3);
-    remainingStats -= randomDef;
-    
-    const randomSpeed = Math.floor(Math.random() * remainingStats * 0.3);
-    remainingStats -= randomSpeed;
-    
-    const randomMaxHp = remainingStats;
-    
-    // ボットのステータスを設定
-    enemy.atk = minAtk + randomAtk;
-    enemy.def = minDef + randomDef;
-    enemy.speed = minSpeed + randomSpeed;
-    enemy.maxHp = minMaxHp + randomMaxHp;
-    enemy.hp = enemy.maxHp; // HPを最大値に設定
-    
-    // 正解率は固定（85%）
+    // 以前はここでenemyのステータス（atk/def/speed/maxHp）を、
+    // プレイヤーの合計ステータスと必ず同じになるようランダムに再割り当てしていた。
+    // そのため、online.js側でモンスターごとに設定した「ステータス倍率」
+    // （statMultiplier、0.35倍の弱いモンスターから2.2倍以上の強いモンスターまで）が
+    // 常に上書きされて無効になり、「ステータス倍率が正しく反映されない」不具合の原因になっていた。
+    // ボットの実際のステータスは既にonline.js側でstatMultiplierを使って正しく計算済みのため、
+    // ここではステータスを一切変更せず、正解率のみを返す。
     const botAccuracy = 0.85;
-    
+
     return {
-        accuracy: botAccuracy,
-        statMultiplier: 1.0
+        accuracy: botAccuracy
     };
 }
 
@@ -2066,18 +2031,10 @@ function handleATBAnswer(selectedOption) {
         const defReduction = Math.floor((enemy.def || 0) * 0.1);
         let chipDamage = Math.max(1, Math.floor(myAtkStat * 0.5) - defReduction);
         
-        // 魔術によるダメージ倍率を適用
-        if (typeof getMagicDamageMultiplier === 'function') {
-            const magicMultiplier = getMagicDamageMultiplier();
-            if (magicMultiplier > 1.0) {
-                chipDamage = Math.floor(chipDamage * magicMultiplier);
-                addLog(`魔術効果発動！ダメージ${magicMultiplier.toFixed(2)}倍！`);
-            }
-        }
-        
         enemy.hp = Math.max(0, enemy.hp - chipDamage);
         showDamage("enemyDamage", chipDamage);
         addLog(`${me.name}の連続攻撃！ ${enemy.name}に ${chipDamage} のダメージ！`);
+
         updateHP();
 
         if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
@@ -2934,15 +2891,6 @@ function resolvePlayerCommand(command) {
         
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
-        
-        // 魔術によるダメージ倍率を適用（プレイヤー攻撃時のみ）
-        if (attacker === me && typeof getMagicDamageMultiplier === 'function') {
-            const magicMultiplier = getMagicDamageMultiplier();
-            if (magicMultiplier > 1.0) {
-                damage = Math.floor(damage * magicMultiplier);
-                addLog(`魔術効果発動！ダメージ${magicMultiplier.toFixed(2)}倍！`);
-            }
-        }
         
         // ★★★デバッグ武器のチェック★★★
         if (hasUniqueAbility(me, 'one_shot_kill')) {

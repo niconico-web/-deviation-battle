@@ -1132,6 +1132,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        // オリジナルスキル作成：「説明文で作成」/「素材で作成」の切り替え
+        // （上のスキルセクションのサブタブとはクラスを分けて、独立して動作させる）
+        const skillCreateModeBtns = document.querySelectorAll('.skill-create-mode-btn');
+        const skillCreateModeContents = document.querySelectorAll('.skill-create-mode-content');
+        skillCreateModeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                skillCreateModeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const modeId = btn.dataset.mode;
+                skillCreateModeContents.forEach(content => {
+                    content.classList.toggle('active', content.id === modeId);
+                });
+                // 「素材で作成」タブを開いたら、選択できる素材一覧を最新の状態で描画する
+                if (modeId === 'custom-skill-material' && typeof renderMaterialSkillSelectUI === 'function') {
+                    renderMaterialSkillSelectUI();
+                }
+            });
+        });
+
         // 初期表示時に最初のサブタブをアクティブにする
         if (skillSubTabs.length > 0) {
             // 既にアクティブなタブがなければ、最初のタブをクリックして表示状態を初期化
@@ -1303,11 +1322,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // スキルツリーの初期描画
         if (typeof renderSkillTreeUI === "function") {
             renderSkillTreeUI();
-        }
-
-        // 魔術システムの初期化
-        if (typeof initMagicSystem === "function") {
-            initMagicSystem();
         }
 
         // ステータス入力欄のイベントリスナー

@@ -1234,6 +1234,271 @@ function parseEffectFromDescription(description) {
     return effectFound ? finalEffect : null;
 }
 
+// ============================================
+// 素材によるオリジナルスキル作成
+// ============================================
+
+// 素材ID → スキル効果のベース値（レア度による倍率をかける前の値）
+// レア度は materials.js の MATERIAL_DATA / RARITY_MULTIPLIERS を利用する。
+const MATERIAL_SKILL_EFFECT_BASE = {
+    // ダメージ倍率系
+    harpy_feather:      { damageMultiplierBonus: 0.08 },
+    magic_powder:       { damageMultiplierBonus: 0.06 },
+    ancient_scroll:     { damageMultiplierBonus: 0.10 },
+    elemental_core:     { damageMultiplierBonus: 0.12 },
+    sun_crystal:        { damageMultiplierBonus: 0.14 },
+    void_essence:       { damageMultiplierBonus: 0.16 },
+    firefly_light:      { damageMultiplierBonus: 0.04 },
+    shaman_totem:       { damageMultiplierBonus: 0.06 },
+    tengu_fan:          { damageMultiplierBonus: 0.08 },
+    storm_feather:      { damageMultiplierBonus: 0.10 },
+    crystal_shard:      { damageMultiplierBonus: 0.04 },
+    star_dragon_scale:  { damageMultiplierBonus: 0.16 },
+    sphinx_riddle_stone:{ damageMultiplierBonus: 0.12 },
+
+    // 回復系
+    unicorn_horn:       { healPercent: 0.15 },
+    world_tree_leaf:    { healPercent: 0.20 },
+    // 復活・完全回復系の素材は、スキルには「復活」の仕組みが無いため、
+    // 代わりに強力な回復効果として再現する
+    phoenix_feather:    { healPercent: 0.25 },
+    celestial_ash:      { healPercent: 0.30 },
+    lich_phylactery:    { healPercent: 0.35 },
+
+    // 吸収系
+    wraith_shroud:      { lifeSteal: 0.15 },
+
+    // 即死・会心系
+    reaper_scythe_shard:{ critChance: 0.10, damageMultiplierBonus: 0.05 },
+
+    // 敵の攻撃力低下
+    serpent_scale:      { enemyAtkDebuff: 0.10 },
+    crow_feather:       { enemyAtkDebuff: 0.08 },
+
+    // 敵の防御力低下
+    kappa_plate:        { enemyDefDebuff: 0.10 },
+    hag_eye:            { enemyDefDebuff: 0.08 },
+
+    // 敵の速さ低下（睡眠・石化・ターンスキップ系も近似的にここへ）
+    moon_stone:         { speedDebuff: 0.10 },
+    cursed_thread:      { speedDebuff: 0.08 },
+    gravity_orb:        { speedDebuff: 0.15 },
+    dream_dust:         { speedDebuff: 0.12 },
+    time_sand:          { speedDebuff: 0.15 },
+    basilisk_eye:       { speedDebuff: 0.10, enemyDefDebuff: 0.05 },
+
+    // 敵の命中率低下
+    banshee_wail:       { enemyAccuracyDebuff: 0.10 },
+
+    // 敵の全ステータス低下（少しずつ複数に）
+    abyss_gem:          { enemyAtkDebuff: 0.05, enemyDefDebuff: 0.05, speedDebuff: 0.05 },
+    chimera_eye:        { enemyAtkDebuff: 0.04, enemyDefDebuff: 0.04, speedDebuff: 0.04 },
+
+    // 状態異常
+    blight_scale:       { poison: true }
+};
+
+// 各効果フィールドの最終上限（複数素材を組み合わせても際限なく強くならないようにする）
+const MATERIAL_SKILL_EFFECT_CAPS = {
+    damageMultiplierBonus: 2.0,   // 最終的な damageMultiplier は 1.0 + これ（最大3.0倍）
+    healPercent: 1.0,
+    lifeSteal: 0.5,
+    critChance: 0.5,
+    enemyAtkDebuff: 0.6,
+    enemyDefDebuff: 0.6,
+    speedDebuff: 0.6,
+    enemyAccuracyDebuff: 0.6
+};
+
+/**
+ * 素材を材料として使う場合に、その素材がスキルに使えるかどうかを判定する。
+ */
+function isSkillMaterial(materialId) {
+    return !!MATERIAL_SKILL_EFFECT_BASE[materialId];
+}
+
+/**
+ * 選択した素材（最大3つ）から、スキル効果オブジェクトと説明文を生成する。
+ * レア度が高い素材ほど、効果の倍率も大きくなる（武器のボーナス素材と同じ考え方）。
+ * @param {Array<string>} materialIds
+ * @returns {{ effect: object, descriptionParts: string[] }}
+ */
+function calculateMaterialSkillEffect(materialIds) {
+    const effect = { type: "active" };
+    const raw = {}; // フィールドごとの合計値（キャップ前）
+    const descriptionParts = [];
+
+    for (const materialId of materialIds) {
+        const base = MATERIAL_SKILL_EFFECT_BASE[materialId];
+        if (!base) continue;
+
+        const materialInfo = (typeof MATERIAL_DATA !== 'undefined') ? MATERIAL_DATA[materialId] : null;
+        const rarity = materialInfo ? materialInfo.rarity : 1;
+        const multiplier = (typeof RARITY_MULTIPLIERS !== 'undefined' ? RARITY_MULTIPLIERS[rarity] : null) || 1.0;
+        const materialName = materialInfo ? materialInfo.name : materialId;
+
+        for (const [field, value] of Object.entries(base)) {
+            if (field === 'poison') {
+                effect.poison = true;
+                continue;
+            }
+            raw[field] = (raw[field] || 0) + (value * multiplier);
+        }
+        descriptionParts.push(materialName);
+    }
+
+    // キャップを適用しつつ、effectオブジェクトに反映
+    if (raw.damageMultiplierBonus) {
+        const bonus = Math.min(raw.damageMultiplierBonus, MATERIAL_SKILL_EFFECT_CAPS.damageMultiplierBonus);
+        effect.damageMultiplier = Math.round((1 + bonus) * 100) / 100;
+    }
+    if (raw.healPercent) {
+        effect.healPercent = Math.min(raw.healPercent, MATERIAL_SKILL_EFFECT_CAPS.healPercent);
+    }
+    if (raw.lifeSteal) {
+        effect.lifeSteal = Math.min(raw.lifeSteal, MATERIAL_SKILL_EFFECT_CAPS.lifeSteal);
+    }
+    if (raw.critChance) {
+        effect.critChance = Math.min(raw.critChance, MATERIAL_SKILL_EFFECT_CAPS.critChance);
+    }
+    if (raw.enemyAtkDebuff) {
+        effect.enemyAtkDebuff = Math.min(raw.enemyAtkDebuff, MATERIAL_SKILL_EFFECT_CAPS.enemyAtkDebuff);
+    }
+    if (raw.enemyDefDebuff) {
+        effect.enemyDefDebuff = Math.min(raw.enemyDefDebuff, MATERIAL_SKILL_EFFECT_CAPS.enemyDefDebuff);
+    }
+    if (raw.speedDebuff) {
+        effect.speedDebuff = Math.min(raw.speedDebuff, MATERIAL_SKILL_EFFECT_CAPS.speedDebuff);
+    }
+    if (raw.enemyAccuracyDebuff) {
+        effect.enemyAccuracyDebuff = Math.min(raw.enemyAccuracyDebuff, MATERIAL_SKILL_EFFECT_CAPS.enemyAccuracyDebuff);
+    }
+
+    return { effect, descriptionParts };
+}
+
+/**
+ * 素材を使ってオリジナルスキルを作成する（説明文を書く代わりに、素材を最大3つ選ぶ作成方法）。
+ * 選んだ素材は消費される。
+ * @param {object} player
+ * @param {string} skillName
+ * @param {Array<string>} materialIds - 最大3つの素材ID
+ * @returns {{ success: boolean, player?: object, skill?: object, error?: string }}
+ */
+function createMaterialBasedSkill(player, skillName, materialIds) {
+    if (!skillName || !skillName.trim()) {
+        return { success: false, error: "スキル名を入力してください。" };
+    }
+    if (!materialIds || materialIds.length === 0) {
+        return { success: false, error: "素材を1つ以上選択してください。" };
+    }
+    if (materialIds.length > 3) {
+        return { success: false, error: "素材は最大3つまでしか選べません。" };
+    }
+
+    const materials = player.materials || {};
+    for (const materialId of materialIds) {
+        if (!isSkillMaterial(materialId)) {
+            return { success: false, error: "スキルの素材として使えない素材が含まれています。" };
+        }
+        if (!materials[materialId] || materials[materialId] < 1) {
+            return { success: false, error: "選択した素材を十分に所持していません。" };
+        }
+    }
+
+    const { effect, descriptionParts } = calculateMaterialSkillEffect(materialIds);
+
+    // 素材を消費
+    for (const materialId of materialIds) {
+        materials[materialId]--;
+        if (materials[materialId] <= 0) {
+            delete materials[materialId];
+        }
+    }
+    player.materials = materials;
+
+    if (!player.customSkills) {
+        player.customSkills = [];
+    }
+
+    const customSkill = {
+        id: `custom_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+        name: skillName.trim(),
+        description: `使用素材: ${descriptionParts.join('、')}`,
+        effect,
+        source: 'material',
+        createdAt: Date.now()
+    };
+
+    player.customSkills.push(customSkill);
+
+    return { success: true, player, skill: customSkill };
+}
+
+/**
+ * 「素材で作成」タブに、スキル素材として使える所持素材のチェックボックス一覧を描画する。
+ * 4つ目以降が選べないよう、3つ選択済みの状態では他のチェックボックスを無効化する。
+ */
+function renderMaterialSkillSelectUI() {
+    const container = document.getElementById('materialSkillSelectContainer');
+    if (!container) return;
+
+    const player = getPlayerData();
+    const materials = (player && player.materials) || {};
+
+    container.innerHTML = '';
+
+    const availableIds = Object.keys(MATERIAL_SKILL_EFFECT_BASE).filter(id => materials[id] && materials[id] > 0);
+
+    if (availableIds.length === 0) {
+        container.innerHTML = '<p>スキルの素材として使える素材を所持していません。</p>';
+        return;
+    }
+
+    const updateCheckboxStates = () => {
+        const checked = container.querySelectorAll('input[type="checkbox"]:checked');
+        const atLimit = checked.length >= 3;
+        container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            if (!cb.checked) cb.disabled = atLimit;
+        });
+    };
+
+    availableIds.forEach(materialId => {
+        const materialInfo = (typeof MATERIAL_DATA !== 'undefined') ? MATERIAL_DATA[materialId] : null;
+        if (!materialInfo) return;
+
+        const previewEffect = calculateMaterialSkillEffect([materialId]).effect;
+        const previewParts = [];
+        if (previewEffect.damageMultiplier) previewParts.push(`ダメージ${previewEffect.damageMultiplier}倍`);
+        if (previewEffect.healPercent) previewParts.push(`回復${Math.round(previewEffect.healPercent * 100)}%`);
+        if (previewEffect.lifeSteal) previewParts.push(`吸収${Math.round(previewEffect.lifeSteal * 100)}%`);
+        if (previewEffect.critChance) previewParts.push(`会心率+${Math.round(previewEffect.critChance * 100)}%`);
+        if (previewEffect.enemyAtkDebuff) previewParts.push(`敵攻撃-${Math.round(previewEffect.enemyAtkDebuff * 100)}%`);
+        if (previewEffect.enemyDefDebuff) previewParts.push(`敵防御-${Math.round(previewEffect.enemyDefDebuff * 100)}%`);
+        if (previewEffect.speedDebuff) previewParts.push(`敵速さ-${Math.round(previewEffect.speedDebuff * 100)}%`);
+        if (previewEffect.enemyAccuracyDebuff) previewParts.push(`敵命中-${Math.round(previewEffect.enemyAccuracyDebuff * 100)}%`);
+        if (previewEffect.poison) previewParts.push('毒付与');
+        const previewText = previewParts.length > 0 ? ` [${previewParts.join(', ')}]` : '';
+
+        const row = document.createElement('div');
+        row.className = 'material-checkbox';
+        row.innerHTML = `<input type="checkbox" id="skillmat-${materialId}" value="${materialId}"> <label for="skillmat-${materialId}">${materialInfo.name} (レア度${materialInfo.rarity} / x${materials[materialId]})${previewText}</label>`;
+        container.appendChild(row);
+    });
+
+    container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', updateCheckboxStates);
+    });
+}
+
+function getSelectedSkillMaterials() {
+    const selected = [];
+    document.querySelectorAll('#materialSkillSelectContainer input[type="checkbox"]:checked').forEach(cb => {
+        if (cb.value) selected.push(cb.value);
+    });
+    return selected.slice(0, 3);
+}
+
 // カスタムスキルの作成
 function createCustomSkill(player, skillName, skillDescription) {
     // コインチェック
@@ -1361,6 +1626,38 @@ function renderSkillTreeUI() {
         };
     } else {
         console.log('createCustomSkillBtn not found');
+    }
+
+    // 素材で作成
+    renderMaterialSkillSelectUI();
+    const createMaterialSkillBtn = document.getElementById('createMaterialSkillBtn');
+    if (createMaterialSkillBtn) {
+        createMaterialSkillBtn.onclick = () => {
+            const player = getPlayerData();
+            const skillName = document.getElementById('materialSkillName').value.trim();
+            const selectedMaterials = getSelectedSkillMaterials();
+
+            if (!skillName) {
+                alert('スキル名を入力してください。');
+                return;
+            }
+            if (selectedMaterials.length === 0) {
+                alert('素材を1つ以上選択してください。');
+                return;
+            }
+
+            const result = createMaterialBasedSkill(player, skillName, selectedMaterials);
+
+            if (result.success) {
+                localStorage.setItem("player", JSON.stringify(result.player));
+                alert(`オリジナルスキル「${result.skill.name}」を作成しました！\n${result.skill.description}`);
+                document.getElementById('materialSkillName').value = '';
+                renderSkillTreeUI();
+                if (typeof updateStatus === 'function') updateStatus(result.player);
+            } else {
+                alert(`作成に失敗しました:\n${result.error}`);
+            }
+        };
     }
 }
 
@@ -1794,6 +2091,9 @@ if (typeof window !== 'undefined') {
     window.applySkillEffectsToStats = applySkillEffectsToStats;
     window.validateCustomSkill = validateCustomSkill;
     window.createCustomSkill = createCustomSkill;
+    window.createMaterialBasedSkill = createMaterialBasedSkill;
+    window.isSkillMaterial = isSkillMaterial;
+    window.calculateMaterialSkillEffect = calculateMaterialSkillEffect;
     window.equipSkillToSlot = equipSkillToSlot;
     window.unequipSkillFromSlot = unequipSkillFromSlot;
     window.renderSkillTreeUI = renderSkillTreeUI;
