@@ -285,34 +285,6 @@ function initMaterials() {
             orbCraftingModal.style.display = 'none';
         };
     }
-    
-    // 魔術使用ボタン
-    const openMagicCraftingBtn = document.getElementById('openMagicCraftingBtn');
-    if (openMagicCraftingBtn) {
-        openMagicCraftingBtn.onclick = () => {
-            materialManagementModal.style.display = 'none';
-            // 魔術セクションに移動
-            const magicSection = document.getElementById('section-magic');
-            const magicMenuBtn = document.querySelector('.menu-btn[data-section="magic"]');
-            if (magicSection && magicMenuBtn) {
-                // 全てのセクションを非表示
-                document.querySelectorAll('.content-section').forEach(section => {
-                    section.classList.remove('active');
-                });
-                // 全てのメニューボタンのactiveクラスを削除
-                document.querySelectorAll('.menu-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                });
-                // 魔術セクションを表示
-                magicSection.classList.add('active');
-                magicMenuBtn.classList.add('active');
-                // 魔術メニューを表示
-                if (typeof showMagicMenu === 'function') {
-                    showMagicMenu();
-                }
-            }
-        };
-    }
 }
 
 /**

@@ -34,7 +34,6 @@
                 <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
                 <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
                 <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
-                <button class="menu-btn" data-section="magic"><span>✨</span> 魔術</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
                 <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
@@ -206,7 +205,6 @@
                         </div>
                         <hr>
                         <button id="openOrbCraftingBtn" class="btn btn-primary">オーブ作成</button>
-                        <button id="openMagicCraftingBtn" class="btn btn-primary">魔術使用</button>
                     </div>
                 </div>
 
@@ -274,26 +272,37 @@
 
                 <div id="custom-skills-content" class="sub-tab-content">
                     <h3>オリジナルスキル作成</h3>
-                    <div class="setting-box">
-                        <p>自分だけのオリジナルスキルを作成しよう！</p>
-                        <label class="field-label" for="customSkillName">スキル名</label>
-                        <input type="text" id="customSkillName" placeholder="スキル名を入力">
-                        <label class="field-label" for="customSkillDescription">スキルの内容</label>
-                        <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に毒付与"></textarea>
-                        <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
+                    <div class="sub-tabs">
+                        <button class="skill-create-mode-btn active" data-mode="custom-skill-text">説明文で作成</button>
+                        <button class="skill-create-mode-btn" data-mode="custom-skill-material">素材で作成</button>
                     </div>
+
+                    <div id="custom-skill-text" class="skill-create-mode-content active">
+                        <div class="setting-box">
+                            <p>自分だけのオリジナルスキルを作成しよう！</p>
+                            <label class="field-label" for="customSkillName">スキル名</label>
+                            <input type="text" id="customSkillName" placeholder="スキル名を入力">
+                            <label class="field-label" for="customSkillDescription">スキルの内容</label>
+                            <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に毒付与"></textarea>
+                            <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
+                        </div>
+                    </div>
+
+                    <div id="custom-skill-material" class="skill-create-mode-content">
+                        <div class="setting-box">
+                            <p>素材を最大3つまで選んで、その効果を組み合わせたオリジナルスキルを作成できる。選んだ素材は消費される。</p>
+                            <label class="field-label" for="materialSkillName">スキル名</label>
+                            <input type="text" id="materialSkillName" placeholder="スキル名を入力">
+                            <label class="field-label">使用する素材（最大3つ）</label>
+                            <div id="materialSkillSelectContainer" class="material-select-container">
+                                <!-- スキル素材として使える所持素材の一覧がここに描画される -->
+                            </div>
+                            <button id="createMaterialSkillBtn" class="btn btn-primary">素材でスキルを作成</button>
+                        </div>
+                    </div>
+
                     <h3>オリジナルスキルリスト</h3>
                     <div id="customSkillList" class="custom-skill-list"></div>
-                </div>
-            </section>
-
-            <section id="section-magic" class="content-section">
-                <h2>魔術</h2>
-                <div class="setting-box">
-                    <p>素材を使って魔術を発動させよう！魔術はバトルで有利な効果を与える。</p>
-                </div>
-                <div id="magicMenuContainer">
-                    <!-- 魔術メニューがここに表示される -->
                 </div>
             </section>
 
@@ -543,7 +552,6 @@
     <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
     <script src="js/help.js"></script>
-    <script src="js/magic.js"></script>
     <script src="js/guild.js"></script>
     <script src="js/tutorial-topics.js"></script>
     <script src="js/script.js"></script>
