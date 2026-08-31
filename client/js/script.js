@@ -1110,6 +1110,11 @@ document.addEventListener('DOMContentLoaded', () => {
             initShop();
         }
 
+        // カードパックショップの初期化
+        if (typeof renderCardPackShop === "function") {
+            renderCardPackShop();
+        }
+
         // デイリーミッションの初期化
         if (typeof initializeDailyMissions === "function") {
             initializeDailyMissions();
@@ -1129,24 +1134,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     // `active` クラスの付け外しで表示/非表示を切り替える
                     content.classList.toggle('active', content.id === subtabId);
                 });
-            });
-        });
 
-        // オリジナルスキル作成：「説明文で作成」/「素材で作成」の切り替え
-        // （上のスキルセクションのサブタブとはクラスを分けて、独立して動作させる）
-        const skillCreateModeBtns = document.querySelectorAll('.skill-create-mode-btn');
-        const skillCreateModeContents = document.querySelectorAll('.skill-create-mode-content');
-        skillCreateModeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                skillCreateModeBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                const modeId = btn.dataset.mode;
-                skillCreateModeContents.forEach(content => {
-                    content.classList.toggle('active', content.id === modeId);
-                });
-                // 「素材で作成」タブを開いたら、選択できる素材一覧を最新の状態で描画する
-                if (modeId === 'custom-skill-material' && typeof renderMaterialSkillSelectUI === 'function') {
-                    renderMaterialSkillSelectUI();
+                // デッキ編成タブを開いたら、選択できるカード一覧を最新の状態で描画する
+                if (subtabId === 'deck-builder-content' && typeof renderDeckBuilderUI === 'function') {
+                    renderDeckBuilderUI();
                 }
             });
         });

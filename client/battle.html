@@ -109,16 +109,24 @@ if ('serviceWorker' in navigator) {
 <div id="timer" class="timer">00:00</div>
 </div>
 <div class="skills-section">
-    <h3>アクティブスキル</h3>
+    <h3>手札 <span id="playerEnergyDisplay" class="energy-display">⚡ エナジー: 3</span></h3>
+    <button type="button" id="drawCardBtn" class="btn btn-primary draw-card-btn">🎴 ドロー（<span id="deckRemainingLabel">0</span>枚）</button>
     <div id="skillSlotsContainer" class="skill-slots"></div>
 </div>
+<div id="adHocQuestionModal" class="ad-hoc-question-modal" style="display:none;">
+    <div class="ad-hoc-question-box">
+        <h3 id="adHocQuestionLabel">カードを発動！問題に正解しよう</h3>
+        <div id="adHocQuestionText" class="question-display"></div>
+        <div id="adHocChoicesContainer" class="choices-container"></div>
+    </div>
+</div>
 <div id="commandMenu" class="command-menu" style="display:none;">
-    <h3>コマンドを選択</h3>
+    <h3>基本カードを選択</h3>
     <div class="command-buttons">
-        <button type="button" id="cmdAttackBtn" class="btn btn-command">⚔️ 攻撃</button>
-        <button type="button" id="cmdSpecialBtn" class="btn btn-command">✨ 特殊</button>
-        <button type="button" id="cmdDefendBtn" class="btn btn-command">🛡️ 防御</button>
-        <button type="button" id="cmdUltimateBtn" class="btn btn-command">💥 必殺技</button>
+        <button type="button" id="cmdAttackBtn" class="btn btn-command">⚔️ 攻撃<span class="card-cost">⚡0</span></button>
+        <button type="button" id="cmdSpecialBtn" class="btn btn-command">✨ 特殊<span class="card-cost">⚡0</span></button>
+        <button type="button" id="cmdDefendBtn" class="btn btn-command">🛡️ 防御<span class="card-cost">⚡0</span></button>
+        <button type="button" id="cmdUltimateBtn" class="btn btn-command">💥 必殺技<span class="card-cost">⚡0</span></button>
     </div>
 </div>
 <div id="log" class="battle-log">&#25126;&#38360;&#38283;&#22987;&#65281;</div>
@@ -168,8 +176,10 @@ if ('serviceWorker' in navigator) {
 <script src="js/stats.js?v=1788086431048"></script>
 <script src="js/weapons.js?v=1788086431048"></script>
 <script src="js/boss_questions.js?v=1788086431048"></script>
+<script src="js/questions.js?v=1788086431048"></script>
 <script src="js/skillTree.js?v=1788086431048"></script>
 <script src="js/materials.js?v=1788086431048"></script>
+<script src="js/cards.js?v=1788086431048"></script>
 <script src="js/tutorial.js?v=1788086431048"></script>
 <script src="js/practice-coach.js?v=1788086431048"></script>
 <script src="js/battle.js?v=1788086431048"></script>

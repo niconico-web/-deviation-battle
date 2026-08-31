@@ -123,6 +123,65 @@
     margin-right: 10px;
 }
 
+.card-pack-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.card-pack-item {
+    background: linear-gradient(160deg, rgba(91, 155, 213, 0.15), rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.card-pack-item h4 {
+    margin: 0 0 6px;
+    color: var(--accent-blue, #5b9bd5);
+}
+
+.card-pack-item .pack-cost {
+    font-weight: bold;
+    color: #ffd700;
+    margin: 2px 0;
+}
+
+.card-pack-item .pack-odds {
+    font-size: 0.75em;
+    color: var(--text-secondary);
+    margin: 4px 0 8px;
+}
+
+.card-select-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.card-select-item {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.card-select-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.card-select-item .card-name {
+    font-weight: bold;
+}
+
+.card-select-item .card-desc {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
 .material-checkbox label {
     color: var(--text-primary);
     cursor: pointer;
