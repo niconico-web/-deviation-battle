@@ -167,6 +167,9 @@ function removeMaterialFromPlayer(materialId, count = 1) {
 
 /**
  * 素材インベントリのUI（一覧）をレンダリングする。
+ * 通常のモンスター素材（MATERIAL_DATAに定義されているもの）と、
+ * ボスの限界突破素材（"{bossId}_limit_break_material" というIDで保存されるもの）の
+ * 両方をまとめて表示する。
  */
 function renderMaterialsInventory() {
     const container = document.getElementById('materialsInventoryList');
@@ -185,6 +188,32 @@ function renderMaterialsInventory() {
     }
 
     for (const materialId in materials) {
+        const count = materials[materialId];
+        if (!count || count <= 0) continue;
+
+        // ボスの限界突破素材（"{bossId}_limit_break_material"）かどうかを判定する
+        if (materialId.endsWith('_limit_break_material')) {
+            const bossId = materialId.replace('_limit_break_material', '');
+            const bosses = window.bosses || [];
+            const boss = bosses.find(b => b.id === bossId);
+            const materialName = (boss && typeof getBossLimitBreakMaterialName === 'function')
+                ? getBossLimitBreakMaterialName(boss.name)
+                : materialId;
+
+            const materialEl = document.createElement('div');
+            materialEl.className = 'material-item';
+            materialEl.innerHTML = `
+                <div class="material-header">
+                    <span class="material-name">${materialName}</span>
+                    <span class="material-count">x ${count}</span>
+                </div>
+                <p class="material-description">${boss ? `「${boss.name}」の武器を限界突破するための素材。` : 'ボス武器の限界突破に使用する素材。'}</p>
+            `;
+            container.appendChild(materialEl);
+            continue;
+        }
+
+        // 通常のモンスター素材
         const materialInfo = MATERIAL_DATA[materialId];
         if (materialInfo) {
             const materialEl = document.createElement('div');
@@ -192,13 +221,23 @@ function renderMaterialsInventory() {
             materialEl.innerHTML = `
                 <div class="material-header">
                     <span class="material-name">${materialInfo.name}</span>
-                    <span class="material-count">x ${materials[materialId]}</span>
+                    <span class="material-count">x ${count}</span>
                 </div>
-                <p class="material-description">${materialInfo.description}</p>
+                <p class="material-description">${materialInfo.description}（レア度: ${materialInfo.rarity}）</p>
             `;
             container.appendChild(materialEl);
         } else {
             console.warn("Material info not found for:", materialId);
+            const materialEl = document.createElement('div');
+            materialEl.className = 'material-item';
+            materialEl.innerHTML = `
+                <div class="material-header">
+                    <span class="material-name">${materialId}</span>
+                    <span class="material-count">x ${count}</span>
+                </div>
+                <p class="material-description">詳細不明の素材です。</p>
+            `;
+            container.appendChild(materialEl);
         }
     }
 }
