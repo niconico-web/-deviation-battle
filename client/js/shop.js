@@ -707,9 +707,16 @@ function showCreateWeaponDialog() {
             availableWeaponMaterials.forEach(matId => {
                 const material = typeof MATERIAL_DATA !== 'undefined' ? MATERIAL_DATA[matId] : null;
                 if (material) {
+                    // この素材1つを選んだ場合に付与されるステータスボーナスをプレビュー表示する
+                    let bonusPreview = '';
+                    if (typeof calculateWeaponMaterialBonus === 'function' && typeof formatStatBonusSummary === 'function') {
+                        const previewBonus = calculateWeaponMaterialBonus([matId]);
+                        const previewText = formatStatBonusSummary(previewBonus);
+                        if (previewText) bonusPreview = ` [${previewText}]`;
+                    }
                     const checkbox = document.createElement('div');
                     checkbox.className = 'material-checkbox';
-                    checkbox.innerHTML = `<input type="checkbox" id="mat-${matId}" value="${matId}"> <label for="mat-${matId}">${material.name} (x${materials[matId]})</label>`;
+                    checkbox.innerHTML = `<input type="checkbox" id="mat-${matId}" value="${matId}"> <label for="mat-${matId}">${material.name} (レア度${material.rarity} / x${materials[matId]})${bonusPreview}</label>`;
                     materialSelectContainer.appendChild(checkbox);
                 }
             });
@@ -845,18 +852,9 @@ function initShop() {
             }
             playerAfterCost.materials = remainingMaterials;
             
-            // 武器を作成（ボーナス素材を含む）
+            // 武器を作成（ボーナス素材を含む。素材によるステータスボーナスはcreateOriginalWeapon内で計算・付与される）
             let weapon = createOriginalWeapon(name, type, {}, ultimateName, selectedBonusMaterials);
-            
-            // ボーナス素材による補正をログ出力
-            if (selectedBonusMaterials.length > 0) {
-                console.log("Bonus materials:", selectedBonusMaterials);
-                if (typeof calculateWeaponMaterialBonus === 'function') {
-                    const bonus = calculateWeaponMaterialBonus(selectedBonusMaterials);
-                    console.log("Calculated bonus:", bonus);
-                }
-            }
-            
+
             weapon = applyOrbToWeapon(weapon, selectedOrbs);
             
             // デュアルウェポン情報を追加
@@ -869,7 +867,14 @@ function initShop() {
             localStorage.setItem("player", JSON.stringify(updatedPlayer));
             if (typeof updateMissionProgress === 'function') updateMissionProgress('create_weapon');
             
-            alert(`オリジナル武器「${weapon.name}」を作成しました！`);
+            let createMessage = `オリジナル武器「${weapon.name}」を作成しました！`;
+            if (weapon.materialBonuses && typeof formatStatBonusSummary === 'function') {
+                const materialBonusText = formatStatBonusSummary(weapon.materialBonuses);
+                if (materialBonusText) {
+                    createMessage += `\n\nボーナス素材の効果: ${materialBonusText}`;
+                }
+            }
+            alert(createMessage);
             
             document.getElementById('createWeaponModal').style.display = 'none';
             renderOriginalWeapons();

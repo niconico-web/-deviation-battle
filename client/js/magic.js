@@ -41,26 +41,10 @@ const MAGIC_DATA = {
     blight_scale: { id: 'blight_scale', name: '疫龍の鱗', type: 'curse', effect: 'enemy_poison', duration: 3, description: '次のバトルで相手を毒状態にする' },
 };
 
-// 武器素材として使用できる素材ID
-const WEAPON_MATERIALS = [
-    'goblin_fang',
-    'orc_horn',
-    'minotaur_horn',
-    'ogre_fist',
-    'silver_ore',
-    'dragon_bone',
-    'griffin_claw',
-    'titan_stone',
-    'dragon_soul',
-    'divine_crystal',
-    'hornet_stinger',
-    'scorpion_tail',
-    'jackal_fang',
-    'oni_horn_fragment',
-    'manticore_stinger',
-    'werebear_claw',
-    'world_serpent_fang'
-];
+// 武器素材として使用できる素材IDのリストは materials.js の WEAPON_MATERIALS を使用する。
+// （以前はここにも同名の定数が重複定義されており、materials.js より後に読み込まれるため
+// 「Identifier 'WEAPON_MATERIALS' has already been declared」という致命的なエラーが発生し、
+// このファイル全体の読み込みが失敗する原因になっていた）
 
 /**
  * プレイヤーのアクティブな魔術効果を取得

@@ -549,11 +549,12 @@ function applyOrbToWeapon(weapon, orbs) {
         totalBonus[orb.statType] += orb.bonus;
     }
 
-    // ステータス補正を適用（既存の補正を上書きせず、オーブの補正のみを適用）
-    newWeapon.statBonuses = {}; // 新しい武器なので補正をリセット
-    for (const [stat, bonus] of Object.entries(totalBonus)) {
-        newWeapon.statBonuses[stat] = bonus;
-    }
+    // ステータス補正を再計算する。
+    // ボーナス素材による補正（materialBonuses）は武器作成時に別枠で保持しているので、
+    // オーブを組み込み直してもボーナス素材の効果が消えないよう、ここで合算する。
+    newWeapon.materialBonuses = weapon.materialBonuses || {};
+    newWeapon.bonusMaterials = weapon.bonusMaterials || [];
+    newWeapon.statBonuses = mergeStatBonuses(totalBonus, newWeapon.materialBonuses);
 
     // ユニーク能力を適用（Tier4オーブから）
     const uniqueAbilities = orbs
@@ -833,11 +834,53 @@ function getWeaponMultiplier(weapon) {
     return TIER_MULT[weapon.tier] || 1;
 }
 
-function createOriginalWeapon(name, type, statBonuses, ultimateName) {
+/**
+ * 複数のステータスボーナスオブジェクトを合算する。
+ * 例: mergeStatBonuses({ atk: 0.05 }, { atk: 0.1, def: 0.05 }) => { atk: 0.15, def: 0.05 }
+ * @param {...object} bonusObjects - { atk, def, speed, maxHp, special } 形式のオブジェクト群
+ * @returns {object} 合算されたボーナスオブジェクト
+ */
+function mergeStatBonuses(...bonusObjects) {
+    const merged = {};
+    for (const bonusObj of bonusObjects) {
+        if (!bonusObj) continue;
+        for (const [stat, value] of Object.entries(bonusObj)) {
+            if (!value) continue;
+            merged[stat] = (merged[stat] || 0) + value;
+        }
+    }
+    return merged;
+}
+
+/**
+ * ステータスボーナスオブジェクトを「攻撃+12%, 防御+8%」のような表示用テキストに変換する。
+ * @param {object} bonusObj - { atk, def, speed, maxHp, special } 形式のオブジェクト
+ * @returns {string} 表示用テキスト（ボーナスが無い場合は空文字）
+ */
+function formatStatBonusSummary(bonusObj) {
+    if (!bonusObj) return '';
+    const parts = [];
+    for (const [stat, value] of Object.entries(bonusObj)) {
+        if (!value) continue;
+        const label = ORB_STAT_LABELS[stat] || stat;
+        const percent = Math.round(value * 100);
+        parts.push(`${label}${percent >= 0 ? '+' : ''}${percent}%`);
+    }
+    return parts.join(', ');
+}
+
+function createOriginalWeapon(name, type, statBonuses, ultimateName, bonusMaterialIds) {
     // 武器名のバリデーション
     const validation = validateName(name);
     if (!validation.valid) {
         return { error: validation.reason };
+    }
+
+    // ボーナス素材からステータスボーナスを計算する
+    // （素材のレア度が高いほど倍率が上がり、上昇するステータスは素材ごとに異なる）
+    let materialBonuses = {};
+    if (bonusMaterialIds && bonusMaterialIds.length > 0 && typeof calculateWeaponMaterialBonus === 'function') {
+        materialBonuses = calculateWeaponMaterialBonus(bonusMaterialIds);
     }
 
     const id = `original_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -847,7 +890,11 @@ function createOriginalWeapon(name, type, statBonuses, ultimateName) {
         type,
         isOriginal: true,
         multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
-        statBonuses: statBonuses || {}, // { atk: 0.5, def: -0.3, speed: 0.2 } etc.
+        // { atk: 0.5, def: -0.3, speed: 0.2 } 等。手動指定分とボーナス素材分を合算する
+        statBonuses: mergeStatBonuses(statBonuses, materialBonuses),
+        // ボーナス素材によるステータスボーナスは、後からオーブを組み込んでも消えないよう別枠で保持する
+        materialBonuses,
+        bonusMaterials: bonusMaterialIds ? [...bonusMaterialIds] : [],
         upgradeCount: 0,
         ultimateName: ultimateName || null // オリジナル武器の必殺技名
     };

@@ -170,9 +170,13 @@ function removeMaterialFromPlayer(materialId, count = 1) {
  */
 function renderMaterialsInventory() {
     const container = document.getElementById('materialsInventoryList');
-    if (!container) return;
+    if (!container) {
+        console.error("materialsInventoryList container not found");
+        return;
+    }
 
     const materials = getPlayerMaterials();
+    console.log("Rendering materials inventory:", materials);
     container.innerHTML = '';
 
     if (Object.keys(materials).length === 0) {
@@ -186,11 +190,15 @@ function renderMaterialsInventory() {
             const materialEl = document.createElement('div');
             materialEl.className = 'material-item';
             materialEl.innerHTML = `
-                <span class="material-name">${materialInfo.name}</span>
-                <span class="material-count">x ${materials[materialId]}</span>
+                <div class="material-header">
+                    <span class="material-name">${materialInfo.name}</span>
+                    <span class="material-count">x ${materials[materialId]}</span>
+                </div>
                 <p class="material-description">${materialInfo.description}</p>
             `;
             container.appendChild(materialEl);
+        } else {
+            console.warn("Material info not found for:", materialId);
         }
     }
 }
@@ -331,33 +339,33 @@ const WEAPON_MATERIALS = [
 
 // 武器素材ボーナス定義（レア度による基本倍率）
 const WEAPON_MATERIAL_BONUSES = {
-    goblin_fang: { rarity: 1, atk: 0.01 },
-    orc_horn: { rarity: 2, atk: 0.02 },
-    minotaur_horn: { rarity: 2, atk: 0.03 },
-    ogre_fist: { rarity: 2, atk: 0.02, def: 0.01 },
-    silver_ore: { rarity: 2, atk: 0.015, special: 0.015 },
-    dragon_bone: { rarity: 3, atk: 0.03, def: 0.015 },
-    griffin_claw: { rarity: 3, atk: 0.025, speed: 0.015 },
-    titan_stone: { rarity: 3, atk: 0.03, def: 0.02, maxHp: 0.015 },
-    dragon_soul: { rarity: 4, atk: 0.05, def: 0.025, speed: 0.025, special: 0.025 },
-    divine_crystal: { rarity: 4, atk: 0.04, def: 0.04, special: 0.04 },
-    hornet_stinger: { rarity: 1, atk: 0.01 },
-    scorpion_tail: { rarity: 1, atk: 0.01 },
-    jackal_fang: { rarity: 1, atk: 0.008, speed: 0.008 },
-    oni_horn_fragment: { rarity: 2, atk: 0.015 },
-    manticore_stinger: { rarity: 3, atk: 0.02 },
-    werebear_claw: { rarity: 3, atk: 0.025, def: 0.015 },
-    world_serpent_fang: { rarity: 4, atk: 0.045, def: 0.02, speed: 0.02 },
-    boar_tusk: { rarity: 1, atk: 0.008 },
-    iron_ore: { rarity: 2, atk: 0.01, def: 0.005 }
+    goblin_fang: { rarity: 1, atk: 0.05 },
+    orc_horn: { rarity: 2, atk: 0.08 },
+    minotaur_horn: { rarity: 2, atk: 0.10 },
+    ogre_fist: { rarity: 2, atk: 0.07, def: 0.05 },
+    silver_ore: { rarity: 2, atk: 0.05, special: 0.08 },
+    dragon_bone: { rarity: 3, atk: 0.12, def: 0.08 },
+    griffin_claw: { rarity: 3, atk: 0.10, speed: 0.10 },
+    titan_stone: { rarity: 3, atk: 0.12, def: 0.10, maxHp: 0.08 },
+    dragon_soul: { rarity: 4, atk: 0.20, def: 0.15, speed: 0.15, special: 0.15 },
+    divine_crystal: { rarity: 4, atk: 0.15, def: 0.15, special: 0.20 },
+    hornet_stinger: { rarity: 1, atk: 0.04 },
+    scorpion_tail: { rarity: 1, atk: 0.04 },
+    jackal_fang: { rarity: 1, atk: 0.03, speed: 0.05 },
+    oni_horn_fragment: { rarity: 2, atk: 0.06 },
+    manticore_stinger: { rarity: 3, atk: 0.08 },
+    werebear_claw: { rarity: 3, atk: 0.10, def: 0.08 },
+    world_serpent_fang: { rarity: 4, atk: 0.18, def: 0.12, speed: 0.12 },
+    boar_tusk: { rarity: 1, atk: 0.03 },
+    iron_ore: { rarity: 2, atk: 0.05, def: 0.03 }
 };
 
 // レア度による倍率
 const RARITY_MULTIPLIERS = {
     1: 1.0,
-    2: 1.5,
-    3: 2.0,
-    4: 2.5
+    2: 2.0,
+    3: 3.0,
+    4: 4.0
 };
 
 /**
