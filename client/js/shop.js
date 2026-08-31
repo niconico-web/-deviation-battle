@@ -385,35 +385,10 @@ function renderOriginalWeapons() {
     }
 }
 
-function renderMaterialsInventory() {
-    const container = document.getElementById("materialsInventoryList");
-    if (!container) return;
-    container.innerHTML = "";
-
-    const player = getPlayerData();
-    if (!player || !player.materials || Object.keys(player.materials).length === 0) {
-        container.innerHTML = "<p>素材を所持していません。</p>";
-        return;
-    }
-
-    for (const [materialId, count] of Object.entries(player.materials)) {
-        if (count <= 0) continue;
-        // 素材IDからボス名を取得する（暫定的な方法）
-        const bossId = materialId.replace('_limit_break_material', '');
-        const bosses = window.bosses || [];
-        const boss = bosses.find(b => b.id === bossId);
-        const materialName = boss ? getBossLimitBreakMaterialName(boss.name) : materialId;
-
-        const item = document.createElement("div");
-        item.className = "inventory-item";
-        item.innerHTML = `
-            <div class="inventory-item-info">
-                <strong>${materialName}</strong>
-                <span>所持数: ${count}</span>
-            </div>`;
-        container.appendChild(item);
-    }
-}
+// renderMaterialsInventory() は materials.js 側で定義されている（通常素材とボス限界突破素材の両方に対応）。
+// 以前はここにも同名の関数が重複定義されており、materials.js より後に読み込まれるこちらの定義で
+// 上書きされてしまい、「素材インベントリ」に素材名・説明が表示されず素材IDがそのまま表示される
+// 不具合の原因になっていた。
 
 function renderOrbInventory() {
     const container = document.getElementById("orbInventory");
