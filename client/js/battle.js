@@ -2060,10 +2060,21 @@ function handleATBAnswer(selectedOption) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
         showCorrectEffect();
 
-        // 正解のたびに小さな追撃ダメージ（自分の攻撃力の0.5倍）
-        const myAtkStat = me.atk || 0;
+        // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
+        const attackType = me.attackType || 'attack';
+        
+        // 攻撃力または特殊攻撃力を基準にする
+        let baseAtk = attackType === 'special' ? (me.special || me.atk) : (me.atk || 0);
+        
+        // 正解のたびに小さな追撃ダメージ（攻撃力の0.5倍）
         const defReduction = Math.floor((enemy.def || 0) * 0.1);
-        let chipDamage = Math.max(1, Math.floor(myAtkStat * 0.5) - defReduction);
+        let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
+        
+        // アクティブスキルのダメージ倍率を適用
+        if (skillEffect && skillEffect.damageMultiplier) {
+            chipDamage = Math.floor(chipDamage * skillEffect.damageMultiplier);
+            addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
+        }
         
         enemy.hp = Math.max(0, enemy.hp - chipDamage);
         showDamage("enemyDamage", chipDamage);
