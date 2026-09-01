@@ -298,6 +298,36 @@ body {
     flex-wrap: wrap;
 }
 
+/* 攻撃タイプセレクター */
+.attack-type-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.attack-type-btn {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-medium);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.attack-type-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+}
+
+.attack-type-btn.active {
+    border-color: var(--accent-blue);
+    background: rgba(91, 155, 213, 0.2);
+    color: var(--accent-blue);
+}
+
 .sub-tab-btn, .skill-create-mode-btn {
     padding: 8px 14px;
     border-radius: 8px;
