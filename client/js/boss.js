@@ -287,31 +287,6 @@ function applyBossRewards(player, boss) {
         newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
     }
 
-    // ---- カードパック報酬 ----
-    // このボス・この難易度を初めて撃破した時に、難易度に応じたカードパックを1つ贈呈する
-    // （中身はランダムな素材＝カードなので、その場で自動開封して結果画面に表示する）
-    const alreadyGotCardReward = hasDefeatedBoss(player, boss.id, difficulty);
-    if (!alreadyGotCardReward && typeof grantFreePack === 'function') {
-        const packIdByDifficulty = {
-            easy: 'bronze_pack',
-            medium: 'silver_pack',
-            hard: 'gold_pack',
-            extreme: 'legendary_pack'
-        };
-        const packId = packIdByDifficulty[difficulty] || 'bronze_pack';
-        const packResult = grantFreePack(newPlayer, packId);
-        if (packResult.success) {
-            newPlayer = packResult.player;
-            const pack = getPackType(packId);
-            const materialNames = packResult.materials.map(id => {
-                const info = (typeof MATERIAL_DATA !== 'undefined') ? MATERIAL_DATA[id] : null;
-                return info ? info.name : id;
-            });
-            rewardsForDisplay.bossCardPack = { packName: pack ? pack.name : packId, materials: materialNames };
-        }
-        newPlayer = markBossDefeated(newPlayer, boss.id, difficulty);
-    }
-
     // ---- 周回報酬（限界突破素材） ----
     // 既にこのボスの武器を所持していて、ノーマルかハードを攻略した場合は毎回もらえる
     if ((difficulty === 'medium' || difficulty === 'hard') && ownedWeaponBefore) {

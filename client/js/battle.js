@@ -19,20 +19,13 @@ if (isPracticeTutorial) {
 const practiceCoachShown = { question: false, command: false, skill: false };
 
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
-let activeSkills = []; // 現在の手札（スキルカード・素材カード）として利用する
+let activeSkills = [];
 let selectedSkill = null;
 let usedSkills = [];
 let skillActivationWindow = false;
 let skillActivationTimer = null;
 let bossAutoAnswerTimer = null; // Boss auto-answer timer
 const BOSS_AUTO_ANSWER_TIMEOUT = 3000; // 3 seconds for boss to auto-answer
-
-// ==== カードシステム（デッキ・エナジー） ====
-let playerDeckQueue = [];   // まだ引かれていないデッキの残りカード
-let playerDiscardPile = []; // 使用済み・引かれずに戦闘が終わったカード（このバトル中は再利用しない）
-let playerEnergy = 3;       // 現在のエナジー
-const STARTING_ENERGY = 3;
-const ENERGY_PER_CORRECT_ANSWER = 2;
 
 // ==== ATB（アクティブ型）バトルシステム（ボス戦のみ） ====
 // ボス側は素早さに応じてリアルタイムで行動ゲージが進行する。
@@ -120,7 +113,6 @@ document.getElementById("cmdSpecialBtn")?.addEventListener("click", () => select
 document.getElementById("cmdDefendBtn")?.addEventListener("click", () => selectCommand("defend"));
 document.getElementById("cmdUltimateBtn")?.addEventListener("click", () => selectCommand("ultimate"));
 document.getElementById("atbGuardBtn")?.addEventListener("click", () => activateATBGuard());
-document.getElementById("drawCardBtn")?.addEventListener("click", () => handleDrawButtonClick());
 
 /**
  * コマンドボタンが押された時の共通入口。
@@ -1176,268 +1168,140 @@ function shuffleArray(array) {
 // スキルシステム（バトル中）
 // ============================================
 
-// バトルスキルの初期化（デッキを組み立てて、最初の手札を引く）
+// バトルスキルの初期化
 function initializeBattleSkills() {
     try {
-        console.log("Initializing battle deck...");
-        let player = getSavedPlayer();
+        console.log("Initializing battle skills...");
+        // プレイヤーデータからスキルツリー情報を取得
+        const player = getSavedPlayer();
         if (!player) {
-            console.log("Player data not found, skipping deck initialization");
-            playerDeckQueue = [];
+            console.log("Player data not found, skipping skill initialization");
             activeSkills = [];
             renderSkills();
             return;
         }
-
+        
+        console.log("Player data found:", player);
+        console.log("Player skillSlots:", player.skillSlots);
+        
+        // スキルデータを初期化（関数が存在する場合のみ）
         if (typeof initializeSkillData === 'function') {
-            player = initializeSkillData(player);
-        }
-
-        // デッキ（最大30枚）に登録されたカードIDを、実際のカードオブジェクトに変換する
-        let deckCards = [];
-        if (typeof getPlayerDeck === 'function' && typeof resolveCardById === 'function') {
-            const deckIds = getPlayerDeck(player);
-            deckCards = deckIds
-                .map(id => resolveCardById(player, id))
-                .filter(card => card !== null);
-        }
-
-        // シャッフルしてデッキの山にする
-        playerDeckQueue = typeof shuffleArray === 'function' ? shuffleArray(deckCards) : deckCards;
-        playerDiscardPile = [];
-        playerEnergy = STARTING_ENERGY;
-
-        // 最初の手札を引く
-        activeSkills = [];
-        const initialDraw = Math.min(STARTING_HAND_SIZE || 5, playerDeckQueue.length);
-        for (let i = 0; i < initialDraw; i++) {
-            activeSkills.push(playerDeckQueue.shift());
-        }
-
-        console.log("Deck size:", playerDeckQueue.length, "Starting hand:", activeSkills);
-
-        usedSkills = [];
-        renderSkills();
-        updateEnergyDisplay();
-    } catch (error) {
-        console.error("Error initializing battle deck:", error);
-        playerDeckQueue = [];
-        activeSkills = [];
-        usedSkills = [];
-        renderSkills();
-    }
-}
-
-/**
- * 正解した時に呼ばれる：エナジーを獲得する。
- * （カードのドローは「ドロー」ボタンから、専用の問題に正解した時のみ行う）
- */
-function gainEnergyAndDrawCard() {
-    playerEnergy += ENERGY_PER_CORRECT_ANSWER;
-    updateEnergyDisplay();
-    renderSkills();
-}
-
-/**
- * エナジー表示を更新する。
- */
-function updateEnergyDisplay() {
-    const el = document.getElementById('playerEnergyDisplay');
-    if (el) {
-        el.textContent = `⚡ エナジー: ${playerEnergy}`;
-    }
-    const deckLabel = document.getElementById('deckRemainingLabel');
-    if (deckLabel) {
-        deckLabel.textContent = playerDeckQueue.length;
-    }
-}
-
-// ============================================
-// アドホック問題（ドロー・カード発動用の単発の問題）
-// ============================================
-let adHocQuestionActive = false;
-let adHocCurrentQuestion = null;
-let adHocResolveCallback = null;
-
-/**
- * ランダムな問題を1つ選ぶ（ボス戦かどうかに応じて問題データを切り替える）。
- */
-function pickRandomQuestionForAdHoc() {
-    const subjectPool = isBossBattle ? ['math', 'jp', 'eng', 'sci', 'soc'] : ['math', 'jp', 'eng'];
-    const shuffled = typeof shuffleArray === 'function' ? shuffleArray(subjectPool) : subjectPool;
-    for (const subject of shuffled) {
-        const qs = isBossBattle ? getLocalBossQuestions(subject) : getLocalRegularQuestions(subject);
-        if (qs && qs.length > 0) {
-            const q = qs[Math.floor(Math.random() * qs.length)];
-            return { ...q, subject };
-        }
-    }
-    return { question: '3 + 4 = ?', answer: '7', subject: 'math' };
-}
-
-/**
- * ドローやカード発動の際に、単発の問題を表示する。
- * 正解/不正解の結果を onResolved(isCorrect) で受け取る。
- */
-function showAdHocQuestion(labelText, onResolved) {
-    if (adHocQuestionActive) return; // 既に別のアドホック問題が進行中
-    adHocQuestionActive = true;
-    adHocResolveCallback = onResolved;
-    adHocCurrentQuestion = pickRandomQuestionForAdHoc();
-
-    const modal = document.getElementById('adHocQuestionModal');
-    const label = document.getElementById('adHocQuestionLabel');
-    const textEl = document.getElementById('adHocQuestionText');
-    const choicesEl = document.getElementById('adHocChoicesContainer');
-    if (!modal || !textEl || !choicesEl) {
-        // モーダルが無い場合は、問題を出さずにそのまま成功扱いにする（保険）
-        adHocQuestionActive = false;
-        adHocResolveCallback = null;
-        if (onResolved) onResolved(true);
-        return;
-    }
-
-    if (label) label.textContent = labelText;
-    textEl.textContent = adHocCurrentQuestion.question;
-    choicesEl.innerHTML = '';
-
-    const options = typeof generateOptionsForQuestion === 'function'
-        ? generateOptionsForQuestion(adHocCurrentQuestion)
-        : [adHocCurrentQuestion.answer];
-
-    options.forEach(option => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = option;
-        btn.onclick = () => handleAdHocAnswer(option);
-        choicesEl.appendChild(btn);
-    });
-
-    modal.style.display = 'flex';
-}
-
-function handleAdHocAnswer(selectedOption) {
-    if (!adHocQuestionActive || !adHocCurrentQuestion) return;
-
-    const isCorrect = selectedOption.trim() === adHocCurrentQuestion.answer;
-    const modal = document.getElementById('adHocQuestionModal');
-    if (modal) modal.style.display = 'none';
-
-    adHocQuestionActive = false;
-    const callback = adHocResolveCallback;
-    adHocResolveCallback = null;
-    adHocCurrentQuestion = null;
-
-    if (callback) callback(isCorrect);
-}
-
-/**
- * 「ドロー」ボタン：問題に正解したら、デッキから1枚カードを引く。
- */
-function handleDrawButtonClick() {
-    if (adHocQuestionActive) return;
-    if (playerDeckQueue.length === 0) {
-        addLog('デッキにカードが残っていません');
-        return;
-    }
-    const maxHand = (typeof MAX_HAND_SIZE !== 'undefined') ? MAX_HAND_SIZE : 8;
-    if (activeSkills.length >= maxHand) {
-        addLog('手札がいっぱいです');
-        return;
-    }
-
-    showAdHocQuestion('ドロー！問題に正解しよう', (isCorrect) => {
-        if (isCorrect) {
-            activeSkills.push(playerDeckQueue.shift());
-            addLog(`正解！カードを1枚ドローした（残りデッキ: ${playerDeckQueue.length}枚）`);
+            const initializedPlayer = initializeSkillData(player);
+            console.log("Initialized player skill data:", initializedPlayer);
+            
+            // アクティブスキルを取得
+            if (typeof getSkillNodeEffects === 'function') {
+                const skillEffects = getSkillNodeEffects(initializedPlayer);
+                console.log("Skill effects:", skillEffects);
+                
+                // カスタムスキルも追加
+                const customSkills = initializedPlayer.customSkills || [];
+                console.log("Custom skills:", customSkills);
+                
+                // スキルスロットにあるスキルのみをアクティブスキルとして使用
+                const slottedSkills = (initializedPlayer.skillSlots || []).filter(skill => skill !== null);
+                console.log("Slotted skills:", slottedSkills);
+                activeSkills = [];
+                
+                // skillEffects.activeに既にカスタムスキルが含まれているため、そのまま使用
+                skillEffects.active.forEach(skill => {
+                    if (slottedSkills.some(slotted => slotted.id === skill.id)) {
+                        activeSkills.push(skill);
+                    }
+                });
+                
+                // 重複を削除
+                activeSkills = activeSkills.filter((skill, index, self) =>
+                    index === self.findIndex((s) => s.id === skill.id)
+                );
+                
+                console.log("Final active skills:", activeSkills);
+            } else {
+                console.log("getSkillNodeEffects function not found");
+                activeSkills = [];
+            }
         } else {
-            addLog('不正解…ドローできなかった');
+            console.log("initializeSkillData function not found");
+            activeSkills = [];
         }
+        
+        // 使用済みスキルリストを初期化
+        usedSkills = [];
+        
+        // スキルスロットをレンダリング
         renderSkills();
-    });
+    } catch (error) {
+        console.error("Error initializing battle skills:", error);
+        activeSkills = [];
+        usedSkills = [];
+        renderSkills();
+    }
 }
 
-// スキルスロットのレンダリング
-// 手札（カード）のレンダリング
 function renderSkills() {
     const container = document.getElementById('skillSlotsContainer');
     if (!container) return;
-
+    
     container.innerHTML = '';
-    updateEnergyDisplay();
-
+    
     if (activeSkills.length === 0) {
-        container.innerHTML = '<p class="no-skills">手札にカードがありません</p>';
+        container.innerHTML = '<p class="no-skills">アクティブスキルなし</p>';
         return;
     }
-
-    activeSkills.forEach(card => {
+    
+    activeSkills.forEach(skill => {
         const skillBtn = document.createElement('button');
-        skillBtn.className = 'skill-slot card';
-        skillBtn.dataset.skillId = card.id;
-
-        const isActive = selectedSkill?.id === card.id;
-        const cost = card.cost != null ? card.cost : 0;
-        const canAfford = playerEnergy >= cost;
-
+        skillBtn.className = 'skill-slot';
+        skillBtn.dataset.skillId = skill.id;
+        
+        const isUsed = usedSkills.includes(skill.id);
+        const isActive = selectedSkill?.id === skill.id;
+        
         skillBtn.innerHTML = `
-            <span class="card-cost">⚡${cost}</span>
-            <span class="skill-name">${card.name}</span>
-            <span class="skill-desc">${card.description || ''}</span>
+            <span class="skill-name">${skill.name}</span>
+            <span class="skill-desc">${skill.description}</span>
         `;
-
-        if (!canAfford) {
+        
+        if (isUsed) {
             skillBtn.classList.add('used');
             skillBtn.disabled = true;
         } else if (isActive) {
             skillBtn.classList.add('active');
         }
-
-        skillBtn.onclick = () => activateSkill(card);
-
+        
+        skillBtn.onclick = () => activateSkill(skill);
+        
         container.appendChild(skillBtn);
     });
 }
 
-// カードのアクティブ化（エナジーが足りる場合のみ選択できる）
-// カードの発動：専用の問題に正解すると、カードがセットされる（次の基本カードに効果が乗る）
+// スキルのアクティブ化
 function activateSkill(skill) {
-    const cost = skill.cost != null ? skill.cost : 0;
-    if (playerEnergy < cost) {
-        addLog('エナジーが足りません');
+    if (usedSkills.includes(skill.id)) {
+        addLog('このスキルは既に使用済みです');
         return;
     }
-
-    if (selectedSkill) {
-        addLog('既に別のカードをセット中です');
+    
+    if (!skillActivationWindow) {
+        addLog('スキルは問題の間の3秒間のみアクティブにできます');
         return;
     }
-
-    if (adHocQuestionActive) {
-        return;
-    }
-
-    showAdHocQuestion(`「${skill.name}」を発動！問題に正解しよう`, (isCorrect) => {
-        if (isCorrect) {
-            selectedSkill = skill;
-            addLog(`正解！カード「${skill.name}」をセットしました`);
-        } else {
-            addLog(`不正解…カード「${skill.name}」の発動に失敗した`);
-            const handIndex = activeSkills.findIndex(c => c.id === skill.id);
-            if (handIndex !== -1) {
-                playerDiscardPile.push(activeSkills[handIndex]);
-                activeSkills.splice(handIndex, 1);
-            }
-        }
-        renderSkills();
-    });
+    
+    selectedSkill = skill;
+    addLog(`スキル「${skill.name}」をアクティブにしました`);
+    
+    // スキルボタンの状態を更新
+    renderSkills();
 }
 
 // スキルボタンの有効/無効化
-// カードは専用の問題（アドホック問題）でゲートされるようになったため、
-// このタイマー連動の有効/無効化は行わない（常にrenderSkills()の描画状態に従う）
 function enableSkillButtons(enabled) {
-    // no-op: 手札カードはエナジー保有量のみで有効/無効が決まる（renderSkills参照）
+    const buttons = document.querySelectorAll('.skill-slot');
+    buttons.forEach(btn => {
+        if (!btn.classList.contains('used')) {
+            btn.disabled = !enabled;
+        }
+    });
 }
 
 // スキルアクティベーションウィンドウの開始
@@ -1868,21 +1732,11 @@ function applyIncomingDamageReduction(damage) {
     return damage;
 }
 
-// カード使用後の処理：手札から取り除き、エナジーを消費する
+// スキル使用後の処理
 function afterSkillUse(skill) {
     if (skill && skill.id) {
         usedSkills.push(skill.id);
         selectedSkill = null;
-
-        const cost = skill.cost != null ? skill.cost : 0;
-        playerEnergy = Math.max(0, playerEnergy - cost);
-
-        const handIndex = activeSkills.findIndex(c => c.id === skill.id);
-        if (handIndex !== -1) {
-            playerDiscardPile.push(activeSkills[handIndex]);
-            activeSkills.splice(handIndex, 1);
-        }
-
         renderSkills();
     }
 }
@@ -2205,7 +2059,6 @@ function handleATBAnswer(selectedOption) {
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
         showCorrectEffect();
-        if (typeof gainEnergyAndDrawCard === 'function') gainEnergyAndDrawCard();
 
         // 正解のたびに小さな追撃ダメージ（自分の攻撃力の0.5倍）
         const myAtkStat = me.atk || 0;
@@ -2896,7 +2749,6 @@ function handleBotAnswer(userAnswer) {
     if (isCorrect) {
         addLog("正解！回答時間: " + (answerTime / 1000).toFixed(2) + "秒");
         showCorrectEffect();
-        if (typeof gainEnergyAndDrawCard === 'function') gainEnergyAndDrawCard();
 
         // 必殺技ゲージの初期化（存在しない場合）
         if (!me.ultimateGauge) {

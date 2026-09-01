@@ -157,7 +157,6 @@ if (battleResultData && battleResultData.rewards) {
     const bossWeaponDropText = document.getElementById('bossWeaponDropText');
     const limitBreakMaterialText = document.getElementById('limitBreakMaterialText');
     const bossSkillDropText = document.getElementById('bossSkillDropText');
-    const bossCardPackText = document.getElementById('bossCardPackText');
 
     if (battleResultData.rewards.bossWeapon && bossWeaponDropText) {
         bossWeaponDropText.textContent = `★武器を入手！ ${battleResultData.rewards.bossWeapon.name}★`;
@@ -173,12 +172,6 @@ if (battleResultData && battleResultData.rewards) {
     if (battleResultData.rewards.bossSkill && bossSkillDropText) {
         bossSkillDropText.textContent = `★スキルを習得！ ${battleResultData.rewards.bossSkill.name}★`;
         bossSkillDropText.style.display = 'block';
-    }
-
-    if (battleResultData.rewards.bossCardPack && bossCardPackText) {
-        const pack = battleResultData.rewards.bossCardPack;
-        bossCardPackText.textContent = `★${pack.packName}を入手！ 開封: ${pack.materials.join('、')}★`;
-        bossCardPackText.style.display = 'block';
     }
 }
 

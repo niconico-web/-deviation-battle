@@ -218,13 +218,6 @@
                     </div>
                 </div>
 
-                <h3>カードパック</h3>
-                <div class="setting-box">
-                    <p>コインを使ってカードパックを開封し、ランダムな素材（カード）を入手できます。入手したカードは「スキル」タブの「デッキ編成」でデッキに組み込めます。</p>
-                    <div id="cardPackList" class="card-pack-list">
-                        <!-- renderCardPackShop() によってここに一覧が描画される -->
-                    </div>
-                </div>
                 <h3>インベントリ</h3>
                 <h4>所持武器</h4>
                 <div id="inventoryList" class="inventory-list">
@@ -258,7 +251,6 @@
                     <button class="sub-tab-btn active" data-subtab="skill-tree-content">スキルツリー</button>
                     <button class="sub-tab-btn" data-subtab="equipped-skills-content">装備中スキル</button>
                     <button class="sub-tab-btn" data-subtab="custom-skills-content">カスタムスキル</button>
-                    <button class="sub-tab-btn" data-subtab="deck-builder-content">デッキ編成</button>
                 </div>
 
                 <div id="skill-tree-content" class="sub-tab-content active">
@@ -292,19 +284,6 @@
 
                     <h3>オリジナルスキルリスト</h3>
                     <div id="customSkillList" class="custom-skill-list"></div>
-                </div>
-
-                <div id="deck-builder-content" class="sub-tab-content">
-                    <h3>デッキ編成（最大<span id="deckMaxSizeLabel">30</span>枚）</h3>
-                    <div class="setting-box">
-                        <p>現在のデッキ枚数: <span id="deckCurrentSizeLabel">0</span> / <span id="deckMaxSizeLabel2">30</span> 枚</p>
-                        <p>バトルでは、ここで選んだカード（スキルカード・素材カード）がシャッフルされて山札になります。正解するたびに1枚ドローでき、エナジーを使ってプレイできます。</p>
-                        <button id="saveDeckBtn" class="btn btn-primary">デッキを保存</button>
-                    </div>
-                    <h3>スキルカード</h3>
-                    <div id="deckSkillCardList" class="card-select-list"></div>
-                    <h3>素材カード</h3>
-                    <div id="deckMaterialCardList" class="card-select-list"></div>
                 </div>
             </section>
 
@@ -546,7 +525,6 @@
     <script src="js/materials.js"></script>
     <script src="js/weapons.js"></script>
     <script src="js/skillTree.js"></script>
-    <script src="js/cards.js"></script>
     <script src="js/mission.js"></script>
     <script src="js/shop.js"></script>
     <script src="js/boss.js"></script>
