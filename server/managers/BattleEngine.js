@@ -661,12 +661,35 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
     }
 
     if (isCorrect) {
-        // 正解の場合：必殺技ゲージを増加するが、ダメージは与えない
+        // 正解の場合：必殺技ゲージを増加し、追撃ダメージを与える
         player.correctAnswers++;
 
         // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
         const attackType = player.attackType || 'attack';
         result.attackType = attackType;
+
+        // 攻撃力または特殊攻撃力を基準にする
+        let baseAtk = attackType === 'special' ? (player.specialAtk || player.atk) : player.atk;
+        
+        // バフ/デバフを適用した攻撃力を取得
+        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+
+        // 正解のたびに攻撃力の0.5倍の追撃ダメージ
+        const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+        let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
+        
+        // アクティブスキルのダメージ倍率を適用
+        if (activeSkillEffect && activeSkillEffect.damageMultiplier) {
+            chipDamage = Math.floor(chipDamage * activeSkillEffect.damageMultiplier);
+            result.skillDamageMultiplier = activeSkillEffect.damageMultiplier;
+        }
+        
+        chipDamage = applyUniqueAbilityDamageBonus(chipDamage, player);
+        chipDamage = applyUniqueAbilityDefense(chipDamage, enemy);
+        enemy.hp = Math.max(0, enemy.hp - chipDamage);
+        result.chipDamage = chipDamage;
+        result.enemyHp = enemy.hp;
 
         if (!player.ultimateGauge) {
             player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
@@ -679,6 +702,12 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
         // この問題をロックし、他のプレイヤーがこれ以上回答できないようにする
         battle.currentQuestion.lockedBy = playerId;
         result.lockedBy = playerId;
+        
+        // 敵が倒れたか確認
+        if (enemy.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        }
     } else {
         // 不正解の場合：反撃ダメージを受ける
         const attacker = enemy;
@@ -780,6 +809,7 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
     };
 
     // スキルの発動判定と、攻撃を伴わない効果の即時適用（processAnswerOnly()と同じ考え方）
+    let activeSkillEffect = null;
     if (usedSkill && usedSkill.effect) {
         const eff = usedSkill.effect;
         let canApply = true;
@@ -790,6 +820,7 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
         }
         if (canApply) {
             result.skillUsed = usedSkill;
+            activeSkillEffect = eff; // スキル効果を保存
             applyInstantSkillEffects(player, enemy, eff, result);
         } else {
             result.skillFailed = usedSkill.name;
