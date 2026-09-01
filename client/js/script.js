@@ -1110,11 +1110,6 @@ document.addEventListener('DOMContentLoaded', () => {
             initShop();
         }
 
-        // カードパックショップの初期化
-        if (typeof renderCardPackShop === "function") {
-            renderCardPackShop();
-        }
-
         // デイリーミッションの初期化
         if (typeof initializeDailyMissions === "function") {
             initializeDailyMissions();
@@ -1134,11 +1129,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     // `active` クラスの付け外しで表示/非表示を切り替える
                     content.classList.toggle('active', content.id === subtabId);
                 });
-
-                // デッキ編成タブを開いたら、選択できるカード一覧を最新の状態で描画する
-                if (subtabId === 'deck-builder-content' && typeof renderDeckBuilderUI === 'function') {
-                    renderDeckBuilderUI();
-                }
             });
         });
 
