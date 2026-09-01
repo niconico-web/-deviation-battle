@@ -728,6 +728,17 @@ function validateCustomSkill(skillDescription, playerStats) {
             effectScore += 2; // 自身のデバフは軽い
         }
         
+        if (parsedEffect.defBuff) {
+            effectCount++;
+            effectScore += Math.floor((parsedEffect.defBuff - 1) * 10); // 1.2倍なら2点
+        }
+        
+        // 「代わりに」スキルの場合はポイント減点
+        if (parsedEffect.hasTradeoff) {
+            effectScore = Math.floor(effectScore * 0.8); // 20%減点
+            console.log('Tradeoff detected, score reduced to:', effectScore);
+        }
+        
         console.log('Parsed effect score:', effectScore, 'Effect count:', effectCount);
     }
     
@@ -869,6 +880,13 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
     
+    // ターン数のパース (例: "3ターンの間", "for 3 turns", "3 turns")
+    const turnsMatch = desc.match(/(\d+)[\s]*(?:ターン|turn|round)[\s]*(?:の間|for|during)/i);
+    if (turnsMatch) { 
+        finalEffect.turns = parseInt(turnsMatch[1]); 
+        effectFound = true; 
+    }
+    
     // ダメージ倍率 (例: "ダメージ1.2倍", "攻撃が1.5倍", "damage 1.5x", "1.5倍ダメージ")
     const damageMultiplierMatch = desc.match(/(?:ダメージ|攻撃|威力|damage|attack|power)[をが]?[\s]*([\d.]+)[\s]*(?:倍|x|times)/i);
     if (damageMultiplierMatch) { finalEffect.damageMultiplier = parseFloat(damageMultiplierMatch[1]); effectFound = true; }
@@ -888,8 +906,9 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
 
-    // 追加の倍率キーワード
-    if (desc.includes("強化") || desc.includes("増強") || desc.includes("boost") || desc.includes("enhance")) {
+    // 追加の倍率キーワード（防御強化を除外）
+    if ((desc.includes("強化") || desc.includes("増強") || desc.includes("boost") || desc.includes("enhance")) && 
+        !desc.includes("防御") && !desc.includes("defense") && !desc.includes("def")) {
         if (!finalEffect.damageMultiplier) {
             finalEffect.damageMultiplier = 1.2; // デフォルトで1.2倍
         }
@@ -918,6 +937,21 @@ function parseEffectFromDescription(description) {
         effectFound = true;
     }
 
+    // 防御バフ (例: "防御を1.2倍にする", "防御1.2倍", "defense 1.2x")
+    const defBuffMatch = desc.match(/(?:防御|defense|def)[をが]?[\s]*([\d.]+)[\s]*(?:倍|x|times)/i);
+    if (defBuffMatch) { 
+        finalEffect.defBuff = parseFloat(defBuffMatch[1]); 
+        effectFound = true; 
+    }
+    
+    // 防御バフのキーワードパターン
+    if (desc.includes("防御強化") || desc.includes("defense boost") || desc.includes("def up")) {
+        if (!finalEffect.defBuff) {
+            finalEffect.defBuff = 1.2; // デフォルトで1.2倍
+        }
+        effectFound = true;
+    }
+    
     // ダメージ軽減 (例: "ダメージを30%軽減", "30% damage reduction", "防御30%")
     const damageReductionMatch = desc.match(/(?:ダメージ|damage|攻撃|attack)[をが]?[\s]*([\d.]+)%[\s]*(?:軽減|reduction|減少|reduce|down)/i);
     if (damageReductionMatch) { finalEffect.damageReduction = parseFloat(damageReductionMatch[1]) / 100.0; effectFound = true; }
@@ -1037,10 +1071,16 @@ function parseEffectFromDescription(description) {
     }
 
     // 火傷付与 (例: "敵に火傷付与", "burn enemy", "apply burn", "燃やす")
-    if (desc.includes("火傷") || desc.includes("burn") || desc.includes("燃やす") || desc.includes("炎")) { finalEffect.burn = true; effectFound = true; }
+    if (desc.includes("火傷") || desc.includes("burn") || desc.includes("燃やす") || desc.includes("炎")) { 
+        finalEffect.burn = { turns: 3 }; 
+        effectFound = true; 
+    }
     
     // 毒付与 (例: "敵に毒付与", "poison enemy", "apply poison", "毒状態")
-    if (desc.includes("毒") || desc.includes("poison") || desc.includes("毒状態")) { finalEffect.poison = true; effectFound = true; }
+    if (desc.includes("毒") || desc.includes("poison") || desc.includes("毒状態")) { 
+        finalEffect.poison = { turns: 3 }; 
+        effectFound = true; 
+    }
     
     // 出血付与 (例: "出血", "bleed", "doom")
     if (desc.includes("出血") || desc.includes("bleed") || desc.includes("doom")) { finalEffect.poison = true; effectFound = true; }
@@ -1200,6 +1240,13 @@ function parseEffectFromDescription(description) {
     }
 
     // --- デメリット/コストのパース ---
+    // 「代わりに」パターン (例: "攻撃を1.5倍にする代わりに防御を0.8倍にする")
+    const insteadMatch = desc.match(/(?:代わりに|instead|in exchange for|but|however)/i);
+    if (insteadMatch) {
+        finalEffect.hasTradeoff = true; // トレードオフがあることをマーク
+        effectFound = true;
+    }
+    
     // 自身の防御デバフ (例: "自身の防御-10", "self defense -10", "防御ダウン")
     const selfDefDebuffMatch = desc.match(/(?:自身|self|自分)[\s]*(?:の|)?[\s]*(?:防御|defense)[\s]*-([\d.]+)/i);
     if (selfDefDebuffMatch) { finalEffect.selfDefDebuff = parseFloat(selfDefDebuffMatch[1]); effectFound = true; }
@@ -1574,6 +1621,31 @@ function renderSkillSlots(player) {
     // 空のスロットを確実に表示
     if (!player.skillSlots || player.skillSlots.length === 0) {
         player.skillSlots = [null, null, null];
+    }
+    
+    // 攻撃タイプセレクターの初期化
+    const attackTypeSelector = document.querySelector('.attack-type-selector');
+    if (attackTypeSelector) {
+        const currentAttackType = player.attackType || 'attack';
+        attackTypeSelector.querySelectorAll('.attack-type-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.attackType === currentAttackType) {
+                btn.classList.add('active');
+            }
+        });
+        
+        // 攻撃タイプ選択のイベントリスナー
+        attackTypeSelector.querySelectorAll('.attack-type-btn').forEach(btn => {
+            btn.onclick = () => {
+                const selectedType = btn.dataset.attackType;
+                player.attackType = selectedType;
+                localStorage.setItem("player", JSON.stringify(player));
+                
+                // UIの更新
+                attackTypeSelector.querySelectorAll('.attack-type-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
     }
     
     player.skillSlots.forEach((skill, index) => {

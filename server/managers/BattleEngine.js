@@ -395,7 +395,7 @@ function applyBossSkillEffect(damage, attacker, defender, skill, result) {
         attacker.buffs.push({
             stat: effect.selfBuff.type,
             amount: effect.selfBuff.amount,
-            turns: effect.selfBuff.turns || 2
+            turns: effect.turns || effect.selfBuff.turns || 2 // effect.turnsを優先、なければselfBuff.turns、デフォルトは2
         });
         result.bossBuffed = effect.selfBuff;
     }
@@ -405,7 +405,7 @@ function applyBossSkillEffect(damage, attacker, defender, skill, result) {
         attacker.buffs.push({
             stat: effect.partyBuff.type,
             amount: effect.partyBuff.amount,
-            turns: 3
+            turns: effect.turns || 3 // effect.turnsを優先、デフォルトは3
         });
         result.bossBuffed = effect.partyBuff;
     }
@@ -453,6 +453,17 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
         player.pendingDamageReduction = Math.min(0.9, effect.damageReduction);
         result.damageReductionActive = player.pendingDamageReduction;
     }
+    if (effect.defBuff) {
+        if (!player.buffs) player.buffs = [];
+        // 既存の防御バフを上書きしてから追加
+        player.buffs = player.buffs.filter(b => b.stat !== 'def');
+        player.buffs.push({
+            stat: 'def',
+            amount: effect.defBuff,
+            turns: effect.turns || 2 // effect.turnsがあればそれを使用、デフォルトは2
+        });
+        result.defBuffed = effect.defBuff;
+    }
     if (effect.skipNextTurn) {
         player.skipTurn = true;
     }
@@ -467,7 +478,7 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
             stat: 'def',
             reduction: effect.selfDefDebuff,
             isFlat: true,
-            remainingTurns: 2 // このターンと次の相手のターンまで持続
+            remainingTurns: effect.turns || 2 // effect.turnsがあればそれを使用、デフォルトは2
         });
     }
     if (effect.heal) {
@@ -488,7 +499,7 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
             stat: 'speed',
             reduction: effect.speedDebuff,
             isFlat: false,
-            remainingTurns: 3
+            remainingTurns: effect.turns || 3 // effect.turnsがあればそれを使用、デフォルトは3
         });
         result.enemySpeedDebuff = effect.speedDebuff;
     }
@@ -573,6 +584,7 @@ function getStatWithBuffs(player, statName) {
     let value = player[statName] || 0;
     if (player.buffs) {
         player.buffs.forEach(buff => {
+            // 正確なステータス名で一致判定
             if (buff.stat === statName) {
                 value = value * buff.amount;
             }
@@ -651,6 +663,10 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
     if (isCorrect) {
         // 正解の場合：必殺技ゲージを増加するが、ダメージは与えない
         player.correctAnswers++;
+
+        // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
+        const attackType = player.attackType || 'attack';
+        result.attackType = attackType;
 
         if (!player.ultimateGauge) {
             player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
@@ -785,9 +801,27 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
     if (isCorrect) {
         player.correctAnswers = (player.correctAnswers || 0) + 1;
 
-        // 正解のたびに自分の攻撃力の0.5倍の追撃ダメージ
+        // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
+        const attackType = player.attackType || 'attack';
+        result.attackType = attackType;
+
+        // 攻撃力または特殊攻撃力を基準にする
+        let baseAtk = attackType === 'special' ? (player.specialAtk || player.atk) : player.atk;
+        
+        // バフ/デバフを適用した攻撃力を取得
+        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+
+        // 正解のたびに攻撃力の0.5倍の追撃ダメージ
         const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
-        let chipDamage = Math.max(1, Math.floor(player.atk * 0.5) - defReduction);
+        let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
+        
+        // アクティブスキルのダメージ倍率を適用
+        if (activeSkillEffect && activeSkillEffect.damageMultiplier) {
+            chipDamage = Math.floor(chipDamage * activeSkillEffect.damageMultiplier);
+            result.skillDamageMultiplier = activeSkillEffect.damageMultiplier;
+        }
+        
         chipDamage = applyUniqueAbilityDamageBonus(chipDamage, player);
         chipDamage = applyUniqueAbilityDefense(chipDamage, enemy);
         enemy.hp = Math.max(0, enemy.hp - chipDamage);
