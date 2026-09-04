@@ -16,7 +16,7 @@ const isPracticeTutorial = isBotBattle && localStorage.getItem("sb_practice_tuto
 if (isPracticeTutorial) {
     localStorage.removeItem("sb_practice_tutorial");
 }
-const practiceCoachShown = { question: false, command: false, skill: false };
+const practiceCoachShown = { question: false, gauge: false, strongAttack: false, skill: false };
 
 let battleEnd = false, rejoined = false, currentQuestion = null, questionStartTime = null, timerInterval = null, countdownInterval = null, botDifficulty = null;
 let activeSkills = [];
@@ -2096,18 +2096,86 @@ function handleATBAnswer(selectedOption) {
         updateATBBars();
 
         if (playerCorrectCount >= playerRequiredCount) {
-            // 行動ゲージ満タン！コマンドを選べる（この間は次の問題を出さない）
-            addLog("行動ゲージが満タンになった！コマンドを選ぼう！");
-            pendingSkillEffect = skillEffect;
-            pendingUsedSkill = usedSkill;
-            atbPlayerActionPending = true;
-            showCommandMenu();
+            // 行動ゲージ満タン！強攻撃を自動発動（1倍ダメージ）
+            addLog("行動ゲージが満タンになった！強攻撃発動！");
+            executeStrongAttack(skillEffect, usedSkill);
         } else {
             askNextPlayerQuestion(); // 待ち時間0で次の問題
         }
     } else {
         addLog("不正解…");
         askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
+    }
+}
+
+/**
+ * 行動ゲージ満タン時の強攻撃を自動実行する関数
+ * 攻撃力1倍のダメージを与え、ゲージをリセットして次の問題へ
+ */
+function executeStrongAttack(skillEffect, usedSkill) {
+    // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
+    const attackType = me.attackType || 'attack';
+    
+    // 攻撃力または特殊攻撃力を基準にする
+    let baseAtk = attackType === 'special' ? (me.special || me.atk) : (me.atk || 0);
+    
+    // 強攻撃ダメージ（1倍）
+    const defReduction = Math.floor((enemy.def || 0) * 0.1);
+    let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
+    
+    // アクティブスキルのダメージ倍率を適用
+    if (skillEffect && skillEffect.damageMultiplier) {
+        strongDamage = Math.floor(strongDamage * skillEffect.damageMultiplier);
+        addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
+    }
+    
+    // クリティカル判定
+    const critChance = hasUniqueAbility(me, "critical_damage") ? 0.30 : 0.05;
+    if (Math.random() < critChance) {
+        strongDamage = Math.floor(strongDamage * 1.5);
+        addLog("クリティカルヒット！");
+    }
+    
+    // 必殺技ゲージ増加
+    if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
+    me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
+    updateUltimateGauge();
+    
+    // ダメージ適用
+    enemy.hp = Math.max(0, enemy.hp - strongDamage);
+    showDamage("enemyDamage", strongDamage);
+    addLog(`${me.name}の強攻撃！ ${enemy.name}に ${strongDamage} のダメージ！`);
+    
+    updateHP();
+    
+    // ライフドレイン処理
+    if (hasUniqueAbility(me, "life_drain")) {
+        const healAmount = Math.floor(strongDamage * 0.2);
+        me.hp = Math.min(me.maxHp, me.hp + healAmount);
+        addLog(`ライフドレインで ${healAmount} 回復！`);
+        updateHP();
+    }
+    
+    // 勝利判定
+    if (enemy.hp <= 0) {
+        finishBotBattle("win");
+        return;
+    }
+    
+    // ゲージをリセットして次の問題へ
+    continueBattleLoop();
+
+    // 実戦形式チュートリアル：初めて強攻撃が発動した時だけ、説明を教える
+    if (isPracticeTutorial && !practiceCoachShown.strongAttack && window.PracticeCoach) {
+        practiceCoachShown.strongAttack = true;
+        const myAtbBar = document.getElementById('myAtbBar');
+        if (myAtbBar) {
+            window.PracticeCoach.point(
+                myAtbBar,
+                "行動ゲージが満タンになって、強攻撃が発動したよ！\nこれを繰り返して相手を倒そう！",
+                { buttonLabel: 'わかった' }
+            );
+        }
     }
 }
 
@@ -2663,6 +2731,19 @@ function displayQuestion(question) {
                 "この中から正解だと思うものをタップしよう！\n制限時間内に答えてね。",
                 { buttonLabel: 'わかった' }
             );
+        }
+
+        // 実戦形式チュートリアル：行動ゲージの説明
+        if (isPracticeTutorial && !practiceCoachShown.gauge && window.PracticeCoach) {
+            practiceCoachShown.gauge = true;
+            const myAtbBar = document.getElementById('myAtbBar');
+            if (myAtbBar) {
+                window.PracticeCoach.point(
+                    myAtbBar,
+                    "これが「行動ゲージ」だよ！\n正解するたびに溜まって、満タンになると強攻撃が自動発動するよ。",
+                    { buttonLabel: 'わかった' }
+                );
+            }
         }
     });
 }
@@ -3551,6 +3632,12 @@ if (!isBotBattle && socket) {
             });
         }
 
+        // 強攻撃の自動発動処理
+        if (data.autoStrongAttack && data.strongDamage) {
+            addLog("行動ゲージが満タンになった！強攻撃発動！");
+            addLog(`${data.playerName || me.name}の強攻撃！ ${enemy.name}に ${data.strongDamage} のダメージ！`);
+        }
+
         if (data.effectEvents && Array.isArray(data.effectEvents)) {
             data.effectEvents.forEach(event => {
                 if (event.type === 'ultimate' && (event.playerId === me.id || event.playerId === enemy.id || allies.some(a => a.id === event.playerId))) {
@@ -3558,24 +3645,12 @@ if (!isBotBattle && socket) {
                 }
                 if (event.type === 'correct' && event.playerId === me.id) {
                     showCorrectEffect();
-                    if (isBossBattle) {
-                        // ボス・レイド戦は今まで通り、正解したら常にコマンドメニューを出す
-                        pendingSkillEffect = null;
-                        pendingUsedSkill = null;
-                        showCommandMenu();
-                    }
-                    // 通常のPvP戦では、正解＝即コマンドメニューではなく、行動ゲージが
-                    // 満タンになった時だけメニューを出す（下のgaugeFullPlayerIdの判定を参照）
+                    // 行動ゲージが満タンになった時は強攻撃が自動発動するため、コマンドメニューは出さない
                 }
             });
         }
 
-        // 通常のPvP戦：自分の行動ゲージが満タンになったら、ここでコマンドメニューを出す
-        if (!isBossBattle && data.gaugeFullPlayerId === me.id) {
-            pendingSkillEffect = null;
-            pendingUsedSkill = null;
-            showCommandMenu();
-        }
+        // 通常のPvP戦：行動ゲージが満タンになった時は強攻撃が自動発動するため、コマンドメニューは出さない
 
         // 誰か（自分以外）がこの問題に正解し、コマンド選択中になった場合、
         // 自分はこの問題にはもう回答できないようにする（二重回答の防止）。

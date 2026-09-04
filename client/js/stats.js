@@ -6,6 +6,13 @@ const TOTAL_STAT_POINTS = 250;
 const MIN_STAT = 10;
 const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30, special: 50 };
 
+// プレステージ機能：このレベルに到達すると、ステータスを最初の
+// 振り分け可能な状態（持ち点250）にリセットして再配分する代わりに、
+// 永続的な全ステータス倍率ボーナスを得られるようになる。
+// 実行回数に制限はなく、ボーナスは実行回数分だけ累積し、上限はない。
+const PRESTIGE_UNLOCK_LEVEL = 20;
+const PRESTIGE_BONUS_PER_PRESTIGE = 0.05; // プレステージ1回につき各ステータス+5%
+
 function getSubjectDisplayName(subject) {
     const subjectNames = {
         'math': '算数・数学',
@@ -92,6 +99,7 @@ function migratePlayer(player) {
         grade: player.grade || 1,
         guild: player.guild || null, // Preserve guild membership
         adventurerExp: player.adventurerExp || 0, // Preserve adventurer experience
+        prestigeCount: player.prestigeCount || 0, // プレステージ実行回数（永続ボーナスの累積に使用）
         // Core stats (maxHp, atk, def, speed) will be set below
         maxHp: player.maxHp, // Keep existing if present, otherwise default below
         atk: player.atk,
@@ -189,6 +197,19 @@ function calcLevel(xp) {
     // 浮動小数点数の問題で負の値にならないように、最低でも1を返すようにします。
     return Math.max(1, level);
 }
+// プレイヤーがプレステージを実行可能なレベルに達しているかどうか
+function canPrestige(player) {
+    if (!player) return false;
+    const level = player.level || calcLevel(player.xp || 0);
+    return level >= PRESTIGE_UNLOCK_LEVEL;
+}
+
+// これまでのプレステージ回数から、現在適用される永続ステータス倍率を計算する
+function getPrestigeBonusMultiplier(player) {
+    const count = (player && player.prestigeCount) || 0;
+    return 1 + count * PRESTIGE_BONUS_PER_PRESTIGE;
+}
+
 function calcStudyXp(s) { return Math.floor(s / 4); }
 function calcStatGain(s) { return Math.max(1, Math.floor(s / 60)); }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
@@ -367,6 +388,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
 
 function getStatsFromPlayer(player, withPassives = false) {
     const p = player || {};
+    let result;
 
     // Apply passives only if requested, the function exists, and the player object has a skill tree.
     if (withPassives && typeof getSkillNodeEffects === 'function' && p.skillTree) {
@@ -392,20 +414,32 @@ function getStatsFromPlayer(player, withPassives = false) {
         baseStats.critChance = passive.critChance || 0;
         baseStats.critMultiplier = passive.critMultiplier || 0;
 
-        return baseStats;
+        result = baseStats;
+    } else {
+        // Raw stats without passives
+        result = {
+            maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
+            atk: Number(p.atk) || DEFAULT_STATS.atk,
+            def: Number(p.def) || DEFAULT_STATS.def,
+            speed: Number(p.speed) || DEFAULT_STATS.speed,
+            special: Number(p.special) || DEFAULT_STATS.special,
+            grade: Number(p.grade) || 1,
+            critChance: 0,
+            critMultiplier: 0
+        };
     }
 
-    // Return raw stats without passives
-    return {
-        maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
-        atk: Number(p.atk) || DEFAULT_STATS.atk,
-        def: Number(p.def) || DEFAULT_STATS.def,
-        speed: Number(p.speed) || DEFAULT_STATS.speed,
-        special: Number(p.special) || DEFAULT_STATS.special,
-        grade: Number(p.grade) || 1,
-        critChance: 0,
-        critMultiplier: 0
-    };
+    // プレステージによる永続ボーナス（コアステータス一律倍率）を適用する
+    const prestigeMultiplier = getPrestigeBonusMultiplier(p);
+    if (prestigeMultiplier !== 1) {
+        result.maxHp = Math.floor(result.maxHp * prestigeMultiplier);
+        result.atk = Math.floor(result.atk * prestigeMultiplier);
+        result.def = Math.floor(result.def * prestigeMultiplier);
+        result.speed = Math.floor(result.speed * prestigeMultiplier);
+        result.special = Math.floor(result.special * prestigeMultiplier);
+    }
+
+    return result;
 }
 
 function getEffectiveStats(player) {
@@ -453,7 +487,8 @@ function buildPlayer(name, stats, xp, options = {}) {
         // ギルド所属が対戦後に消えるなどの不具合の原因）。
         dailyMissions: options.dailyMissions !== undefined ? options.dailyMissions : null,
         guild: options.guild !== undefined ? options.guild : null,
-        adventurerExp: options.adventurerExp || 0
+        adventurerExp: options.adventurerExp || 0,
+        prestigeCount: options.prestigeCount || 0
     };
 }
 
