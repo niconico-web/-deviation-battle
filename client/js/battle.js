@@ -330,6 +330,16 @@ function initialize() {
     myName.textContent = me.name;
     enemyName.textContent = enemy.name;
 
+    // ボス戦の場合、相手カードにボスのアイコンイラストを表示する
+    const enemyAvatarEl = document.getElementById("enemyAvatar");
+    if (enemyAvatarEl) {
+        if (isBossBattle && typeof getBossIconSVG === "function") {
+            enemyAvatarEl.innerHTML = getBossIconSVG(enemy.id, 72);
+        } else {
+            enemyAvatarEl.innerHTML = "";
+        }
+    }
+
     // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
     const applyReMiserable = (player, target) => {
         if (player.equippedWeapon && player.equippedWeapon.uniqueAbilities) {

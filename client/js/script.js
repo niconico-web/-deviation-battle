@@ -334,9 +334,13 @@ function createCharacter() {
         }
     }
 
-    const xp = existing ? existing.xp : 0;
+    // プレステージ時はレベル（xp）とスキルツリーもリセットする。
+    // ただし学年（grade）はリセット対象外（statsから取得した現在の学年をそのまま使う）。
+    const xp = prestigeMode ? 0 : (existing ? existing.xp : 0);
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
     const prestigeCount = prestigeMode ? (existing?.prestigeCount || 0) + 1 : (existing?.prestigeCount || 0);
+    const skillTreeForPlayer = prestigeMode ? { unlockedNodes: [], availablePoints: 0 } : existing?.skillTree;
+    const skillSlotsForPlayer = prestigeMode ? [null, null, null] : existing?.skillSlots;
     const player = buildPlayer(name, stats, xp, {
         totalStudySeconds,
         grade: stats.grade,
@@ -346,8 +350,8 @@ function createCharacter() {
         equippedWeapon: existing?.equippedWeapon || null,
         weaponWins: existing?.weaponWins || {},
         orbs: existing?.orbs || [],
-        skillTree: existing?.skillTree,
-        skillSlots: existing?.skillSlots,
+        skillTree: skillTreeForPlayer,
+        skillSlots: skillSlotsForPlayer,
         customSkills: existing?.customSkills,
         bossDefeats: existing?.bossDefeats,
         materials: existing?.materials,
@@ -362,6 +366,13 @@ function createCharacter() {
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
     updateXpDisplay(player);
+
+    // キャラクター作成直後はデイリーミッションがまだ初期化されておらず、
+    // ミッション画面が「ミッションデータがありません」のままになってしまうため、
+    // ここで明示的に初期化・再描画しておく。
+    if (typeof initializeDailyMissions === "function") {
+        initializeDailyMissions();
+    }
     
     // Lock stat inputs after creation
     isPrestigeMode = false;
@@ -427,9 +438,33 @@ function getWeaponDisplayName(weapon) {
  * @param {object} weapon - 武器オブジェクト
  * @returns {string} 武器詳細のHTML文字列
  */
+// ボス選択プルダウンの下に、選択中のボスのアイコン・説明をプレビュー表示する
+function updateBossPreview(selectEl, previewEl) {
+    if (!selectEl || !previewEl) return;
+    const bossId = selectEl.value;
+    const boss = (window.bosses || []).find(b => b.id === bossId);
+    if (!boss) {
+        previewEl.innerHTML = "";
+        return;
+    }
+    const iconHtml = (typeof getBossIconSVG === "function") ? getBossIconSVG(boss.id, 64) : "";
+    const descHtml = boss.description ? `<p class="boss-preview-desc">${boss.description}</p>` : "";
+    previewEl.innerHTML =
+        `<div class="boss-preview-inner">
+            <span class="boss-icon-wrap">${iconHtml}</span>
+            <div class="boss-preview-text">
+                <strong>${boss.name}</strong>
+                ${descHtml}
+            </div>
+        </div>`;
+}
+
 function formatWeaponDetailsHTML(weapon) {
     if (!weapon) return "なし";
 
+    const iconHtml = (typeof getWeaponIconSVG === "function")
+        ? `<span class="weapon-icon-wrap">${getWeaponIconSVG(weapon.type, 40)}</span>`
+        : "";
     let detailsHtml = `<strong>${getWeaponDisplayName(weapon)}</strong>`;
     const detailsList = [];
 
@@ -454,7 +489,7 @@ function formatWeaponDetailsHTML(weapon) {
         detailsHtml += `<ul style="margin: 5px 0 5px 0; padding-left: 20px; list-style-type: '◆ '; font-size: 0.9em; color: #ddd;">${detailsList.join('')}</ul>`;
     }
 
-    return detailsHtml;
+    return `<div class="weapon-display-inner">${iconHtml}<div class="item-text-col">${detailsHtml}</div></div>`;
 }
 
 function updateStatus(player) {
@@ -663,7 +698,8 @@ function applyStudyRewards(seconds) {
         dailyMissions: player.dailyMissions,
         guild: player.guild,
         adventurerExp: player.adventurerExp || 0,
-        special: player.special
+        special: player.special,
+        prestigeCount: player.prestigeCount
     });
 
     // オーブを追加
@@ -762,10 +798,10 @@ function setupSocketEventHandlers() {
         localStorage.setItem('bosses', JSON.stringify(bosses)); // And in localStorage for persistence
 
         const bossSelects = [
-            document.getElementById('bossSelect'),       // For party
-            document.getElementById('soloBossSelect')    // For solo
+            { select: document.getElementById('bossSelect'), preview: document.getElementById('bossPreview') },       // For party
+            { select: document.getElementById('soloBossSelect'), preview: document.getElementById('soloBossPreview') } // For solo
         ];
-        bossSelects.forEach(select => {
+        bossSelects.forEach(({ select, preview }) => {
             if (!select) return;
             const currentVal = select.value;
             select.innerHTML = ''; // Clear existing options
@@ -777,6 +813,12 @@ function setupSocketEventHandlers() {
             });
             // Restore previous selection if possible
             if (currentVal) select.value = currentVal;
+
+            updateBossPreview(select, preview);
+            if (!select.dataset.previewBound) {
+                select.addEventListener('change', () => updateBossPreview(select, preview));
+                select.dataset.previewBound = "true";
+            }
         });
         console.log('Boss list updated from server.');
     });

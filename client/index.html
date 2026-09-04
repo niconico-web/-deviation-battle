@@ -469,6 +469,7 @@
                     <h3>ソロでボスに挑戦</h3>
                     <label class="field-label" for="soloBossSelect">ボス選択</label>
                     <select id="soloBossSelect"></select>
+                    <div id="soloBossPreview" class="boss-preview"></div>
                     <label class="field-label" for="soloBossDifficulty">難易度</label>
                     <select id="soloBossDifficulty">
                         <option value="easy">イージー</option>
@@ -481,6 +482,7 @@
                     <h3>パーティでボスに挑戦 (ホストのみ)</h3>
                     <label class="field-label" for="bossSelect">ボス選択</label>
                     <select id="bossSelect"></select>
+                    <div id="bossPreview" class="boss-preview"></div>
                     <label class="field-label" for="bossDifficulty">難易度</label>
                     <select id="bossDifficulty">
                         <option value="easy">イージー</option>
@@ -528,6 +530,7 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/i18n.js"></script>
+    <script src="js/icons.js"></script>
     <script src="js/stats.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/weapons.js"></script>
