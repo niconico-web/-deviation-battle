@@ -217,7 +217,11 @@ module.exports = function(io){
 
                 const pvpLogs = [];
                 if (pvpResult.isCorrect) {
-                    pvpLogs.push(`${pvpResult.playerName}が正解！追撃ダメージ${pvpResult.chipDamage || 0}（行動ゲージ ${pvpResult.gaugeCount || 0}/${pvpResult.gaugeRequired}）`);
+                    if (pvpResult.autoStrongAttack) {
+                        pvpLogs.push(`${pvpResult.playerName}が正解！行動ゲージ満タンで強攻撃発動！ダメージ${pvpResult.strongDamage || 0}`);
+                    } else {
+                        pvpLogs.push(`${pvpResult.playerName}が正解！追撃ダメージ${pvpResult.chipDamage || 0}（行動ゲージ ${pvpResult.gaugeCount || 0}/${pvpResult.gaugeRequired}）`);
+                    }
                 } else {
                     pvpLogs.push(`${pvpResult.playerName}は不正解…`);
                 }
@@ -229,6 +233,10 @@ module.exports = function(io){
                 if (pvpResult.chipDamage) {
                     const targetId = Object.keys(battle.players).find(id => id !== playerId);
                     pvpDamageEvents.push({ targetId, dodged: false, damage: pvpResult.chipDamage });
+                }
+                if (pvpResult.strongDamage) {
+                    const targetId = Object.keys(battle.players).find(id => id !== playerId);
+                    pvpDamageEvents.push({ targetId, dodged: false, damage: pvpResult.strongDamage });
                 }
 
                 const pvpEffectEvents = [];
@@ -251,6 +259,11 @@ module.exports = function(io){
                 });
 
                 const pvpUpdatePayload = { logs: pvpLogs, damageEvents: pvpDamageEvents, effectEvents: pvpEffectEvents, stateUpdate: pvpStateUpdate };
+                if (pvpResult.autoStrongAttack) {
+                    pvpUpdatePayload.autoStrongAttack = true;
+                    pvpUpdatePayload.strongDamage = pvpResult.strongDamage;
+                    pvpUpdatePayload.playerName = pvpResult.playerName;
+                }
                 if (pvpResult.gaugeFull) {
                     // 誰の行動ゲージが満タンになり、コマンド選択中なのかを全員に通知する
                     pvpUpdatePayload.gaugeFullPlayerId = playerId;
@@ -282,7 +295,11 @@ module.exports = function(io){
 
             const raidLogs = [];
             if (raidResult.isCorrect) {
-                raidLogs.push(`${raidResult.playerName}が正解！追撃ダメージ${raidResult.chipDamage || 0}（行動ゲージ ${raidResult.gaugeCount || 0}/${raidResult.gaugeRequired}）`);
+                if (raidResult.autoStrongAttack) {
+                    raidLogs.push(`${raidResult.playerName}が正解！行動ゲージ満タンで強攻撃発動！ダメージ${raidResult.strongDamage || 0}`);
+                } else {
+                    raidLogs.push(`${raidResult.playerName}が正解！追撃ダメージ${raidResult.chipDamage || 0}（行動ゲージ ${raidResult.gaugeCount || 0}/${raidResult.gaugeRequired}）`);
+                }
             } else {
                 raidLogs.push(`${raidResult.playerName}は不正解…`);
             }
@@ -294,6 +311,10 @@ module.exports = function(io){
             if (raidResult.chipDamage) {
                 const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
                 raidDamageEvents.push({ targetId: bossId, dodged: false, damage: raidResult.chipDamage });
+            }
+            if (raidResult.strongDamage) {
+                const bossId = Object.keys(battle.players).find(id => battle.players[id].isBoss);
+                raidDamageEvents.push({ targetId: bossId, dodged: false, damage: raidResult.strongDamage });
             }
 
             const raidEffectEvents = [];
@@ -316,6 +337,11 @@ module.exports = function(io){
             });
 
             const raidUpdatePayload = { logs: raidLogs, damageEvents: raidDamageEvents, effectEvents: raidEffectEvents, stateUpdate: raidStateUpdate };
+            if (raidResult.autoStrongAttack) {
+                raidUpdatePayload.autoStrongAttack = true;
+                raidUpdatePayload.strongDamage = raidResult.strongDamage;
+                raidUpdatePayload.playerName = raidResult.playerName;
+            }
             if (raidResult.gaugeFull) {
                 raidUpdatePayload.gaugeFullPlayerId = playerId;
             }

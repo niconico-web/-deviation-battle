@@ -463,6 +463,29 @@ textarea {
 .points-under { color: var(--accent-yellow); }
 .points-trained { color: var(--accent-blue); }
 
+/* プレステージ */
+.prestige-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--accent-yellow, #e0b93d);
+    border-radius: 8px;
+}
+
+.prestige-box h3 {
+    margin: 0 0 6px 0;
+    color: var(--accent-yellow, #e0b93d);
+}
+
+.prestige-box p {
+    margin: 4px 0;
+}
+
+.prestige-locked {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
 /* ボタン */
 .btn {
     padding: 8px 12px;

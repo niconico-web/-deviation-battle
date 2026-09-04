@@ -309,6 +309,7 @@ function createCharacter() {
     const name = document.getElementById("playerName").value.trim() || I18N.unnamed;
     const stats = getStatsFromInputs();
     const existing = getPlayerData();
+    const prestigeMode = isPrestigeMode && !!existing;
 
     // 名前のバリデーション（新規作成時のみ）
     if (!existing && typeof validateName === "function") {
@@ -319,7 +320,9 @@ function createCharacter() {
         }
     }
 
-    if (!existing) {
+    if (!existing || prestigeMode) {
+        // 新規作成時、またはプレステージによる再配分時は
+        // 持ち点250ポイントちょうどを配分することを要求する
         const validation = validateStatAllocation(stats);
         if (!validation.ok) { alert(validation.message); return; }
     } else {
@@ -333,6 +336,7 @@ function createCharacter() {
 
     const xp = existing ? existing.xp : 0;
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
+    const prestigeCount = prestigeMode ? (existing?.prestigeCount || 0) + 1 : (existing?.prestigeCount || 0);
     const player = buildPlayer(name, stats, xp, {
         totalStudySeconds,
         grade: stats.grade,
@@ -352,13 +356,15 @@ function createCharacter() {
         dailyMissions: existing?.dailyMissions,
         guild: existing?.guild,
         adventurerExp: existing?.adventurerExp,
-        special: existing?.special
+        special: existing?.special,
+        prestigeCount
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
     updateXpDisplay(player);
     
     // Lock stat inputs after creation
+    isPrestigeMode = false;
     lockStatInputs(true);
     document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
     
@@ -370,7 +376,40 @@ function createCharacter() {
 
     syncPlayerToServer(true);
 
-    alert(I18N.charCreated);
+    if (prestigeMode) {
+        const bonusPercent = Math.round(prestigeCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
+        alert(I18N.prestigeDone.replace("{bonus}", bonusPercent));
+    } else {
+        alert(I18N.charCreated);
+    }
+}
+
+// プレステージ機能：一定レベルに到達したプレイヤーが、ステータスを
+// 最初の振り分け可能な状態（持ち点250）に戻して再配分する代わりに、
+// 全ステータスに永続的な倍率ボーナスを得られる（回数分累積、上限なし）。
+let isPrestigeMode = false;
+
+function startPrestige() {
+    const player = getPlayerData();
+    if (!player) return;
+
+    if (!canPrestige(player)) {
+        alert(I18N.prestigeLevelRequired.replace("{level}", PRESTIGE_UNLOCK_LEVEL));
+        return;
+    }
+
+    const nextCount = (player.prestigeCount || 0) + 1;
+    const nextBonusPercent = Math.round(nextCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
+    const confirmed = confirm(I18N.prestigeConfirmMsg.replace("{bonus}", nextBonusPercent));
+    if (!confirmed) return;
+
+    isPrestigeMode = true;
+    setStatsToInputs(DEFAULT_STATS);
+    lockStatInputs(false);
+    document.getElementById("statAllocationDesc").textContent = I18N.prestigeAllocationDesc;
+    const createBtn = document.getElementById("createCharBtn");
+    if (createBtn) createBtn.textContent = I18N.prestigeConfirmBtn;
+    updateRemainingPoints();
 }
 
 /**
@@ -422,7 +461,19 @@ function updateStatus(player) {
     // 武器補正を適用したステータスを取得
     const battleStats = getBattleStats(player);
     const weaponDetailsHtml = formatWeaponDetailsHTML(player.equippedWeapon);
-    
+    const prestigeCount = player.prestigeCount || 0;
+    const prestigeBonusPercent = Math.round(prestigeCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
+
+    let prestigeHtml = "<div class='prestige-box'><h3>" + I18N.prestigeTitle + "</h3>" +
+        "<p>" + I18N.prestigeCountLabel + I18N.colon + prestigeCount + I18N.prestigeTimesSuffix + "</p>" +
+        "<p>" + I18N.prestigeBonusLabel + I18N.colon + "+" + prestigeBonusPercent + "%</p>";
+    if (canPrestige(player)) {
+        prestigeHtml += "<button type='button' id='prestigeBtn' class='btn btn-secondary'>" + I18N.prestigeBtn + "</button>";
+    } else {
+        prestigeHtml += "<p class='prestige-locked'>" + I18N.prestigeLocked.replace("{level}", PRESTIGE_UNLOCK_LEVEL) + "</p>";
+    }
+    prestigeHtml += "</div>";
+
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
         "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
@@ -436,7 +487,13 @@ function updateStatus(player) {
         "<p>" + I18N.speed + I18N.colon + battleStats.speed + "</p>" +
         "<p>特殊" + I18N.colon + (battleStats.special != null ? battleStats.special : battleStats.atk) + "</p>" +
         "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
-        "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>";
+        "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>" +
+        "<hr>" + prestigeHtml;
+
+    const prestigeBtn = document.getElementById("prestigeBtn");
+    if (prestigeBtn) {
+        prestigeBtn.addEventListener("click", startPrestige);
+    }
 }
 
 function updateXpDisplay(player) {

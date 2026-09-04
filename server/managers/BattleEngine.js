@@ -669,11 +669,11 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
         result.attackType = attackType;
 
         // 攻撃力または特殊攻撃力を基準にする
-        let baseAtk = attackType === 'special' ? (player.specialAtk || player.atk) : player.atk;
+        let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
         
         // バフ/デバフを適用した攻撃力を取得
-        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
-        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
+        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
 
         // 正解のたびに攻撃力の0.5倍の追撃ダメージ
         const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
@@ -837,11 +837,11 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
         result.attackType = attackType;
 
         // 攻撃力または特殊攻撃力を基準にする
-        let baseAtk = attackType === 'special' ? (player.specialAtk || player.atk) : player.atk;
+        let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
         
         // バフ/デバフを適用した攻撃力を取得
-        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
-        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'specialAtk' : 'atk');
+        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
+        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
 
         // 正解のたびに攻撃力の0.5倍の追撃ダメージ
         const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
@@ -879,12 +879,55 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
         result.gaugeCount = player.gaugeCount;
 
         if (player.gaugeCount >= player.gaugeRequired) {
-            // 行動ゲージ満タン！コマンドを選べる（この間は次の問題を出さない）
-            player.readyForCommand = true;
-            player.pendingSkillEffect = usedSkill && usedSkill.effect ? usedSkill.effect : null;
-            player.pendingUsedSkill = usedSkill || null;
-            result.showCommandMenu = true;
+            // 行動ゲージ満タン！強攻撃を自動発動（1倍ダメージ）
+            const attackType = player.attackType || 'attack';
+            let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
+            
+            // バフ/デバフを適用した攻撃力を取得
+            baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
+            baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+
+            // 強攻撃ダメージ（1倍）
+            const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+            let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
+            
+            // アクティブスキルのダメージ倍率を適用
+            if (activeSkillEffect && activeSkillEffect.damageMultiplier) {
+                strongDamage = Math.floor(strongDamage * activeSkillEffect.damageMultiplier);
+                result.skillDamageMultiplier = activeSkillEffect.damageMultiplier;
+            }
+            
+            strongDamage = applyUniqueAbilityDamageBonus(strongDamage, player);
+            strongDamage = applyUniqueAbilityDefense(strongDamage, enemy);
+            enemy.hp = Math.max(0, enemy.hp - strongDamage);
+            result.strongDamage = strongDamage;
+            result.enemyHp = enemy.hp;
             result.gaugeFull = true;
+            result.autoStrongAttack = true;
+
+            // 必殺技ゲージ増加
+            if (!player.ultimateGauge) {
+                player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+            }
+            player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + 20);
+            result.ultimateGauge = player.ultimateGauge.current;
+            result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+
+            // ライフドレイン処理
+            const healAmount = applyLifeDrain(player, strongDamage);
+            if (healAmount > 0) {
+                player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+
+            // ゲージをリセットして次の問題へ
+            player.gaugeCount = 0;
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+
+            if (enemy.hp <= 0) {
+                battle.finished = true;
+                result.winner = playerId;
+            }
         } else {
             result.nextQuestion = generatePlayerQuestion(battle, playerId);
         }
@@ -1838,6 +1881,8 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
         gaugeRequired: player.gaugeRequired
     };
 
+    // スキルの発動判定と、攻撃を伴わない効果の即時適用
+    let activeSkillEffect = null;
     if (usedSkill && usedSkill.effect) {
         const eff = usedSkill.effect;
         let canApply = true;
@@ -1848,6 +1893,7 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
         }
         if (canApply) {
             result.skillUsed = usedSkill;
+            activeSkillEffect = eff;
             applyInstantSkillEffects(player, boss, eff, result);
         } else {
             result.skillFailed = usedSkill.name;
@@ -1888,11 +1934,56 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
         result.gaugeCount = player.gaugeCount;
 
         if (player.gaugeCount >= player.gaugeRequired) {
-            player.readyForCommand = true;
-            player.pendingSkillEffect = usedSkill && usedSkill.effect ? usedSkill.effect : null;
-            player.pendingUsedSkill = usedSkill || null;
-            result.showCommandMenu = true;
+            // 行動ゲージ満タン！強攻撃を自動発動（1倍ダメージ）
+            const attackType = player.attackType || 'attack';
+            let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
+            
+            // バフ/デバフを適用した攻撃力を取得
+            baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
+            baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+
+            // 強攻撃ダメージ（1倍）
+            const defReduction = Math.floor(getStatWithDebuffs(boss, 'def') * 0.1);
+            let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
+            
+            // アクティブスキルのダメージ倍率を適用
+            if (activeSkillEffect && activeSkillEffect.damageMultiplier) {
+                strongDamage = Math.floor(strongDamage * activeSkillEffect.damageMultiplier);
+                result.skillDamageMultiplier = activeSkillEffect.damageMultiplier;
+            }
+            
+            strongDamage = applyUniqueAbilityDamageBonus(strongDamage, player);
+            strongDamage = applyUniqueAbilityDefense(strongDamage, boss);
+            boss.hp = Math.max(0, boss.hp - strongDamage);
+            result.strongDamage = strongDamage;
+            result.bossHp = boss.hp;
             result.gaugeFull = true;
+            result.autoStrongAttack = true;
+
+            // 必殺技ゲージ増加
+            if (!player.ultimateGauge) {
+                player.ultimateGauge = { current: 0, max: ULTIMATE_GAUGE_MAX };
+            }
+            player.ultimateGauge.current = Math.min(player.ultimateGauge.max, player.ultimateGauge.current + 20);
+            result.ultimateGauge = player.ultimateGauge.current;
+            result.ultimateReady = player.ultimateGauge.current >= player.ultimateGauge.max;
+
+            // ライフドレイン処理
+            const healAmount = applyLifeDrain(player, strongDamage);
+            if (healAmount > 0) {
+                player.hp = Math.min(player.maxHp, player.hp + healAmount);
+                result.lifedrainHealed = healAmount;
+            }
+
+            // ゲージをリセットして次の問題へ
+            player.gaugeCount = 0;
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+
+            if (boss.hp <= 0) {
+                battle.finished = true;
+                result.winner = 'party';
+                result.raidVictory = true;
+            }
         } else {
             result.nextQuestion = generatePlayerQuestion(battle, playerId);
         }
