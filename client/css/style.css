@@ -486,6 +486,94 @@ textarea {
     font-size: 0.85rem;
 }
 
+/* 武器・ボスのアイコンイラスト */
+.icon-badge {
+    display: block;
+    flex-shrink: 0;
+}
+
+.weapon-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.weapon-icon-wrap-sm {
+    margin-right: 6px;
+}
+
+.item-text-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.shop-item-info, .inventory-item-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.weapon-type-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weapon-display-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* ボス選択プレビュー */
+.boss-preview {
+    margin-top: 8px;
+}
+
+.boss-preview-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.boss-icon-wrap {
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.boss-preview-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.boss-preview-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* バトル画面の相手アイコン */
+.battle-avatar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 6px;
+    min-height: 0;
+}
+
+.battle-avatar:empty {
+    margin-bottom: 0;
+}
+
 /* ボタン */
 .btn {
     padding: 8px 12px;

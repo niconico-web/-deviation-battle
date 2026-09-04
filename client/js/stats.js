@@ -361,7 +361,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         dailyMissions: latestDailyMissions,
         guild: player.guild,
         adventurerExp: player.adventurerExp || 0,
-        special: player.special
+        special: player.special,
+        prestigeCount: player.prestigeCount
     });
 
     // オーブを追加

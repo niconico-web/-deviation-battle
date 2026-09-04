@@ -21,7 +21,10 @@ function renderShop() {
         
         const typeHeader = document.createElement("h3");
         typeHeader.className = "weapon-type-header";
-        typeHeader.textContent = typeName;
+        const typeIconHtml = (typeof getWeaponIconSVG === "function")
+            ? `<span class="weapon-icon-wrap">${getWeaponIconSVG(type, 32)}</span>`
+            : "";
+        typeHeader.innerHTML = `${typeIconHtml}<span>${typeName}</span>`;
         typeSection.appendChild(typeHeader);
         
         // tierグリッドを作成
@@ -44,10 +47,16 @@ function renderShop() {
 
             const item = document.createElement("div");
             item.className = "shop-item" + (owned ? " owned" : "");
+            const itemIconHtml = (typeof getWeaponIconSVG === "function")
+                ? `<span class="weapon-icon-wrap weapon-icon-wrap-sm">${getWeaponIconSVG(type, 28)}</span>`
+                : "";
             item.innerHTML =
                 `<div class="shop-item-info">
-                    <strong>${weapon.name}</strong>
-                    <span class="shop-item-tier">${tier.toUpperCase()}</span>
+                    ${itemIconHtml}
+                    <div class="item-text-col">
+                        <strong>${weapon.name}</strong>
+                        <span class="shop-item-tier">${tier.toUpperCase()}</span>
+                    </div>
                 </div>
                 <div class="shop-item-action">
                     ${owned
@@ -159,11 +168,17 @@ function renderInventory() {
             }
         }
         
+        const itemIconHtml = (typeof getWeaponIconSVG === "function")
+            ? `<span class="weapon-icon-wrap">${getWeaponIconSVG(weapon.type, 40)}</span>`
+            : "";
         item.innerHTML =
             `<div class="inventory-item-info">
-                <strong>${getWeaponDisplayName(weapon)}</strong>
-                <span>${typeLabel}</span>
-                ${weaponDetails}
+                ${itemIconHtml}
+                <div class="item-text-col">
+                    <strong>${getWeaponDisplayName(weapon)}</strong>
+                    <span>${typeLabel}</span>
+                    ${weaponDetails}
+                </div>
             </div>
             <div class="inventory-item-action">
                 ${isEquipped
