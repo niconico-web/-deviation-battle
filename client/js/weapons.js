@@ -400,10 +400,10 @@ const ULTIMATE_DAMAGE_MULTIPLIER = 1.5; // 必殺技発動時のダメージ倍�
 // ============================================
 
 const ORB_TIERS = {
-    tier1: { name: "Tier1", dropRate: 0.50, statRange: [0.05, 0.10] },
-    tier2: { name: "Tier2", dropRate: 0.30, statRange: [0.10, 0.15] },
-    tier3: { name: "Tier3", dropRate: 0.15, statRange: [0.15, 0.20] },
-    tier4: { name: "Tier4", dropRate: 0.05, statRange: [0.15, 0.20] }
+    tier1: { name: "ティア1", dropRate: 0.50, statRange: [0.05, 0.10] },
+    tier2: { name: "ティア2", dropRate: 0.30, statRange: [0.10, 0.15] },
+    tier3: { name: "ティア3", dropRate: 0.15, statRange: [0.15, 0.20] },
+    tier4: { name: "ティア4", dropRate: 0.05, statRange: [0.15, 0.20] }
 };
 
 const ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分

@@ -100,6 +100,8 @@ function migratePlayer(player) {
         guild: player.guild || null, // Preserve guild membership
         adventurerExp: player.adventurerExp || 0, // Preserve adventurer experience
         prestigeCount: player.prestigeCount || 0, // プレステージ実行回数（永続ボーナスの累積に使用）
+        lastLoginDate: player.lastLoginDate || null, // ログインボーナス：最後にボーナスを受け取った日付
+        loginStreak: player.loginStreak || 0, // ログインボーナス：連続ログイン日数
         // Core stats (maxHp, atk, def, speed) will be set below
         maxHp: player.maxHp, // Keep existing if present, otherwise default below
         atk: player.atk,
@@ -362,7 +364,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         guild: player.guild,
         adventurerExp: player.adventurerExp || 0,
         special: player.special,
-        prestigeCount: player.prestigeCount
+        prestigeCount: player.prestigeCount,
+        lastLoginDate: player.lastLoginDate,
+        loginStreak: player.loginStreak
     });
 
     // オーブを追加
@@ -489,7 +493,9 @@ function buildPlayer(name, stats, xp, options = {}) {
         dailyMissions: options.dailyMissions !== undefined ? options.dailyMissions : null,
         guild: options.guild !== undefined ? options.guild : null,
         adventurerExp: options.adventurerExp || 0,
-        prestigeCount: options.prestigeCount || 0
+        prestigeCount: options.prestigeCount || 0,
+        lastLoginDate: options.lastLoginDate !== undefined ? options.lastLoginDate : null,
+        loginStreak: options.loginStreak || 0
     };
 }
 

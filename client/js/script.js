@@ -80,6 +80,11 @@ document.addEventListener('visibilitychange', () => {
             initializeDailyMissions();
         }
 
+        // 日付が変わっていればログインボーナスも確認する
+        if (typeof checkAndGrantLoginBonus === 'function') {
+            checkAndGrantLoginBonus();
+        }
+
         // ページが再表示されたらタイマー状態を復元
         const savedState = loadStudyTimerState();
         if (savedState && studyStartTime === null) {
@@ -361,7 +366,9 @@ function createCharacter() {
         guild: existing?.guild,
         adventurerExp: existing?.adventurerExp,
         special: existing?.special,
-        prestigeCount
+        prestigeCount,
+        lastLoginDate: existing?.lastLoginDate,
+        loginStreak: existing?.loginStreak
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -372,6 +379,12 @@ function createCharacter() {
     // ここで明示的に初期化・再描画しておく。
     if (typeof initializeDailyMissions === "function") {
         initializeDailyMissions();
+    }
+
+    // 新規キャラクター作成時のみ、初回ログインボーナスも確認する
+    // （プレステージ時は同じcreateCharacter()を経由するが、ボーナス表示は不要）
+    if (!existing && typeof checkAndGrantLoginBonus === "function") {
+        checkAndGrantLoginBonus();
     }
     
     // Lock stat inputs after creation
@@ -699,7 +712,9 @@ function applyStudyRewards(seconds) {
         guild: player.guild,
         adventurerExp: player.adventurerExp || 0,
         special: player.special,
-        prestigeCount: player.prestigeCount
+        prestigeCount: player.prestigeCount,
+        lastLoginDate: player.lastLoginDate,
+        loginStreak: player.loginStreak
     });
 
     // オーブを追加
@@ -1212,6 +1227,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // デイリーミッションの初期化
         if (typeof initializeDailyMissions === "function") {
             initializeDailyMissions();
+        }
+
+        // ログインボーナスの確認・付与
+        if (typeof checkAndGrantLoginBonus === "function") {
+            checkAndGrantLoginBonus();
         }
 
         // スキルセクションのサブタブ切り替えロジック
