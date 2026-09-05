@@ -188,6 +188,10 @@ function updateGuildQuestProgress(type, value) {
                     
                     // 報酬メッセージを表示
                     let rewardMessage = `クエスト「${quest.title}」を達成しました！\n報酬: ${coinReward}コイン, ${xpReward}XP`;
+                    rewardMessage += `\n冒険者経験値: +${adventurerExpReward}`;
+                    if (playerGuild) {
+                        rewardMessage += `\nギルド貢献度: +${quest.reward || 0}`;
+                    }
                     if (orbReward) {
                         rewardMessage += `\n特別報酬: ${getOrbDisplayName(orbReward)}`;
                     }

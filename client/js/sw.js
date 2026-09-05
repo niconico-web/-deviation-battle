@@ -1,5 +1,5 @@
-const CACHE_NAME = 'school-battle-cache-v37';
-// �L���b�V������t�@�C���̃��X�g
+const CACHE_NAME = 'school-battle-cache-v38';
+// キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
   '/index.html',
@@ -17,6 +17,7 @@ const urlsToCache = [
   '/js/stats.js',
   '/js/weapons.js',
   '/js/i18n.js',
+  '/js/icons.js',
   '/js/online.js',
   '/js/shop.js',
   '/js/skillTree.js',
@@ -26,17 +27,18 @@ const urlsToCache = [
   '/js/help.js',
   '/js/boss.js',
   '/js/mission.js',
+  '/js/loginBonus.js',
   '/js/materials.js',
   '/js/ranking.js',
   '/js/party.js',
   '/js/guild.js',
   '/socket.io/socket.io.js',
-  // �A�C�R���̃p�X���C��
+  // アイコンのパスを修正
   '/images/icons/icon-192x192.png',
   '/images/icons/icon-512x512.png'
 ];
 
-// install�C�x���g�F�L���b�V���Ƀt�@�C����ǉ�����
+// installイベント：キャッシュにファイルを追加する
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -44,11 +46,11 @@ self.addEventListener('install', (event) => {
         console.log('ServiceWorker: Caching files');
         return cache.addAll(urlsToCache);
       })
-      .then(() => self.skipWaiting()) // �V����Service Worker�𑦍��ɗL����
+      .then(() => self.skipWaiting()) // 新しいService Workerを即座に有効化
   );
 });
 
-// activate�C�x���g�F�Â��L���b�V�����폜����
+// activateイベント：古いキャッシュを削除する
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -59,17 +61,17 @@ self.addEventListener('activate', (event) => {
           return caches.delete(cacheName);
         }
       })
-    )).then(() => self.clients.claim()) // ���ׂẴN���C�A���g�𐧌䉺�ɒu��
+    )).then(() => self.clients.claim()) // すべてのクライアントを制御下に置く
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  // chrome-extension����̃��N�G�X�g��Service Worker�ŏ������Ȃ�
+  // chrome-extensionからのリクエストはService Workerで処理しない
   if (event.request.url.startsWith('chrome-extension://')) {
     return;
   }
 
-  // API��Socket.IO�|�[�����O���N�G�X�g�̓l�b�g���[�N�ɒ��ڃA�N�Z�X
+  // APIとSocket.IOポーリングリクエストはネットワークに直接アクセス
   if (event.request.url.includes('/api/') || event.request.url.includes('/socket.io/?')) {
     event.respondWith(fetch(event.request));
     return;
@@ -108,14 +110,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-While-Revalidate �헪
+  // Stale-While-Revalidate 戦略
   event.respondWith(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(event.request).then((response) => {
         const fetchPromise = fetch(event.request).then((networkResponse) => {
-          // �L���ȃ��X�|���X�̂݃L���b�V���ichrome-extension�����O�j
+          // 有効なレスポンスのみキャッシュ（chrome-extensionを除外）
           if (networkResponse && networkResponse.status === 200) {
-            // chrome-extension URL�̓L���b�V�����Ȃ�
+            // chrome-extension URLはキャッシュしない
             if (!event.request.url.startsWith('chrome-extension://')) {
               cache.put(event.request, networkResponse.clone());
             }
@@ -129,7 +131,7 @@ self.addEventListener('fetch', (event) => {
           }
           throw error;
         });
-        // �L���b�V��������΂����Ԃ��A�Ȃ���΃l�b�g���[�N�̌��ʂ�҂�
+        // キャッシュがあればそれを返し、なければネットワークの結果を待つ
         return response || fetchPromise;
       });
     })

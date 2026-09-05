@@ -574,6 +574,50 @@ textarea {
     margin-bottom: 0;
 }
 
+/* ログインボーナス */
+.login-bonus-content {
+    align-items: center;
+    text-align: center;
+    background: linear-gradient(160deg, #2a2440 0%, var(--bg-dark) 70%);
+    border: 1px solid var(--accent-yellow);
+    box-shadow: 0 0 30px rgba(255, 193, 7, 0.25);
+}
+
+.login-bonus-title {
+    margin: 4px 0 0 0;
+    color: var(--accent-yellow);
+}
+
+.login-bonus-streak {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+.login-bonus-reward-list {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.login-bonus-reward-list li {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-weight: bold;
+}
+
+.login-bonus-hint {
+    margin: 4px 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
 /* ボタン */
 .btn {
     padding: 8px 12px;
