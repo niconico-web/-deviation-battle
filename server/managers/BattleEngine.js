@@ -1826,7 +1826,28 @@ function processPvpCommand(battle, playerId, command) {
         player.pendingUsedSkill = null;
         tickDebuffs(player);
         tickDebuffs(enemy);
-        result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        // 以前はここで火傷・毒の継続ダメージやバフの残りターンが処理されておらず、
+        // オンラインPvP戦だけ火傷・毒が付与されても何も起きない（バフも切れない）
+        // 不具合になっていた。ボット戦・パーティ戦と同じ処理をここでも行う。
+        tickBuffs(attacker);
+        tickBuffs(defender);
+        tickBurn(attacker, result, 'selfBurnTick');
+        tickBurn(defender, result, 'enemyBurnTick');
+        tickPoison(attacker, result, 'selfPoisonTick');
+        tickPoison(defender, result, 'enemyPoisonTick');
+
+        // 火傷・毒のダメージでどちらかが倒れていないか確認する
+        if (defender.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        } else if (attacker.hp <= 0) {
+            battle.finished = true;
+            result.winner = enemyId;
+        }
+
+        if (!battle.finished) {
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        }
     }
 
     return {
@@ -2091,7 +2112,34 @@ function processRaidPlayerCommand(battle, playerId, command) {
         player.pendingSkillEffect = null;
         player.pendingUsedSkill = null;
         tickDebuffs(player);
-        result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        // processPvpCommand()と同様、以前はここで火傷・毒・バフの経過処理が
+        // 行われておらず、パーティのボス戦では火傷・毒が付与されても
+        // ダメージが発生せず、バフも切れないままになっていた。
+        tickBuffs(player);
+        tickBuffs(boss);
+        tickBurn(player, result, 'selfBurnTick');
+        tickBurn(boss, result, 'bossBurnTick');
+        tickPoison(player, result, 'selfPoisonTick');
+        tickPoison(boss, result, 'bossPoisonTick');
+
+        // 火傷・毒のダメージでどちらかが倒れていないか確認する
+        if (boss.hp <= 0) {
+            battle.finished = true;
+            result.winner = 'party';
+            result.raidVictory = true;
+        } else if (player.hp <= 0) {
+            result.playerDown = true;
+            const anyoneAlive = Object.values(battle.players).some(p => !p.isBoss && p.hp > 0);
+            if (!anyoneAlive) {
+                battle.finished = true;
+                result.winner = bossId;
+                result.raidDefeat = true;
+            }
+        }
+
+        if (!battle.finished) {
+            result.nextQuestion = generatePlayerQuestion(battle, playerId);
+        }
     }
 
     return {

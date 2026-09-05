@@ -259,6 +259,32 @@
                     body: '合わないと感じたら、マイギルド欄の「ギルドを脱退」からいつでも抜けられます。\n別のギルドに参加し直すこともできます。'
                 }
             ]
+        },
+        reincarnation: {
+            storageKey: 'sb_tutorial_reincarnation_seen',
+            buttonId: 'tutorialOpenBtn-reincarnation',
+            steps: [
+                {
+                    icon: '🔁',
+                    title: '転生とは？',
+                    body: 'レベル20に到達すると「転生」ができるようになります。\nステータス・レベル（経験値）・スキルツリーをリセットして持ち点250ポイントを再配分する代わりに、全ステータスに永続的なボーナス倍率を得られます。\n学年はリセットされません。'
+                },
+                {
+                    icon: '📈',
+                    title: 'ボーナスの量は毎回変わる',
+                    body: '転生で得られる永続ボーナスの量は、実行する瞬間のステータス合計・レベル・戦力スコア（戦力ランキングと同じ計算式）で決まります。\nしっかり育成してから転生するほど、その回で得られるボーナスが大きくなります。'
+                },
+                {
+                    icon: '➕',
+                    title: '積み重なっていく',
+                    body: '転生で得たボーナスは、実行するたびにこれまでの合計に加算されていきます。\n実行回数に上限はなく、ボーナスが減ったり消えたりすることもありません。'
+                },
+                {
+                    icon: '⚠️',
+                    title: '実行前に確認しよう',
+                    body: '転生を実行すると元に戻せません。\nステータス画面では、今すぐ転生した場合に得られるボーナス％の目安が確認できるので、タイミングを見て実行しましょう。'
+                }
+            ]
         }
     };
 
@@ -340,6 +366,11 @@
         if (currentTopicKey) markSeen(currentTopicKey);
         currentTopicKey = null;
     }
+
+    // 転生の「?」ボタンなど、動的に再描画されるHTML内のボタンから
+    // このモジュール外（script.js）でも呼び出せるように公開する。
+    window.openTutorialTopic = openTutorial;
+    window.isTutorialTopicSeen = isSeen;
 
     document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.getElementById('tutorial-overlay');

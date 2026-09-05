@@ -463,7 +463,7 @@ textarea {
 .points-under { color: var(--accent-yellow); }
 .points-trained { color: var(--accent-blue); }
 
-/* プレステージ */
+/* 転生（旧プレステージ） */
 .prestige-box {
     margin-top: 10px;
     padding: 10px 12px;
@@ -479,6 +479,11 @@ textarea {
 
 .prestige-box p {
     margin: 4px 0;
+}
+
+.prestige-next-bonus {
+    color: var(--accent-green, #4caf50);
+    font-weight: bold;
 }
 
 .prestige-locked {

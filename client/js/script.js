@@ -344,6 +344,12 @@ function createCharacter() {
     const xp = prestigeMode ? 0 : (existing ? existing.xp : 0);
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
     const prestigeCount = prestigeMode ? (existing?.prestigeCount || 0) + 1 : (existing?.prestigeCount || 0);
+    // 転生実行時に「今回分」得られる永続ボーナス％は、リセット前（existing）の
+    // ステータス・レベル・戦力スコアを基準に決まる。リセット後の値では計算しない。
+    const earnedBonusPercent = prestigeMode ? calculatePrestigeBonusPercent(existing) : 0;
+    const prestigeBonusPercent = prestigeMode
+        ? (existing?.prestigeBonusPercent || 0) + earnedBonusPercent
+        : (existing?.prestigeBonusPercent || 0);
     const skillTreeForPlayer = prestigeMode ? { unlockedNodes: [], availablePoints: 0 } : existing?.skillTree;
     const skillSlotsForPlayer = prestigeMode ? [null, null, null] : existing?.skillSlots;
     const player = buildPlayer(name, stats, xp, {
@@ -367,6 +373,7 @@ function createCharacter() {
         adventurerExp: existing?.adventurerExp,
         special: existing?.special,
         prestigeCount,
+        prestigeBonusPercent,
         lastLoginDate: existing?.lastLoginDate,
         loginStreak: existing?.loginStreak
     });
@@ -401,16 +408,23 @@ function createCharacter() {
     syncPlayerToServer(true);
 
     if (prestigeMode) {
-        const bonusPercent = Math.round(prestigeCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
-        alert(I18N.prestigeDone.replace("{bonus}", bonusPercent));
+        const roundedEarned = Math.round(earnedBonusPercent * 10) / 10;
+        const roundedTotal = Math.round(prestigeBonusPercent * 10) / 10;
+        alert(
+            I18N.prestigeDone
+                .replace("{bonus}", roundedEarned)
+                .replace("{total}", roundedTotal)
+        );
     } else {
         alert(I18N.charCreated);
     }
 }
 
-// プレステージ機能：一定レベルに到達したプレイヤーが、ステータスを
+// 転生機能（旧・プレステージ）：一定レベルに到達したプレイヤーが、ステータスを
 // 最初の振り分け可能な状態（持ち点250）に戻して再配分する代わりに、
-// 全ステータスに永続的な倍率ボーナスを得られる（回数分累積、上限なし）。
+// 全ステータスに永続的な倍率ボーナスを得られる（実行するたびに加算、上限なし）。
+// 1回あたりのボーナス量は固定ではなく、実行時点のステータス・レベル・戦力スコアで決まる
+// （calculatePrestigeBonusPercent()、詳細はstats.js参照）。
 let isPrestigeMode = false;
 
 function startPrestige() {
@@ -422,9 +436,14 @@ function startPrestige() {
         return;
     }
 
-    const nextCount = (player.prestigeCount || 0) + 1;
-    const nextBonusPercent = Math.round(nextCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
-    const confirmed = confirm(I18N.prestigeConfirmMsg.replace("{bonus}", nextBonusPercent));
+    // 今回の転生で得られる永続ボーナス％は、実行時点のステータス・レベル・戦力スコアから決まる
+    const earnedBonusPercent = Math.round(calculatePrestigeBonusPercent(player) * 10) / 10;
+    const totalBonusPercent = Math.round(((player.prestigeBonusPercent || 0) + earnedBonusPercent) * 10) / 10;
+    const confirmed = confirm(
+        I18N.prestigeConfirmMsg
+            .replace("{bonus}", earnedBonusPercent)
+            .replace("{total}", totalBonusPercent)
+    );
     if (!confirmed) return;
 
     isPrestigeMode = true;
@@ -510,12 +529,15 @@ function updateStatus(player) {
     const battleStats = getBattleStats(player);
     const weaponDetailsHtml = formatWeaponDetailsHTML(player.equippedWeapon);
     const prestigeCount = player.prestigeCount || 0;
-    const prestigeBonusPercent = Math.round(prestigeCount * PRESTIGE_BONUS_PER_PRESTIGE * 100);
+    const prestigeBonusPercent = Math.round((player.prestigeBonusPercent || 0) * 10) / 10;
 
-    let prestigeHtml = "<div class='prestige-box'><h3>" + I18N.prestigeTitle + "</h3>" +
+    let prestigeHtml = "<div class='prestige-box'><h3>" + I18N.prestigeTitle +
+        " <button type='button' id='tutorialOpenBtn-reincarnation' class='tutorial-open-btn tutorial-open-btn-inline' aria-label='転生の遊び方'>?</button></h3>" +
         "<p>" + I18N.prestigeCountLabel + I18N.colon + prestigeCount + I18N.prestigeTimesSuffix + "</p>" +
         "<p>" + I18N.prestigeBonusLabel + I18N.colon + "+" + prestigeBonusPercent + "%</p>";
     if (canPrestige(player)) {
+        const nextBonusPercent = Math.round(calculatePrestigeBonusPercent(player) * 10) / 10;
+        prestigeHtml += "<p class='prestige-next-bonus'>" + I18N.prestigeNextBonusLabel + I18N.colon + "+" + nextBonusPercent + "%</p>";
         prestigeHtml += "<button type='button' id='prestigeBtn' class='btn btn-secondary'>" + I18N.prestigeBtn + "</button>";
     } else {
         prestigeHtml += "<p class='prestige-locked'>" + I18N.prestigeLocked.replace("{level}", PRESTIGE_UNLOCK_LEVEL) + "</p>";
@@ -541,6 +563,24 @@ function updateStatus(player) {
     const prestigeBtn = document.getElementById("prestigeBtn");
     if (prestigeBtn) {
         prestigeBtn.addEventListener("click", startPrestige);
+    }
+
+    // 転生の「?」ボタンはステータス画面が再描画されるたびにHTMLが作り直されるため、
+    // tutorial-topics.js側の一括バインド（DOMContentLoaded時）では拾えない。
+    // ここで直接バインドする。
+    const reincarnationTutorialBtn = document.getElementById("tutorialOpenBtn-reincarnation");
+    if (reincarnationTutorialBtn && typeof window.openTutorialTopic === "function") {
+        reincarnationTutorialBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            window.openTutorialTopic("reincarnation");
+        });
+    }
+
+    // レベル20に到達して転生が解放された最初のタイミングで、一度だけ自動的にチュートリアルを表示する
+    if (canPrestige(player) && typeof window.openTutorialTopic === "function" && typeof window.isTutorialTopicSeen === "function") {
+        if (!window.isTutorialTopicSeen("reincarnation")) {
+            setTimeout(() => window.openTutorialTopic("reincarnation"), 300);
+        }
     }
 }
 

@@ -6,12 +6,47 @@ const TOTAL_STAT_POINTS = 250;
 const MIN_STAT = 10;
 const DEFAULT_STATS = { maxHp: 50, atk: 70, def: 50, speed: 30, special: 50 };
 
-// プレステージ機能：このレベルに到達すると、ステータスを最初の
+// 転生機能（旧・プレステージ）：このレベルに到達すると、ステータスを最初の
 // 振り分け可能な状態（持ち点250）にリセットして再配分する代わりに、
 // 永続的な全ステータス倍率ボーナスを得られるようになる。
-// 実行回数に制限はなく、ボーナスは実行回数分だけ累積し、上限はない。
+// 実行回数に制限はなく、ボーナスは実行するたびに加算され、上限はない。
+//
+// ボーナスの「量」は固定ではなく、転生を実行した瞬間の
+// （1）ステータス合計 (2)レベル (3)戦力スコア（ランキングと同じ計算式）
+// の3つを基準値と比較して決まる。育成が進んでいるほど、1回の転生で
+// 得られる永続ボーナスも大きくなる（＝やり込むほど転生の価値が上がる）。
 const PRESTIGE_UNLOCK_LEVEL = 20;
-const PRESTIGE_BONUS_PER_PRESTIGE = 0.05; // プレステージ1回につき各ステータス+5%
+const PRESTIGE_BASE_BONUS_PERCENT = 5; // 基準ボーナス％（3つの基準値すべてがちょうど基準値の場合の1回あたりのボーナス）
+const PRESTIGE_REFERENCE_STAT_TOTAL = 250; // 基準ステータス合計（初期持ち点と同じ）
+const PRESTIGE_REFERENCE_LEVEL = PRESTIGE_UNLOCK_LEVEL; // 基準レベル（転生解放レベルと同じ）
+const PRESTIGE_REFERENCE_POWER_SCORE = 100; // 基準戦力スコア
+
+// server/socket/ranking.js の戦力スコアと同じ重み付け（勉強時間・対人戦勝利・ボス周回）。
+// サーバー未接続時でもクライアント側だけで転生ボーナスを計算できるようにするための複製。
+function calculatePlayerPowerScore(player) {
+    if (!player) return 0;
+    const studyMinutes = Math.floor((player.totalStudySeconds || 0) / 60);
+    const pvpWins = player.pvpWins || 0;
+    const bossRunCount = player.bossRunCount || 0;
+    return studyMinutes * 1 + pvpWins * 30 + bossRunCount * 15;
+}
+
+// 今、転生を実行した場合に「今回分」として得られる永続ボーナス％を計算する。
+// （プレイヤーが持つ累積ボーナスに、この戻り値が加算される）
+function calculatePrestigeBonusPercent(player) {
+    if (!player) return 0;
+    const level = player.level || calcLevel(player.xp || 0);
+    const statsNow = getStatsFromPlayer(player, true);
+    const statTotal = STAT_KEYS.reduce((sum, key) => sum + (statsNow[key] || 0), 0);
+    const powerScore = calculatePlayerPowerScore(player);
+
+    const statFactor = statTotal / PRESTIGE_REFERENCE_STAT_TOTAL;
+    const levelFactor = level / PRESTIGE_REFERENCE_LEVEL;
+    const powerFactor = 1 + (powerScore / PRESTIGE_REFERENCE_POWER_SCORE);
+
+    const combinedFactor = (statFactor + levelFactor + powerFactor) / 3;
+    return PRESTIGE_BASE_BONUS_PERCENT * combinedFactor;
+}
 
 function getSubjectDisplayName(subject) {
     const subjectNames = {
@@ -99,7 +134,12 @@ function migratePlayer(player) {
         grade: player.grade || 1,
         guild: player.guild || null, // Preserve guild membership
         adventurerExp: player.adventurerExp || 0, // Preserve adventurer experience
-        prestigeCount: player.prestigeCount || 0, // プレステージ実行回数（永続ボーナスの累積に使用）
+        prestigeCount: player.prestigeCount || 0, // 転生（旧プレステージ）実行回数
+        // 転生による永続ボーナス％の累積値。旧・固定5%方式で保存されていたデータ
+        // （prestigeBonusPercentが無い）は、回数×5%として引き継ぐ。
+        prestigeBonusPercent: player.prestigeBonusPercent != null
+            ? player.prestigeBonusPercent
+            : (player.prestigeCount || 0) * 5,
         lastLoginDate: player.lastLoginDate || null, // ログインボーナス：最後にボーナスを受け取った日付
         loginStreak: player.loginStreak || 0, // ログインボーナス：連続ログイン日数
         // Core stats (maxHp, atk, def, speed) will be set below
@@ -199,17 +239,17 @@ function calcLevel(xp) {
     // 浮動小数点数の問題で負の値にならないように、最低でも1を返すようにします。
     return Math.max(1, level);
 }
-// プレイヤーがプレステージを実行可能なレベルに達しているかどうか
+// プレイヤーが転生を実行可能なレベルに達しているかどうか
 function canPrestige(player) {
     if (!player) return false;
     const level = player.level || calcLevel(player.xp || 0);
     return level >= PRESTIGE_UNLOCK_LEVEL;
 }
 
-// これまでのプレステージ回数から、現在適用される永続ステータス倍率を計算する
+// これまでの転生で積み上げた永続ボーナス％から、現在適用される永続ステータス倍率を計算する
 function getPrestigeBonusMultiplier(player) {
-    const count = (player && player.prestigeCount) || 0;
-    return 1 + count * PRESTIGE_BONUS_PER_PRESTIGE;
+    const bonusPercent = (player && player.prestigeBonusPercent) || 0;
+    return 1 + bonusPercent / 100;
 }
 
 function calcStudyXp(s) { return Math.floor(s / 4); }
@@ -494,6 +534,7 @@ function buildPlayer(name, stats, xp, options = {}) {
         guild: options.guild !== undefined ? options.guild : null,
         adventurerExp: options.adventurerExp || 0,
         prestigeCount: options.prestigeCount || 0,
+        prestigeBonusPercent: options.prestigeBonusPercent || 0,
         lastLoginDate: options.lastLoginDate !== undefined ? options.lastLoginDate : null,
         loginStreak: options.loginStreak || 0
     };

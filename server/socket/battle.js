@@ -404,11 +404,19 @@ module.exports = function(io){
                 if (pvpResult.damage) pvpLogs.push(`${pvpResult.damage}のダメージ！`);
                 if (pvpResult.defended) pvpLogs.push("防御姿勢をとった！");
                 if (pvpResult.ultimateActivated) pvpLogs.push("必殺技が発動！");
+                if (pvpResult.selfBurnTick) pvpLogs.push(`火傷ダメージ！${player.name}に${pvpResult.selfBurnTick.damage}のダメージ（残り${pvpResult.selfBurnTick.remaining}ターン）`);
+                if (pvpResult.selfPoisonTick) pvpLogs.push(`毒ダメージ！${player.name}に${pvpResult.selfPoisonTick.damage}のダメージ（残り${pvpResult.selfPoisonTick.remaining}ターン）`);
+                if (pvpResult.enemyBurnTick) pvpLogs.push(`火傷ダメージ！相手に${pvpResult.enemyBurnTick.damage}のダメージ（残り${pvpResult.enemyBurnTick.remaining}ターン）`);
+                if (pvpResult.enemyPoisonTick) pvpLogs.push(`毒ダメージ！相手に${pvpResult.enemyPoisonTick.damage}のダメージ（残り${pvpResult.enemyPoisonTick.remaining}ターン）`);
 
                 const pvpDamageEvents = [];
                 if (pvpResult.damage) {
                     pvpDamageEvents.push({ targetId: enemyId, dodged: !!pvpResult.dodged, damage: pvpResult.damage });
                 }
+                if (pvpResult.selfBurnTick) pvpDamageEvents.push({ targetId: playerId, dodged: false, damage: pvpResult.selfBurnTick.damage });
+                if (pvpResult.selfPoisonTick) pvpDamageEvents.push({ targetId: playerId, dodged: false, damage: pvpResult.selfPoisonTick.damage });
+                if (pvpResult.enemyBurnTick) pvpDamageEvents.push({ targetId: enemyId, dodged: false, damage: pvpResult.enemyBurnTick.damage });
+                if (pvpResult.enemyPoisonTick) pvpDamageEvents.push({ targetId: enemyId, dodged: false, damage: pvpResult.enemyPoisonTick.damage });
 
                 const pvpEffectEvents = [];
                 if (pvpResult.ultimateActivated) {
@@ -467,11 +475,19 @@ module.exports = function(io){
             if (raidCmdResult.ultimateActivated) {
                 raidCmdLogs.push("必殺技が発動！");
             }
+            if (raidCmdResult.selfBurnTick) raidCmdLogs.push(`火傷ダメージ！${player.name}に${raidCmdResult.selfBurnTick.damage}のダメージ（残り${raidCmdResult.selfBurnTick.remaining}ターン）`);
+            if (raidCmdResult.selfPoisonTick) raidCmdLogs.push(`毒ダメージ！${player.name}に${raidCmdResult.selfPoisonTick.damage}のダメージ（残り${raidCmdResult.selfPoisonTick.remaining}ターン）`);
+            if (raidCmdResult.bossBurnTick) raidCmdLogs.push(`火傷ダメージ！ボスに${raidCmdResult.bossBurnTick.damage}のダメージ（残り${raidCmdResult.bossBurnTick.remaining}ターン）`);
+            if (raidCmdResult.bossPoisonTick) raidCmdLogs.push(`毒ダメージ！ボスに${raidCmdResult.bossPoisonTick.damage}のダメージ（残り${raidCmdResult.bossPoisonTick.remaining}ターン）`);
 
             const raidCmdDamageEvents = [];
             if (raidCmdResult.damage) {
                 raidCmdDamageEvents.push({ targetId: bossId, dodged: !!raidCmdResult.dodged, damage: raidCmdResult.damage });
             }
+            if (raidCmdResult.selfBurnTick) raidCmdDamageEvents.push({ targetId: playerId, dodged: false, damage: raidCmdResult.selfBurnTick.damage });
+            if (raidCmdResult.selfPoisonTick) raidCmdDamageEvents.push({ targetId: playerId, dodged: false, damage: raidCmdResult.selfPoisonTick.damage });
+            if (raidCmdResult.bossBurnTick) raidCmdDamageEvents.push({ targetId: bossId, dodged: false, damage: raidCmdResult.bossBurnTick.damage });
+            if (raidCmdResult.bossPoisonTick) raidCmdDamageEvents.push({ targetId: bossId, dodged: false, damage: raidCmdResult.bossPoisonTick.damage });
 
             const raidCmdEffectEvents = [];
             if (raidCmdResult.ultimateActivated) {
@@ -500,6 +516,11 @@ module.exports = function(io){
 
             if (raidCmdResult.raidVictory) {
                 io.to(roomId).emit("battle:finished", { winner: 'party', draw: false });
+                BattleManager.deleteBattle(roomId);
+            } else if (raidCmdResult.raidDefeat) {
+                // 以前はここでraidDefeat（毒・火傷などでパーティが全滅した場合）が
+                // 判定されておらず、バトルが終了扱いにならないまま残ってしまっていた。
+                io.to(roomId).emit("battle:finished", { winner: bossId, draw: false, raidDefeat: true });
                 BattleManager.deleteBattle(roomId);
             }
         });
