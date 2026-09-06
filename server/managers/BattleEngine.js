@@ -332,7 +332,11 @@ function applyUniqueAbilityDefense(damage, defender) {
         finalDamage = Math.floor(finalDamage * 0.5);
     }
     
-    return finalDamage;
+    // ダメージが小さい時に上の軽減で0になってしまうと、その相手には
+    // 永久にダメージが通らなくなってしまうため、最低1は保証する
+    // （「鉄壁」装備者に対して片方のプレイヤーだけダメージが与えられない
+    // 不具合の原因になっていた）。
+    return Math.max(1, finalDamage);
 }
 
 /**

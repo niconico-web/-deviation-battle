@@ -313,9 +313,22 @@ module.exports = function(io){
             const me = battle.players[oldPlayerId];
             const enemy = BattleManager.getEnemy(roomId, oldPlayerId);
 
+            // 再接続時に「今答えるべき問題」を送り直す。
+            // 以前はここで問題データを送っていなかったため、再接続後にクライアント側の
+            // 問題表示が更新されず、再接続した側だけずっと正解しても何も起きない
+            // （＝相手にダメージを与えられない）状態になっていた。
+            const question = me
+                ? (me.currentQuestion || BattleEngine.generatePlayerQuestion(battle, oldPlayerId))
+                : null;
+
+            const others = Object.values(battle.players).filter(p => p.id !== oldPlayerId);
+            const allies = others.filter(p => !p.isBoss && p !== enemy);
+
             socket.emit("battleRejoined", {
                 me,
                 enemy,
+                allies,
+                question,
                 myTurn: battle.turn === oldPlayerId
             });
 
