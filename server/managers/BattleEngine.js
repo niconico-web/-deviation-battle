@@ -259,7 +259,9 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
     damage = Math.max(1, damage - timePenalty);
 
     // 素早さが90を超える場合、超過分を攻撃ボーナスに変換
-    const speed = attacker.speed || 0;
+    // （デバフ・バフを適用済みの実効素早さを使う。以前はここが常にattacker.speedの
+    // 生の値で計算されており、素早さデバフ・バフを受けても攻撃ボーナスが一切変化しなかった）
+    const speed = options.attackerSpeed !== undefined ? options.attackerSpeed : (attacker.speed || 0);
     if (speed > 90) {
         const excessSpeed = speed - 90;
         const attackBonus = Math.floor(excessSpeed * 0.1); // 超過分の10%を攻撃ボーナス
@@ -282,7 +284,8 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
     // 回避率の計算
     let dodgeChance = 0;
     if (!options.isSureHit && defender) {
-        const defenderSpeed = defender.speed || 0;
+        // こちらも同様に、デバフ・バフを適用済みの実効素早さを使う
+        const defenderSpeed = options.defenderSpeed !== undefined ? options.defenderSpeed : (defender.speed || 0);
         // 素早さ7500で最大回避率45%に到達する、二次関数的な上昇カーブ
         const maxSpeed = 750000;
         const maxDodge = 45; // 45%
@@ -563,13 +566,30 @@ function tickBuffs(player) {
 }
 
 /**
+ * デバフ/バフの対象ステータス名(debuff.stat / buff.stat)が、
+ * 判定したいステータス名(statName)に一致するかどうかを調べる。
+ * "atk_def" のように、1つの効果で複数ステータスをまとめて指定している
+ * ケース（bosses.json の複合デバフなど）にも対応する。
+ * これが無いと、例えば type:"atk_def" のデバフは atk にも def にも
+ * 一致せず、静かに何の効果も発揮しないまま終わってしまう。
+ */
+function statMatches(modifierStat, statName) {
+    if (!modifierStat) return false;
+    if (modifierStat === statName) return true;
+    if (typeof modifierStat === 'string' && modifierStat.includes('_')) {
+        return modifierStat.split('_').includes(statName);
+    }
+    return false;
+}
+
+/**
  * デバフを考慮したステータスを取得
  */
 function getStatWithDebuffs(player, statName) {
     let value = player[statName] || 0;
     if (player.debuffs) {
         player.debuffs.forEach(debuff => {
-            if (debuff.stat === statName) {
+            if (statMatches(debuff.stat, statName)) {
                 value = debuff.isFlat ? value - debuff.reduction : value * (1 - debuff.reduction);
             }
         });
@@ -584,13 +604,39 @@ function getStatWithBuffs(player, statName) {
     let value = player[statName] || 0;
     if (player.buffs) {
         player.buffs.forEach(buff => {
-            // 正確なステータス名で一致判定
-            if (buff.stat === statName) {
+            // 正確なステータス名で一致判定（複合指定にも対応）
+            if (statMatches(buff.stat, statName)) {
                 value = value * buff.amount;
             }
         });
     }
     return Math.floor(value);
+}
+
+/**
+ * バフとデバフの両方を考慮した「実際に戦闘計算で使うべきステータス」を取得する。
+ * getStatWithBuffs()とgetStatWithDebuffs()を別々に呼んで片方の戻り値だけを
+ * 使ってしまう（もう片方の効果が丸ごと無視される）バグが複数箇所にあったため、
+ * 常にこの関数で両方まとめて計算するようにする。
+ */
+function getEffectiveStat(entity, statName) {
+    if (!entity) return 0;
+    let value = entity[statName] || 0;
+    if (entity.debuffs) {
+        entity.debuffs.forEach(debuff => {
+            if (statMatches(debuff.stat, statName)) {
+                value = debuff.isFlat ? value - debuff.reduction : value * (1 - debuff.reduction);
+            }
+        });
+    }
+    if (entity.buffs) {
+        entity.buffs.forEach(buff => {
+            if (statMatches(buff.stat, statName)) {
+                value = value * buff.amount;
+            }
+        });
+    }
+    return Math.max(0, Math.floor(value));
 }
 // -----------------------------
 // レイドボス戦の回答処理（3人以上のパーティ対応）
@@ -672,11 +718,10 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
         let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
         
         // バフ/デバフを適用した攻撃力を取得
-        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
-        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+        baseAtk = getEffectiveStat(player, attackType === 'special' ? 'special' : 'atk'); // バフとデバフ両方を反映（以前は後者の呼び出しが前者を単純に上書きしてしまい、バフが常に無視されるバグがあった）
 
         // 正解のたびに攻撃力の0.5倍の追撃ダメージ
-        const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+        const defReduction = Math.floor(getEffectiveStat(enemy, 'def') * 0.1); // 相手の防御バフも反映
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
         
         // アクティブスキルのダメージ倍率を適用
@@ -840,11 +885,10 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
         let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
         
         // バフ/デバフを適用した攻撃力を取得
-        baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
-        baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+        baseAtk = getEffectiveStat(player, attackType === 'special' ? 'special' : 'atk'); // バフとデバフ両方を反映（以前は後者の呼び出しが前者を単純に上書きしてしまい、バフが常に無視されるバグがあった）
 
         // 正解のたびに攻撃力の0.5倍の追撃ダメージ
-        const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+        const defReduction = Math.floor(getEffectiveStat(enemy, 'def') * 0.1); // 相手の防御バフも反映
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
         
         // アクティブスキルのダメージ倍率を適用
@@ -884,11 +928,10 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
             let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
             
             // バフ/デバフを適用した攻撃力を取得
-            baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
-            baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+            baseAtk = getEffectiveStat(player, attackType === 'special' ? 'special' : 'atk'); // バフとデバフ両方を反映（以前は後者の呼び出しが前者を単純に上書きしてしまい、バフが常に無視されるバグがあった）
 
             // 強攻撃ダメージ（1倍）
-            const defReduction = Math.floor(getStatWithDebuffs(enemy, 'def') * 0.1);
+            const defReduction = Math.floor(getEffectiveStat(enemy, 'def') * 0.1); // 相手の防御バフも反映
             let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
             
             // アクティブスキルのダメージ倍率を適用
@@ -1106,10 +1149,12 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
         }
     } else {
         // 不正解: ボスがそのプレイヤー個人に反撃する
-        const bossAtkWithBuffs = getStatWithBuffs(boss, 'atk');
+        const bossAtkWithBuffs = getEffectiveStat(boss, 'atk'); // ボス自身のデバフも反映
         const damageResult = calculateDamage(boss, player, 0, {
             attackerAtk: bossAtkWithBuffs,
-            defenderDef: getStatWithDebuffs(player, 'def')
+            defenderDef: getEffectiveStat(player, 'def'), // プレイヤーの防御バフも反映
+            attackerSpeed: getEffectiveStat(boss, 'speed'),
+            defenderSpeed: getEffectiveStat(player, 'speed') // プレイヤーの素早さデバフを回避率に反映
         });
         let damage = damageResult.damage;
 
@@ -1291,19 +1336,24 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
             } else {
 
             // 「特殊」コマンドの場合は特殊ステータスを攻撃力の代わりに使う
-            let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+            const attackerAtkStat = (effectiveCommand === 'special' && attacker.special) ? 'special' : 'atk';
+            let attackerAtk = getEffectiveStat(attacker, attackerAtkStat); // バフ・デバフ（例:攻撃力ダウン）を反映
             if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
                 attackerAtk = Math.floor(attackerAtk * 3);
                 result.gutsAtkBoost = true;
                 result.gutsAtkBoostPlayerName = attacker.name;
             }
 
-            const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+            const defenderEffectiveDef = getEffectiveStat(defender, 'def'); // 相手の防御バフも反映
             let damageResult = calculateDamage(attacker, defender, answerTime, {
                 isSureHit: isAttackerSureHit,
                 attackerAtk: attackerAtk,
                 ignoreDef: isAttackerIgnoreDef,
-                defenderDef: defenderEffectiveDef
+                defenderDef: defenderEffectiveDef,
+
+                attackerSpeed: getEffectiveStat(attacker, 'speed'), // 素早さデバフ・バフを攻撃ボーナスに反映
+
+                defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
             });
             let damage = damageResult.damage;
             
@@ -1627,7 +1677,8 @@ function processCommand(battle, playerId, command) {
         result.damage = 0;
     } else {
         // 攻撃・特殊・必殺技
-        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+        const attackerAtkStat = (effectiveCommand === 'special' && attacker.special) ? 'special' : 'atk';
+        let attackerAtk = getEffectiveStat(attacker, attackerAtkStat); // バフ・デバフ（例:攻撃力ダウン）を反映
 
         if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
             attackerAtk = Math.floor(attackerAtk * 3);
@@ -1638,12 +1689,16 @@ function processCommand(battle, playerId, command) {
         let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
         let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
 
-        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        const defenderEffectiveDef = getEffectiveStat(defender, 'def'); // 相手の防御バフも反映
         let damageResult = calculateDamage(attacker, defender, 0, {
             isSureHit: isAttackerSureHit,
             attackerAtk: attackerAtk,
             ignoreDef: isAttackerIgnoreDef,
-            defenderDef: defenderEffectiveDef
+            defenderDef: defenderEffectiveDef,
+
+            attackerSpeed: getEffectiveStat(attacker, 'speed'), // 素早さデバフ・バフを攻撃ボーナスに反映
+
+            defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
         });
         let damage = damageResult.damage;
 
@@ -1753,7 +1808,8 @@ function processPvpCommand(battle, playerId, command) {
         result.defended = true;
         result.damage = 0;
     } else {
-        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+        const attackerAtkStat = (effectiveCommand === 'special' && attacker.special) ? 'special' : 'atk';
+        let attackerAtk = getEffectiveStat(attacker, attackerAtkStat); // バフ・デバフ（例:攻撃力ダウン）を反映
 
         if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
             attackerAtk = Math.floor(attackerAtk * 3);
@@ -1764,12 +1820,16 @@ function processPvpCommand(battle, playerId, command) {
         let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
         let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
 
-        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        const defenderEffectiveDef = getEffectiveStat(defender, 'def'); // 相手の防御バフも反映
         let damageResult = calculateDamage(attacker, defender, 0, {
             isSureHit: isAttackerSureHit,
             attackerAtk: attackerAtk,
             ignoreDef: isAttackerIgnoreDef,
-            defenderDef: defenderEffectiveDef
+            defenderDef: defenderEffectiveDef,
+
+            attackerSpeed: getEffectiveStat(attacker, 'speed'), // 素早さデバフ・バフを攻撃ボーナスに反映
+
+            defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
         });
         let damage = damageResult.damage;
 
@@ -1926,8 +1986,9 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
     if (isCorrect) {
         player.correctAnswers = (player.correctAnswers || 0) + 1;
 
-        const defReduction = Math.floor(getStatWithDebuffs(boss, 'def') * 0.1);
-        let chipDamage = Math.max(1, Math.floor(player.atk * 0.5) - defReduction);
+        const defReduction = Math.floor(getEffectiveStat(boss, 'def') * 0.1); // ボスの防御バフも反映
+        const chipBaseAtk = getEffectiveStat(player, 'atk'); // バフ・デバフを反映（以前はここだけ生のatkを使っており、状態異常が完全に無視されていた）
+        let chipDamage = Math.max(1, Math.floor(chipBaseAtk * 0.5) - defReduction);
         chipDamage = applyUniqueAbilityDamageBonus(chipDamage, player);
         chipDamage = applyUniqueAbilityDefense(chipDamage, boss);
         boss.hp = Math.max(0, boss.hp - chipDamage);
@@ -1960,11 +2021,10 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
             let baseAtk = attackType === 'special' ? (player.special || player.atk) : player.atk;
             
             // バフ/デバフを適用した攻撃力を取得
-            baseAtk = getStatWithBuffs(player, attackType === 'special' ? 'special' : 'atk');
-            baseAtk = getStatWithDebuffs(player, attackType === 'special' ? 'special' : 'atk');
+            baseAtk = getEffectiveStat(player, attackType === 'special' ? 'special' : 'atk'); // バフとデバフ両方を反映（以前は後者の呼び出しが前者を単純に上書きしてしまい、バフが常に無視されるバグがあった）
 
             // 強攻撃ダメージ（1倍）
-            const defReduction = Math.floor(getStatWithDebuffs(boss, 'def') * 0.1);
+            const defReduction = Math.floor(getEffectiveStat(boss, 'def') * 0.1); // ボスの防御バフも反映
             let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
             
             // アクティブスキルのダメージ倍率を適用
@@ -2051,7 +2111,8 @@ function processRaidPlayerCommand(battle, playerId, command) {
         result.defended = true;
         result.damage = 0;
     } else {
-        let attackerAtk = (effectiveCommand === 'special') ? (attacker.special || attacker.atk) : attacker.atk;
+        const attackerAtkStat = (effectiveCommand === 'special' && attacker.special) ? 'special' : 'atk';
+        let attackerAtk = getEffectiveStat(attacker, attackerAtkStat); // バフ・デバフ（例:攻撃力ダウン）を反映
 
         if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
             attackerAtk = Math.floor(attackerAtk * 3);
@@ -2062,12 +2123,16 @@ function processRaidPlayerCommand(battle, playerId, command) {
         let isAttackerSureHit = hasUniqueAbility(attacker, "ignore_evasion");
         let isAttackerIgnoreDef = hasUniqueAbility(attacker, "ignore_def_half");
 
-        const defenderEffectiveDef = getStatWithDebuffs(defender, 'def');
+        const defenderEffectiveDef = getEffectiveStat(defender, 'def'); // 相手の防御バフも反映
         let damageResult = calculateDamage(attacker, defender, 0, {
             isSureHit: isAttackerSureHit,
             attackerAtk: attackerAtk,
             ignoreDef: isAttackerIgnoreDef,
-            defenderDef: defenderEffectiveDef
+            defenderDef: defenderEffectiveDef,
+
+            attackerSpeed: getEffectiveStat(attacker, 'speed'), // 素早さデバフ・バフを攻撃ボーナスに反映
+
+            defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
         });
         let damage = damageResult.damage;
 
@@ -2169,10 +2234,12 @@ function resolveRaidBossAttack(battle, targetPlayerId, guardActivated) {
 
     let result = { targetPlayerId, playerName: player.name };
 
-    const bossAtkWithBuffs = getStatWithBuffs(boss, 'atk');
+    const bossAtkWithBuffs = getEffectiveStat(boss, 'atk'); // ボス自身のデバフも反映
     const damageResult = calculateDamage(boss, player, 0, {
         attackerAtk: bossAtkWithBuffs,
-        defenderDef: getStatWithDebuffs(player, 'def')
+        defenderDef: getEffectiveStat(player, 'def'), // プレイヤーの防御バフも反映
+        attackerSpeed: getEffectiveStat(boss, 'speed'),
+        defenderSpeed: getEffectiveStat(player, 'speed') // プレイヤーの素早さデバフを回避率に反映
     });
     let damage = damageResult.damage;
 
