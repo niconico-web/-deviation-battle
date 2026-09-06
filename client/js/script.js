@@ -1196,6 +1196,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // ダンジョンタブを開いたときは初期化する
+            if (section === 'dungeon') {
+                try {
+                    if (typeof initializeDungeonUI === "function") initializeDungeonUI();
+                } catch (e) {
+                    console.error("Error initializing dungeon tab:", e);
+                }
+            }
+
             closeMobileMenu();
         });
     });
