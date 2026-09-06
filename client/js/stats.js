@@ -19,7 +19,8 @@ const PRESTIGE_UNLOCK_LEVEL = 20;
 const PRESTIGE_BASE_BONUS_PERCENT = 5; // 基準ボーナス％（3つの基準値すべてがちょうど基準値の場合の1回あたりのボーナス）
 const PRESTIGE_REFERENCE_STAT_TOTAL = 250; // 基準ステータス合計（初期持ち点と同じ）
 const PRESTIGE_REFERENCE_LEVEL = PRESTIGE_UNLOCK_LEVEL; // 基準レベル（転生解放レベルと同じ）
-const PRESTIGE_REFERENCE_POWER_SCORE = 100; // 基準戦力スコア
+const PRESTIGE_REFERENCE_POWER_SCORE = 500; // 基準戦力スコア
+const PRESTIGE_MAX_BONUS_PER_RUN = 20; // 1回の転生で得られる永続ボーナス％の上限（暴騰防止のための上限。累積そのものには上限なし）
 
 // server/socket/ranking.js の戦力スコアと同じ重み付け（勉強時間・対人戦勝利・ボス周回）。
 // サーバー未接続時でもクライアント側だけで転生ボーナスを計算できるようにするための複製。
@@ -33,6 +34,12 @@ function calculatePlayerPowerScore(player) {
 
 // 今、転生を実行した場合に「今回分」として得られる永続ボーナス％を計算する。
 // （プレイヤーが持つ累積ボーナスに、この戻り値が加算される）
+//
+// 各基準値との比率をそのまま合算すると、やり込むほど（特に勉強時間に比例する
+// 戦力スコアは際限なく伸びるため）1回の転生で数十%〜という非現実的な倍率に
+// 膨れ上がってしまっていた。平方根で伸びを緩やかにし、さらに1回あたりの
+// ボーナスに上限（PRESTIGE_MAX_BONUS_PER_RUN）を設けることで、
+// 「育成が進むほど少し有利になる」程度の緩やかな変化に抑える。
 function calculatePrestigeBonusPercent(player) {
     if (!player) return 0;
     const level = player.level || calcLevel(player.xp || 0);
@@ -40,12 +47,13 @@ function calculatePrestigeBonusPercent(player) {
     const statTotal = STAT_KEYS.reduce((sum, key) => sum + (statsNow[key] || 0), 0);
     const powerScore = calculatePlayerPowerScore(player);
 
-    const statFactor = statTotal / PRESTIGE_REFERENCE_STAT_TOTAL;
-    const levelFactor = level / PRESTIGE_REFERENCE_LEVEL;
-    const powerFactor = 1 + (powerScore / PRESTIGE_REFERENCE_POWER_SCORE);
+    const statFactor = Math.sqrt(statTotal / PRESTIGE_REFERENCE_STAT_TOTAL);
+    const levelFactor = Math.sqrt(level / PRESTIGE_REFERENCE_LEVEL);
+    const powerFactor = Math.sqrt(1 + (powerScore / PRESTIGE_REFERENCE_POWER_SCORE));
 
     const combinedFactor = (statFactor + levelFactor + powerFactor) / 3;
-    return PRESTIGE_BASE_BONUS_PERCENT * combinedFactor;
+    const bonus = PRESTIGE_BASE_BONUS_PERCENT * combinedFactor;
+    return Math.min(PRESTIGE_MAX_BONUS_PER_RUN, bonus);
 }
 
 function getSubjectDisplayName(subject) {
@@ -405,6 +413,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         adventurerExp: player.adventurerExp || 0,
         special: player.special,
         prestigeCount: player.prestigeCount,
+        prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak
     });

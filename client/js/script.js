@@ -753,6 +753,7 @@ function applyStudyRewards(seconds) {
         adventurerExp: player.adventurerExp || 0,
         special: player.special,
         prestigeCount: player.prestigeCount,
+        prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak
     });

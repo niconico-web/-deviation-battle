@@ -3566,12 +3566,21 @@ if (!isBotBattle && socket) {
     socket.on("battleRejoined", data => {
         me = data.me;
         enemy = data.enemy;
+        if (data.allies) allies = data.allies;
         rejoined = true;
         localStorage.setItem("battlePlayer", JSON.stringify(me));
         localStorage.setItem("enemy", JSON.stringify(enemy));
         updateStats();
         updateHP();
         addLog(I18N.reconnected);
+
+        // 再接続前は「今答えるべき問題」が送られておらず、再接続した側だけ
+        // 問題が更新されないまま止まってしまっていた（正解してもダメージが
+        // 発生しない不具合の原因の一つ）。送られてきた問題を即座に出題し直す
+        // （再開なのでカウントダウンは出さない）。
+        if (data.question) {
+            displayQuestion(data.question);
+        }
     });
 
     socket.on("rejoinFailed", data => {
