@@ -2709,7 +2709,7 @@ function generateBotQuestion() {
     });
 }
 
-function displayQuestion(question) {
+function displayQuestion(question, isFirstQuestion = false) {
     if (!question || !question.question) {
         console.error("Invalid question data:", question);
         addLog("エラー: 無効な問題データです。");
@@ -2725,7 +2725,7 @@ function displayQuestion(question) {
     // スキル選択ウィンドウをカウントダウンと同時に開始
     startSkillActivationWindow();
 
-    showCountdown(() => {
+    const showQuestionNow = () => {
         questionDisplay.textContent = currentQuestion.question;
         generateChoices(currentQuestion);
         startTimer();
@@ -2755,7 +2755,19 @@ function displayQuestion(question) {
                 );
             }
         }
-    });
+    };
+
+    // オンライン対戦・パーティのボス戦では、以前は問題が来るたびに毎回
+    // 「3, 2, 1, GO!!」のカウントダウン（3〜4秒）を表示しており、
+    // ボット戦（startATBBattleLoop）とは違って2問目以降も待たされていた。
+    // ボスや相手はその間もリアルタイムで行動ゲージが進み続けるため、
+    // 回数を重ねるほど不利な「ずれ」がどんどん蓄積してしまっていた。
+    // ボット戦と同じく、カウントダウンは最初の1問だけに限定する。
+    if (isFirstQuestion) {
+        showCountdown(showQuestionNow);
+    } else {
+        showQuestionNow();
+    }
 }
 
 // ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
@@ -3580,8 +3592,8 @@ if (!isBotBattle && socket) {
         updateHP();
         updateUltimateGauge();
         
-        // 最初の問題を表示
-        displayQuestion(data.question);
+        // 最初の問題を表示（ここだけカウントダウンを見せる）
+        displayQuestion(data.question, true);
     });
 
     // 通常のPvP戦：自分専用の次の問題を受け取る（相手の問題は届かない）
