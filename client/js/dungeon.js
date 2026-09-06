@@ -15,7 +15,7 @@ function initializeDungeonUI() {
     if (!dungeonSection) return;
 
     // ダンジョン難易度選択
-    const difficultyButtons = dungeonSection.querySelectorAll('.dungeon-difficulty-btn');
+    const difficultyButtons = dungeonSection.querySelectorAll('.dungeon-difficulty-card');
     difficultyButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             const difficulty = btn.dataset.difficulty;
