@@ -3,14 +3,14 @@
 // DungeonEngine.js
 // ============================================
 
-const MonstersData = require("./monsters-data");
+const MonstersData = require("../data/monsters-data");
 const BattleEngine = require("../managers/BattleEngine");
 
 // ===================================
 // ダンジョンクラス
 // ===================================
 class Dungeon {
-    constructor(playerId, difficulty) {
+    constructor(playerId, difficulty, isFirstClear = true) {
         this.playerId = playerId;
         this.difficulty = difficulty; // 'easy', 'normal', 'hard', 'very_hard', 'nightmare'
         this.currentFloor = 1;
@@ -22,6 +22,12 @@ class Dungeon {
         this.rewards = [];
         this.floorHistory = []; // 各階のバトル履歴
         this.startTime = Date.now();
+        // このプレイヤーがこの難易度を初めてクリアするかどうか。
+        // 初回クリア報酬（オーブ/アイテム＋コイン＋経験値）を出すか、
+        // 通常報酬（難易度別のコインのみ）を出すかの判定に使う。
+        // プレイヤーの永続的なクリア履歴はクライアント側（player.dungeonClears）が
+        // 持っているため、ダンジョン開始時にクライアントから渡してもらう。
+        this.isFirstClear = !!isFirstClear;
     }
 
     // 現在の階のモンスターを取得
@@ -64,42 +70,53 @@ class Dungeon {
     // ダンジョンクリア
     completeDungeon() {
         this.isFinished = true;
-        
-        // クリア報酬の計算
-        const reward = MonstersData.DUNGEON_REWARDS[this.difficulty];
-        const baseCoins = this.getBaseRewardCoins();
-        const baseExp = this.getBaseRewardExp();
-        
-        this.totalCoins += baseCoins;
-        this.totalExp += baseExp;
-        this.rewards.push({
-            type: 'coins',
-            amount: baseCoins
-        });
-        this.rewards.push({
-            type: 'exp',
-            amount: baseExp
-        });
 
-        // 難易度別の特別報酬
-        if (reward.orb) {
+        if (this.isFirstClear) {
+            // 初回クリア報酬：これまで通りのコイン＋経験値＋難易度別の特別報酬（オーブ/アイテム）
+            const reward = MonstersData.DUNGEON_REWARDS[this.difficulty];
+            const baseCoins = this.getBaseRewardCoins();
+            const baseExp = this.getBaseRewardExp();
+
+            this.totalCoins += baseCoins;
+            this.totalExp += baseExp;
             this.rewards.push({
-                type: 'orb',
-                tier: reward.orb,
-                description: reward.description
+                type: 'coins',
+                amount: baseCoins
             });
-        } else if (reward.item) {
             this.rewards.push({
-                type: 'item',
-                itemId: reward.item,
-                description: reward.description,
-                rarity: reward.rarity
+                type: 'exp',
+                amount: baseExp
+            });
+
+            if (reward.orb) {
+                this.rewards.push({
+                    type: 'orb',
+                    tier: reward.orb,
+                    description: reward.description
+                });
+            } else if (reward.item) {
+                this.rewards.push({
+                    type: 'item',
+                    itemId: reward.item,
+                    description: reward.description,
+                    rarity: reward.rarity
+                });
+            }
+        } else {
+            // 通常報酬（2回目以降）：ダンジョンの難易度に応じたコインのみ
+            const repeatCoins = MonstersData.REPEAT_CLEAR_COIN_REWARDS[this.difficulty] || 0;
+            this.totalCoins += repeatCoins;
+            this.rewards.push({
+                type: 'coins',
+                amount: repeatCoins,
+                repeat: true
             });
         }
 
         return {
             cleared: true,
             floor: this.currentFloor,
+            isFirstClear: this.isFirstClear,
             totalCoins: this.totalCoins,
             totalExp: this.totalExp,
             rewards: this.rewards
@@ -199,7 +216,7 @@ class DungeonManager {
     }
 
     // ダンジョン開始
-    startDungeon(playerId, difficulty) {
+    startDungeon(playerId, difficulty, isFirstClear = true) {
         if (this.activeDungeons.has(playerId)) {
             return { error: "既にダンジョンがアクティブです" };
         }
@@ -208,7 +225,7 @@ class DungeonManager {
             return { error: "無効な難易度です" };
         }
 
-        const dungeon = new Dungeon(playerId, difficulty);
+        const dungeon = new Dungeon(playerId, difficulty, isFirstClear);
         this.activeDungeons.set(playerId, dungeon);
 
         console.log(`[DungeonManager] Dungeon started for player ${playerId}, difficulty: ${difficulty}`);

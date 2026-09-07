@@ -5,7 +5,19 @@
 
 let currentDungeon = null;
 let currentDungeonBattle = null;
-let dungeonSocket = null;
+
+// ===================================
+// ソケット取得ヘルパー
+// ===================================
+// dungeon.jsはindex.html内でscript.jsより先に読み込まれているため、
+// DOMContentLoaded時点ではまだwindow.socketが生成されておらず(script.js側の
+// initializeSocket()がまだ実行されていない)、その場でdungeonSocket変数に
+// キャッシュしてしまうと常にnullのままになり「接続エラーです」の誤警告が
+// 出続けていた。呼び出しの都度window.socketを直接参照することで、
+// スクリプトの読み込み順に依存しないようにする。
+function getDungeonSocket() {
+    return (typeof window !== "undefined" && window.socket) ? window.socket : null;
+}
 
 // ===================================
 // ダンジョン選択画面の初期化
@@ -55,12 +67,23 @@ function showDungeonInfo(difficulty) {
     };
 
     const rewards = {
-        'easy': 'Tier2以上のオーブ',
-        'normal': 'Tier3以上のオーブ',
-        'hard': 'Tier4以上のオーブ',
+        'easy': 'Tier2オーブ',
+        'normal': 'Tier3オーブ',
+        'hard': 'Tier4オーブ',
         'very_hard': 'ステータス再分配アイテム',
         'nightmare': '武器オーブスロット追加チケット'
     };
+
+    const repeatCoinRewards = {
+        'easy': 500,
+        'normal': 1000,
+        'hard': 2200,
+        'very_hard': 4500,
+        'nightmare': 10000
+    };
+
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    const alreadyCleared = !!(player && player.dungeonClears && player.dungeonClears[difficulty]);
 
     const html = `
         <div class="dungeon-info-panel">
@@ -69,7 +92,9 @@ function showDungeonInfo(difficulty) {
                 <p><strong>難易度:</strong> ${difficultyNames[difficulty]}</p>
                 <p><strong>層数:</strong> 10階</p>
                 <p><strong>推奨ステータス:</strong> ${getRecommendedStats(difficulty)}</p>
-                <p><strong>クリア報酬:</strong> ${rewards[difficulty]}</p>
+                <p><strong>初回クリア報酬:</strong> ${rewards[difficulty]}（+コイン・経験値）</p>
+                <p><strong>通常報酬（2回目以降）:</strong> コイン ${repeatCoinRewards[difficulty]}枚</p>
+                ${alreadyCleared ? '<p class="dungeon-cleared-note">※このダンジョンは既にクリア済みです。次回以降は通常報酬（コイン）になります。</p>' : ''}
                 <p><strong>説明:</strong> ${getDifficultyDescription(difficulty)}</p>
             </div>
             <input type="hidden" id="selectedDifficulty" value="${difficulty}">
@@ -89,6 +114,7 @@ function showDungeonInfo(difficulty) {
 // ダンジョン開始
 // ===================================
 function startDungeon(difficulty) {
+    const dungeonSocket = getDungeonSocket();
     if (!dungeonSocket) {
         console.error('Socket not connected');
         alert('接続エラーです。ページをリロードしてください。');
@@ -96,8 +122,13 @@ function startDungeon(difficulty) {
     }
 
     console.log(`[Dungeon] Starting dungeon with difficulty: ${difficulty}`);
-    
-    dungeonSocket.emit('dungeon:start', { difficulty }, (response) => {
+
+    // このプレイヤーがこの難易度を初めてクリアするかどうかをここで判定してサーバーに伝える。
+    // 初回クリア報酬（オーブ/アイテム）は一度だけ、2回目以降は難易度別のコイン報酬になる。
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    const isFirstClear = !(player && player.dungeonClears && player.dungeonClears[difficulty]);
+
+    dungeonSocket.emit('dungeon:start', { difficulty, isFirstClear }, (response) => {
         if (response.error) {
             alert(`エラー: ${response.error}`);
             return;
@@ -234,6 +265,7 @@ function initializeDungeonBattleUI(dungeonData) {
 // 問題生成
 // ===================================
 function generateDungeonQuestion() {
+    const dungeonSocket = getDungeonSocket();
     if (!dungeonSocket) return;
 
     dungeonSocket.emit('dungeon:getQuestion', {}, (response) => {
@@ -286,6 +318,7 @@ function submitDungeonAnswer() {
         return;
     }
 
+    const dungeonSocket = getDungeonSocket();
     if (!dungeonSocket) {
         console.error('Socket not connected');
         return;
@@ -309,6 +342,7 @@ function submitDungeonAnswer() {
 // コマンド実行
 // ===================================
 function executeDungeonCommand(command) {
+    const dungeonSocket = getDungeonSocket();
     if (!dungeonSocket) {
         console.error('Socket not connected');
         return;
@@ -389,8 +423,13 @@ function handleDungeonBattleResult(result) {
     }
 
     if (result.winner) {
-        // 階をクリア
-        handleFloorCleared(result);
+        // 敵を倒した。サーバーに階クリアを通知し、次の階（またはダンジョンクリア）の
+        // 情報を取得してから遷移する。
+        // ※以前はここでexecuteCommandの結果(result)をそのままhandleFloorClearedに
+        //   渡していたが、result.dungeonやresult.floorRewardは存在せず
+        //   (dungeon:floorClearedを一度も呼んでいなかったため)、
+        //   実際にはこの分岐に来た時点でエラーになり遊べなかった。
+        requestFloorCleared();
     } else {
         // 次の問題へ
         setTimeout(() => {
@@ -414,6 +453,31 @@ function updateEnemyHP(currentHP, maxHP) {
         hpFill.style.width = percentage + '%';
         hpText.innerHTML = `HP: <strong>${currentHP}</strong>/${maxHP}`;
     }
+}
+
+// ===================================
+// 階クリアをサーバーに通知
+// ===================================
+function requestFloorCleared() {
+    const dungeonSocket = getDungeonSocket();
+    if (!dungeonSocket) {
+        console.error('Socket not connected');
+        alert('接続エラーです。ページをリロードしてください。');
+        return;
+    }
+
+    dungeonSocket.emit('dungeon:floorCleared', {}, (response) => {
+        if (response.error) {
+            alert(`エラー: ${response.error}`);
+            return;
+        }
+
+        if (response.cleared) {
+            handleDungeonCleared(response);
+        } else {
+            handleFloorCleared(response);
+        }
+    });
 }
 
 // ===================================
@@ -442,17 +506,74 @@ function handleFloorCleared(result) {
     document.getElementById('dungeonExp').textContent = result.dungeon.totalExp;
 
     // 次の階へボタン
+    // （10階＝ボスを撃破した場合はこの関数ではなくhandleDungeonClearedが
+    //   呼ばれるので、ここでは常に「次の階へ進む」でよい）
     document.getElementById('nextFloorBtn').addEventListener('click', () => {
-        if (result.dungeon.currentFloor === 11) {
-            // ダンジョンクリア
-            handleDungeonCleared(result);
-        } else {
-            initializeDungeonBattleUI({
-                dungeon: result.dungeon,
-                currentMonsters: result.nextMonsters
+        initializeDungeonBattleUI({
+            dungeon: result.dungeon,
+            currentMonsters: result.nextMonsters
+        });
+    });
+}
+
+// ===================================
+// ダンジョン報酬の実際の付与
+// ===================================
+// 以前はここで報酬（コイン・経験値・オーブ/アイテム）が画面上に表示されるだけで、
+// 実際のプレイヤーデータには一切反映されていなかった。
+// 初回クリア報酬（オーブ/アイテム＋コイン＋経験値）と通常報酬（コインのみ）の
+// どちらであってもresult.totalCoins/totalExp/rewardsに集計済みの値が入っているので、
+// それをそのままplayerオブジェクトへ加算して保存する。
+function applyDungeonRewards(difficulty, result) {
+    if (typeof getPlayerData !== 'function') return null;
+    let player = getPlayerData();
+    if (!player) return null;
+
+    const gainedCoins = result.totalCoins || 0;
+    const gainedExp = result.totalExp || 0;
+
+    player.coins = (player.coins || 0) + gainedCoins;
+
+    const oldLevel = typeof calcLevel === 'function' ? calcLevel(player.xp || 0) : (player.level || 0);
+    player.xp = (player.xp || 0) + gainedExp;
+    const newLevel = typeof calcLevel === 'function' ? calcLevel(player.xp) : oldLevel;
+    player.level = newLevel;
+    if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
+        player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
+    }
+
+    // 特別報酬（オーブ/アイテム）：completeDungeon()側で初回クリア時にしか
+    // rewardsへ含めていないため、ここでは中身をそのまま反映するだけでよい。
+    (result.rewards || []).forEach(reward => {
+        if (reward.type === 'orb' && typeof createOrb === 'function') {
+            const orb = createOrb(reward.tier);
+            if (orb) {
+                player.orbs = player.orbs || [];
+                player.orbs.push(orb);
+            }
+        } else if (reward.type === 'item') {
+            player.dungeonItems = player.dungeonItems || [];
+            player.dungeonItems.push({
+                id: reward.itemId,
+                name: reward.description || reward.itemId,
+                rarity: reward.rarity || null,
+                obtainedAt: Date.now()
             });
         }
     });
+
+    if (result.isFirstClear) {
+        player.dungeonClears = player.dungeonClears || {};
+        player.dungeonClears[difficulty] = true;
+    }
+
+    localStorage.setItem("player", JSON.stringify(player));
+    if (typeof updateStatus === 'function') updateStatus(player);
+    if (typeof updateXpDisplay === 'function') updateXpDisplay(player);
+    if (typeof renderOrbInventory === 'function') renderOrbInventory();
+    if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
+
+    return player;
 }
 
 // ===================================
@@ -462,6 +583,8 @@ function handleDungeonCleared(result) {
     const dungeonContainer = document.getElementById('dungeonBattleContainer');
     if (!dungeonContainer) return;
 
+    applyDungeonRewards(result.dungeon?.difficulty || currentDungeon?.difficulty, result);
+
     const clearedHTML = `
         <div class="dungeon-clear-screen">
             <h1>🎉 ダンジョンクリア！</h1>
@@ -470,11 +593,11 @@ function handleDungeonCleared(result) {
                 <p>クリアランク: <strong class="rank-s">${result.rank || 'C'}</strong></p>
             </div>
             <div class="clear-rewards">
-                <h3>獲得報酬</h3>
+                <h3>獲得報酬${result.isFirstClear ? '（初回クリア報酬）' : '（通常報酬）'}</h3>
                 <p>総獲得コイン: <strong>${result.totalCoins}</strong></p>
-                <p>総獲得経験値: <strong>${result.totalExp}</strong></p>
-                ${result.rewards.map(r => `
-                    <p>${r.description || r.type}: <strong>${r.amount || r.tier || r.itemId}</strong></p>
+                ${result.isFirstClear ? `<p>総獲得経験値: <strong>${result.totalExp}</strong></p>` : ''}
+                ${result.rewards.filter(r => r.type === 'orb' || r.type === 'item').map(r => `
+                    <p>${r.description || r.type}: <strong>${r.tier || r.itemId}</strong></p>
                 `).join('')}
             </div>
             <button id="returnMenuBtn" class="btn btn-primary">メニューに戻る</button>
@@ -494,6 +617,7 @@ function abandonDungeon() {
         return;
     }
 
+    const dungeonSocket = getDungeonSocket();
     if (!dungeonSocket) {
         console.error('Socket not connected');
         return;
@@ -533,23 +657,25 @@ function returnToDungeonMenu() {
 // ===================================
 
 function getRecommendedStats(difficulty) {
+    // 難易度再設計に伴い引き上げ：イージーが旧ナイトメア相当、
+    // ナイトメアはメインシナリオの裏ボス「深淵ヲ廻ルモノ」に挑めるレベルを想定。
     const stats = {
-        'easy': '総ステータス 100以上',
-        'normal': '総ステータス 150以上',
-        'hard': '総ステータス 250以上',
-        'very_hard': '総ステータス 400以上',
-        'nightmare': '総ステータス 600以上'
+        'easy': '総ステータス 600以上',
+        'normal': '総ステータス 1000以上',
+        'hard': '総ステータス 1700以上',
+        'very_hard': '総ステータス 2800以上',
+        'nightmare': '総ステータス 4500以上'
     };
     return stats[difficulty] || '不明';
 }
 
 function getDifficultyDescription(difficulty) {
     const descriptions = {
-        'easy': '初心者向けの難易度です。基本的な敵が登場します。',
-        'normal': '標準的な難易度です。本格的なダンジョン攻略が始まります。',
+        'easy': 'これまでのイージーより大幅に強化されており、旧ナイトメア相当の歯応えです。基本装備では油断できません。',
+        'normal': '本格的なダンジョン攻略難易度です。しっかり装備・スキルを整えて挑みましょう。',
         'hard': '高難易度です。強力な敵とボスが待ち構えています。',
         'very_hard': 'ベリーハード難易度です。最大級の挑戦が必要です。',
-        'nightmare': 'ナイトメア難易度です。究極の試練に挑みます。'
+        'nightmare': 'ナイトメア難易度です。ボス「深淵ヲ廻ルモノ」の討伐に匹敵する、確定ヒット・防御無視の大技やほぼ全ダメージ無効化の盾を持つ理不尽級のボスが立ちはだかります。'
     };
     return descriptions[difficulty] || '不明';
 }
@@ -569,12 +695,10 @@ function getDifficultyName(difficulty) {
 // ページ読み込み時の初期化
 // ===================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Socket.io接続を待つ
-    if (typeof io !== 'undefined') {
-        // onlineで既に接続されているsocketを使用
-        dungeonSocket = socket; // globalのsocketを使用
-    }
-
+    // socket自体はscript.js側のinitializeSocket()で生成される。
+    // dungeon.jsはscript.jsより先に読み込まれるためこの時点ではまだ存在しないことがあるが、
+    // 各操作関数はgetDungeonSocket()でその都度window.socketを見に行くので、
+    // ここで変数にキャッシュする必要はない。
     initializeDungeonUI();
 });
 

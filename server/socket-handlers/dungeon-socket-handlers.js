@@ -35,8 +35,12 @@ function registerDungeonHandlers(io, socket) {
                 return callback({ error: "無効な難易度です" });
             }
 
+            // 初回クリアかどうか（クライアント側のplayer.dungeonClears履歴から判定して送られてくる）。
+            // 未指定の場合は安全側（初回扱い＝特別報酬あり）にしておく。
+            const isFirstClear = data.isFirstClear !== undefined ? !!data.isFirstClear : true;
+
             // ダンジョン開始
-            const result = dungeonManager.startDungeon(playerId, difficulty);
+            const result = dungeonManager.startDungeon(playerId, difficulty, isFirstClear);
             if (result.error) {
                 return callback(result);
             }
@@ -222,12 +226,15 @@ function registerDungeonHandlers(io, socket) {
             // クリア完了チェック
             if (result.cleared) {
                 // ダンジョンクリア
+                // result（completeDungeon()の戻り値）にはdifficultyが含まれていないため、
+                // 削除前のdungeonオブジェクトから明示的に補って結果画面で表示できるようにする。
                 const rankResult = DungeonEngine.calculateDungeonRank(dungeon);
                 return callback({
                     success: true,
                     cleared: true,
-                    dungeon: result,
+                    dungeon: { ...result, difficulty: dungeon.difficulty },
                     rank: rankResult.rank,
+                    isFirstClear: result.isFirstClear,
                     totalCoins: result.totalCoins,
                     totalExp: result.totalExp,
                     rewards: result.rewards

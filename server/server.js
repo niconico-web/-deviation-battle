@@ -20,6 +20,11 @@ const io = new Server(server, {
     }
 });
 
+// server/socket/*.js は各ファイルが独自に io.on("connection", ...) を登録するため、
+// 機能追加のたびにリスナー数が増えていく。デフォルト上限(10)を超えると
+// MaxListenersExceededWarningが出るだけで実害はないが、上限を引き上げて黙らせておく。
+io.setMaxListeners(20);
+
 const path = require("path");
 
 app.use(express.static(path.join(__dirname, "../client"), {
@@ -77,6 +82,7 @@ require("./socket/boss")(io);
 require("./socket/ranking")(io);
 require("./socket/guild")(io);
 require("./socket/social")(io);
+require("./socket/dungeon")(io);
 require("./socket/disconnect")(io);
 
 app.get("/api/unique/claims", (req, res) => {

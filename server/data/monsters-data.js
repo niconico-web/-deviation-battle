@@ -22,12 +22,15 @@ const DIFFICULTY_NAMES = {
 };
 
 // 難易度ごとのスケーリング係数
+// 依頼により全体を大幅に引き上げ：新イージーが旧ナイトメア相当、
+// 新ナイトメアはボス「深淵ヲ廻ルモノ」討伐に匹敵する難易度になるよう
+// カーブを急にしている（旧: 0.7/1.0/1.3/1.6/2.0の等間隔 → 新: 指数的に加速）。
 const DIFFICULTY_SCALING = {
-    easy: 0.7,
-    normal: 1.0,
-    hard: 1.3,
-    very_hard: 1.6,
-    nightmare: 2.0
+    easy: 2.0,        // 旧ナイトメア(2.0)相当
+    normal: 3.4,
+    hard: 6.0,
+    very_hard: 11.0,
+    nightmare: 22.0   // 深淵ヲ廻ルモノ級。生半可な装備では歯が立たない想定
 };
 
 // 報酬定義
@@ -54,6 +57,19 @@ const DUNGEON_REWARDS = {
         description: '武器オーブスロット追加チケット',
         rarity: 'mythic'
     }
+};
+
+// ===================================
+// 通常報酬（2回目以降のクリア）
+// ===================================
+// 初回クリアはDUNGEON_REWARDS（オーブ/アイテム）を含む一式がもらえるが、
+// 2回目以降はここで定義するコインのみがダンジョンの難易度に応じてもらえる。
+const REPEAT_CLEAR_COIN_REWARDS = {
+    easy: 500,
+    normal: 1000,
+    hard: 2200,
+    very_hard: 4500,
+    nightmare: 10000
 };
 
 // ===================================
@@ -329,25 +345,36 @@ const FLOOR_9_MONSTERS = {
 // ===================================
 // ボスデータ
 // ===================================
+// 依頼により全体を大幅強化：イージーが旧ナイトメア相当、ナイトメアは
+// メインシナリオのボス「深淵ヲ廻ルモノ」（確定ヒット・防御無視の大技、
+// ほぼ全ダメージ無効化の盾、味方全体バフを持つ理不尽級の強さ）に
+// 匹敵する難易度になるよう、ステータスとスキル構成を1〜2段階ずつ底上げしている。
 const DUNGEON_BOSSES = {
-    // イージー難易度ボス
+    // イージー難易度ボス（旧ナイトメア「至高の存在」相当のステータス・技構成）
     easy: {
         id: 'boss_goblin_king',
         name: 'ゴブリンキング',
         difficulty: 'easy',
-        level: 5,
-        hp: 150,
-        atk: 18,
-        def: 8,
-        speed: 12,
+        level: 25,
+        hp: 900,
+        atk: 90,
+        def: 35,
+        speed: 35,
         skills: [
             {
                 name: 'トリプルスラッシュ',
-                effect: { multiHit: 3, damageMultiplier: 0.7 }
+                effect: { multiHit: 3, damageMultiplier: 1.1 }
             },
             {
                 name: '怒りの咆哮',
-                effect: { selfBuff: { type: 'atk', amount: 1.3 }, turns: 2 }
+                effect: { selfBuff: { type: 'atk', amount: 1.4 }, turns: 2 }
+            },
+            {
+                name: '絶望のヴェール',
+                effect: {
+                    debuff: { type: 'atk_def_speed', reduction: 0.3, turns: 2 },
+                    damageMultiplier: 1.3
+                }
             }
         ]
     },
@@ -357,23 +384,27 @@ const DUNGEON_BOSSES = {
         id: 'boss_dark_lord',
         name: 'ダークロード',
         difficulty: 'normal',
-        level: 10,
-        hp: 250,
-        atk: 30,
-        def: 12,
-        speed: 15,
+        level: 32,
+        hp: 1500,
+        atk: 140,
+        def: 55,
+        speed: 48,
         skills: [
             {
                 name: 'ダークネスブラスト',
-                effect: { damageMultiplier: 1.5, ignoreDef: true }
+                effect: { damageMultiplier: 2.0, ignoreDef: true }
             },
             {
                 name: '絶望の波動',
-                effect: { debuff: { type: 'atk', reduction: 0.2, turns: 3 } }
+                effect: { debuff: { type: 'atk_def', reduction: 0.3, turns: 3 } }
             },
             {
                 name: 'ライフスティール',
-                effect: { lifeSteal: 0.3 }
+                effect: { lifeSteal: 0.35 }
+            },
+            {
+                name: '完全防壁',
+                effect: { damageReduction: 0.5, turns: 1 }
             }
         ]
     },
@@ -383,27 +414,31 @@ const DUNGEON_BOSSES = {
         id: 'boss_infernal_dragon',
         name: 'インフェルノドラゴン',
         difficulty: 'hard',
-        level: 15,
-        hp: 400,
-        atk: 45,
-        def: 18,
-        speed: 20,
+        level: 40,
+        hp: 2400,
+        atk: 200,
+        def: 75,
+        speed: 58,
         skills: [
             {
                 name: 'インフェルノブレス',
-                effect: { damageMultiplier: 1.8, burn: { turns: 3 } }
+                effect: { damageMultiplier: 2.4, burn: { turns: 4 } }
             },
             {
                 name: '龍の咆哮',
-                effect: { damageMultiplier: 1.3, debuff: { type: 'speed', reduction: 0.25, turns: 2 } }
+                effect: { damageMultiplier: 1.8, debuff: { type: 'speed', reduction: 0.35, turns: 2 } }
             },
             {
                 name: 'フレイムシールド',
-                effect: { damageReduction: 0.3, turns: 2 }
+                effect: { damageReduction: 0.5, turns: 2 }
             },
             {
                 name: 'レジリエンス',
-                effect: { heal: 0.25 }
+                effect: { heal: 0.3 }
+            },
+            {
+                name: '絶対のカタストロフ',
+                effect: { damageMultiplier: 2.2, ignoreDef: true, sureHit: true }
             }
         ]
     },
@@ -413,77 +448,87 @@ const DUNGEON_BOSSES = {
         id: 'boss_ancient_god',
         name: '古の神',
         difficulty: 'very_hard',
-        level: 20,
-        hp: 600,
-        atk: 65,
-        def: 25,
-        speed: 25,
+        level: 50,
+        hp: 3800,
+        atk: 300,
+        def: 105,
+        speed: 72,
         skills: [
             {
                 name: '絶対のカタストロフ',
-                effect: { damageMultiplier: 2.2, ignoreDef: true, sureHit: true }
+                effect: { damageMultiplier: 3.0, ignoreDef: true, sureHit: true }
             },
             {
                 name: '神聖なる制裁',
-                effect: { damageMultiplier: 1.6, debuff: { type: 'def', reduction: 30, isFlat: true, turns: 2 } }
+                effect: { damageMultiplier: 2.2, debuff: { type: 'def', reduction: 60, isFlat: true, turns: 2 } }
             },
             {
                 name: '全能の盾',
-                effect: { damageReduction: 0.5, turns: 1 }
+                effect: { damageReduction: 0.7, turns: 1 }
             },
             {
                 name: 'リジェネレーション',
-                effect: { heal: 0.3 }
+                effect: { heal: 0.35, selfBuff: { type: 'def', amount: 1.3, turns: 2 } }
             },
             {
-                name: '神���試練',
-                effect: { 
-                    debuff: { type: 'atk', reduction: 0.3, turns: 2 },
-                    damageMultiplier: 1.2
+                name: '神聖試練',
+                effect: {
+                    debuff: { type: 'atk', reduction: 0.4, turns: 2 },
+                    damageMultiplier: 1.6
                 }
+            },
+            {
+                name: 'コスミック・スラッシュ',
+                effect: { damageMultiplier: 2.6, poison: { turns: 4 }, burn: { turns: 4 } }
             }
         ]
     },
 
     // ナイトメア難易度ボス
+    // メインシナリオの真の裏ボス「深淵ヲ廻ルモノ」に匹敵する構成：
+    // アビスプロテクト（ダメージ全カット）／ジ・インファーナル（確定ヒット・防御無視の
+    // 超高倍率一撃）／アフェスト・ベルゼバブ（自己全ステータス強化）に相当する技を持つ。
     nightmare: {
         id: 'boss_supreme_entity',
         name: '至高の存在',
         difficulty: 'nightmare',
-        level: 25,
-        hp: 900,
-        atk: 90,
-        def: 35,
-        speed: 35,
+        level: 70,
+        hp: 6500,
+        atk: 450,
+        def: 160,
+        speed: 95,
         skills: [
             {
+                // ジ・インファーナル相当：確定ヒット・防御無視の超高倍率一撃
                 name: 'エクシステンシャルシュレッド',
-                effect: { damageMultiplier: 2.5, ignoreDef: true, sureHit: true, multiHit: 2 }
+                effect: { damageMultiplier: 5.5, ignoreDef: true, sureHit: true, multiHit: 2 }
             },
             {
                 name: '絶望のヴェール',
-                effect: { 
-                    debuff: { type: 'atk_def_speed', reduction: 0.4, turns: 3 },
-                    damageMultiplier: 1.4
+                effect: {
+                    debuff: { type: 'atk_def_speed', reduction: 0.5, turns: 3 },
+                    damageMultiplier: 2.0
                 }
             },
             {
+                // アビスプロテクト相当：ダメージをほぼ完全にカットする
                 name: '完全防壁',
-                effect: { damageReduction: 0.6, turns: 2 }
+                effect: { damageReduction: 0.9, turns: 2 }
             },
             {
                 name: 'アビサル・ヒーリング',
-                effect: { heal: 0.4, selfBuff: { type: 'def', amount: 1.2, turns: 2 } }
+                effect: { heal: 0.45, selfBuff: { type: 'def', amount: 1.4, turns: 2 } }
             },
             {
                 name: 'コスミック・スラッシュ',
-                effect: { damageMultiplier: 2.0, poison: { turns: 4 }, burn: { turns: 4 } }
+                effect: { damageMultiplier: 2.8, poison: { turns: 5 }, burn: { turns: 5 } }
             },
             {
+                // アフェスト・ベルゼバブ相当：自身の全ステータスを大幅強化
                 name: '超越的な力',
-                effect: { 
-                    selfBuff: { type: 'atk', amount: 1.5, turns: 2 },
-                    damageMultiplier: 1.6
+                effect: {
+                    selfBuff: { type: 'all_stats', amount: 1.6, turns: 3 },
+                    damageMultiplier: 2.2
                 }
             }
         ]
@@ -528,6 +573,7 @@ module.exports = {
     DIFFICULTY_NAMES,
     DIFFICULTY_SCALING,
     DUNGEON_REWARDS,
+    REPEAT_CLEAR_COIN_REWARDS,
     DUNGEON_BOSSES,
     getRandomMonster,
     getBossByDifficulty
