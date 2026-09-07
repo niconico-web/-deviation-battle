@@ -135,6 +135,7 @@ function migratePlayer(player) {
         skillSlots: player.skillSlots || [null, null, null],
         customSkills: player.customSkills || [],
         bossDefeats: player.bossDefeats || {},
+        dungeonClears: player.dungeonClears || {},
         materials: player.materials || {}, // Will be handled below for array migration
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
@@ -405,6 +406,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         skillSlots: player.skillSlots,
         customSkills: player.customSkills,
         bossDefeats: player.bossDefeats || {},
+        dungeonClears: player.dungeonClears || {},
         materials: player.materials || {},
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
@@ -533,6 +535,7 @@ function buildPlayer(name, stats, xp, options = {}) {
         skillSlots: options.skillSlots || [null, null, null],
         customSkills: options.customSkills || [],
         bossDefeats: options.bossDefeats || {},
+        dungeonClears: options.dungeonClears || {},
         materials: options.materials || {},
         pvpWins: options.pvpWins || 0,
         bossRunCount: options.bossRunCount || 0,
