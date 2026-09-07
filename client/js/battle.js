@@ -3,7 +3,8 @@ const isBossBattle = localStorage.getItem("isBossBattle") === "true";
 const isDungeonBattle = localStorage.getItem("isDungeonBattle") === "true";
 const partyDataJSON = localStorage.getItem("partyData");
 const partyData = partyDataJSON && !isBotBattle ? JSON.parse(partyDataJSON) : null;
-const socket = isBotBattle ? null : io();
+// ダンジョンバトルの場合はソケットが必要（サーバーとの通信で階進行を管理するため）
+const socket = (isBotBattle && !isDungeonBattle) ? null : io();
 const roomId = localStorage.getItem("roomId");
 const battlePlayerData = localStorage.getItem("battlePlayer");
 const enemyData = localStorage.getItem("enemy");
@@ -3368,13 +3369,142 @@ function finishBotBattle(result) {
     }
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
-    // ダンジョンバトルの場合はダンジョンに戻る
+    // ダンジョンバトルの場合は次の階へ進む
     if (isDungeonBattle) {
         localStorage.setItem("dungeonBattleResult", win ? "win" : "lose");
         localStorage.setItem("dungeonPlayerHP", String(me.hp));
-        setTimeout(() => location.href = "index.html", 2000);
+        
+        if (win) {
+            // 勝利した場合、次の階へ進む
+            setTimeout(() => handleDungeonNextFloor(), 2000);
+        } else {
+            // 敗北した場合、ホーム画面へ戻る
+            setTimeout(() => location.href = "index.html", 2000);
+        }
         return;
     }
+}
+
+// ===================================
+// ダンジョン次の階へ進む処理
+// ===================================
+function handleDungeonNextFloor() {
+    if (!window.socket) {
+        console.error('Socket not connected for dungeon progression');
+        alert('接続エラーです。ホーム画面に戻ります。');
+        location.href = 'index.html';
+        return;
+    }
+    
+    addLog('次の階へ進んでいます...');
+    
+    window.socket.emit('dungeon:floorCleared', {}, (response) => {
+        if (response.error) {
+            alert(`エラー: ${response.error}`);
+            location.href = 'index.html';
+            return;
+        }
+        
+        if (response.cleared) {
+            // ダンジョンクリア
+            alert(`🎉 ダンジョンクリア！\n報酬を獲得しました！`);
+            localStorage.removeItem('dungeonData');
+            localStorage.removeItem('isDungeonBattle');
+            location.href = 'index.html';
+        } else {
+            // 次の階へ
+            addLog(`第${response.dungeon.currentFloor}階に到達！`);
+            
+            // ダンジョンデータを更新
+            localStorage.setItem('dungeonData', JSON.stringify({
+                dungeon: response.dungeon,
+                currentMonsters: response.nextMonsters
+            }));
+            
+            // 敵データを更新
+            const nextEnemy = response.nextMonsters[0];
+            if (nextEnemy) {
+                localStorage.setItem('enemy', JSON.stringify(nextEnemy));
+            }
+            
+            // プレイヤーデータを更新（HP回復など）
+            const playerHP = parseInt(localStorage.getItem('dungeonPlayerHP')) || me.hp;
+            me.hp = playerHP;
+            localStorage.setItem('battlePlayer', JSON.stringify(me));
+            
+            // 戦闘をリセットして再開
+            resetDungeonBattle();
+        }
+    });
+}
+
+// ===================================
+// ダンジョンバトルリセット
+// ===================================
+function resetDungeonBattle() {
+    // 戦闘状態をリセット
+    battleEnd = false;
+    currentQuestion = null;
+    questionStartTime = null;
+    
+    // UIをリセット
+    choicesContainer.innerHTML = '';
+    questionDisplay.textContent = '次の敵が現れた！';
+    
+    // 敵のHPを更新
+    const dungeonDataJSON = localStorage.getItem('dungeonData');
+    if (dungeonDataJSON) {
+        const dungeonData = JSON.parse(dungeonDataJSON);
+        const nextEnemy = dungeonData.currentMonsters[0];
+        if (nextEnemy) {
+            enemy = nextEnemy;
+            updateEnemyUI();
+        }
+    }
+    
+    // プレイヤーのHPを更新
+    updatePlayerUI();
+    
+    // カウントダウン開始
+    setTimeout(() => {
+        showCountdown(() => {
+            generateBotQuestion();
+        });
+    }, 1000);
+}
+
+// ===================================
+// 敵UI更新
+// ===================================
+function updateEnemyUI() {
+    if (!enemy) return;
+    
+    enemyName.textContent = enemy.name;
+    enemyHPText.textContent = `HP ${enemy.hp} / ${enemy.maxHp}`;
+    enemyHPBar.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+    
+    enemyAtk.textContent = `攻撃:${enemy.atk}`;
+    enemyDef.textContent = `防御:${enemy.def}`;
+    enemySpeed.textContent = `速さ:${enemy.speed}`;
+    enemySpecial.textContent = `特殊:${enemy.special || '-'}`;
+    enemyGrade.textContent = `学年:${enemy.grade || '-'}`;
+}
+
+// ===================================
+// プレイヤーUI更新
+// ===================================
+function updatePlayerUI() {
+    if (!me) return;
+    
+    myHPText.textContent = `HP ${me.hp} / ${me.maxHp}`;
+    myHPBar.style.width = `${(me.hp / me.maxHp) * 100}%`;
+    
+    myAtk.textContent = `攻撃:${me.atk}`;
+    myDef.textContent = `防御:${me.def}`;
+    mySpeed.textContent = `速さ:${me.speed}`;
+    mySpecial.textContent = `特殊:${me.special || '-'}`;
+    myGrade.textContent = `学年:${me.grade || '-'}`;
+}
 
     if (isPracticeTutorial && window.PracticeCoach) {
         // 練習バトルの場合は、閉じるボタンを押すまで結果画面への遷移を待つ
