@@ -114,15 +114,26 @@ function registerDungeonHandlers(io, socket) {
             let damage = 0;
 
             if (isCorrect) {
-                // ダメージ計算
-                const scaling = MonstersData.DIFFICULTY_SCALING[dungeon.difficulty];
-                damage = Math.floor(Math.random() * 20 + 15);
+                // ダメージ計算（BattleEngine.jsのcalculateDamageを使用）
+                const damageResult = BattleEngine.calculateDamage(
+                    { atk: 20, speed: 50 }, // プレイヤーの仮のステータス
+                    enemy,
+                    0, // 回答時間
+                    { isSureHit: true }
+                );
+                damage = damageResult.damage;
                 
                 // 敵のHP減少
                 enemy.hp = Math.max(0, enemy.hp - damage);
             } else {
-                // 敵からの反撃ダメージ
-                damage = Math.floor(enemy.atk * 0.8 + Math.random() * 10);
+                // 敵からの反撃ダメージ（BattleEngine.jsのcalculateDamageを使用）
+                const damageResult = BattleEngine.calculateDamage(
+                    enemy,
+                    { def: 10, speed: 50 }, // プレイヤーの仮のステータス
+                    0,
+                    { isSureHit: true }
+                );
+                damage = damageResult.damage;
             }
 
             callback({
@@ -160,21 +171,44 @@ function registerDungeonHandlers(io, socket) {
 
             const enemy = enemies[0];
 
-            // コマンド処理
+            // コマンド処理（BattleEngine.jsのcalculateDamageを使用）
+            let baseAtk = 20; // プレイヤーの基本攻撃力
             let damage = 0;
+            
             switch (command) {
                 case "attack":
-                    damage = Math.floor(20 + Math.random() * 10);
+                    // 通常攻撃
+                    const attackResult = BattleEngine.calculateDamage(
+                        { atk: baseAtk, speed: 50 },
+                        enemy,
+                        0,
+                        { isSureHit: true }
+                    );
+                    damage = attackResult.damage;
                     break;
                 case "special":
-                    damage = Math.floor(35 + Math.random() * 15);
+                    // 特殊攻撃（1.5倍）
+                    const specialResult = BattleEngine.calculateDamage(
+                        { atk: baseAtk * 1.5, speed: 50 },
+                        enemy,
+                        0,
+                        { isSureHit: true }
+                    );
+                    damage = specialResult.damage;
                     break;
                 case "guard":
                     // 防御は次のターンのダメージを軽減
                     damage = 0;
                     break;
                 case "ultimate":
-                    damage = Math.floor(50 + Math.random() * 25);
+                    // 必殺技（2.5倍）
+                    const ultimateResult = BattleEngine.calculateDamage(
+                        { atk: baseAtk * 2.5, speed: 50 },
+                        enemy,
+                        0,
+                        { isSureHit: true }
+                    );
+                    damage = ultimateResult.damage;
                     break;
                 default:
                     damage = 10;
