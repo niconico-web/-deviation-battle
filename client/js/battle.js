@@ -3369,19 +3369,24 @@ function finishBotBattle(result) {
     }
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
 
-    // ダンジョンバトルの場合は次の階へ進む
+    // ダンジョンバトルの場合はリザルト画面へ
     if (isDungeonBattle) {
         localStorage.setItem("dungeonBattleResult", win ? "win" : "lose");
         localStorage.setItem("dungeonPlayerHP", String(me.hp));
-        
-        if (win) {
-            // 勝利した場合、次の階へ進む
-            setTimeout(() => handleDungeonNextFloor(), 2000);
-        } else {
-            // 敗北した場合、ホーム画面へ戻る
-            setTimeout(() => location.href = "index.html", 2000);
-        }
+        setTimeout(() => location.href = "result.html", 2000);
         return;
+    }
+
+    if (isPracticeTutorial && window.PracticeCoach) {
+        // 練習バトルの場合は、閉じるボタンを押すまで結果画面への遷移を待つ
+        window.PracticeCoach.finish(
+            win
+                ? "問題に答えて、コマンドを選ぶ。これがバトルの基本の流れだよ。\nこの調子でオンライン対戦にも挑戦してみよう！"
+                : "負けてしまったけど、操作の流れはつかめたはず。\nもう一度練習するか、オンライン対戦に挑戦してみよう！"
+        );
+        setTimeout(() => location.href = "result.html", 4000);
+    } else {
+        setTimeout(() => location.href = "result.html", 2000);
     }
 }
 
