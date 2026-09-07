@@ -1022,6 +1022,59 @@ function updateOnlineButtons(isConnected) {
     }
 }
 
+// ダンジョンバトルからの復帰処理
+function handleDungeonBattleReturn(battleResult) {
+    const dungeonDataJSON = localStorage.getItem('dungeonData');
+    if (!dungeonDataJSON) return;
+    
+    const dungeonData = JSON.parse(dungeonDataJSON);
+    const win = battleResult === 'win';
+    
+    console.log('[Dungeon] Battle result:', battleResult, 'Dungeon data:', dungeonData);
+    
+    // 戦闘結果に基づいてダンジョンを進める
+    if (win) {
+        // 勝利した場合、階クリアをサーバーに通知
+        const socket = window.socket;
+        if (socket) {
+            socket.emit('dungeon:floorCleared', {}, (response) => {
+                if (response.error) {
+                    alert(`エラー: ${response.error}`);
+                    return;
+                }
+                
+                if (response.cleared) {
+                    // ダンジョンクリア
+                    alert(`🎉 ダンジョンクリア！\n報酬を獲得しました！`);
+                    localStorage.removeItem('dungeonData');
+                } else {
+                    // 次の階へ
+                    alert(`第${response.dungeon.currentFloor - 1}階 クリア！\n次の階へ進みます。`);
+                    // 更新されたダンジョンデータを保存
+                    localStorage.setItem('dungeonData', JSON.stringify({
+                        dungeon: response.dungeon,
+                        currentMonsters: response.nextMonsters
+                    }));
+                }
+            });
+        }
+    } else {
+        // 敗北した場合
+        const socket = window.socket;
+        if (socket) {
+            socket.emit('dungeon:playerDefeated', {}, (response) => {
+                if (response.error) {
+                    alert(`エラー: ${response.error}`);
+                    return;
+                }
+                
+                alert(`💔 敗北...\n獲得コイン: ${response.coins}\n獲得経験値: ${response.exp}`);
+                localStorage.removeItem('dungeonData');
+            });
+        }
+    }
+}
+
 // プレイヤーデータをlocalStorageから取得・移行する
 function getPlayerData() {
     const raw = localStorage.getItem("player");
@@ -1079,6 +1132,19 @@ function lockStatInputs(locked) {
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM Content Loaded - Initializing application');
+    
+    // ダンジョンバトルからの復帰チェック
+    const isDungeonBattle = localStorage.getItem('isDungeonBattle') === 'true';
+    const dungeonBattleResult = localStorage.getItem('dungeonBattleResult');
+    
+    if (isDungeonBattle && dungeonBattleResult) {
+        // ダンジョンバトルからの復帰処理
+        handleDungeonBattleReturn(dungeonBattleResult);
+        localStorage.removeItem('isDungeonBattle');
+        localStorage.removeItem('dungeonBattleResult');
+        localStorage.removeItem('dungeonPlayerHP');
+    }
+    
     // ソケット接続の初期化に失敗しても、メニュー・ステータス表示など
     // 後続の必須初期化処理が巻き込まれて止まらないようにする
     try {

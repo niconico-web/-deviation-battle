@@ -148,47 +148,27 @@ function startDungeon(difficulty) {
 // ダンジョンバトル画面へ切り替え
 // ===================================
 function switchToDungeonBattle(dungeonData) {
-    const mainContent = document.querySelector('.main-content');
-    if (!mainContent) return;
-
-    const dungeonBattleHTML = `
-        <div id="dungeonBattleContainer" class="dungeon-battle-container">
-            <div class="dungeon-header">
-                <div class="dungeon-progress">
-                    <span class="floor-info">第${dungeonData.dungeon.currentFloor}階</span>
-                    <div class="floor-progress-bar">
-                        <div class="floor-progress-fill" style="width: ${(dungeonData.dungeon.currentFloor / dungeonData.dungeon.maxFloors) * 100}%"></div>
-                    </div>
-                </div>
-                <div class="dungeon-rewards">
-                    <span>獲得コイン: <strong id="dungeonCoins">${dungeonData.dungeon.totalCoins}</strong></span>
-                    <span>獲得経験値: <strong id="dungeonExp">${dungeonData.dungeon.totalExp}</strong></span>
-                </div>
-                <button id="abandonDungeonBtn" class="btn btn-danger">ダンジョンを放棄</button>
-            </div>
-
-            <div id="dungeonBattleScreen" class="dungeon-battle-screen">
-                <!-- バトル画面がここに表示されます -->
-            </div>
-        </div>
-    `;
-
-    // ダンジョンバトル画面を挿入
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = dungeonBattleHTML;
-    const container = tempDiv.firstElementChild;
+    // ダンジョンの情報を保存
+    localStorage.setItem('dungeonData', JSON.stringify(dungeonData));
+    localStorage.setItem('isDungeonBattle', 'true');
     
-    // 既存のコンテンツを隠す
-    const sections = mainContent.querySelectorAll('.content-section');
-    sections.forEach(s => s.style.display = 'none');
+    // プレイヤーデータを設定
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    if (player) {
+        localStorage.setItem('battlePlayer', JSON.stringify(player));
+    }
     
-    mainContent.appendChild(container);
-
-    // 放棄ボタンのイベント
-    document.getElementById('abandonDungeonBtn').addEventListener('click', abandonDungeon);
-
-    // 最初のバトルを表示
-    initializeDungeonBattleUI(dungeonData);
+    // 敵データを設定
+    const enemy = dungeonData.currentMonsters[0];
+    if (enemy) {
+        localStorage.setItem('enemy', JSON.stringify(enemy));
+    }
+    
+    // ボットバトルモードを設定
+    localStorage.setItem('isBotBattle', 'true');
+    
+    // battle.htmlに遷移
+    window.location.href = 'battle.html';
 }
 
 // ===================================

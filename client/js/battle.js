@@ -1,5 +1,6 @@
 const isBotBattle = localStorage.getItem("isBotBattle") === "true";
 const isBossBattle = localStorage.getItem("isBossBattle") === "true";
+const isDungeonBattle = localStorage.getItem("isDungeonBattle") === "true";
 const partyDataJSON = localStorage.getItem("partyData");
 const partyData = partyDataJSON && !isBotBattle ? JSON.parse(partyDataJSON) : null;
 const socket = isBotBattle ? null : io();
@@ -9,6 +10,15 @@ const enemyData = localStorage.getItem("enemy");
 let me = battlePlayerData ? JSON.parse(battlePlayerData) : null;
 let enemy = enemyData ? JSON.parse(enemyData) : null;
 let allies = []; // 自分以外のパーティメンバー
+
+// ダンジョンデータの取得
+let dungeonData = null;
+if (isDungeonBattle) {
+    const dungeonDataJSON = localStorage.getItem("dungeonData");
+    if (dungeonDataJSON) {
+        dungeonData = JSON.parse(dungeonDataJSON);
+    }
+}
 
 // 「実戦形式」の練習バトル（オンライン画面の「スライムと練習」から開始）かどうか。
 // 一度読み取ったら消費し、リロードでは再度発動しないようにする。
@@ -3336,7 +3346,7 @@ function finishBotBattle(result) {
     const win = result === "win";
     addLog(win ? I18N.victory : I18N.defeat);
 
-    console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}, isBossBattle=${isBossBattle}`);
+    console.log(`[Battle] finishBotBattle: result=${result}, win=${win}, equippedWeapon=${me.equippedWeapon?.name}, isBossBattle=${isBossBattle}, isDungeonBattle=${isDungeonBattle}`);
 
     localStorage.setItem("battleResult", win ? "win" : "lose");
     localStorage.setItem("playerHP", String(me.hp));
@@ -3357,6 +3367,14 @@ function finishBotBattle(result) {
         localStorage.setItem("stolenWeapon", JSON.stringify(enemy.equippedWeapon));
     }
     localStorage.removeItem("rewardsApplied"); // 報酬フラグをクリア（次のバトルのために）
+
+    // ダンジョンバトルの場合はダンジョンに戻る
+    if (isDungeonBattle) {
+        localStorage.setItem("dungeonBattleResult", win ? "win" : "lose");
+        localStorage.setItem("dungeonPlayerHP", String(me.hp));
+        setTimeout(() => location.href = "index.html", 2000);
+        return;
+    }
 
     if (isPracticeTutorial && window.PracticeCoach) {
         // 練習バトルの場合は、閉じるボタンを押すまで結果画面への遷移を待つ
