@@ -293,6 +293,10 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     // プレイヤー敗北
     // ===================================
+    // 敗北時はそのダンジョンで得た報酬（コイン・経験値・アイテム）を全て失う。
+    // サーバー側では何も加算せず破棄するだけなので、レスポンスにcoins/expは含めない
+    // （以前の「30%だけ回復できる」仕様は依頼により廃止）。
+    // 加えて、プレイヤーの所持金の半分を失わせる処理はクライアント側（result.js）で行う。
     socket.on("dungeon:playerDefeated", (data, callback) => {
         try {
             const playerId = socket.id;
@@ -310,14 +314,43 @@ function registerDungeonHandlers(io, socket) {
                 success: true,
                 defeated: true,
                 floor: result.floor,
-                coins: result.coins,
-                exp: result.exp,
+                difficulty: result.difficulty,
                 message: result.message
             });
 
         } catch (error) {
             console.error("[Dungeon] Error on player defeat:", error);
             callback({ error: "敗北処理に失敗しました" });
+        }
+    });
+
+    // ===================================
+    // 途中撤退
+    // ===================================
+    // 階クリア後、次の階へ進まずにその時点で保有している報酬
+    // （totalCoins/totalExp/rewards）を持ち帰ってダンジョンを終了する。
+    socket.on("dungeon:retreat", (data, callback) => {
+        try {
+            const playerId = socket.id;
+
+            const result = dungeonManager.retreatDungeon(playerId);
+            if (result.error) {
+                return callback(result);
+            }
+
+            callback({
+                success: true,
+                retreated: true,
+                floor: result.floor,
+                difficulty: result.difficulty,
+                totalCoins: result.totalCoins,
+                totalExp: result.totalExp,
+                rewards: result.rewards
+            });
+
+        } catch (error) {
+            console.error("[Dungeon] Error retreating from dungeon:", error);
+            callback({ error: "撤退処理に失敗しました" });
         }
     });
 

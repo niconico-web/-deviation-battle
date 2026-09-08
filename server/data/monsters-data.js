@@ -60,6 +60,33 @@ const DUNGEON_REWARDS = {
 };
 
 // ===================================
+// 階層ごとの報酬（コイン・経験値）
+// ===================================
+// 依頼により、ダンジョンの報酬を階層ごとに分けて定義する。
+// 各階を突破するたびに難易度×階層に応じたコイン・経験値が「そのダンジョン内の
+// 保有報酬」として積み上がっていき、以前は階層に関係なく一律だった
+// （getBaseRewardCoins/Exp は10階クリア時にしか使われていなかった）反省を踏まえ、
+// 1〜10階すべてでこの関数を使う。プレイヤーの実際の所持コイン等への反映は、
+// ダンジョンをクリアするか撤退した時点でまとめて行う（負けた場合は反映されず全て失う）。
+const FLOOR_REWARD_BASE = {
+    easy: { coins: 60, exp: 30 },
+    normal: { coins: 120, exp: 60 },
+    hard: { coins: 250, exp: 120 },
+    very_hard: { coins: 500, exp: 240 },
+    nightmare: { coins: 1000, exp: 480 }
+};
+
+function getFloorRewardCoins(floor, difficulty) {
+    const base = FLOOR_REWARD_BASE[difficulty] || FLOOR_REWARD_BASE.easy;
+    return Math.round(base.coins * floor);
+}
+
+function getFloorRewardExp(floor, difficulty) {
+    const base = FLOOR_REWARD_BASE[difficulty] || FLOOR_REWARD_BASE.easy;
+    return Math.round(base.exp * floor);
+}
+
+// ===================================
 // 通常報酬（2回目以降のクリア）
 // ===================================
 // 初回クリアはDUNGEON_REWARDS（オーブ/アイテム）を含む一式がもらえるが、
@@ -574,6 +601,9 @@ module.exports = {
     DIFFICULTY_SCALING,
     DUNGEON_REWARDS,
     REPEAT_CLEAR_COIN_REWARDS,
+    FLOOR_REWARD_BASE,
+    getFloorRewardCoins,
+    getFloorRewardExp,
     DUNGEON_BOSSES,
     getRandomMonster,
     getBossByDifficulty

@@ -67,26 +67,17 @@ class Dungeon {
         return false;
     }
 
-    // ダンジョンクリア
+    // ダンジョンクリア（10階のボスを撃破）
     completeDungeon() {
         this.isFinished = true;
 
-        if (this.isFirstClear) {
-            // 初回クリア報酬：これまで通りのコイン＋経験値＋難易度別の特別報酬（オーブ/アイテム）
-            const reward = MonstersData.DUNGEON_REWARDS[this.difficulty];
-            const baseCoins = this.getBaseRewardCoins();
-            const baseExp = this.getBaseRewardExp();
+        // 10階（ボス階）自体の階層報酬（コイン・経験値）を加算する。
+        // 1〜9階と同じ「階層ごとの報酬」ルールに乗せることで、報酬体系を一本化する。
+        const floorReward = this.clearFloor();
 
-            this.totalCoins += baseCoins;
-            this.totalExp += baseExp;
-            this.rewards.push({
-                type: 'coins',
-                amount: baseCoins
-            });
-            this.rewards.push({
-                type: 'exp',
-                amount: baseExp
-            });
+        if (this.isFirstClear) {
+            // 初回クリア報酬：難易度別の特別報酬（オーブ/アイテム）を追加で付与
+            const reward = MonstersData.DUNGEON_REWARDS[this.difficulty];
 
             if (reward.orb) {
                 this.rewards.push({
@@ -103,7 +94,7 @@ class Dungeon {
                 });
             }
         } else {
-            // 通常報酬（2回目以降）：ダンジョンの難易度に応じたコインのみ
+            // 通常報酬（2回目以降）：ダンジョンの難易度に応じたコインを追加で付与
             const repeatCoins = MonstersData.REPEAT_CLEAR_COIN_REWARDS[this.difficulty] || 0;
             this.totalCoins += repeatCoins;
             this.rewards.push({
@@ -119,60 +110,54 @@ class Dungeon {
             isFirstClear: this.isFirstClear,
             totalCoins: this.totalCoins,
             totalExp: this.totalExp,
+            rewards: this.rewards,
+            floorReward
+        };
+    }
+
+    // 途中撤退：その時点までに保持している報酬（積み上がったtotalCoins/totalExp/rewards）を
+    // そのまま持ち帰る。10階のボスを倒していないため、初回クリア特典（オーブ/アイテム）や
+    // 通常報酬（2回目以降のコイン）は付与されない。
+    retreat() {
+        this.isFinished = true;
+        this.isRetreated = true;
+
+        return {
+            cleared: false,
+            retreated: true,
+            floor: this.currentFloor,
+            totalCoins: this.totalCoins,
+            totalExp: this.totalExp,
             rewards: this.rewards
         };
     }
 
     // ダンジョンクリア失敗
+    // 依頼により、敗北時はそのダンジョンで得た報酬（コイン・経験値・アイテム等）を
+    // 全て失う（サーバー側では何も加算されていないtotalCoins/totalExpをそのまま破棄し、
+    // クライアントには0を返す）。加えて、プレイヤーが現在保持している所持金の半分を
+    // 失わせる処理はクライアント側（result.js）でプレイヤーデータを直接操作して行う。
     defeat() {
         this.isFinished = true;
         this.isDefeated = true;
-        
-        // 獲得したコインと経験値の30%を獲得
-        const recoveryRate = 0.3;
-        const partialCoins = Math.floor(this.totalCoins * recoveryRate);
-        const partialExp = Math.floor(this.totalExp * recoveryRate);
 
         return {
             cleared: false,
             floor: this.currentFloor,
             defeated: true,
-            coins: partialCoins,
-            exp: partialExp,
-            message: `${this.currentFloor}階でキャラが倒されました。獲得報酬の${Math.round(recoveryRate * 100)}%を獲得できます。`
+            difficulty: this.difficulty,
+            lostCoins: this.totalCoins,
+            lostExp: this.totalExp,
+            message: `${this.currentFloor}階でキャラが倒されました。このダンジョンで得た報酬はすべて失われ、さらに所持金の半分を失います。`
         };
-    }
-
-    // 基本報酬コインの計算
-    getBaseRewardCoins() {
-        const floorBonus = this.currentFloor * 50;
-        const difficultyBonus = {
-            'easy': 100,
-            'normal': 200,
-            'hard': 400,
-            'very_hard': 800,
-            'nightmare': 1600
-        };
-        return floorBonus + (difficultyBonus[this.difficulty] || 0);
-    }
-
-    // 基本報酬経験値の計算
-    getBaseRewardExp() {
-        const floorBonus = this.currentFloor * 25;
-        const difficultyBonus = {
-            'easy': 50,
-            'normal': 100,
-            'hard': 200,
-            'very_hard': 400,
-            'nightmare': 800
-        };
-        return floorBonus + (difficultyBonus[this.difficulty] || 0);
     }
 
     // 階クリア時のコイン・経験値獲得
+    // 難易度・階層に応じた基本報酬（MonstersData.getFloorRewardCoins/Exp）に、
+    // バトル側から渡された追加報酬（battleReward）を上乗せする。
     clearFloor(battleReward = {}) {
-        const floorCoins = this.currentFloor * 10 + (battleReward.coins || 0);
-        const floorExp = this.currentFloor * 5 + (battleReward.exp || 0);
+        const floorCoins = MonstersData.getFloorRewardCoins(this.currentFloor, this.difficulty) + (battleReward.coins || 0);
+        const floorExp = MonstersData.getFloorRewardExp(this.currentFloor, this.difficulty) + (battleReward.exp || 0);
         
         this.totalCoins += floorCoins;
         this.totalExp += floorExp;
@@ -185,6 +170,7 @@ class Dungeon {
         });
 
         return {
+            floor: this.currentFloor,
             coins: floorCoins,
             exp: floorExp
         };
@@ -253,15 +239,15 @@ class DungeonManager {
             return { error: "ダンジョンは既に終了しています" };
         }
 
-        const floorReward = dungeon.clearFloor(battleResult);
-        
         if (dungeon.currentFloor === 10) {
-            // ボスを倒した = ダンジョンクリア
+            // ボスを倒した = ダンジョンクリア。10階自体の階層報酬もcompleteDungeon()内の
+            // clearFloor()でまとめて加算するため、ここでは二重加算しないよう呼ばない。
             const result = dungeon.completeDungeon();
             this.activeDungeons.delete(playerId);
             return result;
         } else {
             // 次の階へ
+            const floorReward = dungeon.clearFloor(battleResult);
             dungeon.advanceFloor();
             return {
                 success: true,
@@ -271,6 +257,22 @@ class DungeonManager {
                 dungeonState: dungeon.getState()
             };
         }
+    }
+
+    // 途中撤退（勝利後、次の階へ進まずその時点の保有報酬を持ち帰る）
+    retreatDungeon(playerId) {
+        const dungeon = this.getDungeon(playerId);
+        if (!dungeon) {
+            return { error: "アクティブなダンジョンがありません" };
+        }
+
+        if (dungeon.isFinished) {
+            return { error: "ダンジョンは既に終了しています" };
+        }
+
+        const result = dungeon.retreat();
+        this.activeDungeons.delete(playerId);
+        return { ...result, difficulty: dungeon.difficulty };
     }
 
     // プレイヤー敗北
