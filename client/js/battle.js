@@ -3511,19 +3511,6 @@ function updatePlayerUI() {
     myGrade.textContent = `学年:${me.grade || '-'}`;
 }
 
-    if (isPracticeTutorial && window.PracticeCoach) {
-        // 練習バトルの場合は、閉じるボタンを押すまで結果画面への遷移を待つ
-        window.PracticeCoach.finish(
-            win
-                ? "問題に答えて、コマンドを選ぶ。これがバトルの基本の流れだよ。\nこの調子でオンライン対戦にも挑戦してみよう！"
-                : "負けてしまったけど、操作の流れはつかめたはず。\nもう一度練習するか、オンライン対戦に挑戦してみよう！"
-        );
-        setTimeout(() => location.href = "result.html", 4000);
-    } else {
-        setTimeout(() => location.href = "result.html", 2000);
-    }
-}
-
 function showCountdown(callback) {
     let count = 3;
     questionDisplay.textContent = count;

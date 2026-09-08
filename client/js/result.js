@@ -2,8 +2,8 @@
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";
 
 // ソケット接続（ダンジョンバトルの場合必要）
-const wasDungeonBattle = localStorage.getItem("isDungeonBattle");
-if (wasDungeonBattle === "true") {
+const wasDungeonBattle = localStorage.getItem("isDungeonBattle") === "true";
+if (wasDungeonBattle) {
     window.socket = io();
 }
 
@@ -17,131 +17,23 @@ const critical = localStorage.getItem("criticalCount") || "0";
 const title = document.getElementById("resultTitle");
 const won = result === "win";
 
-// 「もう一度戦う」で使うため、result.js末尾でクリアされる前にバトル種別を控えておく
+// 「もう一度戦う」で使うため、末尾でクリアされる前にバトル種別を控えておく
 const wasBotBattle = localStorage.getItem("isBotBattle");
 const wasBossBattle = localStorage.getItem("isBossBattle");
 const battleDifficultyValue = localStorage.getItem("battleDifficulty");
 const partyDataValue = localStorage.getItem("partyData");
 
-// ダンジョンバトルの場合は専用の処理を行い、早期リターン
-if (wasDungeonBattle === "true") {
+if (wasDungeonBattle) {
+    // ダンジョンバトルの場合は専用の処理のみを行う
     handleDungeonResult(won);
-    // ここで処理を終了（通常のリザルト処理はスキップ）
+} else {
+    handleNormalResult();
 }
 
 // ===================================
-// ダンジョン結果処理
-// ===================================
-function handleDungeonResult(won) {
-    const dungeonDataJSON = localStorage.getItem('dungeonData');
-    if (!dungeonDataJSON) {
-        console.error('No dungeon data found');
-        title.textContent = "エラー";
-        return;
-    }
-    
-    const dungeonData = JSON.parse(dungeonDataJSON);
-    const dungeonBattleResult = localStorage.getItem('dungeonBattleResult');
-    const playerHP = localStorage.getItem('dungeonPlayerHP');
-    
-    title.textContent = won ? "🎉 勝利！" : "💔 敗北";
-    title.style.color = won ? "#ffd700" : "#ff4757";
-    
-    document.getElementById('turnText').textContent = `第${dungeonData.dungeon.currentFloor}階`;
-    document.getElementById('hpText').textContent = `残りHP: ${playerHP}`;
-    document.getElementById('damageText').textContent = won ? "敵を倒した！" : "敗北しました...";
-    document.getElementById('criticalText').textContent = "";
-    document.getElementById('xpGainText').textContent = "";
-    document.getElementById('coinGainText').textContent = "";
-    
-    // ボタン設定
-    const homeBtn = document.getElementById('homeBtn');
-    const retryBtn = document.getElementById('retryBtn');
-    const onlineBtn = document.getElementById('onlineBtn');
-    
-    homeBtn.style.display = 'none';
-    retryBtn.style.display = 'inline-block';
-    onlineBtn.style.display = 'none';
-    
-    retryBtn.textContent = won ? "次の階へ" : "ダンジョンへ戻る";
-    retryBtn.onclick = () => {
-        if (won) {
-            // 勝利した場合、次の階へ進む処理
-            if (typeof window.socket !== 'undefined' && window.socket) {
-                window.socket.emit('dungeon:floorCleared', {}, (response) => {
-                    if (response.error) {
-                        alert(`エラー: ${response.error}`);
-                        location.href = 'index.html';
-                        return;
-                    }
-                    
-                    if (response.cleared) {
-                        // ダンジョンクリア
-                        showDungeonClearResult(response);
-                    } else {
-                        // 次の階へ
-                        location.href = 'battle.html';
-                    }
-                });
-            } else {
-                alert('接続エラーです。ホーム画面に戻ります。');
-                location.href = 'index.html';
-            }
-        } else {
-            // 敗北した場合、ダンジョンを放棄してホームへ
-            if (typeof window.socket !== 'undefined' && window.socket) {
-                window.socket.emit('dungeon:playerDefeated', {}, (response) => {
-                    if (response.error) {
-                        alert(`エラー: ${response.error}`);
-                    }
-                    localStorage.removeItem('dungeonData');
-                    localStorage.removeItem('isDungeonBattle');
-                    location.href = 'index.html';
-                });
-            } else {
-                localStorage.removeItem('dungeonData');
-                localStorage.removeItem('isDungeonBattle');
-                location.href = 'index.html';
-            }
-        }
-    };
-}
-
-// ===================================
-// ダンジョンクリア結果表示
-// ===================================
-function showDungeonClearResult(response) {
-    title.textContent = "🏆 ダンジョンクリア！";
-    title.style.color = "#ffd700";
-    
-    document.getElementById('turnText').textContent = `${response.dungeon.difficulty} ダンジョン`;
-    document.getElementById('hpText').textContent = `クリア時間: ${response.dungeon.clearTime || '不明'}`;
-    document.getElementById('damageText').textContent = `ランク: ${response.rank || 'C'}`;
-    document.getElementById('criticalText').textContent = response.isFirstClear ? "🌟 初回クリアボーナス！" : "";
-    document.getElementById('xpGainText').textContent = `獲得経験値: ${response.totalExp || 0}`;
-    document.getElementById('coinGainText').textContent = `獲得コイン: ${response.totalCoins || 0}`;
-    
-    // 報酬アイテム表示
-    if (response.rewards && response.rewards.length > 0) {
-        const orbText = document.getElementById('orbText');
-        orbText.style.display = 'block';
-        orbText.textContent = `報酬: ${response.rewards.map(r => r.description || r.type).join(', ')}`;
-    }
-    
-    const retryBtn = document.getElementById('retryBtn');
-    retryBtn.textContent = "ホームへ戻る";
-    retryBtn.onclick = () => {
-        localStorage.removeItem('dungeonData');
-        localStorage.removeItem('isDungeonBattle');
-        location.href = 'index.html';
-    };
-    
-    const homeBtn = document.getElementById('homeBtn');
-    homeBtn.style.display = 'inline-block';
-}
-
 // 通常のリザルト処理（ダンジョンバトル以外の場合）
-if (!wasDungeonBattle) {
+// ===================================
+function handleNormalResult() {
     const stolenWeaponRaw = localStorage.getItem("stolenWeapon");
     const lostWeaponRaw = localStorage.getItem("lostWeapon");
     const stolenWeapon = stolenWeaponRaw ? JSON.parse(stolenWeaponRaw) : null;
@@ -229,6 +121,7 @@ if (!wasDungeonBattle) {
     if (retryBtn) {
         if (wasBotBattle === "true" && enemy && !partyDataValue) {
             retryBtn.style.display = "";
+            retryBtn.textContent = "もう一度戦う";
             retryBtn.onclick = () => {
                 localStorage.setItem("isBotBattle", "true");
                 if (wasBossBattle === "true") {
@@ -258,6 +151,7 @@ if (!wasDungeonBattle) {
 
     if (onlineBtn) {
         onlineBtn.style.display = "";
+        onlineBtn.textContent = "オンラインへ";
         onlineBtn.onclick = () => location.href = "index.html#section-online";
     }
 
@@ -270,35 +164,8 @@ if (!wasDungeonBattle) {
         bossBtn.style.display = "";
         bossBtn.onclick = () => location.href = "index.html#section-boss";
     }
-}
-if (coinEl) coinEl.textContent = "コイン +" + coinGain;
 
-const stealEl = document.getElementById("stealText");
-if (stealEl) {
-    if (won && stolenWeapon) {
-        stealEl.textContent = "武器を奪取: " + getWeaponDisplayName(stolenWeapon);
-        stealEl.style.display = "block";
-    } else if (!won && lostWeapon) {
-        stealEl.textContent = "装備武器を奪われました: " + getWeaponDisplayName(lostWeapon);
-        stealEl.style.display = "block";
-    } else {
-        stealEl.style.display = "none";
-    }
-}
-
-// オーブドロップ表示
-const orbEl = document.getElementById("orbText");
-if (orbEl) {
-    if (droppedOrb && typeof getOrbDisplayName === "function") {
-        orbEl.textContent = "★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
-        orbEl.style.display = "block";
-    } else {
-        orbEl.style.display = "none";
-    }
-}
-
-// クリーンアップ処理（ダンジョンバトル以外の場合）
-if (!wasDungeonBattle) {
+    // クリーンアップ処理
     localStorage.removeItem("stolenWeapon");
     localStorage.removeItem("lostWeapon");
     localStorage.removeItem("battleCoinGain");
@@ -307,9 +174,300 @@ if (!wasDungeonBattle) {
     localStorage.removeItem("isBossBattle"); // Clear boss battle flag
     localStorage.removeItem("battleDifficulty"); // Clear difficulty
     localStorage.removeItem("battleResultData"); // Clear boss reward data
-} else {
-    // ダンジョンバトルのクリーンアップ
-    localStorage.removeItem("dungeonBattleResult");
-    localStorage.removeItem("dungeonPlayerHP");
-    localStorage.removeItem("isDungeonBattle");
+}
+
+// ===================================
+// ダンジョン結果処理
+// ===================================
+// 勝敗にかかわらずまずリザルト画面に遷移し、
+//   ・勝利時：次の階へ進むか、その時点で保有している報酬を持って撤退するかを選べる
+//   ・敗北時：そのダンジョンで得た報酬を全て失い、さらに所持金の半分を失う
+function handleDungeonResult(won) {
+    const dungeonDataJSON = localStorage.getItem('dungeonData');
+    if (!dungeonDataJSON) {
+        console.error('No dungeon data found');
+        title.textContent = "エラー";
+        cleanupDungeonStorage();
+        return;
+    }
+
+    const dungeonData = JSON.parse(dungeonDataJSON);
+    const difficulty = dungeonData.dungeon?.difficulty;
+    const dungeonPlayerHP = localStorage.getItem('dungeonPlayerHP') || "0";
+
+    // 通常リザルト用の要素は使わないので隠しておく
+    hideNormalResultFields();
+
+    const retryBtn = document.getElementById('retryBtn');
+    const onlineBtn = document.getElementById('onlineBtn');
+    const partyBtn = document.getElementById('partyBtn');
+    const bossBtn = document.getElementById('bossBtn');
+    const homeBtn = document.getElementById('homeBtn');
+    if (partyBtn) partyBtn.style.display = 'none';
+    if (bossBtn) bossBtn.style.display = 'none';
+    if (homeBtn) homeBtn.style.display = 'none';
+
+    if (!window.socket) {
+        title.textContent = "エラー";
+        document.getElementById('damageText').textContent = "接続エラーです。ホーム画面に戻ります。";
+        if (retryBtn) retryBtn.style.display = 'none';
+        if (onlineBtn) onlineBtn.style.display = 'none';
+        cleanupDungeonStorage();
+        setTimeout(() => location.href = 'index.html', 2000);
+        return;
+    }
+
+    if (won) {
+        title.textContent = "🎉 勝利！";
+        title.style.color = "#ffd700";
+        document.getElementById('hpText').textContent = `残りHP: ${dungeonPlayerHP}`;
+
+        window.socket.emit('dungeon:floorCleared', {}, (response) => {
+            if (response.error) {
+                alert(`エラー: ${response.error}`);
+                cleanupDungeonStorage();
+                location.href = 'index.html';
+                return;
+            }
+
+            if (response.cleared) {
+                showDungeonClearResult(response, difficulty);
+                return;
+            }
+
+            // まだダンジョンは続く：この階のクリア報酬を表示し、
+            // 「次の階へ」か「撤退する」かを選ばせる
+            document.getElementById('turnText').textContent = `第${response.dungeon.currentFloor - 1}階 クリア！`;
+            document.getElementById('damageText').textContent =
+                `この階の報酬: コイン+${response.floorReward.coins} / 経験値+${response.floorReward.exp}`;
+            document.getElementById('criticalText').textContent =
+                `ここまでの保有報酬（撤退時に持ち帰れる分）: コイン${response.dungeon.totalCoins} / 経験値${response.dungeon.totalExp}`;
+
+            // 次の階のためにデータを更新
+            localStorage.setItem('dungeonData', JSON.stringify({
+                dungeon: response.dungeon,
+                currentMonsters: response.nextMonsters
+            }));
+            const nextEnemy = response.nextMonsters && response.nextMonsters[0];
+            if (nextEnemy) {
+                localStorage.setItem('enemy', JSON.stringify(nextEnemy));
+            }
+
+            if (retryBtn) {
+                retryBtn.style.display = 'inline-block';
+                retryBtn.textContent = '次の階へ';
+                retryBtn.onclick = () => {
+                    const battlePlayerJSON = localStorage.getItem('battlePlayer');
+                    const battlePlayer = battlePlayerJSON ? JSON.parse(battlePlayerJSON) : null;
+                    if (battlePlayer) {
+                        // HPは全回復せず、前の階を終えた時点のHPを引き継ぐ
+                        battlePlayer.hp = Math.max(1, parseInt(dungeonPlayerHP, 10) || battlePlayer.hp);
+                        localStorage.setItem('battlePlayer', JSON.stringify(battlePlayer));
+                    }
+                    localStorage.setItem('isBotBattle', 'true');
+                    localStorage.setItem('isDungeonBattle', 'true');
+                    // 10階（ボス階）に到達した場合はボス専用の問題・演出を有効にする
+                    if (response.dungeon && response.dungeon.currentFloor === 10) {
+                        localStorage.setItem('isBossBattle', 'true');
+                    } else {
+                        localStorage.removeItem('isBossBattle');
+                    }
+                    location.href = 'battle.html';
+                };
+            }
+
+            if (onlineBtn) {
+                onlineBtn.style.display = 'inline-block';
+                onlineBtn.textContent = '撤退する';
+                onlineBtn.onclick = () => {
+                    if (!confirm('撤退すると、それ以上先の階には進めなくなります。ここまでの報酬を持ち帰りますか？')) {
+                        return;
+                    }
+                    window.socket.emit('dungeon:retreat', {}, (retreatResponse) => {
+                        if (retreatResponse.error) {
+                            alert(`エラー: ${retreatResponse.error}`);
+                            cleanupDungeonStorage();
+                            location.href = 'index.html';
+                            return;
+                        }
+                        applyDungeonRunRewards(retreatResponse.difficulty || difficulty, {
+                            coins: retreatResponse.totalCoins,
+                            exp: retreatResponse.totalExp,
+                            rewards: retreatResponse.rewards,
+                            isFirstClear: false
+                        });
+                        alert(`撤退しました。コイン+${retreatResponse.totalCoins} / 経験値+${retreatResponse.totalExp} を持ち帰りました。`);
+                        cleanupDungeonStorage();
+                        location.href = 'index.html';
+                    });
+                };
+            }
+        });
+    } else {
+        title.textContent = "💔 敗北";
+        title.style.color = "#ff4757";
+        document.getElementById('hpText').textContent = `残りHP: ${dungeonPlayerHP}`;
+        document.getElementById('damageText').textContent = "敗北しました…このダンジョンで得た報酬はすべて失われました。";
+
+        window.socket.emit('dungeon:playerDefeated', {}, (response) => {
+            if (response.error) {
+                alert(`エラー: ${response.error}`);
+            }
+
+            // 所持金の半分を失うペナルティ（このダンジョンで得た分は元々サーバー側で
+            // 加算されていないため、何も加算しないことで「全て失う」を表現している）
+            const penalizedPlayer = applyDungeonDefeatPenalty();
+            document.getElementById('criticalText').textContent = penalizedPlayer
+                ? `ペナルティ: 所持金が半分になりました（残り ${penalizedPlayer.coins}コイン）`
+                : '';
+
+            if (retryBtn) {
+                retryBtn.style.display = 'inline-block';
+                retryBtn.textContent = 'ダンジョンへ戻る';
+                retryBtn.onclick = () => {
+                    cleanupDungeonStorage();
+                    location.href = 'index.html#section-dungeon';
+                };
+            }
+            if (onlineBtn) onlineBtn.style.display = 'none';
+        });
+    }
+}
+
+// ===================================
+// ダンジョンクリア（10階のボス撃破）結果表示
+// ===================================
+function showDungeonClearResult(response, difficulty) {
+    applyDungeonRunRewards(response.dungeon?.difficulty || difficulty, {
+        coins: response.totalCoins,
+        exp: response.totalExp,
+        rewards: response.rewards,
+        isFirstClear: response.isFirstClear
+    });
+
+    title.textContent = "🏆 ダンジョンクリア！";
+    title.style.color = "#ffd700";
+
+    document.getElementById('turnText').textContent = `${getDifficultyDisplayName(response.dungeon?.difficulty || difficulty)} ダンジョン`;
+    document.getElementById('hpText').textContent = `クリアランク: ${response.rank || 'C'}`;
+    document.getElementById('damageText').textContent = response.isFirstClear ? "🌟 初回クリアボーナス！" : "";
+    const xpEl = document.getElementById('xpGainText');
+    if (xpEl) xpEl.textContent = `獲得経験値: ${response.totalExp || 0}`;
+    const coinEl = document.getElementById('coinGainText');
+    if (coinEl) coinEl.textContent = `獲得コイン: ${response.totalCoins || 0}`;
+
+    const orbText = document.getElementById('orbText');
+    const specialRewards = (response.rewards || []).filter(r => r.type === 'orb' || r.type === 'item');
+    if (orbText && specialRewards.length > 0) {
+        orbText.style.display = 'block';
+        orbText.textContent = `報酬: ${specialRewards.map(r => r.description || r.type).join(', ')}`;
+    }
+
+    const retryBtn = document.getElementById('retryBtn');
+    if (retryBtn) {
+        retryBtn.style.display = 'inline-block';
+        retryBtn.textContent = 'ホームへ戻る';
+        retryBtn.onclick = () => {
+            cleanupDungeonStorage();
+            location.href = 'index.html';
+        };
+    }
+    const onlineBtn = document.getElementById('onlineBtn');
+    if (onlineBtn) onlineBtn.style.display = 'none';
+}
+
+// ===================================
+// ダンジョン報酬をプレイヤーデータへ反映
+// ===================================
+// ダンジョンをクリアする（10階のボスを倒す）か、途中で撤退した場合にのみ呼ばれる。
+// 敗北した場合は呼ばれないため、その時点までの報酬はすべて失われたことになる。
+function applyDungeonRunRewards(difficulty, { coins = 0, exp = 0, rewards = [], isFirstClear = false } = {}) {
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    if (!player) return null;
+
+    player.coins = (player.coins || 0) + (coins || 0);
+
+    const oldLevel = typeof calcLevel === 'function' ? calcLevel(player.xp || 0) : (player.level || 1);
+    player.xp = (player.xp || 0) + (exp || 0);
+    const newLevel = typeof calcLevel === 'function' ? calcLevel(player.xp) : oldLevel;
+    player.level = newLevel;
+
+    let updatedPlayer = player;
+    if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === 'function') {
+        updatedPlayer = addSkillPointsOnLevelUp(player, oldLevel, newLevel) || player;
+    }
+
+    (rewards || []).forEach(reward => {
+        if (reward.type === 'orb' && typeof createOrb === 'function') {
+            const orb = createOrb(reward.tier);
+            if (orb) {
+                updatedPlayer.orbs = updatedPlayer.orbs || [];
+                updatedPlayer.orbs.push(orb);
+            }
+        } else if (reward.type === 'item') {
+            updatedPlayer.dungeonItems = updatedPlayer.dungeonItems || [];
+            updatedPlayer.dungeonItems.push({
+                id: reward.itemId,
+                name: reward.description || reward.itemId,
+                rarity: reward.rarity || null,
+                obtainedAt: Date.now()
+            });
+        }
+    });
+
+    if (isFirstClear && difficulty) {
+        updatedPlayer.dungeonClears = updatedPlayer.dungeonClears || {};
+        updatedPlayer.dungeonClears[difficulty] = true;
+    }
+
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+    return updatedPlayer;
+}
+
+// ===================================
+// ダンジョン敗北ペナルティ（所持金の半分を失う）
+// ===================================
+function applyDungeonDefeatPenalty() {
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    if (!player) return null;
+
+    player.coins = Math.floor((player.coins || 0) / 2);
+    localStorage.setItem("player", JSON.stringify(player));
+    return player;
+}
+
+function getDifficultyDisplayName(difficulty) {
+    const names = {
+        easy: 'イージー',
+        normal: 'ノーマル',
+        hard: 'ハード',
+        very_hard: 'ベリーハード',
+        nightmare: 'ナイトメア'
+    };
+    return names[difficulty] || difficulty || '不明';
+}
+
+// 通常リザルト用のUI要素はダンジョン結果画面では使わないため隠す
+function hideNormalResultFields() {
+    ['stealText', 'materialDropText', 'bossWeaponDropText', 'limitBreakMaterialText', 'bossSkillDropText'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+    const xpEl = document.getElementById('xpGainText');
+    if (xpEl) xpEl.textContent = '';
+    const coinEl = document.getElementById('coinGainText');
+    if (coinEl) coinEl.textContent = '';
+    const orbEl = document.getElementById('orbText');
+    if (orbEl) orbEl.style.display = 'none';
+}
+
+function cleanupDungeonStorage() {
+    localStorage.removeItem('dungeonData');
+    localStorage.removeItem('isDungeonBattle');
+    localStorage.removeItem('dungeonBattleResult');
+    localStorage.removeItem('dungeonPlayerHP');
+    localStorage.removeItem('isBotBattle');
+    localStorage.removeItem('isBossBattle');
+    localStorage.removeItem('enemy');
+    localStorage.removeItem('rewardsApplied');
 }
