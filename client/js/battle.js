@@ -78,6 +78,11 @@ let enemyAccuracyDebuff = 0;      // 敵の命中率低下率
 let enemyAccuracyDebuffTurns = 0; // 敵の命中率低下残りターン
 let myMultiHit = 0;               // 複数回攻撃の回数
 let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
+let myMultiHitMultiplier = 0.6;   // 複数回攻撃1回あたりのダメージ倍率（スキルごとに変わる）
+let mySpeedBuff = 0;              // 自身の速さ上昇率
+let mySpeedBuffTurns = 0;         // 速さ上昇の残りターン
+let myReviveAvailable = false;    // 戦闘不能時に一度だけ復活できるか
+let myRevivePercent = 0;          // 復活時のHP割合
 let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
 let myPoisonTurns = 0;            // 自分（プレイヤー）の毒残りターン
 let enemyNextDamageShield = 0;    // ボスが得た「次に受けるダメージ軽減」（1回限り）
@@ -1366,6 +1371,20 @@ function startSkillActivationWindow() {
 }
 
 // スキル効果の適用
+// 「不死身」スキルによる復活処理。HPが0以下になった時に呼び出し、
+// 復活権を持っていれば消費してHPをrevivePercent分回復させtrueを返す。
+// 持っていなければ何もせずfalseを返す（＝通常通り敗北処理を続ける）。
+function tryReviveMe() {
+    if (myReviveAvailable && me && me.hp <= 0) {
+        myReviveAvailable = false;
+        me.hp = Math.max(1, Math.floor(me.maxHp * (myRevivePercent || 0.5)));
+        addLog(`スキル効果: 「不死身」発動！HP${me.hp}で復活した！`);
+        updateHP();
+        return true;
+    }
+    return false;
+}
+
 function applySkillEffect(damage, attacker, defender, skill) {
     if (!skill || !skill.effect) return damage;
     
@@ -1378,8 +1397,8 @@ function applySkillEffect(damage, attacker, defender, skill) {
         addLog(`スキル効果: ダメージ${effect.damageMultiplier}倍！`);
     }
     
-    // 防御貫通/防御無視
-    if (effect.pierceDef || effect.ignoreDef) {
+    // 防御貫通/防御無視（実際の防御無視自体は攻撃処理側でskillEffect.ignoreDef/pierceDef/defenseIgnoreを見て行う。ここはログのみ）
+    if (effect.pierceDef || effect.ignoreDef || effect.defenseIgnore) {
         addLog(`スキル効果: 防御を無視！`);
     }
     
@@ -1431,19 +1450,25 @@ function applySkillEffect(damage, attacker, defender, skill) {
         addLog(`スキル効果: クリティカル率${effect.critChance * 100}%アップ！`);
     }
     
-    // 火傷付与
+    // 火傷付与（burnChanceが指定されている場合は確率判定、なければ確定付与）
     if (effect.burn) {
         if (defender === enemy) {
-            enemyBurnTurns = 3;
-            addLog(`スキル効果: 敵に火傷付与！`);
+            const burnRoll = (effect.burnChance !== undefined) ? Math.random() < effect.burnChance : true;
+            if (burnRoll) {
+                enemyBurnTurns = effect.burnTurns || 3;
+                addLog(`スキル効果: 敵に火傷付与！`);
+            }
         }
     }
     
-    // 毒付与
+    // 毒付与（poisonChanceが指定されている場合は確率判定、なければ確定付与）
     if (effect.poison) {
         if (defender === enemy) {
-            enemyPoisonTurns = 3;
-            addLog(`スキル効果: 敵に毒付与！`);
+            const poisonRoll = (effect.poisonChance !== undefined) ? Math.random() < effect.poisonChance : true;
+            if (poisonRoll) {
+                enemyPoisonTurns = effect.poisonTurns || 3;
+                addLog(`スキル効果: 敵に毒付与！`);
+            }
         }
     }
     
@@ -1451,8 +1476,17 @@ function applySkillEffect(damage, attacker, defender, skill) {
     if (effect.speedDebuff) {
         if (defender === enemy) {
             enemySpeedDebuff = effect.speedDebuff;
-            enemySpeedDebuffTurns = 2;
+            enemySpeedDebuffTurns = effect.speedDebuffTurns || effect.turns || 2;
             addLog(`スキル効果: 敵の速度${effect.speedDebuff * 100}%低下！`);
+        }
+    }
+
+    // 自身の速度上昇
+    if (effect.speedBuff) {
+        if (attacker === me) {
+            mySpeedBuff = effect.speedBuff;
+            mySpeedBuffTurns = effect.turns || 2;
+            addLog(`スキル効果: 自身の速度${effect.speedBuff * 100}%上昇！`);
         }
     }
 
@@ -1502,12 +1536,13 @@ function applySkillEffect(damage, attacker, defender, skill) {
         }
     }
     
-    // 複数回攻撃
-    if (effect.multiHit) {
+    // 複数回攻撃（multiHit / multiStrike どちらのキー名にも対応）
+    if (effect.multiHit || effect.multiStrike) {
         if (attacker === me) {
-            myMultiHit = effect.multiHit;
+            myMultiHit = effect.multiHit || effect.multiStrike;
             myMultiHitTurns = 1;
-            addLog(`スキル効果: ${effect.multiHit}回攻撃！`);
+            myMultiHitMultiplier = (effect.multiStrikeMultiplier !== undefined) ? effect.multiStrikeMultiplier : 0.6;
+            addLog(`スキル効果: ${myMultiHit}連撃！`);
         }
     }
     
@@ -1523,8 +1558,52 @@ function applySkillEffect(damage, attacker, defender, skill) {
     // ダメージ軽減（次の攻撃に対して）
     if (effect.damageReduction) {
         if (attacker === me) {
-            myPendingDamageReduction = effect.damageReduction;
+            myPendingDamageReduction = Math.max(myPendingDamageReduction, effect.damageReduction);
             addLog(`スキル効果: 次のダメージ${effect.damageReduction * 100}%軽減！`);
+        }
+    }
+
+    // 無敵（次の攻撃を完全無効化）
+    if (effect.invincible) {
+        if (attacker === me) {
+            myPendingDamageReduction = 1;
+            addLog(`スキル効果: 次の攻撃を完全に無効化！`);
+        }
+    }
+
+    // 行動不能（このターン攻撃できない代わりに防御・回避系の効果を得る）
+    if (effect.skipNextTurn) {
+        if (attacker === me) {
+            mySkipThisTurn = true;
+        }
+    }
+
+    // 自身HPを消費する
+    if (effect.selfHpCost) {
+        if (attacker === me) {
+            const cost = Math.floor(attacker.maxHp * effect.selfHpCost);
+            attacker.hp = Math.max(1, attacker.hp - cost);
+            addLog(`スキル効果: 自身のHPを${cost}消費！`);
+            updateHP();
+        }
+    }
+
+    // 使用済みスキルを1つリセットして再使用可能にする
+    if (effect.resetUsedSkill) {
+        if (attacker === me && usedSkills.length > 0) {
+            const resetCount = Math.min(effect.resetUsedSkill, usedSkills.length);
+            usedSkills.splice(0, resetCount);
+            addLog(`スキル効果: 使用済みスキルが${resetCount}個リセットされた！`);
+            if (typeof renderSkills === 'function') renderSkills();
+        }
+    }
+
+    // 戦闘不能時に一度だけ復活する
+    if (effect.revive) {
+        if (attacker === me) {
+            myReviveAvailable = true;
+            myRevivePercent = effect.revivePercent || 0.5;
+            addLog(`スキル効果: 戦闘不能時に一度だけ復活できるようになった！`);
         }
     }
     
@@ -1538,9 +1617,6 @@ function applySkillEffect(damage, attacker, defender, skill) {
         addLog(`スキル効果: カウンターアタック準備！`);
     }
     
-    console.log("Skill effect applied, modified damage:", modifiedDamage);
-    return modifiedDamage;
-    
     // バーサーク（HPが低い時に強化）
     if (effect.berserk) {
         if (typeof effect.berserk === 'number') {
@@ -1552,7 +1628,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
         }
     }
     
-    // エクスキュート（即死効果）
+    // エクスキュート（即死効果 / ダメージ増加効果）
     if (effect.execute === true && effect.executeThreshold) {
         const hpRatio = defender.hp / defender.maxHp;
         if (hpRatio <= effect.executeThreshold) {
@@ -1573,6 +1649,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
             defender.hp = 0;
             addLog(`スキル効果: 即死！`);
             updateHP();
+            console.log("Skill effect applied, modified damage:", modifiedDamage);
             return modifiedDamage;
         }
     }
@@ -1586,6 +1663,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
         updateStats();
     }
     
+    console.log("Skill effect applied, modified damage:", modifiedDamage);
     return modifiedDamage;
 }
 
@@ -1879,9 +1957,9 @@ function performBossTimeoutAttack() {
 
     updateHP();
 
-    if (me.hp <= 0) {
+    if (me.hp <= 0 && !tryReviveMe()) {
         finishBotBattle("lose");
-    } else {
+    } else if (me.hp > 0) {
         setTimeout(generateBotQuestion, 1000);
     }
 }
@@ -2307,7 +2385,7 @@ function resolveBossAttack() {
     enemyATB = 0;
     updateATBBars();
 
-    if (me.hp <= 0) {
+    if (me.hp <= 0 && !tryReviveMe()) {
         finishBotBattle("lose");
     }
 }
@@ -2790,7 +2868,7 @@ function tickBotBattleStatus() {
         myBurnTurns--;
         addLog(`火傷ダメージ！${me.name}に${burnDamage}のダメージ（残り${myBurnTurns}ターン）`);
         updateHP();
-        if (me.hp <= 0) { finishBotBattle("lose"); return; }
+        if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (myPoisonTurns > 0) {
         const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.03));
@@ -2798,7 +2876,7 @@ function tickBotBattleStatus() {
         myPoisonTurns--;
         addLog(`毒ダメージ！${me.name}に${poisonDamage}のダメージ（残り${myPoisonTurns}ターン）`);
         updateHP();
-        if (me.hp <= 0) { finishBotBattle("lose"); return; }
+        if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (enemyBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.05));
@@ -2848,6 +2926,13 @@ function tickBotBattleStatus() {
         if (enemyAccuracyDebuffTurns === 0) {
             enemyAccuracyDebuff = 0;
             addLog("敵の命中率低下が回復した。");
+        }
+    }
+    if (mySpeedBuffTurns > 0) {
+        mySpeedBuffTurns--;
+        if (mySpeedBuffTurns === 0) {
+            mySpeedBuff = 0;
+            addLog("自身の速度上昇が終了した。");
         }
     }
 }
@@ -3043,7 +3128,7 @@ function resolvePlayerCommand(command) {
         }
 
         // スキルによる防御無視
-        if (skillEffect.ignoreDef) {
+        if (skillEffect.ignoreDef || skillEffect.pierceDef || skillEffect.defenseIgnore) {
             enemyDef = 0;
             addLog("相手の防御を無視した！");
         }
@@ -3059,7 +3144,8 @@ function resolvePlayerCommand(command) {
         }
 
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
-        const mySpeed = me.speed || 0;
+        // スキルによる自身の速さ上昇（mySpeedBuff）も反映する
+        const mySpeed = Math.floor((me.speed || 0) * (1 + (mySpeedBuff || 0)));
         const dodgeChance = calculateDodgeChance(mySpeed);
         
         // 45%を超える分は攻撃ボーナスに変換
@@ -3097,10 +3183,10 @@ function resolvePlayerCommand(command) {
         // スキル効果を適用（新しいスキルシステム）
         damage = applySkillEffect(damage, me, enemy, usedSkill);
         
-        // 多段攻撃（新しいmyMultiHitシステムと統合）
+        // 多段攻撃（新しいmyMultiHitシステムと統合。スキルごとの1撃あたり倍率(myMultiHitMultiplier)を使う）
         const multiHitCount = myMultiHit > 0 ? myMultiHit : 1;
         if (multiHitCount > 1) {
-            const perHitRate = 0.6;
+            const perHitRate = myMultiHitMultiplier || 0.6;
             damage = Math.max(1, Math.floor(damage * perHitRate)) * multiHitCount;
             addLog(`${multiHitCount}連撃！`);
             
@@ -3109,6 +3195,7 @@ function resolvePlayerCommand(command) {
                 myMultiHitTurns--;
                 if (myMultiHitTurns <= 0) {
                     myMultiHit = 0;
+                    myMultiHitMultiplier = 0.6;
                 }
             }
         }
@@ -3232,7 +3319,7 @@ function handleWrongAnswer(skillEffect) {
         updateHP();
         
         // 勝利判定
-        if (me.hp <= 0) {
+        if (me.hp <= 0 && !tryReviveMe()) {
             finishBotBattle("lose");
             return;
         }
@@ -3319,9 +3406,9 @@ function handleWrongAnswer(skillEffect) {
                 updateHP();
                 
                 // 勝利判定
-                if (me.hp <= 0) {
+                if (me.hp <= 0 && !tryReviveMe()) {
                     finishBotBattle("lose");
-                } else {
+                } else if (me.hp > 0) {
                     // 即座に次の問題へ
                     setTimeout(generateBotQuestion, 1000);
                 }
