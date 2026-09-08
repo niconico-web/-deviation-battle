@@ -20,7 +20,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:start", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
             const difficulty = data.difficulty;
 
             console.log(`[Dungeon] Player ${playerId} starting dungeon - difficulty: ${difficulty}`);
@@ -62,7 +62,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:getQuestion", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             // プレイヤーがダンジョン中かチェック
             const dungeon = dungeonManager.getDungeon(playerId);
@@ -92,7 +92,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:answerQuestion", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
             const answer = data.answer;
 
             // ダンジョンチェック
@@ -155,7 +155,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:executeCommand", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
             const command = data.command; // 'attack', 'special', 'guard', 'ultimate'
 
             // ダンジョンチェック
@@ -243,7 +243,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:floorCleared", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             // ダンジョンチェック
             const dungeon = dungeonManager.getDungeon(playerId);
@@ -299,7 +299,7 @@ function registerDungeonHandlers(io, socket) {
     // 加えて、プレイヤーの所持金の半分を失わせる処理はクライアント側（result.js）で行う。
     socket.on("dungeon:playerDefeated", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             // ダンジョンチェック
             const dungeon = dungeonManager.getDungeon(playerId);
@@ -331,7 +331,7 @@ function registerDungeonHandlers(io, socket) {
     // （totalCoins/totalExp/rewards）を持ち帰ってダンジョンを終了する。
     socket.on("dungeon:retreat", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             const result = dungeonManager.retreatDungeon(playerId);
             if (result.error) {
@@ -359,7 +359,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:abandon", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             const result = dungeonManager.abandonDungeon(playerId);
 
@@ -383,7 +383,7 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     socket.on("dungeon:getInfo", (data, callback) => {
         try {
-            const playerId = socket.id;
+            const playerId = (data && data.playerId) || socket.id;
 
             const info = dungeonManager.getDungeonInfo(playerId);
 
@@ -401,15 +401,21 @@ function registerDungeonHandlers(io, socket) {
     // ===================================
     // 接続切断時
     // ===================================
+    // 依頼の経緯：ダンジョンは index.html（開始）→ battle.html（戦闘）→
+    // result.html（結果）と複数のページ遷移をまたいで進行するが、ページ遷移のたびに
+    // Socket.IOの接続は一度切断されて新しい接続（新しいsocket.id）が張り直される。
+    // 以前はここでsocket.id（＝その場限りの接続ID）をキーにダンジョンを即座に
+    // 放棄していたため、フロアをクリアした直後（battle.html→result.htmlへ遷移した
+    // タイミング）に毎回ダンジョンが消えてしまい、「アクティブなダンジョンが
+    // ありません」エラーになっていた。
+    // 対策として、ダンジョンのキー自体をsocket.idではなくプレイヤーの永続ID
+    // （data.playerId、クライアントのplayer.idをそのまま送っている）に変更した
+    // （上記の各ハンドラを参照）。これによりページ遷移でsocket.idが変わっても
+    // 同じダンジョンセッションを引き続き参照できるため、切断時に自動放棄する
+    // 処理はここでは行わない（ダンジョンは明示的なdungeon:abandon、または
+    // クリア/撤退/敗北によって終了するまでサーバー上に残る）。
     socket.on("disconnect", () => {
-        const playerId = socket.id;
-        
-        // アクティブなダンジョンを放棄
-        const dungeon = dungeonManager.getDungeon(playerId);
-        if (dungeon && !dungeon.isFinished) {
-            dungeonManager.abandonDungeon(playerId);
-            console.log(`[Dungeon] Player ${playerId} disconnected - dungeon abandoned`);
-        }
+        // 意図的に何もしない（上記コメント参照）
     });
 }
 

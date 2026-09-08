@@ -194,6 +194,12 @@ function handleDungeonResult(won) {
     const dungeonData = JSON.parse(dungeonDataJSON);
     const difficulty = dungeonData.dungeon?.difficulty;
     const dungeonPlayerHP = localStorage.getItem('dungeonPlayerHP') || "0";
+    // ダンジョンのセッションはページ遷移をまたぐため、Socket.IOのsocket.id（接続ごとに
+    // 変わる）ではなく、プレイヤーの永続ID（player.id）でサーバー側のダンジョンを
+    // 特定する。これが無いと毎回のページ遷移で新しい接続になり、
+    // 「アクティブなダンジョンがありません」エラーになってしまう。
+    const dungeonPlayer = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    const dungeonPlayerId = dungeonPlayer ? dungeonPlayer.id : null;
 
     // 通常リザルト用の要素は使わないので隠しておく
     hideNormalResultFields();
@@ -222,7 +228,7 @@ function handleDungeonResult(won) {
         title.style.color = "#ffd700";
         document.getElementById('hpText').textContent = `残りHP: ${dungeonPlayerHP}`;
 
-        window.socket.emit('dungeon:floorCleared', {}, (response) => {
+        window.socket.emit('dungeon:floorCleared', { playerId: dungeonPlayerId }, (response) => {
             if (response.error) {
                 alert(`エラー: ${response.error}`);
                 cleanupDungeonStorage();
@@ -283,7 +289,7 @@ function handleDungeonResult(won) {
                     if (!confirm('撤退すると、それ以上先の階には進めなくなります。ここまでの報酬を持ち帰りますか？')) {
                         return;
                     }
-                    window.socket.emit('dungeon:retreat', {}, (retreatResponse) => {
+                    window.socket.emit('dungeon:retreat', { playerId: dungeonPlayerId }, (retreatResponse) => {
                         if (retreatResponse.error) {
                             alert(`エラー: ${retreatResponse.error}`);
                             cleanupDungeonStorage();
@@ -309,7 +315,7 @@ function handleDungeonResult(won) {
         document.getElementById('hpText').textContent = `残りHP: ${dungeonPlayerHP}`;
         document.getElementById('damageText').textContent = "敗北しました…このダンジョンで得た報酬はすべて失われました。";
 
-        window.socket.emit('dungeon:playerDefeated', {}, (response) => {
+        window.socket.emit('dungeon:playerDefeated', { playerId: dungeonPlayerId }, (response) => {
             if (response.error) {
                 alert(`エラー: ${response.error}`);
             }

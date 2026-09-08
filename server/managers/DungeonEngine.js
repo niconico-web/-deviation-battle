@@ -203,8 +203,18 @@ class DungeonManager {
 
     // ダンジョン開始
     startDungeon(playerId, difficulty, isFirstClear = true) {
-        if (this.activeDungeons.has(playerId)) {
-            return { error: "既にダンジョンがアクティブです" };
+        const existing = this.activeDungeons.get(playerId);
+        if (existing) {
+            // 通信切断やブラウザを閉じるなどでダンジョンが正常に終了しないまま
+            // 放置されているケースを考慮し、一定時間（2時間）操作がなければ
+            // 「放棄されたもの」とみなして上書きし、新しいダンジョンを開始できるようにする。
+            // （通常のページ遷移ではsocket切断時にダンジョンを破棄しなくなったため、
+            //  本当に再開の見込みがない古いセッションだけをここで救済する）
+            const STALE_MS = 2 * 60 * 60 * 1000; // 2時間
+            if (Date.now() - existing.startTime < STALE_MS) {
+                return { error: "既にダンジョンがアクティブです" };
+            }
+            this.activeDungeons.delete(playerId);
         }
 
         if (!MonstersData.DIFFICULTIES[difficulty.toUpperCase()]) {

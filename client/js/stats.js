@@ -470,9 +470,28 @@ function getStatsFromPlayer(player, withPassives = false) {
         baseStats.critChance = passive.critChance || 0;
         baseStats.critMultiplier = passive.critMultiplier || 0;
 
+        // プレステージ（転生）による永続ボーナス（コアステータス一律倍率）を適用する。
+        // 重要: この倍率は withPassives=true（＝バトルや画面表示用の「実効ステータス」を
+        // 求めている）の場合にのみ適用し、生の値（result）自体を書き換えない。
+        // 以前はwithPassivesの真偽に関係なく常にここで倍率をかけていたため、
+        // 「素のステータスを取り出して微増させ、そのままplayer.atk等として保存し直す」
+        // 系の呼び出し（バトル後・勉強タイマー後のステータス反映処理）でも
+        // 倍率適用後の値がそのまま新しい「素の」ステータスとして保存されてしまい、
+        // 次にステータスを取得する際にまた同じ倍率がかかる……という具合に、
+        // バトルや勉強、あるいはページ再読み込み後の再計算のたびに転生ボーナスが
+        // 二重・三重に重ねがけされていく不具合の原因になっていた。
+        const prestigeMultiplier = getPrestigeBonusMultiplier(p);
+        if (prestigeMultiplier !== 1) {
+            baseStats.maxHp = Math.floor(baseStats.maxHp * prestigeMultiplier);
+            baseStats.atk = Math.floor(baseStats.atk * prestigeMultiplier);
+            baseStats.def = Math.floor(baseStats.def * prestigeMultiplier);
+            baseStats.speed = Math.floor(baseStats.speed * prestigeMultiplier);
+            baseStats.special = Math.floor(baseStats.special * prestigeMultiplier);
+        }
+
         result = baseStats;
     } else {
-        // Raw stats without passives
+        // Raw stats without passives（保存用の「素の」ステータス。転生ボーナスは含めない）
         result = {
             maxHp: Number(p.maxHp) || DEFAULT_STATS.maxHp,
             atk: Number(p.atk) || DEFAULT_STATS.atk,
@@ -483,16 +502,6 @@ function getStatsFromPlayer(player, withPassives = false) {
             critChance: 0,
             critMultiplier: 0
         };
-    }
-
-    // プレステージによる永続ボーナス（コアステータス一律倍率）を適用する
-    const prestigeMultiplier = getPrestigeBonusMultiplier(p);
-    if (prestigeMultiplier !== 1) {
-        result.maxHp = Math.floor(result.maxHp * prestigeMultiplier);
-        result.atk = Math.floor(result.atk * prestigeMultiplier);
-        result.def = Math.floor(result.def * prestigeMultiplier);
-        result.speed = Math.floor(result.speed * prestigeMultiplier);
-        result.special = Math.floor(result.special * prestigeMultiplier);
     }
 
     return result;

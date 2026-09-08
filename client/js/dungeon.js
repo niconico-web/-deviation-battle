@@ -129,7 +129,7 @@ function startDungeon(difficulty) {
     const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
     const isFirstClear = !(player && player.dungeonClears && player.dungeonClears[difficulty]);
 
-    dungeonSocket.emit('dungeon:start', { difficulty, isFirstClear }, (response) => {
+    dungeonSocket.emit('dungeon:start', { difficulty, isFirstClear, playerId: player ? player.id : null }, (response) => {
         if (response.error) {
             alert(`エラー: ${response.error}`);
             return;
@@ -154,7 +154,15 @@ function switchToDungeonBattle(dungeonData) {
     localStorage.setItem('isDungeonBattle', 'true');
     
     // プレイヤーデータを設定
-    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    // 依頼の経緯：以前はgetPlayerData()の素のステータス（武器補正・パッシブスキル・
+    // 転生ボーナスを一切含まない基礎値）をそのままbattlePlayerとして使っていたため、
+    // ダンジョンの戦闘だけ武器や転生の恩恵が反映されない状態になっていた。
+    // 通常のボス戦・オンライン対戦で使われているgetMatchPlayer()
+    // （script.js。getBattleStats()で武器補正・パッシブ・転生ボーナスを反映した
+    // 実効ステータスをHPも含めて計算し、フルHPで開始する）と同じ処理に統一する。
+    const player = (typeof getMatchPlayer === 'function')
+        ? getMatchPlayer()
+        : (typeof getPlayerData === 'function' ? getPlayerData() : null);
     if (player) {
         localStorage.setItem('battlePlayer', JSON.stringify(player));
     }
@@ -207,7 +215,8 @@ function abandonDungeon() {
         return;
     }
 
-    dungeonSocket.emit('dungeon:abandon', {}, (response) => {
+    const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
+    dungeonSocket.emit('dungeon:abandon', { playerId: player ? player.id : null }, (response) => {
         if (response.error) {
             alert(`エラー: ${response.error}`);
             return;
