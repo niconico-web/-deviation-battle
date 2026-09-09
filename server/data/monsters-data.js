@@ -376,6 +376,17 @@ const FLOOR_9_MONSTERS = {
 // メインシナリオのボス「深淵ヲ廻ルモノ」（確定ヒット・防御無視の大技、
 // ほぼ全ダメージ無効化の盾、味方全体バフを持つ理不尽級の強さ）に
 // 匹敵する難易度になるよう、ステータスとスキル構成を1〜2段階ずつ底上げしている。
+//
+// 【最終ボスが弱すぎる不具合の修正】
+// getFloorMonsters()（1〜9階）はDIFFICULTY_SCALING（easy=22倍〜nightmare=1000倍）を
+// 通常モンスターの素のステータスに掛けて最終的な戦闘力を決めているが、10階のボスは
+// この倍率が一切掛からず、ここに書かれた数値がそのまま使われていた。
+// DIFFICULTY_SCALINGが「旧: 等間隔 → 新: 指数的」に変更された際にボス側の数値だけ
+// 取り残され、結果としてeasy〜very_hardでは9階の通常モンスター（スケーリング後）の
+// 攻撃力・防御力・素早さがボスを軽く上回ってしまい、「最後のボスの方が道中の敵より弱い」
+// 状態になっていた（nightmareだけは元々の数値が十分大きかったため問題なかった）。
+// 該当する難易度のステータスを、9階モンスターのスケーリング後の最大値のおよそ1.8〜2.5倍
+// になるよう底上げして修正。
 const DUNGEON_BOSSES = {
     // イージー難易度ボス（旧ナイトメア「至高の存在」相当のステータス・技構成）
     easy: {
@@ -383,10 +394,10 @@ const DUNGEON_BOSSES = {
         name: '至高の存在',
         difficulty: 'easy',
         level: 70,
-        hp: 6500,
-        atk: 450,
-        def: 160,
-        speed: 95,
+        hp: 5500,
+        atk: 1600,
+        def: 700,
+        speed: 1100,
         skills: [
             {
                 // ジ・インファーナル相当：確定ヒット・防御無視の超高倍率一撃
@@ -429,11 +440,11 @@ const DUNGEON_BOSSES = {
         id: 'boss_dark_lord',
         name: 'ダークロード',
         difficulty: 'normal',
-        level: 32,
-        hp: 1500,
-        atk: 140,
-        def: 55,
-        speed: 48,
+        level: 50,
+        hp: 15000,
+        atk: 4200,
+        def: 1700,
+        speed: 2600,
         skills: [
             {
                 name: 'ダークネスブラスト',
@@ -459,11 +470,11 @@ const DUNGEON_BOSSES = {
         id: 'boss_infernal_dragon',
         name: 'インフェルノドラゴン',
         difficulty: 'hard',
-        level: 40,
-        hp: 2400,
-        atk: 200,
-        def: 75,
-        speed: 58,
+        level: 65,
+        hp: 45000,
+        atk: 12000,
+        def: 4600,
+        speed: 7500,
         skills: [
             {
                 name: 'インフェルノブレス',
@@ -493,11 +504,11 @@ const DUNGEON_BOSSES = {
         id: 'boss_ancient_god',
         name: '古の神',
         difficulty: 'very_hard',
-        level: 50,
-        hp: 3800,
-        atk: 300,
-        def: 105,
-        speed: 72,
+        level: 80,
+        hp: 160000,
+        atk: 42000,
+        def: 16000,
+        speed: 25000,
         skills: [
             {
                 name: '絶対のカタストロフ',
