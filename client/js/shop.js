@@ -9,7 +9,7 @@ function renderShop() {
         return;
     }
 
-    document.getElementById("coinDisplay").textContent = "所持コイン: " + (player.coins || 0);
+    document.getElementById("coinDisplay").textContent = (player.coins || 0);
 
     // 武器種類ごとにグループ化
     for (const type of Object.keys(WEAPON_TYPES)) {
@@ -375,9 +375,7 @@ function renderOriginalWeapons() {
             actionContainer.appendChild(limitBreakBtn);
         }
 
-        // オーブスロット追加ボタン
-        const currentOrbCount = (weapon.orbs || []).length;
-        const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
+        // オーブスロット追加ボタン（currentOrbCount/maxOrbSlotsは上でオーブスロット数表示用に定義済みのものを再利用）
         const hasOrbSlotTicket = (player.dungeonItems || []).some(item => item.id === 'extra_orb_slot');
         
         if (weapon.isOriginal && currentOrbCount < maxOrbSlots && hasOrbSlotTicket) {
