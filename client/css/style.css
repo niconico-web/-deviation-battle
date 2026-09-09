@@ -1347,6 +1347,106 @@ textarea {
 }
 
 .material-select-item .material-rarity {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* オーブ選択UI */
+.orb-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 40vh;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.orb-selection-item {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.orb-selection-item:hover {
+    background-color: var(--bg-light);
+}
+
+.orb-selection-item input[type="radio"] {
+    margin-right: 8px;
+}
+
+.orb-selection-item label {
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+/* モーダル共通スタイル */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+}
+
+.modal-content .close {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.modal-content .close:hover {
+    color: var(--text-primary);
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    color: var(--text-primary);
+}
+
+.modal-content p {
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+}
+
+.modal-content button {
+    margin-top: 15px;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+    border: none;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+}
     font-size: 0.8rem;
     color: var(--accent-cyan);
 }
