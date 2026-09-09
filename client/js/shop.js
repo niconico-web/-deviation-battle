@@ -329,6 +329,11 @@ function renderOriginalWeapons() {
             originalLimitBreakText = `<span class="quest-progress">限界突破: ${level}/${maxLevel}（上限倍率 ${maxMult.toFixed(1)}x）</span>`;
         }
 
+        // オーブスロット数表示
+        const currentOrbCount = (weapon.orbs || []).length;
+        const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
+        const orbSlotText = `<span class="quest-progress">オーブスロット: ${currentOrbCount}/${maxOrbSlots}</span>`;
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
@@ -341,6 +346,7 @@ function renderOriginalWeapons() {
                 ${secondaryTypeText}
                 ${limitBreakText}
                 ${originalLimitBreakText}
+                ${orbSlotText}
                 <span class="quest-progress">必殺技: ${ultimateName}</span>
             </div>`;
 
@@ -367,6 +373,19 @@ function renderOriginalWeapons() {
             limitBreakBtn.disabled = materialCount < 1;
             limitBreakBtn.onclick = () => limitBreakWeaponUI(weapon);
             actionContainer.appendChild(limitBreakBtn);
+        }
+
+        // オーブスロット追加ボタン
+        const currentOrbCount = (weapon.orbs || []).length;
+        const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
+        const hasOrbSlotTicket = (player.dungeonItems || []).some(item => item.id === 'extra_orb_slot');
+        
+        if (weapon.isOriginal && currentOrbCount < maxOrbSlots && hasOrbSlotTicket) {
+            const addOrbSlotBtn = document.createElement("button");
+            addOrbSlotBtn.className = "btn btn-small btn-info";
+            addOrbSlotBtn.textContent = "オーブスロット追加";
+            addOrbSlotBtn.onclick = () => addOrbSlotToWeapon(weapon);
+            actionContainer.appendChild(addOrbSlotBtn);
         }
 
         // オリジナル武器の限界突破ボタン（ボス武器でない場合）
@@ -902,6 +921,126 @@ function initShop() {
         closeOrbSynthesisBtn.onclick = () => {
             orbSynthesisModal.style.display = 'none';
         };
+    }
+
+    // 武器にオーブスロットを追加する関数
+    function addOrbSlotToWeapon(weapon) {
+        const player = getPlayerData();
+        if (!player) return;
+
+        // オーブ追加チケットの所持チェック
+        const ticketIndex = (player.dungeonItems || []).findIndex(item => item.id === 'extra_orb_slot');
+        if (ticketIndex === -1) {
+            alert('オーブ追加チケットを持っていません。');
+            return;
+        }
+
+        // 現在のオーブスロット数チェック
+        const currentOrbCount = (weapon.orbs || []).length;
+        const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
+        
+        if (currentOrbCount >= maxOrbSlots) {
+            alert('これ以上オーブスロットを追加できません。');
+            return;
+        }
+
+        // オーブ選択ダイアログを表示
+        showOrbSelectionDialog(weapon, ticketIndex);
+    }
+
+    // オーブ選択ダイアログを表示
+    function showOrbSelectionDialog(weapon, ticketIndex) {
+        const player = getPlayerData();
+        if (!player) return;
+
+        // ダイアログを作成
+        const dialog = document.createElement('div');
+        dialog.className = 'modal';
+        dialog.id = 'orbSelectionModal';
+        dialog.innerHTML = `
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>オーブを選択</h2>
+                <p>${weapon.name} に追加するオーブを選択してください。</p>
+                <div id="orbSelectionContainer"></div>
+                <button id="confirmOrbSelection" class="btn btn-primary">確定</button>
+            </div>
+        `;
+        document.body.appendChild(dialog);
+
+        // オーブ選択肢を生成
+        const orbContainer = document.getElementById('orbSelectionContainer');
+        const orbs = player.orbs || [];
+        
+        if (orbs.length === 0) {
+            orbContainer.innerHTML = '<p>追加できるオーブがありません。</p>';
+        } else {
+            orbs.forEach((orb, index) => {
+                const orbDiv = document.createElement('div');
+                orbDiv.className = 'orb-selection-item';
+                orbDiv.innerHTML = `
+                    <input type="radio" name="orbSelection" value="${index}" id="orb-${index}">
+                    <label for="orb-${index}">${getOrbDisplayName(orb)}</label>
+                `;
+                orbContainer.appendChild(orbDiv);
+            });
+        }
+
+        // イベントリスナー
+        dialog.querySelector('.close').onclick = () => {
+            document.body.removeChild(dialog);
+        };
+
+        document.getElementById('confirmOrbSelection').onclick = () => {
+            const selectedOrbRadio = document.querySelector('input[name="orbSelection"]:checked');
+            if (!selectedOrbRadio) {
+                alert('オーブを選択してください。');
+                return;
+            }
+
+            const orbIndex = parseInt(selectedOrbRadio.value);
+            const selectedOrb = orbs[orbIndex];
+            
+            if (!selectedOrb) {
+                alert('オーブの取得に失敗しました。');
+                return;
+            }
+
+            // 武器にオーブを追加
+            const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+            if (weaponIndex === -1) {
+                alert('武器が見つかりません。');
+                return;
+            }
+
+            // オーブを武器に追加
+            const updatedWeapon = { ...player.weapons[weaponIndex] };
+            updatedWeapon.orbs = updatedWeapon.orbs || [];
+            updatedWeapon.orbs.push(selectedOrb.id);
+            
+            // オーブスロット上限を増加
+            updatedWeapon.maxOrbSlots = (updatedWeapon.maxOrbSlots || MAX_WEAPON_ORBS) + 1;
+            
+            // オーブをプレイヤーから削除
+            const remainingOrbs = player.orbs.filter((o, i) => i !== orbIndex);
+            
+            // チケットを消費
+            const remainingItems = player.dungeonItems.filter((item, i) => i !== ticketIndex);
+
+            // 武器を更新
+            player.weapons[weaponIndex] = updatedWeapon;
+            player.orbs = remainingOrbs;
+            player.dungeonItems = remainingItems;
+
+            localStorage.setItem("player", JSON.stringify(player));
+            
+            alert(`${getOrbDisplayName(selectedOrb)} を ${weapon.name} に追加しました！オーブスロット上限が ${updatedWeapon.maxOrbSlots} になりました。`);
+            document.body.removeChild(dialog);
+            renderOriginalWeapons();
+            updateStatus(player);
+        };
+
+        dialog.style.display = 'flex';
     }
 
     // 低ティアのオーブを指定数消費して、1つ上のティアのオーブを合成する

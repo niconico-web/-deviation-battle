@@ -23,14 +23,14 @@ const DIFFICULTY_NAMES = {
 
 // 難易度ごとのスケーリング係数
 // 依頼により全体を大幅に引き上げ：新イージーが旧ナイトメア相当、
-// 新ナイトメアはボス「深淵ヲ廻ルモノ」討伐に匹敵する難易度になるよう
+// 新ナイトメアは総ステータス99999999（約1億）レベルの超難易度になるよう
 // カーブを急にしている（旧: 0.7/1.0/1.3/1.6/2.0の等間隔 → 新: 指数的に加速）。
 const DIFFICULTY_SCALING = {
-    easy: 2.0,        // 旧ナイトメア(2.0)相当
-    normal: 3.4,
-    hard: 6.0,
-    very_hard: 11.0,
-    nightmare: 22.0   // 深淵ヲ廻ルモノ級。生半可な装備では歯が立たない想定
+    easy: 22.0,       // 旧ナイトメア(22.0)相当
+    normal: 50.0,
+    hard: 120.0,
+    very_hard: 350.0,
+    nightmare: 1000.0 // 総ステータス99999999レベル。神話級の強さ
 };
 
 // 報酬定義
@@ -123,9 +123,9 @@ const FLOOR_1_MONSTERS = {
         { id: 'goblin_1', name: 'ゴブリン', level: 4, hp: 60, atk: 17, def: 6, speed: 16 }
     ],
     nightmare: [
-        { id: 'spider_1', name: 'クモ', level: 5, hp: 70, atk: 24, def: 6, speed: 25 },
-        { id: 'rat_1', name: 'ネズミ', level: 5, hp: 75, atk: 22, def: 5, speed: 28 },
-        { id: 'goblin_1', name: 'ゴブリン', level: 5, hp: 80, atk: 23, def: 8, speed: 20 }
+        { id: 'spider_1', name: 'クモ', level: 50, hp: 8000, atk: 2400, def: 600, speed: 2500 },
+        { id: 'rat_1', name: 'ネズミ', level: 50, hp: 8500, atk: 2200, def: 500, speed: 2800 },
+        { id: 'goblin_1', name: 'ゴブリン', level: 50, hp: 9000, atk: 2300, def: 800, speed: 2000 }
     ]
 };
 
@@ -153,9 +153,9 @@ const FLOOR_2_MONSTERS = {
         { id: 'orc_1', name: 'オーク', level: 5, hp: 85, atk: 22, def: 8, speed: 15 }
     ],
     nightmare: [
-        { id: 'wolf_1', name: 'ウルフ', level: 6, hp: 105, atk: 32, def: 8, speed: 30 },
-        { id: 'skeleton_1', name: 'スケルトン', level: 6, hp: 100, atk: 28, def: 13, speed: 20 },
-        { id: 'orc_1', name: 'オーク', level: 6, hp: 110, atk: 29, def: 10, speed: 18 }
+        { id: 'wolf_1', name: 'ウルフ', level: 60, hp: 12000, atk: 3600, def: 900, speed: 3500 },
+        { id: 'skeleton_1', name: 'スケルトン', level: 60, hp: 11500, atk: 3200, def: 1500, speed: 2500 },
+        { id: 'orc_1', name: 'オーク', level: 60, hp: 12500, atk: 3300, def: 1200, speed: 2200 }
     ]
 };
 
@@ -183,9 +183,9 @@ const FLOOR_3_MONSTERS = {
         { id: 'goblin_shaman_1', name: 'ゴブリン・シャーマン', level: 6, hp: 90, atk: 26, def: 7, speed: 19 }
     ],
     nightmare: [
-        { id: 'bat_1', name: 'バット', level: 7, hp: 100, atk: 31, def: 6, speed: 38 },
-        { id: 'ghoul_1', name: 'グール', level: 7, hp: 115, atk: 33, def: 12, speed: 21 },
-        { id: 'goblin_shaman_1', name: 'ゴブリン・シ��ーマン', level: 7, hp: 120, atk: 34, def: 9, speed: 24 }
+        { id: 'bat_1', name: 'バット', level: 70, hp: 15000, atk: 4500, def: 900, speed: 5500 },
+        { id: 'ghoul_1', name: 'グール', level: 70, hp: 17000, atk: 4800, def: 1800, speed: 3200 },
+        { id: 'goblin_shaman_1', name: 'ゴブリン・シャーマン', level: 70, hp: 18000, atk: 5000, def: 1300, speed: 3600 }
     ]
 };
 
@@ -213,9 +213,9 @@ const FLOOR_4_MONSTERS = {
         { id: 'harpy_1', name: 'ハーピー', level: 7, hp: 100, atk: 29, def: 8, speed: 27 }
     ],
     nightmare: [
-        { id: 'stone_golem_1', name: 'ストーン・ゴーレム', level: 8, hp: 160, atk: 31, def: 29, speed: 12 },
-        { id: 'lizard_1', name: 'リザード', level: 8, hp: 140, atk: 43, def: 17, speed: 27 },
-        { id: 'harpy_1', name: 'ハーピー', level: 8, hp: 135, atk: 39, def: 10, speed: 35 }
+        { id: 'stone_golem_1', name: 'ストーン・ゴーレム', level: 80, hp: 20000, atk: 6000, def: 5500, speed: 2500 },
+        { id: 'lizard_1', name: 'リザード', level: 80, hp: 18000, atk: 8500, def: 3500, speed: 5500 },
+        { id: 'harpy_1', name: 'ハーピー', level: 80, hp: 17500, atk: 7800, def: 2000, speed: 7000 }
     ]
 };
 
@@ -243,9 +243,9 @@ const FLOOR_5_MONSTERS = {
         { id: 'necromancer_1', name: 'ネクロマンサー', level: 8, hp: 130, atk: 40, def: 12, speed: 23 }
     ],
     nightmare: [
-        { id: 'wyvern_1', name: 'ワイバーン', level: 9, hp: 180, atk: 49, def: 19, speed: 35 },
-        { id: 'dark_knight_1', name: 'ダークナイト', level: 9, hp: 200, atk: 58, def: 22, speed: 26 },
-        { id: 'necromancer_1', name: 'ネクロマンサー', level: 9, hp: 175, atk: 53, def: 15, speed: 30 }
+        { id: 'wyvern_1', name: 'ワイバーン', level: 90, hp: 25000, atk: 7500, def: 3000, speed: 5500 },
+        { id: 'dark_knight_1', name: 'ダークナイト', level: 90, hp: 28000, atk: 9000, def: 3500, speed: 4000 },
+        { id: 'necromancer_1', name: 'ネクロマンサー', level: 90, hp: 26000, atk: 8000, def: 2500, speed: 4800 }
     ]
 };
 
@@ -273,9 +273,9 @@ const FLOOR_6_MONSTERS = {
         { id: 'demon_1', name: 'デーモン', level: 9, hp: 155, atk: 48, def: 15, speed: 27 }
     ],
     nightmare: [
-        { id: 'phoenix_1', name: 'フェニックス', level: 10, hp: 215, atk: 59, def: 22, speed: 39 },
-        { id: 'shadow_mage_1', name: 'シャドー・メイジ', level: 10, hp: 200, atk: 66, def: 17, speed: 40 },
-        { id: 'demon_1', name: 'デーモン', level: 10, hp: 210, atk: 64, def: 20, speed: 35 }
+        { id: 'phoenix_1', name: 'フェニックス', level: 100, hp: 30000, atk: 9000, def: 3500, speed: 6500 },
+        { id: 'shadow_mage_1', name: 'シャドー・メイジ', level: 100, hp: 28000, atk: 10000, def: 2800, speed: 6800 },
+        { id: 'demon_1', name: 'デーモン', level: 100, hp: 29500, atk: 9500, def: 3200, speed: 6000 }
     ]
 };
 
@@ -303,9 +303,9 @@ const FLOOR_7_MONSTERS = {
         { id: 'hydra_1', name: 'ヒドラ', level: 10, hp: 192, atk: 51, def: 21, speed: 23 }
     ],
     nightmare: [
-        { id: 'basilisk_1', name: 'バジリスク', level: 11, hp: 255, atk: 66, def: 24, speed: 40 },
-        { id: 'chimera_1', name: 'キメラ', level: 11, hp: 245, atk: 74, def: 22, speed: 35 },
-        { id: 'hydra_1', name: 'ヒドラ', level: 11, hp: 260, atk: 69, def: 28, speed: 30 }
+        { id: 'basilisk_1', name: 'バジリスク', level: 110, hp: 35000, atk: 11000, def: 4000, speed: 7000 },
+        { id: 'chimera_1', name: 'キメラ', level: 110, hp: 34000, atk: 12000, def: 3800, speed: 6000 },
+        { id: 'hydra_1', name: 'ヒドラ', level: 110, hp: 36000, atk: 11500, def: 4500, speed: 5200 }
     ]
 };
 
@@ -333,9 +333,9 @@ const FLOOR_8_MONSTERS = {
         { id: 'seraph_1', name: 'セラフ', level: 11, hp: 215, atk: 60, def: 18, speed: 31 }
     ],
     nightmare: [
-        { id: 'titan_1', name: 'タイタン', level: 12, hp: 300, atk: 75, def: 31, speed: 27 },
-        { id: 'arch_mage_1', name: 'アーチメイジ', level: 12, hp: 280, atk: 85, def: 23, speed: 46 },
-        { id: 'seraph_1', name: 'セラフ', level: 12, hp: 290, atk: 81, def: 24, speed: 40 }
+        { id: 'titan_1', name: 'タイタン', level: 120, hp: 45000, atk: 13000, def: 5500, speed: 5000 },
+        { id: 'arch_mage_1', name: 'アーチメイジ', level: 120, hp: 42000, atk: 15000, def: 4000, speed: 8500 },
+        { id: 'seraph_1', name: 'セラフ', level: 120, hp: 43500, atk: 14000, def: 4200, speed: 7500 }
     ]
 };
 
@@ -363,9 +363,9 @@ const FLOOR_9_MONSTERS = {
         { id: 'elder_dragon_1', name: '古龍', level: 12, hp: 253, atk: 65, def: 23, speed: 30 }
     ],
     nightmare: [
-        { id: 'abyssal_lord_1', name: 'アビサルロード', level: 13, hp: 350, atk: 86, def: 33, speed: 34 },
-        { id: 'celestial_1', name: 'セレスティアル', level: 13, hp: 335, atk: 90, def: 27, speed: 52 },
-        { id: 'elder_dragon_1', name: '古龍', level: 13, hp: 345, atk: 87, def: 30, speed: 39 }
+        { id: 'abyssal_lord_1', name: 'アビサルロード', level: 100, hp: 50000, atk: 12000, def: 4500, speed: 5000 },
+        { id: 'celestial_1', name: 'セレスティアル', level: 100, hp: 48000, atk: 13000, def: 4000, speed: 7500 },
+        { id: 'elder_dragon_1', name: '古龍', level: 100, hp: 49000, atk: 12500, def: 4200, speed: 6000 }
     ]
 };
 
@@ -379,28 +379,46 @@ const FLOOR_9_MONSTERS = {
 const DUNGEON_BOSSES = {
     // イージー難易度ボス（旧ナイトメア「至高の存在」相当のステータス・技構成）
     easy: {
-        id: 'boss_goblin_king',
-        name: 'ゴブリンキング',
+        id: 'boss_supreme_entity',
+        name: '至高の存在',
         difficulty: 'easy',
-        level: 25,
-        hp: 900,
-        atk: 90,
-        def: 35,
-        speed: 35,
+        level: 70,
+        hp: 6500,
+        atk: 450,
+        def: 160,
+        speed: 95,
         skills: [
             {
-                name: 'トリプルスラッシュ',
-                effect: { multiHit: 3, damageMultiplier: 1.1 }
-            },
-            {
-                name: '怒りの咆哮',
-                effect: { selfBuff: { type: 'atk', amount: 1.4 }, turns: 2 }
+                // ジ・インファーナル相当：確定ヒット・防御無視の超高倍率一撃
+                name: 'エクシステンシャルシュレッド',
+                effect: { damageMultiplier: 5.5, ignoreDef: true, sureHit: true, multiHit: 2 }
             },
             {
                 name: '絶望のヴェール',
                 effect: {
-                    debuff: { type: 'atk_def_speed', reduction: 0.3, turns: 2 },
-                    damageMultiplier: 1.3
+                    debuff: { type: 'atk_def_speed', reduction: 0.5, turns: 3 },
+                    damageMultiplier: 2.0
+                }
+            },
+            {
+                // アビスプロテクト相当：ダメージをほぼ完全にカットする
+                name: '完全防壁',
+                effect: { damageReduction: 0.9, turns: 2 }
+            },
+            {
+                name: 'アビサル・ヒーリング',
+                effect: { heal: 0.45, selfBuff: { type: 'def', amount: 1.4, turns: 2 } }
+            },
+            {
+                name: 'コスミック・スラッシュ',
+                effect: { damageMultiplier: 2.8, poison: { turns: 5 }, burn: { turns: 5 } }
+            },
+            {
+                // アフェスト・ベルゼバブ相当：自身の全ステータスを大幅強化
+                name: '超越的な力',
+                effect: {
+                    selfBuff: { type: 'all_stats', amount: 1.6, turns: 3 },
+                    damageMultiplier: 2.2
                 }
             }
         ]
@@ -512,50 +530,49 @@ const DUNGEON_BOSSES = {
     },
 
     // ナイトメア難易度ボス
-    // メインシナリオの真の裏ボス「深淵ヲ廻ルモノ」に匹敵する構成：
-    // アビスプロテクト（ダメージ全カット）／ジ・インファーナル（確定ヒット・防御無視の
-    // 超高倍率一撃）／アフェスト・ベルゼバブ（自己全ステータス強化）に相当する技を持つ。
+    // 総ステータス99999999（約1億）レベルの超難易度。
+    // 神話級の強さ。ギリギリクリアできるレベルを想定。
     nightmare: {
         id: 'boss_supreme_entity',
         name: '至高の存在',
         difficulty: 'nightmare',
-        level: 70,
-        hp: 6500,
-        atk: 450,
-        def: 160,
-        speed: 95,
+        level: 999,
+        hp: 50000000,
+        atk: 20000000,
+        def: 15000000,
+        speed: 14999999,
         skills: [
             {
-                // ジ・インファーナル相当：確定ヒット・防御無視の超高倍率一撃
+                // 超絶ダメージ：確定ヒット・防御無視の超高倍率一撃
                 name: 'エクシステンシャルシュレッド',
-                effect: { damageMultiplier: 5.5, ignoreDef: true, sureHit: true, multiHit: 2 }
+                effect: { damageMultiplier: 100.0, ignoreDef: true, sureHit: true, multiHit: 10 }
             },
             {
                 name: '絶望のヴェール',
                 effect: {
-                    debuff: { type: 'atk_def_speed', reduction: 0.5, turns: 3 },
-                    damageMultiplier: 2.0
+                    debuff: { type: 'atk_def_speed', reduction: 0.9, turns: 5 },
+                    damageMultiplier: 50.0
                 }
             },
             {
-                // アビスプロテクト相当：ダメージをほぼ完全にカットする
+                // 完全無敵：ダメージを完全にカットする
                 name: '完全防壁',
-                effect: { damageReduction: 0.9, turns: 2 }
+                effect: { damageReduction: 0.99, turns: 3 }
             },
             {
                 name: 'アビサル・ヒーリング',
-                effect: { heal: 0.45, selfBuff: { type: 'def', amount: 1.4, turns: 2 } }
+                effect: { heal: 0.9, selfBuff: { type: 'def', amount: 2.0, turns: 3 } }
             },
             {
                 name: 'コスミック・スラッシュ',
-                effect: { damageMultiplier: 2.8, poison: { turns: 5 }, burn: { turns: 5 } }
+                effect: { damageMultiplier: 75.0, poison: { turns: 10 }, burn: { turns: 10 } }
             },
             {
-                // アフェスト・ベルゼバブ相当：自身の全ステータスを大幅強化
+                // 神的な力：自身の全ステータスを超強化
                 name: '超越的な力',
                 effect: {
-                    selfBuff: { type: 'all_stats', amount: 1.6, turns: 3 },
-                    damageMultiplier: 2.2
+                    selfBuff: { type: 'all_stats', amount: 5.0, turns: 5 },
+                    damageMultiplier: 100.0
                 }
             }
         ]
