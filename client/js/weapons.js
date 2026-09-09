@@ -455,10 +455,60 @@ const ORB_UNIQUE_ABILITIES = {
         description: 'これを使って武器を作るとき、もう一つ武器の種類を選択できる。その選んだ武器の種類のバフ、デバフの倍率がその武器に乗るようになる。（例：大剣を作成し、デュアルウェポンで双剣を選択すると、大剣に双剣のバフ・デバフ効果も付与される）',
         effect: 'dual_weapon'
     },
-    one_shot_kill: {
-        name: "一撃必殺",
-        description: "相手を一撃で倒す。この能力は必中効果も持つ。",
-        effect: "one_shot_kill"
+    berserker_state: {
+        name: '大器晩成',
+        description: 'HPが50%以下の時、攻撃力が1.3倍になる',
+        effect: 'berserker_state'
+    },
+    focus_strike: {
+        name: '会心の一撃',
+        description: 'クリティカル発生時のダメージ倍率が2.2倍になる（通常は1.5倍）',
+        effect: 'crit_damage_boost'
+    },
+    swift_wind: {
+        name: '疾風',
+        description: '自分の素早さを1.25倍として計算する',
+        effect: 'speed_boost'
+    },
+    thorn_armor: {
+        name: '棘の鎧',
+        description: '相手から攻撃を受けた時、受けたダメージの15%を相手に反射する',
+        effect: 'damage_reflect'
+    },
+    venomous_strike: {
+        name: '猛毒の一撃',
+        description: '攻撃がヒットした時、25%の確率で相手に3ターンの毒（毎ターン最大HPの3%のダメージ）を付与する',
+        effect: 'poison_on_hit'
+    },
+    blazing_strike: {
+        name: '灼熱の一撃',
+        description: '攻撃がヒットした時、25%の確率で相手に3ターンの火傷（毎ターン最大HPの5%のダメージ）を付与する',
+        effect: 'burn_on_hit'
+    },
+    afterimage: {
+        name: '残像',
+        description: '自分の回避率が15%上昇する',
+        effect: 'self_evasion_boost'
+    },
+    awakening: {
+        name: '覚醒',
+        description: '必殺技のダメージ倍率が2.0倍になる（通常は1.5倍）',
+        effect: 'ultimate_boost'
+    },
+    first_strike: {
+        name: '会心の初撃',
+        description: '戦闘の最初の攻撃は必ずクリティカルになる',
+        effect: 'first_strike_crit'
+    },
+    natural_healing: {
+        name: '自然治癒',
+        description: '毎ターン、自分の最大HPの3%を自動で回復する',
+        effect: 'hp_regen'
+    },
+    iron_will: {
+        name: '不動の心',
+        description: '相手から受けるステータスデバフ（能力低下）を50%の確率で無効化する',
+        effect: 'debuff_resist'
     }
 };
 
@@ -493,7 +543,7 @@ function createOrb(tier) {
     
     // Tier4のみユニーク能力を付与（ボス能力を除外）
     if (tier === "tier4") {
-        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_") && key !== "one_shot_kill");
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
         const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
         orb.uniqueAbility = {
             key: abilityKey,
