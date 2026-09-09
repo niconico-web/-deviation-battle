@@ -83,6 +83,7 @@ let mySpeedBuff = 0;              // 自身の速さ上昇率
 let mySpeedBuffTurns = 0;         // 速さ上昇の残りターン
 let myReviveAvailable = false;    // 戦闘不能時に一度だけ復活できるか
 let myRevivePercent = 0;          // 復活時のHP割合
+let myFirstAttackDone = false;    // 「会心の初撃」用：自分の最初の攻撃が済んだか
 let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
 let myPoisonTurns = 0;            // 自分（プレイヤー）の毒残りターン
 let enemyNextDamageShield = 0;    // ボスが得た「次に受けるダメージ軽減」（1回限り）
@@ -1472,8 +1473,15 @@ function applySkillEffect(damage, attacker, defender, skill) {
         }
     }
     
+    // 「不動の心」（debuff_resist）：相手（enemy）がこの能力を持っている場合、
+    // 以下のステータスデバフを50%の確率で無効化する（1回のスキル使用につき1回だけ判定）
+    const enemyResistsDebuff = (defender === enemy) && hasUniqueAbility(enemy, 'debuff_resist') && Math.random() < 0.5;
+    if (enemyResistsDebuff) {
+        addLog(`${enemy.name}は不動の心でデバフを無効化した！`);
+    }
+
     // 速度低下
-    if (effect.speedDebuff) {
+    if (effect.speedDebuff && !enemyResistsDebuff) {
         if (defender === enemy) {
             enemySpeedDebuff = effect.speedDebuff;
             enemySpeedDebuffTurns = effect.speedDebuffTurns || effect.turns || 2;
@@ -1491,7 +1499,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
     }
 
     // 敵の攻撃力低下
-    if (effect.enemyAtkDebuff) {
+    if (effect.enemyAtkDebuff && !enemyResistsDebuff) {
         if (defender === enemy) {
             enemyAtkDebuff = effect.enemyAtkDebuff;
             enemyAtkDebuffTurns = 2;
@@ -1500,7 +1508,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
     }
 
     // 敵の防御力低下
-    if (effect.enemyDefDebuff) {
+    if (effect.enemyDefDebuff && !enemyResistsDebuff) {
         if (defender === enemy) {
             enemyDefDebuff = effect.enemyDefDebuff;
             enemyDefDebuffTurns = 2;
@@ -1509,7 +1517,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
     }
 
     // 敵の命中率低下
-    if (effect.enemyAccuracyDebuff) {
+    if (effect.enemyAccuracyDebuff && !enemyResistsDebuff) {
         if (defender === enemy) {
             enemyAccuracyDebuff = effect.enemyAccuracyDebuff;
             enemyAccuracyDebuffTurns = 2;
@@ -1655,7 +1663,7 @@ function applySkillEffect(damage, attacker, defender, skill) {
     }
     
     // カース（相手ステータス低下）
-    if (effect.curse) {
+    if (effect.curse && !enemyResistsDebuff) {
         defender.atk = Math.floor(defender.atk * (1 - effect.curse));
         defender.def = Math.floor(defender.def * (1 - effect.curse));
         defender.speed = Math.floor(defender.speed * (1 - effect.curse));
@@ -2195,8 +2203,7 @@ function handleATBAnswer(selectedOption) {
         updateATBBars();
 
         if (playerCorrectCount >= playerRequiredCount) {
-            // 行動ゲージ満タン！強攻撃を自動発動（1倍ダメージ）
-            addLog("行動ゲージが満タンになった！強攻撃発動！");
+            // 行動ゲージ満タン！必殺技を自動発動する（必殺技ゲージ・行動ゲージを統合）
             executeStrongAttack(skillEffect, usedSkill);
         } else {
             askNextPlayerQuestion(); // 待ち時間0で次の問題
@@ -2208,42 +2215,79 @@ function handleATBAnswer(selectedOption) {
 }
 
 /**
- * 行動ゲージ満タン時の強攻撃を自動実行する関数
- * 攻撃力1倍のダメージを与え、ゲージをリセットして次の問題へ
+ * 行動ゲージ満タン時に自動発動する処理。
+ * 依頼により、以前は「攻撃力1倍＋低めの固定クリティカル率」という
+ * 通常の必殺技（コマンド選択の必殺技、ダメージ1.5倍）とは別の弱い専用攻撃
+ * だったが、これを必殺技そのものに統合した。行動ゲージが満タンになった
+ * 瞬間が、必殺技ゲージが満タンになった瞬間でもあるとみなし、
+ * 武器の必殺技名・ダメージ倍率（覚醒オーブがあれば2.0倍、なければ1.5倍）・
+ * 各種固有能力（根性・大器晩成・貫通・必殺・猛毒の一撃・灼熱の一撃等）を
+ * コマンド選択時の必殺技と同じルールで適用する。
  */
 function executeStrongAttack(skillEffect, usedSkill) {
+    // 必殺技ゲージも「満タン」の状態にして、コマンド選択の必殺技と完全に同じ扱いにする
+    if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
+    me.ultimateGauge.current = me.ultimateGauge.max;
+
     // 攻撃タイプの選択（攻撃または特殊）- デフォルトは攻撃
     const attackType = me.attackType || 'attack';
-    
-    // 攻撃力または特殊攻撃力を基準にする
-    let baseAtk = attackType === 'special' ? (me.special || me.atk) : (me.atk || 0);
-    
-    // 強攻撃ダメージ（1倍）
-    const defReduction = Math.floor((enemy.def || 0) * 0.1);
-    let strongDamage = Math.max(1, Math.floor(baseAtk * 1.0) - defReduction);
-    
+    let attackerAtk = attackType === 'special' ? (me.special || me.atk) : (me.atk || 0);
+
+    if (me.hp === 1 && hasUniqueAbility(me, 'guts')) {
+        attackerAtk = Math.floor(attackerAtk * 3);
+        addLog(`${me.name}の攻撃力が根性で3倍に！`);
+    }
+    if (hasUniqueAbility(me, 'berserker_state') && me.hp <= me.maxHp * 0.5) {
+        attackerAtk = Math.floor(attackerAtk * 1.3);
+        addLog(`${me.name}の攻撃力が大器晩成で1.3倍に！`);
+    }
+
+    // 貫通（相手の防御を半減）
+    let enemyDef = enemy.def || 0;
+    if (hasUniqueAbility(me, 'ignore_def_half')) {
+        enemyDef = Math.floor(enemyDef * 0.5);
+    }
+
+    const defReduction = Math.floor(enemyDef * 0.1);
+    let strongDamage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
+
     // アクティブスキルのダメージ倍率を適用
     if (skillEffect && skillEffect.damageMultiplier) {
         strongDamage = Math.floor(strongDamage * skillEffect.damageMultiplier);
         addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
     }
-    
-    // クリティカル判定
-    const critChance = hasUniqueAbility(me, "critical_damage") ? 0.30 : 0.05;
-    if (Math.random() < critChance) {
-        strongDamage = Math.floor(strongDamage * 1.5);
-        addLog("クリティカルヒット！");
+
+    // 必殺技発動：武器の必殺技名・ダメージ倍率をコマンド選択の必殺技と統一する
+    // （覚醒オーブがあれば2.0倍、なければ1.5倍）
+    const ultimateName = getWeaponUltimateName(me.equippedWeapon);
+    const ultimateMultiplier = hasUniqueAbility(me, 'ultimate_boost') ? 2.0 : 1.5;
+    strongDamage = Math.floor(strongDamage * ultimateMultiplier);
+    addLog("行動ゲージが満タンになった！必殺技「" + ultimateName + "」発動！ダメージ" + ultimateMultiplier + "倍！");
+    showUltimateEffect();
+
+    // クリティカル判定（必殺オーブ・会心の一撃オーブを反映）
+    const isForcedFirstStrikeCrit = hasUniqueAbility(me, 'first_strike_crit') && !myFirstAttackDone;
+    myFirstAttackDone = true;
+    const critBaseChance = hasUniqueAbility(me, "critical_damage") ? CRITICAL_ABILITY_CRIT_CHANCE : BASE_CRIT_CHANCE;
+    if (isForcedFirstStrikeCrit || Math.random() < critBaseChance) {
+        const critMultiplier = hasUniqueAbility(me, 'crit_damage_boost') ? 2.2 : BASE_CRIT_MULTIPLIER;
+        strongDamage = Math.floor(strongDamage * critMultiplier);
+        addLog(isForcedFirstStrikeCrit ? "会心の初撃！" : "クリティカルヒット！");
     }
-    
-    // 必殺技ゲージ増加
-    if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
-    me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 20);
+
+    // 必殺技発動後、ゲージをリセット（コマンド選択の必殺技と同じ挙動）
+    me.ultimateGauge.current = 0;
     updateUltimateGauge();
-    
-    // ダメージ適用
-    enemy.hp = Math.max(0, enemy.hp - strongDamage);
+
+    // ダメージ適用（根性で1残す処理も他の攻撃と同様に反映）
+    if (enemy.hp - strongDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+        enemy.hp = 1;
+        addLog(`${enemy.name}は根性で持ちこたえた！`);
+    } else {
+        enemy.hp = Math.max(0, enemy.hp - strongDamage);
+    }
     showDamage("enemyDamage", strongDamage);
-    addLog(`${me.name}の強攻撃！ ${enemy.name}に ${strongDamage} のダメージ！`);
+    addLog(`${me.name}の必殺技！ ${enemy.name}に ${strongDamage} のダメージ！`);
     
     updateHP();
     
@@ -2253,6 +2297,16 @@ function executeStrongAttack(skillEffect, usedSkill) {
         me.hp = Math.min(me.maxHp, me.hp + healAmount);
         addLog(`ライフドレインで ${healAmount} 回復！`);
         updateHP();
+    }
+
+    // 猛毒の一撃／灼熱の一撃
+    if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+        enemyPoisonTurns = 3;
+        addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
+    }
+    if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+        enemyBurnTurns = 3;
+        addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
     }
     
     // 勝利判定
@@ -2271,7 +2325,7 @@ function executeStrongAttack(skillEffect, usedSkill) {
         if (myAtbBar) {
             window.PracticeCoach.point(
                 myAtbBar,
-                "行動ゲージが満タンになって、強攻撃が発動したよ！\nこれを繰り返して相手を倒そう！",
+                "行動ゲージが満タンになって、必殺技が発動したよ！\nこれを繰り返して相手を倒そう！",
                 { buttonLabel: 'わかった' }
             );
         }
@@ -2839,7 +2893,7 @@ function displayQuestion(question, isFirstQuestion = false) {
             if (myAtbBar) {
                 window.PracticeCoach.point(
                     myAtbBar,
-                    "これが「行動ゲージ」だよ！\n正解するたびに溜まって、満タンになると強攻撃が自動発動するよ。",
+                    "これが「行動ゲージ」だよ！\n正解するたびに溜まって、満タンになると必殺技が自動発動するよ。",
                     { buttonLabel: 'わかった' }
                 );
             }
@@ -2861,6 +2915,19 @@ function displayQuestion(question, isFirstQuestion = false) {
 
 // ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
 function tickBotBattleStatus() {
+    // 自然治癒（オーブ固有能力）：毎ターン、最大HPの3%を自動回復する
+    if (hasUniqueAbility(me, 'hp_regen') && me.hp > 0 && me.hp < me.maxHp) {
+        const regenAmount = Math.max(1, Math.floor(me.maxHp * 0.03));
+        me.hp = Math.min(me.maxHp, me.hp + regenAmount);
+        addLog(`自然治癒で${me.name}のHPが${regenAmount}回復した！`);
+        updateHP();
+    }
+    if (hasUniqueAbility(enemy, 'hp_regen') && enemy.hp > 0 && enemy.hp < enemy.maxHp) {
+        const regenAmount = Math.max(1, Math.floor(enemy.maxHp * 0.03));
+        enemy.hp = Math.min(enemy.maxHp, enemy.hp + regenAmount);
+        addLog(`自然治癒で${enemy.name}のHPが${regenAmount}回復した！`);
+        updateHP();
+    }
     // プレイヤー自身の毒・火傷（ボスのスキルで付与されたもの）
     if (myBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.05));
@@ -3105,6 +3172,12 @@ function resolvePlayerCommand(command) {
             attackerAtk = Math.floor(attackerAtk * 3);
             addLog(`${me.name}の攻撃力が根性で3倍に！`);
         }
+
+        // 大器晩成（berserker_state）：HPが50%以下の時、攻撃力が1.3倍になる
+        if (hasUniqueAbility(me, 'berserker_state') && me.hp <= me.maxHp * 0.5) {
+            attackerAtk = Math.floor(attackerAtk * 1.3);
+            addLog(`${me.name}の攻撃力が大器晩成で1.3倍に！`);
+        }
         
         // 必殺技名を取得
         const ultimateName = getWeaponUltimateName(me.equippedWeapon);
@@ -3136,16 +3209,9 @@ function resolvePlayerCommand(command) {
         const defReduction = Math.floor(enemyDef * 0.1); // ダメージ計算式がatk*0.5と低めなので、防御効果も低めに
         let damage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
         
-        // ★★★デバッグ武器のチェック★★★
-        if (hasUniqueAbility(me, 'one_shot_kill')) {
-            addLog(`デバッグ武器の効果発動！「${me.equippedWeapon.name}」！`);
-            damage = enemy.maxHp * 999; // 相手の最大HP以上のダメージを与える
-            skillEffect.sureHit = true; // 必中効果を強制
-        }
-
         // 素早さによる補正（45%回避まで、それ以降は攻撃少しアップ）
         // スキルによる自身の速さ上昇（mySpeedBuff）も反映する
-        const mySpeed = Math.floor((me.speed || 0) * (1 + (mySpeedBuff || 0)));
+        const mySpeed = Math.floor((me.speed || 0) * (1 + (mySpeedBuff || 0)) * (hasUniqueAbility(me, 'speed_boost') ? 1.25 : 1));
         const dodgeChance = calculateDodgeChance(mySpeed);
         
         // 45%を超える分は攻撃ボーナスに変換
@@ -3158,9 +3224,11 @@ function resolvePlayerCommand(command) {
         // 必殺技発動判定（「必殺技」コマンドを選んだ場合のみ）
         let ultimateActivated = false;
         if (command === 'ultimate') {
-            damage = Math.floor(damage * 1.5);
+            // 覚醒（ultimate_boost）を持っている場合、必殺技のダメージ倍率が2.0倍になる
+            const ultimateMultiplier = hasUniqueAbility(me, 'ultimate_boost') ? 2.0 : 1.5;
+            damage = Math.floor(damage * ultimateMultiplier);
             ultimateActivated = true;
-            addLog("必殺技「" + ultimateName + "」発動！ダメージ1.5倍！");
+            addLog("必殺技「" + ultimateName + "」発動！ダメージ" + ultimateMultiplier + "倍！");
             showUltimateEffect();
             // 必殺技発動後、ゲージをリセット
             me.ultimateGauge.current = 0;
@@ -3172,12 +3240,22 @@ function resolvePlayerCommand(command) {
         // クリティカル判定：常時 BASE_CRIT_CHANCE（5%）の確率で発生する。
         // 「必殺」の固有能力を武器に持っている場合は基本率が CRITICAL_ABILITY_CRIT_CHANCE（30%）まで上がる。
         // スキルツリーの「クリティカルルート」で得た critChance / critMultiplier もここに加算される。
+        // 「会心の初撃」（first_strike_crit）を持っている場合、戦闘最初の攻撃は必ずクリティカルになる。
+        const isForcedFirstStrikeCrit = hasUniqueAbility(me, 'first_strike_crit') && !myFirstAttackDone;
+        myFirstAttackDone = true;
         const critBaseChance = hasUniqueAbility(me, 'critical_damage') ? CRITICAL_ABILITY_CRIT_CHANCE : BASE_CRIT_CHANCE;
         const totalCritChance = Math.min(1, critBaseChance + (me.critChance || 0));
-        if (Math.random() < totalCritChance) {
-            const critMultiplier = BASE_CRIT_MULTIPLIER + (me.critMultiplier || 0);
+        if (isForcedFirstStrikeCrit || Math.random() < totalCritChance) {
+            // 会心の一撃（crit_damage_boost）を持っている場合、クリティカル倍率が2.2倍になる
+            const critMultiplier = hasUniqueAbility(me, 'crit_damage_boost')
+                ? 2.2
+                : (BASE_CRIT_MULTIPLIER + (me.critMultiplier || 0));
             damage = Math.floor(damage * critMultiplier);
-            addLog(`クリティカル発動！ダメージ${critMultiplier.toFixed(2)}倍！`);
+            if (isForcedFirstStrikeCrit) {
+                addLog(`会心の初撃！ダメージ${critMultiplier.toFixed(2)}倍！`);
+            } else {
+                addLog(`クリティカル発動！ダメージ${critMultiplier.toFixed(2)}倍！`);
+            }
         }
         
         // スキル効果を適用（新しいスキルシステム）
@@ -3224,14 +3302,14 @@ function resolvePlayerCommand(command) {
         const dodgeRoll = Math.random() * 100;
         if (damage <= 0) {
             showDamage("enemyDamage", 0);
-        } else if (!isDebugInstantKill && !skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+        } else if (!isDebugInstantKill && !skillEffect.sureHit && !hasUniqueAbility(me, 'ignore_evasion') && dodgeRoll < enemyDodgeChance) {
             showDamage("enemyDamage", 0);
             addLog("回避！ダメージなし");
             damage = 0;
         } else {
             if (isDebugInstantKill) {
                 addLog("【デバッグ】必中・即死効果で確実にトドメを刺した！");
-            } else if (skillEffect.sureHit && dodgeRoll < enemyDodgeChance) {
+            } else if ((skillEffect.sureHit || hasUniqueAbility(me, 'ignore_evasion')) && dodgeRoll < enemyDodgeChance) {
                 addLog("必中効果で回避を許さなかった！");
             }
             if (!isDebugInstantKill && enemy.hp - damage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
@@ -3242,6 +3320,17 @@ function resolvePlayerCommand(command) {
             }
             showDamage("enemyDamage", damage);
             addLog("ボットにダメージ: " + damage);
+
+            // 猛毒の一撃（poison_on_hit）：25%の確率で相手に3ターンの毒を付与
+            if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+                enemyPoisonTurns = 3;
+                addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
+            }
+            // 灼熱の一撃（burn_on_hit）：25%の確率で相手に3ターンの火傷を付与
+            if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+                enemyBurnTurns = 3;
+                addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
+            }
         }
         
         // スキルによるHP吸収
@@ -3300,7 +3389,8 @@ function handleWrongAnswer(skillEffect) {
         damage = applyIncomingDamageReduction(damage);
         
         // 回避判定（プレイヤーの回避率）
-        const myDodgeChance = calculateDodgeChance(me.speed);
+        // 「残像」（self_evasion_boost）を持っている場合、回避率+15%
+        const myDodgeChance = calculateDodgeChance(me.speed) + (hasUniqueAbility(me, 'self_evasion_boost') ? 15 : 0);
         const dodgeRoll = Math.random() * 100;
         if (dodgeRoll < myDodgeChance) {
             showDamage("myDamage", 0);
@@ -3314,6 +3404,14 @@ function handleWrongAnswer(skillEffect) {
             }
             showDamage("myDamage", damage);
             addLog("ダメージを受けた: " + damage);
+
+            // 棘の鎧（damage_reflect）：受けたダメージの15%を相手に反射する
+            if (hasUniqueAbility(me, 'damage_reflect') && damage > 0) {
+                const reflectDamage = Math.max(1, Math.floor(damage * 0.15));
+                enemy.hp = Math.max(0, enemy.hp - reflectDamage);
+                addLog(`棘の鎧で${enemy.name}に${reflectDamage}のダメージを反射！`);
+                showDamage("enemyDamage", reflectDamage);
+            }
         }
         
         updateHP();
@@ -3387,7 +3485,8 @@ function handleWrongAnswer(skillEffect) {
                 damage = applyIncomingDamageReduction(damage);
                 
                 // 回避判定（プレイヤーの回避率）
-                const myDodgeChance = calculateDodgeChance(me.speed);
+                // 「残像」（self_evasion_boost）を持っている場合、回避率+15%
+                const myDodgeChance = calculateDodgeChance(me.speed) + (hasUniqueAbility(me, 'self_evasion_boost') ? 15 : 0);
                 const dodgeRoll = Math.random() * 100;
                 if (dodgeRoll < myDodgeChance) {
                     showDamage("myDamage", 0);
@@ -3401,6 +3500,14 @@ function handleWrongAnswer(skillEffect) {
                     }
                     showDamage("myDamage", damage);
                     addLog("ボットからのダメージ: " + damage);
+
+                    // 棘の鎧（damage_reflect）：受けたダメージの15%を相手に反射する
+                    if (hasUniqueAbility(me, 'damage_reflect') && damage > 0) {
+                        const reflectDamage = Math.max(1, Math.floor(damage * 0.15));
+                        enemy.hp = Math.max(0, enemy.hp - reflectDamage);
+                        addLog(`棘の鎧で${enemy.name}に${reflectDamage}のダメージを反射！`);
+                        showDamage("enemyDamage", reflectDamage);
+                    }
                 }
                 
                 updateHP();

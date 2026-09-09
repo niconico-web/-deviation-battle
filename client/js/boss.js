@@ -355,8 +355,8 @@ function markBossDefeated(player, bossId, difficulty) {
 function generateBossWeapon(boss, weaponName, tierIndex = 0) {
     if (!boss || !weaponName) return null;
 
-    // Get all available unique abilities from weapons.js (exclude one_shot_kill as it is debugger-only)
-    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES).filter(a => a.effect !== 'one_shot_kill') : [];
+    // Get all available unique abilities from weapons.js
+    const allAbilities = (typeof ORB_UNIQUE_ABILITIES !== 'undefined') ? Object.values(ORB_UNIQUE_ABILITIES) : [];
     if (allAbilities.length === 0) {
         console.error("ORB_UNIQUE_ABILITIES not found or empty. Cannot generate boss weapon.");
         return null;

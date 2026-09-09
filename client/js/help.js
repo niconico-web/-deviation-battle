@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         uniqueAbilitiesList.innerHTML = ''; // 既存のコンテンツをクリア
         for (const key in ORB_UNIQUE_ABILITIES) {
             if (Object.hasOwnProperty.call(ORB_UNIQUE_ABILITIES, key)) {
-                if (key === 'one_shot_kill') continue; // デバッガー専用能力はヘルプから除外
                 const ability = ORB_UNIQUE_ABILITIES[key];
 
                 const abilityElement = document.createElement('div');
