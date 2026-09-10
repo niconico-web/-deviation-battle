@@ -293,6 +293,12 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
             const calculatedDodge = maxDodge * Math.pow(defenderSpeed / maxSpeed, 2);
             dodgeChance = Math.min(calculatedDodge, maxDodge); // 上限を45%に設定
         }
+        // 残像（self_evasion_boost）：自分の回避率が15%上昇する。
+        // 以前はクライアント側battle.js（ボット戦）にしか実装されておらず、
+        // サーバー側で処理されるオンライン対戦・ダンジョンでは無効だった。
+        if (hasUniqueAbility(defender, 'self_evasion_boost')) {
+            dodgeChance += 15;
+        }
     }
 
     return {
@@ -311,11 +317,23 @@ function calculateDamage(attacker, defender, answerTimeMs, options = {}) {
 function applyUniqueAbilityDamageBonus(damage, attacker) {
     let finalDamage = damage;
 
+    // 会心の初撃（first_strike_crit）：戦闘中の最初の1回の攻撃は必ずクリティカルになる。
+    // attacker.hasAttackedInBattle でこの攻撃者にとって最初の攻撃かどうかを判定する
+    // （以前はクライアント側battle.jsにしか実装されておらず、サーバー側の
+    //  オンライン対戦・ダンジョンでは一切発動しなかった）。
+    const isFirstAttack = !attacker.hasAttackedInBattle;
+    attacker.hasAttackedInBattle = true;
+
     // クリティカル判定：常時5%の確率で発生する。
     // 「必殺」の固有能力を武器に持っている場合は、クリティカル率が30%まで上がる。
     const critChance = hasUniqueAbility(attacker, "critical_damage") ? 0.30 : 0.05;
-    if (Math.random() < critChance) {
-        finalDamage = Math.floor(finalDamage * 1.5);
+    const forcedFirstStrikeCrit = isFirstAttack && hasUniqueAbility(attacker, "first_strike_crit");
+
+    if (forcedFirstStrikeCrit || Math.random() < critChance) {
+        // 会心の一撃（crit_damage_boost）：クリティカル倍率が2.2倍になる（通常は1.5倍）。
+        // 同様に以前はサーバー側で未実装だった。
+        const critMultiplier = hasUniqueAbility(attacker, "crit_damage_boost") ? 2.2 : 1.5;
+        finalDamage = Math.floor(finalDamage * critMultiplier);
     }
 
     return finalDamage;
@@ -386,15 +404,22 @@ function applyBossSkillEffect(damage, attacker, defender, skill, result) {
         result.bossSureHit = true;
     }
     // プレイヤーへのデバフ
+    // 不動の心（debuff_resist）：相手から受けるデバフを50%の確率で無効化する。
+    // 以前はクライアント側battle.js（ボット戦）にしか実装されておらず、
+    // サーバー側で処理されるオンライン対戦・ダンジョンでは無効だった。
     if (effect.debuff) {
-        if (!defender.debuffs) defender.debuffs = [];
-        defender.debuffs.push({
-            stat: effect.debuff.type,
-            reduction: effect.debuff.reduction,
-            isFlat: false,
-            remainingTurns: effect.debuff.turns || 3
-        });
-        result.playerDebuffed = effect.debuff;
+        if (hasUniqueAbility(defender, 'debuff_resist') && Math.random() < 0.5) {
+            result.debuffResisted = true;
+        } else {
+            if (!defender.debuffs) defender.debuffs = [];
+            defender.debuffs.push({
+                stat: effect.debuff.type,
+                reduction: effect.debuff.reduction,
+                isFlat: false,
+                remainingTurns: effect.debuff.turns || 3
+            });
+            result.playerDebuffed = effect.debuff;
+        }
     }
     // 自己バフ
     if (effect.selfBuff) {
@@ -499,16 +524,22 @@ function applyInstantSkillEffects(player, enemy, effect, result) {
         result.skillSelfDamage = selfDmg;
     }
     if (effect.speedDebuff && enemy) {
-        if (!enemy.debuffs) enemy.debuffs = [];
-        // 同上の理由により、既存の速さデバフを上書きしてから追加する
-        enemy.debuffs = enemy.debuffs.filter(d => d.stat !== 'speed');
-        enemy.debuffs.push({
-            stat: 'speed',
-            reduction: effect.speedDebuff,
-            isFlat: false,
-            remainingTurns: effect.turns || 3 // effect.turnsがあればそれを使用、デフォルトは3
-        });
-        result.enemySpeedDebuff = effect.speedDebuff;
+        // 不動の心（debuff_resist）：相手（enemy）がこの能力を持っている場合、
+        // 50%の確率でこのデバフを無効化する。
+        if (hasUniqueAbility(enemy, 'debuff_resist') && Math.random() < 0.5) {
+            result.enemyDebuffResisted = true;
+        } else {
+            if (!enemy.debuffs) enemy.debuffs = [];
+            // 同上の理由により、既存の速さデバフを上書きしてから追加する
+            enemy.debuffs = enemy.debuffs.filter(d => d.stat !== 'speed');
+            enemy.debuffs.push({
+                stat: 'speed',
+                reduction: effect.speedDebuff,
+                isFlat: false,
+                remainingTurns: effect.turns || 3 // effect.turnsがあればそれを使用、デフォルトは3
+            });
+            result.enemySpeedDebuff = effect.speedDebuff;
+        }
     }
     if (effect.burn && enemy) {
         enemy.burnTurns = 3;
@@ -640,7 +671,70 @@ function getEffectiveStat(entity, statName) {
             }
         });
     }
+    // 疾風（speed_boost）: 素早さを1.25倍として計算する。
+    // 以前はこの効果がクライアント側（battle.js、bot戦用）にしか実装されておらず、
+    // サーバー側で処理されるオンライン対戦・ダンジョンでは無効だった。
+    if (statName === 'speed' && hasUniqueAbility(entity, 'speed_boost')) {
+        value = value * 1.25;
+    }
+    // 大器晩成（berserker_state）: HPが50%以下の時、攻撃力が1.3倍になる。
+    // 同様にサーバー側では未実装だった。
+    if (statName === 'atk' && hasUniqueAbility(entity, 'berserker_state') && entity.maxHp > 0 && entity.hp <= entity.maxHp * 0.5) {
+        value = value * 1.3;
+    }
     return Math.max(0, Math.floor(value));
+}
+
+// ===================================
+// Tier4オーブ固有能力：状態異常付与・反射・継続回復
+// （以前はクライアント側battle.js（ボット戦）にしか実装されておらず、
+//  サーバー側で処理されるオンライン対戦・ダンジョンでは一切発動しなかった）
+// ===================================
+
+/**
+ * 猛毒の一撃（poison_on_hit）・灼熱の一撃（burn_on_hit）：
+ * 攻撃がヒットした時、25%の確率で相手に3ターンの毒・火傷をそれぞれ付与する。
+ */
+function applyOnHitStatusEffects(attacker, defender, result) {
+    if (!attacker || !defender) return;
+    if (defender.hp <= 0) return;
+
+    if (hasUniqueAbility(attacker, 'poison_on_hit') && Math.random() < 0.25) {
+        defender.poisonTurns = 3;
+        result.onHitPoisonInflicted = true;
+    }
+    if (hasUniqueAbility(attacker, 'burn_on_hit') && Math.random() < 0.25) {
+        defender.burnTurns = 3;
+        result.onHitBurnInflicted = true;
+    }
+}
+
+/**
+ * 棘の鎧（damage_reflect）：防御側（defender）が攻撃を受けた時、
+ * 受けたダメージの15%を攻撃側（attacker）に反射する。
+ */
+function applyDamageReflect(attacker, defender, damageDealt, result) {
+    if (!attacker || !defender) return;
+    if (!damageDealt || damageDealt <= 0) return;
+    if (!hasUniqueAbility(defender, 'damage_reflect')) return;
+
+    const reflectDamage = Math.max(1, Math.floor(damageDealt * 0.15));
+    attacker.hp = Math.max(0, attacker.hp - reflectDamage);
+    result.damageReflected = reflectDamage;
+}
+
+/**
+ * 自然治癒（hp_regen）：毎ターン、自分の最大HPの3%を自動で回復する。
+ * tickBurn/tickPoisonと同じ形式で、ターン終了時にまとめて呼び出す。
+ */
+function tickRegen(player, result, key) {
+    if (!player) return;
+    if (!hasUniqueAbility(player, 'hp_regen')) return;
+    if (player.hp <= 0 || player.hp >= player.maxHp) return;
+
+    const healAmount = Math.max(1, Math.floor(player.maxHp * 0.03));
+    player.hp = Math.min(player.maxHp, player.hp + healAmount);
+    result[key] = { heal: healAmount, hp: player.hp };
 }
 // -----------------------------
 // レイドボス戦の回答処理（3人以上のパーティ対応）
@@ -805,6 +899,8 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
                 attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.enemyLifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(attacker, defender, result);
+            applyDamageReflect(attacker, defender, finalDamage, result);
         }
 
         if (defender.hp <= 0) {
@@ -966,6 +1062,8 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
                 player.hp = Math.min(player.maxHp, player.hp + healAmount);
                 result.lifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(player, enemy, result);
+            applyDamageReflect(player, enemy, strongDamage, result);
 
             // ゲージをリセットして次の問題へ
             player.gaugeCount = 0;
@@ -1141,6 +1239,8 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
                     player.hp = Math.min(player.maxHp, player.hp + healAmount);
                     result.lifedrainHealed = healAmount;
                 }
+                applyOnHitStatusEffects(player, boss, result);
+                applyDamageReflect(player, boss, damage, result);
             } else {
                 result.damage = 0;
             }
@@ -1190,6 +1290,7 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
             result.damage = finalDamage;
             result.playerHp = player.hp;
             result.wrongAnswer = true;
+            applyDamageReflect(boss, player, finalDamage, result);
         }
 
         if (player.hp <= 0) {
@@ -1214,6 +1315,7 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
             tickBuffs(p);
             tickBurn(p, result, 'playerBurnTick_' + p.id);
             tickPoison(p, result, 'playerPoisonTick_' + p.id);
+            tickRegen(p, result, 'playerRegenTick_' + p.id);
         });
         tickBurn(boss, result, 'bossBurnTick');
         tickBuffs(boss);
@@ -1442,6 +1544,8 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
                     attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                     result.lifedrainHealed = healAmount;
                 }
+                applyOnHitStatusEffects(attacker, defender, result);
+                applyDamageReflect(attacker, defender, finalDamage, result);
             }
             } // effectiveCommand === 'defend' の else 終わり
             
@@ -1508,6 +1612,8 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
                 attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.enemyLifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(attacker, defender, result);
+            applyDamageReflect(attacker, defender, finalDamage, result);
         }
         
         // 勝利判定
@@ -1522,9 +1628,28 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
     // 不正解の場合でも、相手が回答済みであれば次の問題へ進む（バトルが停滞するのを防ぐ）
     if ((isCorrect || bothAnswered) && !battle.finished) {
         generateQuestion(battle);
-        // デバフのターンを経過させる
+        // デバフ・バフのターンを経過させ、火傷・毒・自然治癒などの継続効果を処理する。
+        // 以前はここでtickDebuffs()しか呼ばれておらず、猛毒の一撃・灼熱の一撃・
+        // 自然治癒などの固有能力や、バフの残りターン経過が一切機能していなかった。
         tickDebuffs(player);
         tickDebuffs(enemy);
+        tickBuffs(player);
+        tickBuffs(enemy);
+        tickBurn(player, result, 'selfBurnTick');
+        tickBurn(enemy, result, 'enemyBurnTick');
+        tickPoison(player, result, 'selfPoisonTick');
+        tickPoison(enemy, result, 'enemyPoisonTick');
+        tickRegen(player, result, 'selfRegenTick');
+        tickRegen(enemy, result, 'enemyRegenTick');
+
+        // 火傷・毒のダメージでどちらかが倒れていないか確認する
+        if (enemy.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        } else if (player.hp <= 0) {
+            battle.finished = true;
+            result.winner = enemyId;
+        }
 
         result.nextQuestion = battle.currentQuestion;
     } else if (!isCorrect && !bothAnswered && !battle.finished) {
@@ -1744,6 +1869,8 @@ function processCommand(battle, playerId, command) {
                 attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.lifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(attacker, defender, result);
+            applyDamageReflect(attacker, defender, finalDamage, result);
         }
 
         if (defender.hp <= 0) {
@@ -1760,8 +1887,29 @@ function processCommand(battle, playerId, command) {
     //   永遠に満たされなくなり、次の問題が配信されなくなってしまう）
     if (!battle.finished) {
         generateQuestion(battle);
+        // 以前はここでtickDebuffs()しか呼ばれておらず、火傷・毒・自然治癒などの
+        // 継続効果やバフの残りターン経過が一切機能していなかった（processPvpCommand()
+        // では既に修正済みだったが、こちらは未対応のまま取り残されていた）。
         tickDebuffs(player);
         tickDebuffs(enemy);
+        tickBuffs(player);
+        tickBuffs(enemy);
+        tickBurn(player, result, 'selfBurnTick');
+        tickBurn(enemy, result, 'enemyBurnTick');
+        tickPoison(player, result, 'selfPoisonTick');
+        tickPoison(enemy, result, 'enemyPoisonTick');
+        tickRegen(player, result, 'selfRegenTick');
+        tickRegen(enemy, result, 'enemyRegenTick');
+
+        // 火傷・毒のダメージでどちらかが倒れていないか確認する
+        if (enemy.hp <= 0) {
+            battle.finished = true;
+            result.winner = playerId;
+        } else if (player.hp <= 0) {
+            battle.finished = true;
+            result.winner = Object.keys(battle.players).find(id => id !== playerId);
+        }
+
         result.nextQuestion = battle.currentQuestion;
     }
 
@@ -1873,6 +2021,8 @@ function processPvpCommand(battle, playerId, command) {
                 attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.lifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(attacker, defender, result);
+            applyDamageReflect(attacker, defender, finalDamage, result);
         }
 
         if (defender.hp <= 0) {
@@ -1899,6 +2049,8 @@ function processPvpCommand(battle, playerId, command) {
         tickBurn(defender, result, 'enemyBurnTick');
         tickPoison(attacker, result, 'selfPoisonTick');
         tickPoison(defender, result, 'enemyPoisonTick');
+        tickRegen(attacker, result, 'selfRegenTick');
+        tickRegen(defender, result, 'enemyRegenTick');
 
         // 火傷・毒のダメージでどちらかが倒れていないか確認する
         if (defender.hp <= 0) {
@@ -2059,6 +2211,8 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
                 player.hp = Math.min(player.maxHp, player.hp + healAmount);
                 result.lifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(player, boss, result);
+            applyDamageReflect(player, boss, strongDamage, result);
 
             // ゲージをリセットして次の問題へ
             player.gaugeCount = 0;
@@ -2166,6 +2320,8 @@ function processRaidPlayerCommand(battle, playerId, command) {
                 attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
                 result.lifedrainHealed = healAmount;
             }
+            applyOnHitStatusEffects(attacker, defender, result);
+            applyDamageReflect(attacker, defender, finalDamage, result);
         }
 
         if (defender.hp <= 0) {
@@ -2190,6 +2346,8 @@ function processRaidPlayerCommand(battle, playerId, command) {
         tickBurn(boss, result, 'bossBurnTick');
         tickPoison(player, result, 'selfPoisonTick');
         tickPoison(boss, result, 'bossPoisonTick');
+        tickRegen(player, result, 'selfRegenTick');
+        tickRegen(boss, result, 'bossRegenTick');
 
         // 火傷・毒のダメージでどちらかが倒れていないか確認する
         if (boss.hp <= 0) {

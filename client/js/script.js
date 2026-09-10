@@ -997,6 +997,15 @@ window.normalizePlayerId = normalizePlayerId;
 if (typeof giveDebugInstantKillWeapon === "function") {
     window.giveDebugInstantKillWeapon = giveDebugInstantKillWeapon;
 }
+// デバッグ用: ブラウザのコンソールで listTier4Abilities() を実行すると使えるキー一覧を表示し、
+// giveDebugTier4AbilityWeapon("キー") を実行すると、そのTier4固有能力だけを持つ武器を
+// 現在のプレイヤーに追加・装備する（テスト用）。
+if (typeof giveDebugTier4AbilityWeapon === "function") {
+    window.giveDebugTier4AbilityWeapon = giveDebugTier4AbilityWeapon;
+}
+if (typeof listTier4Abilities === "function") {
+    window.listTier4Abilities = listTier4Abilities;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
