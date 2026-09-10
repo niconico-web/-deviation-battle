@@ -1248,16 +1248,38 @@ function giveDebugInstantKillWeapon(player) {
 // ============================================
 
 /**
+ * ORB_UNIQUE_ABILITIESから、指定した文字列に対応する能力を探す。
+ * オブジェクトのキー（例: "natural_healing"）でも、内部のeffect文字列
+ * （例: "hp_regen"）でも見つけられるようにする（どちらで呼ばれても動くように）。
+ * @param {string} input
+ * @returns {{key: string, ability: object}|null}
+ */
+function findTier4AbilityEntry(input) {
+    if (!input) return null;
+    if (ORB_UNIQUE_ABILITIES[input]) {
+        return { key: input, ability: ORB_UNIQUE_ABILITIES[input] };
+    }
+    const foundKey = Object.keys(ORB_UNIQUE_ABILITIES).find(
+        key => ORB_UNIQUE_ABILITIES[key].effect === input
+    );
+    if (foundKey) {
+        return { key: foundKey, ability: ORB_UNIQUE_ABILITIES[foundKey] };
+    }
+    return null;
+}
+
+/**
  * 指定したキーのTier4固有能力だけを持つデバッグ用武器を生成する。
- * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー（例: "hp_regen"）
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列（例: "natural_healing" / "hp_regen"）
  * @returns {object|null}
  */
 function createDebugTier4AbilityWeapon(abilityKey) {
-    const ability = ORB_UNIQUE_ABILITIES[abilityKey];
-    if (!ability) return null;
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) return null;
+    const { key, ability } = entry;
 
     return {
-        id: "debug_tier4_weapon_" + abilityKey,
+        id: "debug_tier4_weapon_" + key,
         type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
         name: `【デバッグ】${ability.name}の武器`,
         isOriginal: true,
@@ -1274,14 +1296,16 @@ function createDebugTier4AbilityWeapon(abilityKey) {
 
 /**
  * 指定したTier4固有能力を持つデバッグ用武器を、現在のプレイヤーに追加して装備する。
- * ブラウザのコンソールから `giveDebugTier4AbilityWeapon("hp_regen")` のように実行する想定。
+ * ブラウザのコンソールから `giveDebugTier4AbilityWeapon("natural_healing")` または
+ * `giveDebugTier4AbilityWeapon("hp_regen")` のように実行する想定（どちらでも動く）。
  * 使えるキーが分からない場合は `listTier4Abilities()` を先に実行すると一覧が表示される。
- * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列
  * @param {object} [player] - 省略時はlocalStorageから読み込む。
  * @returns {object|null} 更新後のプレイヤーオブジェクト。
  */
 function giveDebugTier4AbilityWeapon(abilityKey, player) {
-    if (!ORB_UNIQUE_ABILITIES[abilityKey]) {
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) {
         console.error(`[Debug] 不明な固有能力キーです: "${abilityKey}"。listTier4Abilities() で一覧を確認してください。`);
         return null;
     }
@@ -1310,7 +1334,7 @@ function giveDebugTier4AbilityWeapon(abilityKey, player) {
 
     if (fromLocalStorage) {
         localStorage.setItem("player", JSON.stringify(updated));
-        console.log(`[Debug] 「${weapon.name}」（固有能力: ${ORB_UNIQUE_ABILITIES[abilityKey].name}）を装備しました。ページを再読み込みすると反映されます。`);
+        console.log(`[Debug] 「${weapon.name}」（固有能力: ${entry.ability.name}）を装備しました。ページを再読み込みすると反映されます。`);
         if (typeof updateStatus === "function") updateStatus(updated);
         if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
         if (typeof renderInventory === "function") renderInventory();
@@ -1321,13 +1345,14 @@ function giveDebugTier4AbilityWeapon(abilityKey, player) {
 
 /**
  * ブラウザのコンソールで使えるTier4固有能力のキー一覧を表示する。
+ * オブジェクトキー・effect文字列のどちらでもgiveDebugTier4AbilityWeapon()に渡せることを明記する。
  * @returns {string[]} キーの配列
  */
 function listTier4Abilities() {
     const keys = Object.keys(ORB_UNIQUE_ABILITIES);
     keys.forEach(key => {
         const ability = ORB_UNIQUE_ABILITIES[key];
-        console.log(`${key} : ${ability.name} - ${ability.description}`);
+        console.log(`${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
     });
     return keys;
 }
