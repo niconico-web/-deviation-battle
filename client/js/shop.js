@@ -361,6 +361,13 @@ function renderOriginalWeapons() {
             upgradeBtn.disabled = player.coins < upgradeCost;
             upgradeBtn.onclick = () => upgradeOriginalWeaponUI(weapon);
             actionContainer.appendChild(upgradeBtn);
+
+            const bulkUpgradeBtn = document.createElement("button");
+            bulkUpgradeBtn.className = "btn btn-small";
+            bulkUpgradeBtn.textContent = "一括強化";
+            bulkUpgradeBtn.disabled = player.coins < upgradeCost;
+            bulkUpgradeBtn.onclick = () => bulkUpgradeOriginalWeaponUI(weapon);
+            actionContainer.appendChild(bulkUpgradeBtn);
         }
 
         // ボス武器の限界突破ボタン
@@ -655,6 +662,72 @@ function upgradeOriginalWeaponUI(weapon) {
 
     alert(message);
     
+    renderOriginalWeapons();
+    updateStatus(updatedPlayer);
+}
+
+/**
+ * 「一括強化」ボタン用：コインが続く限り、または上限倍率に達するまで
+ * 強化を繰り返し実行する。1回ごとにコストは変わらない（ORIGINAL_WEAPON_UPGRADE_COST固定）ため、
+ * 単純にループで消費・適用していく。
+ */
+function bulkUpgradeOriginalWeaponUI(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const cost = getOriginalWeaponUpgradeCost(weapon);
+    if (player.coins < cost) {
+        alert(`コインが足りません（必要: ${cost}）`);
+        return;
+    }
+
+    let remainingCoins = player.coins;
+    let updatedWeapon = { ...weapon };
+    const abilitiesBefore = (updatedWeapon.uniqueAbilities || []).length;
+    let upgradeCount = 0;
+
+    while (remainingCoins >= cost && canUpgradeOriginalWeapon(updatedWeapon)) {
+        remainingCoins -= cost;
+        updatedWeapon = upgradeOriginalWeapon(updatedWeapon);
+        upgradeCount++;
+    }
+
+    if (upgradeCount === 0) {
+        alert(`コインが足りません（必要: ${cost}）`);
+        return;
+    }
+
+    const updatedPlayer = { ...player, coins: remainingCoins };
+    updatedPlayer.weapons = updatedPlayer.weapons.map(w => w.id === weapon.id ? updatedWeapon : w);
+
+    // 装備中の武器も更新
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weapon.id) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+
+    localStorage.setItem("player", JSON.stringify(updatedPlayer));
+    // ミッション進捗はまとめて1回、強化した回数分だけ加算する
+    // （毎回呼ぶとlocalStorageから古いプレイヤー情報を読み直してしまい、
+    //  ここで行った一括強化の結果が上書きされてしまうため）
+    if (typeof updateMissionProgress === 'function') updateMissionProgress('upgrade_weapon', upgradeCount);
+
+    let message = `${weapon.name} を一括強化しました！（${upgradeCount}回強化）\n倍率: ${updatedWeapon.multiplier.toFixed(3)}x`;
+
+    if ((updatedWeapon.uniqueAbilities || []).length > abilitiesBefore) {
+        const newAbility = updatedWeapon.uniqueAbilities[updatedWeapon.uniqueAbilities.length - 1];
+        if (newAbility) {
+            message += `\n\n★武器を極めし者よ…\n固有能力「${newAbility.name}」が解放されました！`;
+        }
+    }
+
+    if (canUpgradeOriginalWeapon(updatedWeapon)) {
+        message += `\n\n（コインが不足したため、上限まで強化することはできませんでした）`;
+    } else {
+        message += `\n\n上限倍率まで強化が完了しました！`;
+    }
+
+    alert(message);
+
     renderOriginalWeapons();
     updateStatus(updatedPlayer);
 }

@@ -1239,6 +1239,100 @@ function giveDebugInstantKillWeapon(player) {
 }
 
 // ============================================
+// デバッグ用「任意のTier4固有能力」武器
+// 開発中の動作確認用。ブラウザのコンソールから
+// listTier4Abilities() で使えるキーの一覧を確認し、
+// giveDebugTier4AbilityWeapon("好きなキー") を実行すると、
+// そのTier4固有能力だけを持つ武器が現在のプレイヤーに追加・装備される
+// （script.js からグローバル公開）。
+// ============================================
+
+/**
+ * 指定したキーのTier4固有能力だけを持つデバッグ用武器を生成する。
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー（例: "hp_regen"）
+ * @returns {object|null}
+ */
+function createDebugTier4AbilityWeapon(abilityKey) {
+    const ability = ORB_UNIQUE_ABILITIES[abilityKey];
+    if (!ability) return null;
+
+    return {
+        id: "debug_tier4_weapon_" + abilityKey,
+        type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
+        name: `【デバッグ】${ability.name}の武器`,
+        isOriginal: true,
+        isDebugWeapon: true,
+        multiplier: 1,
+        baseMultiplier: 1,
+        maxMultiplier: 1,
+        statBonuses: {},
+        upgradeCount: 0,
+        uniqueAbilities: [ability],
+        ultimateName: `デバッグ・${ability.name}`
+    };
+}
+
+/**
+ * 指定したTier4固有能力を持つデバッグ用武器を、現在のプレイヤーに追加して装備する。
+ * ブラウザのコンソールから `giveDebugTier4AbilityWeapon("hp_regen")` のように実行する想定。
+ * 使えるキーが分からない場合は `listTier4Abilities()` を先に実行すると一覧が表示される。
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugTier4AbilityWeapon(abilityKey, player) {
+    if (!ORB_UNIQUE_ABILITIES[abilityKey]) {
+        console.error(`[Debug] 不明な固有能力キーです: "${abilityKey}"。listTier4Abilities() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const weapon = createDebugTier4AbilityWeapon(abilityKey);
+    let updated = p;
+    if (!playerOwnsWeapon(updated, weapon.id)) {
+        updated = addWeaponToPlayer(updated, weapon);
+    }
+    const equipResult = equipWeapon(updated, weapon.id);
+    if (equipResult.ok) {
+        updated = equipResult.player;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] 「${weapon.name}」（固有能力: ${ORB_UNIQUE_ABILITIES[abilityKey].name}）を装備しました。ページを再読み込みすると反映されます。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+/**
+ * ブラウザのコンソールで使えるTier4固有能力のキー一覧を表示する。
+ * @returns {string[]} キーの配列
+ */
+function listTier4Abilities() {
+    const keys = Object.keys(ORB_UNIQUE_ABILITIES);
+    keys.forEach(key => {
+        const ability = ORB_UNIQUE_ABILITIES[key];
+        console.log(`${key} : ${ability.name} - ${ability.description}`);
+    });
+    return keys;
+}
+
+// ============================================
 // 素材・限界突破システム
 // ============================================
 
