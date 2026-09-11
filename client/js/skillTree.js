@@ -681,11 +681,11 @@ function validateCustomSkill(skillDescription, playerStats) {
         }
         if (parsedEffect.burn) {
             effectCount++;
-            effectScore += 3; // 火傷は中程度
+            effectScore += 1; // 火傷は中程度
         }
         if (parsedEffect.poison) {
             effectCount++;
-            effectScore += 3; // 毒は中程度
+            effectScore += 1; // 毒は中程度
         }
         if (parsedEffect.speedDebuff) {
             effectCount++;
