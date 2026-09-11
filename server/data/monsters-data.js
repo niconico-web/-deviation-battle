@@ -621,6 +621,58 @@ function getBossByDifficulty(difficulty) {
 }
 
 // ===================================
+// 無限階層ダンジョン用：階層数だけに基づく報酬・宝箱
+// （難易度・初回クリア報酬を廃止し、階層が深くなるほど報酬も増えていく方式に変更）
+// ===================================
+
+/**
+ * 階層番号だけを基準にしたコイン報酬。指数的に増加していく。
+ */
+function getFloorRewardCoinsByFloor(floor) {
+    const f = Math.max(1, floor);
+    return Math.round(40 * f * Math.pow(1.05, f));
+}
+
+/**
+ * 階層番号だけを基準にした経験値報酬。指数的に増加していく。
+ */
+function getFloorRewardExpByFloor(floor) {
+    const f = Math.max(1, floor);
+    return Math.round(20 * f * Math.pow(1.05, f));
+}
+
+// 階層をクリアするたびに、一定確率で「宝箱」としてオーブ・ステータス再分配チケット・
+// 武器オーブスロット追加チケットのいずれかが手に入る（依頼：「敵を倒していくとオーブや
+// ステータスの再分配チケット、武器にオーブスロットを新しく追加するやつが出てくるような
+// 宝箱みたいに出てくる感じ」）。
+const DUNGEON_CHEST_DROP_CHANCE = 0.35;
+const DUNGEON_CHEST_TABLE = [
+    { type: 'orb', tier: 'tier1', weight: 30, description: 'オーブ（Tier1）' },
+    { type: 'orb', tier: 'tier2', weight: 22, description: 'オーブ（Tier2）' },
+    { type: 'orb', tier: 'tier3', weight: 14, description: 'オーブ（Tier3）' },
+    { type: 'orb', tier: 'tier4', weight: 6, description: 'オーブ（Tier4）' },
+    { type: 'item', itemId: 'stat_reallocator', description: 'ステータス再分配チケット', rarity: 'legendary', weight: 4 },
+    { type: 'item', itemId: 'extra_orb_slot', description: '武器オーブスロット追加チケット', rarity: 'mythic', weight: 2 }
+];
+
+/**
+ * 宝箱報酬を1回分抽選する。何も出ない場合はnullを返す。
+ */
+function rollDungeonChestReward() {
+    if (Math.random() >= DUNGEON_CHEST_DROP_CHANCE) return null;
+    const totalWeight = DUNGEON_CHEST_TABLE.reduce((sum, entry) => sum + entry.weight, 0);
+    let roll = Math.random() * totalWeight;
+    for (const entry of DUNGEON_CHEST_TABLE) {
+        roll -= entry.weight;
+        if (roll <= 0) {
+            const { weight, ...reward } = entry;
+            return reward;
+        }
+    }
+    return null;
+}
+
+// ===================================
 // エクスポート
 // ===================================
 module.exports = {
@@ -634,5 +686,8 @@ module.exports = {
     getFloorRewardExp,
     DUNGEON_BOSSES,
     getRandomMonster,
-    getBossByDifficulty
+    getBossByDifficulty,
+    getFloorRewardCoinsByFloor,
+    getFloorRewardExpByFloor,
+    rollDungeonChestReward
 };

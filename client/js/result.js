@@ -192,7 +192,6 @@ function handleDungeonResult(won) {
     }
 
     const dungeonData = JSON.parse(dungeonDataJSON);
-    const difficulty = dungeonData.dungeon?.difficulty;
     const dungeonPlayerHP = localStorage.getItem('dungeonPlayerHP') || "0";
     // ダンジョンのセッションはページ遷移をまたぐため、Socket.IOのsocket.id（接続ごとに
     // 変わる）ではなく、プレイヤーの永続ID（player.id）でサーバー側のダンジョンを
@@ -236,28 +235,41 @@ function handleDungeonResult(won) {
                 return;
             }
 
-            if (response.cleared) {
-                showDungeonClearResult(response, difficulty);
-                return;
-            }
+            // 無限ダンジョンのため「クリア（完了）」は存在せず、常に階クリア→次の階
+            // または撤退の分岐のみになる。
+            // 依頼により「敗北するとこのダンジョンで得た報酬は全て失う」仕様のため、
+            // コイン・経験値・宝箱・素材ドロップはこの時点ではまだプレイヤーデータに反映せず、
+            // dungeonData.accumulatedRewards に積み立てておき、実際に反映するのは
+            // 「撤退する」を選んだ時点でまとめて行う（敗北時は何も反映されない）。
+            const clearedFloor = response.dungeon.currentFloor - 1;
+            const chestReward = response.floorReward.chestReward;
+            const droppedMaterial = localStorage.getItem('droppedMaterial');
+            if (droppedMaterial) localStorage.removeItem('droppedMaterial');
 
-            // まだダンジョンは続く：この階のクリア報酬を表示し、
-            // 「次の階へ」か「撤退する」かを選ばせる
-            document.getElementById('turnText').textContent = `第${response.dungeon.currentFloor - 1}階 クリア！`;
-            document.getElementById('damageText').textContent =
-                `この階の報酬: コイン+${response.floorReward.coins} / 経験値+${response.floorReward.exp}`;
+            const prevAccumulated = (dungeonData.accumulatedRewards) || { chestRewards: [], materials: [] };
+            const accumulatedRewards = {
+                chestRewards: chestReward ? [...prevAccumulated.chestRewards, chestReward] : prevAccumulated.chestRewards,
+                materials: droppedMaterial ? [...prevAccumulated.materials, droppedMaterial] : prevAccumulated.materials
+            };
+
+            document.getElementById('turnText').textContent = `第${clearedFloor}階 クリア！`;
+            let floorMessage = `この階の報酬: コイン+${response.floorReward.coins} / 経験値+${response.floorReward.exp}`;
+            if (chestReward) {
+                floorMessage += `\n🎁 宝箱: ${chestReward.description || (chestReward.type === 'orb' ? `オーブ（${chestReward.tier}）` : chestReward.itemId)}`;
+            }
+            if (droppedMaterial) {
+                const materialName = (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[droppedMaterial]) ? MATERIAL_DATA[droppedMaterial].name : droppedMaterial;
+                floorMessage += `\n🧩 素材: ${materialName}`;
+            }
+            document.getElementById('damageText').textContent = floorMessage;
             document.getElementById('criticalText').textContent =
                 `ここまでの保有報酬（撤退時に持ち帰れる分）: コイン${response.dungeon.totalCoins} / 経験値${response.dungeon.totalExp}`;
 
             // 次の階のためにデータを更新
             localStorage.setItem('dungeonData', JSON.stringify({
                 dungeon: response.dungeon,
-                currentMonsters: response.nextMonsters
+                accumulatedRewards
             }));
-            const nextEnemy = response.nextMonsters && response.nextMonsters[0];
-            if (nextEnemy) {
-                localStorage.setItem('enemy', JSON.stringify(nextEnemy));
-            }
 
             if (retryBtn) {
                 retryBtn.style.display = 'inline-block';
@@ -270,10 +282,21 @@ function handleDungeonResult(won) {
                         battlePlayer.hp = Math.max(1, parseInt(dungeonPlayerHP, 10) || battlePlayer.hp);
                         localStorage.setItem('battlePlayer', JSON.stringify(battlePlayer));
                     }
+
+                    // 次の階の敵を、階層番号とプレイヤーの実ステータスから完全ランダムに生成する
+                    const nextFloor = response.dungeon.currentFloor;
+                    const battleStats = battlePlayer ? (battlePlayer.battleStats || battlePlayer) : null;
+                    const nextEnemy = (typeof generateDungeonEncounter === 'function')
+                        ? generateDungeonEncounter(nextFloor, battleStats)
+                        : null;
+                    if (nextEnemy) {
+                        localStorage.setItem('enemy', JSON.stringify(nextEnemy));
+                    }
+
                     localStorage.setItem('isBotBattle', 'true');
                     localStorage.setItem('isDungeonBattle', 'true');
-                    // 10階（ボス階）に到達した場合はボス専用の問題・演出を有効にする
-                    if (response.dungeon && response.dungeon.currentFloor === 10) {
+                    // 出現した敵がボスかどうかでisBossBattleフラグを設定する
+                    if (nextEnemy && nextEnemy.isBoss) {
                         localStorage.setItem('isBossBattle', 'true');
                     } else {
                         localStorage.removeItem('isBossBattle');
@@ -296,12 +319,7 @@ function handleDungeonResult(won) {
                             location.href = 'index.html';
                             return;
                         }
-                        applyDungeonRunRewards(retreatResponse.difficulty || difficulty, {
-                            coins: retreatResponse.totalCoins,
-                            exp: retreatResponse.totalExp,
-                            rewards: retreatResponse.rewards,
-                            isFirstClear: false
-                        });
+                        applyDungeonRetreatRewards(retreatResponse, accumulatedRewards);
                         alert(`撤退しました。コイン+${retreatResponse.totalCoins} / 経験値+${retreatResponse.totalExp} を持ち帰りました。`);
                         cleanupDungeonStorage();
                         location.href = 'index.html';
@@ -321,8 +339,14 @@ function handleDungeonResult(won) {
             }
 
             // 所持金の半分を失うペナルティ（このダンジョンで得た分は元々サーバー側で
-            // 加算されていないため、何も加算しないことで「全て失う」を表現している）
-            const penalizedPlayer = applyDungeonDefeatPenalty();
+            // 加算されていないため、何も加算しないことで「全て失う」を表現している）。
+            // チェックポイント（到達した深さの記録）自体は「持ち帰る報酬」ではないため、
+            // 敗北しても到達済みの分はそのまま残す。
+            let penalizedPlayer = applyDungeonDefeatPenalty();
+            if (penalizedPlayer && response.checkpoint) {
+                penalizedPlayer = updateDungeonCheckpoint(penalizedPlayer, response.checkpoint);
+                localStorage.setItem("player", JSON.stringify(penalizedPlayer));
+            }
             document.getElementById('criticalText').textContent = penalizedPlayer
                 ? `ペナルティ: 所持金が半分になりました（残り ${penalizedPlayer.coins}コイン）`
                 : '';
@@ -341,60 +365,34 @@ function handleDungeonResult(won) {
 }
 
 // ===================================
-// ダンジョンクリア（10階のボス撃破）結果表示
+// チェックポイント更新
 // ===================================
-function showDungeonClearResult(response, difficulty) {
-    applyDungeonRunRewards(response.dungeon?.difficulty || difficulty, {
-        coins: response.totalCoins,
-        exp: response.totalExp,
-        rewards: response.rewards,
-        isFirstClear: response.isFirstClear
-    });
-
-    title.textContent = "🏆 ダンジョンクリア！";
-    title.style.color = "#ffd700";
-
-    document.getElementById('turnText').textContent = `${getDifficultyDisplayName(response.dungeon?.difficulty || difficulty)} ダンジョン`;
-    document.getElementById('hpText').textContent = `クリアランク: ${response.rank || 'C'}`;
-    document.getElementById('damageText').textContent = response.isFirstClear ? "🌟 初回クリアボーナス！" : "";
-    const xpEl = document.getElementById('xpGainText');
-    if (xpEl) xpEl.textContent = `獲得経験値: ${response.totalExp || 0}`;
-    const coinEl = document.getElementById('coinGainText');
-    if (coinEl) coinEl.textContent = `獲得コイン: ${response.totalCoins || 0}`;
-
-    const orbText = document.getElementById('orbText');
-    const specialRewards = (response.rewards || []).filter(r => r.type === 'orb' || r.type === 'item');
-    if (orbText && specialRewards.length > 0) {
-        orbText.style.display = 'block';
-        orbText.textContent = `報酬: ${specialRewards.map(r => r.description || r.type).join(', ')}`;
+// 10階・20階・30階…に到達するたびに記録し、次回そのダンジョン開始画面から
+// 「第N階から挑戦」を選べるようにする。
+// 依頼により、これは「敗北すると報酬を全て失う」対象には含めない
+// （チェックポイントは到達した記録であり、持ち帰る「報酬」ではないため）。
+function updateDungeonCheckpoint(player, checkpoint) {
+    if (checkpoint > 0) {
+        player.dungeonCheckpoint = Math.max(player.dungeonCheckpoint || 0, checkpoint);
     }
-
-    const retryBtn = document.getElementById('retryBtn');
-    if (retryBtn) {
-        retryBtn.style.display = 'inline-block';
-        retryBtn.textContent = 'ホームへ戻る';
-        retryBtn.onclick = () => {
-            cleanupDungeonStorage();
-            location.href = 'index.html';
-        };
-    }
-    const onlineBtn = document.getElementById('onlineBtn');
-    if (onlineBtn) onlineBtn.style.display = 'none';
+    return player;
 }
 
 // ===================================
-// ダンジョン報酬をプレイヤーデータへ反映
+// 撤退時：積み立てておいたコイン・経験値・宝箱報酬・素材ドロップをまとめて
+// プレイヤーデータへ反映する。
 // ===================================
-// ダンジョンをクリアする（10階のボスを倒す）か、途中で撤退した場合にのみ呼ばれる。
-// 敗北した場合は呼ばれないため、その時点までの報酬はすべて失われたことになる。
-function applyDungeonRunRewards(difficulty, { coins = 0, exp = 0, rewards = [], isFirstClear = false } = {}) {
+// 依頼により「敗北するとこのダンジョンで得た報酬は全て失う」仕様のため、
+// コイン・経験値・宝箱・素材ドロップは階クリアのたびには反映せず、
+// 実際に撤退（生還）した時点でまとめて反映する（敗北時はこの関数自体が呼ばれない）。
+function applyDungeonRetreatRewards(retreatResponse, accumulatedRewards) {
     const player = typeof getPlayerData === 'function' ? getPlayerData() : null;
     if (!player) return null;
 
-    player.coins = (player.coins || 0) + (coins || 0);
+    player.coins = (player.coins || 0) + (retreatResponse.totalCoins || 0);
 
     const oldLevel = typeof calcLevel === 'function' ? calcLevel(player.xp || 0) : (player.level || 1);
-    player.xp = (player.xp || 0) + (exp || 0);
+    player.xp = (player.xp || 0) + (retreatResponse.totalExp || 0);
     const newLevel = typeof calcLevel === 'function' ? calcLevel(player.xp) : oldLevel;
     player.level = newLevel;
 
@@ -403,28 +401,32 @@ function applyDungeonRunRewards(difficulty, { coins = 0, exp = 0, rewards = [], 
         updatedPlayer = addSkillPointsOnLevelUp(player, oldLevel, newLevel) || player;
     }
 
-    (rewards || []).forEach(reward => {
-        if (reward.type === 'orb' && typeof createOrb === 'function') {
-            const orb = createOrb(reward.tier);
+    const rewards = accumulatedRewards || { chestRewards: [], materials: [] };
+
+    (rewards.chestRewards || []).forEach(chestReward => {
+        if (chestReward.type === 'orb' && typeof createOrb === 'function') {
+            const orb = createOrb(chestReward.tier);
             if (orb) {
                 updatedPlayer.orbs = updatedPlayer.orbs || [];
                 updatedPlayer.orbs.push(orb);
             }
-        } else if (reward.type === 'item') {
+        } else if (chestReward.type === 'item') {
             updatedPlayer.dungeonItems = updatedPlayer.dungeonItems || [];
             updatedPlayer.dungeonItems.push({
-                id: reward.itemId,
-                name: reward.description || reward.itemId,
-                rarity: reward.rarity || null,
+                id: chestReward.itemId,
+                name: chestReward.description || chestReward.itemId,
+                rarity: chestReward.rarity || null,
                 obtainedAt: Date.now()
             });
         }
     });
 
-    if (isFirstClear && difficulty) {
-        updatedPlayer.dungeonClears = updatedPlayer.dungeonClears || {};
-        updatedPlayer.dungeonClears[difficulty] = true;
-    }
+    (rewards.materials || []).forEach(materialId => {
+        updatedPlayer.materials = updatedPlayer.materials || {};
+        updatedPlayer.materials[materialId] = (updatedPlayer.materials[materialId] || 0) + 1;
+    });
+
+    updatedPlayer = updateDungeonCheckpoint(updatedPlayer, retreatResponse.checkpoint || 0);
 
     localStorage.setItem("player", JSON.stringify(updatedPlayer));
     return updatedPlayer;
@@ -440,17 +442,6 @@ function applyDungeonDefeatPenalty() {
     player.coins = Math.floor((player.coins || 0) / 2);
     localStorage.setItem("player", JSON.stringify(player));
     return player;
-}
-
-function getDifficultyDisplayName(difficulty) {
-    const names = {
-        easy: 'イージー',
-        normal: 'ノーマル',
-        hard: 'ハード',
-        very_hard: 'ベリーハード',
-        nightmare: 'ナイトメア'
-    };
-    return names[difficulty] || difficulty || '不明';
 }
 
 // 通常リザルト用のUI要素はダンジョン結果画面では使わないため隠す

@@ -501,54 +501,12 @@
                 <!-- ダンジョン選択画面 -->
                 <div id="dungeonSelectionScreen" class="setting-box">
                     <h3>ダンジョンに挑戦</h3>
-                    <p>10階建てのダンジョンに挑戦しましょう。難易度ごとに異なる報酬が待っています。</p>
-                    
-                    <div class="dungeon-selection-container">
-                        <!-- イージー -->
-                        <div class="dungeon-difficulty-card easy" data-difficulty="easy">
-                            <h3>イージー</h3>
-                            <p class="difficulty-badge">初心者向け</p>
-                            <p>推奨ステータス: 100以上</p>
-                            <p>報酬: Tier2以上のオーブ</p>
-                        </div>
+                    <p>階層に上限のない無限ダンジョンです。潜れば潜るほど敵がどんどん強くなり、モンスターやボスは完全ランダムに出現します。10階ごとにチェックポイントが記録され、次回はそこから再開できます。</p>
 
-                        <!-- ノーマル -->
-                        <div class="dungeon-difficulty-card normal" data-difficulty="normal">
-                            <h3>ノーマル</h3>
-                            <p class="difficulty-badge">標準</p>
-                            <p>推奨ステータス: 150以上</p>
-                            <p>報酬: Tier3以上のオーブ</p>
-                        </div>
-
-                        <!-- ハード -->
-                        <div class="dungeon-difficulty-card hard" data-difficulty="hard">
-                            <h3>ハード</h3>
-                            <p class="difficulty-badge">上級者向け</p>
-                            <p>推奨ステータス: 250以上</p>
-                            <p>報酬: Tier4以上のオーブ</p>
-                        </div>
-
-                        <!-- ベリーハード -->
-                        <div class="dungeon-difficulty-card very_hard" data-difficulty="very_hard">
-                            <h3>ベリーハード</h3>
-                            <p class="difficulty-badge">最上級</p>
-                            <p>推奨ステータス: 400以上</p>
-                            <p>報酬: ステータス再分配アイテム</p>
-                        </div>
-
-                        <!-- ナイトメア -->
-                        <div class="dungeon-difficulty-card nightmare" data-difficulty="nightmare">
-                            <h3>ナイトメア</h3>
-                            <p class="difficulty-badge">究極の試練</p>
-                            <p>推奨ステータス: 600以上</p>
-                            <p>報酬: 武器オーブスロット追加</p>
-                        </div>
-                    </div>
                 </div>
 
-                <!-- ダンジョン情報表示 -->
+                <!-- ダンジョン情報・開始パネル（dungeon.jsが動的に描画） -->
                 <div id="dungeonInfoContainer" class="setting-box">
-                    <!-- 選択された難易度の情報がここに表示されます -->
                 </div>
 
                 <!-- ダンジョンの説明 -->
@@ -557,8 +515,8 @@
                     <div class="dungeon-guide">
                         <h4>🎮 ダンジョンの遊び方</h4>
                         <ul>
-                            <li><strong>10階構成:</strong> 最下階はボス戦です</li>
-                            <li><strong>敵との遭遇:</strong> 各階でランダムな敵と戦闘します</li>
+                            <li><strong>無限階層:</strong> 階層に上限はありません。潜れば潜るほど敵がどんどん強くなります</li>
+                            <li><strong>敵との遭遇:</strong> 各階でランダムな敵と戦闘します（ボットマッチのモンスターや、低確率で強力なボスも出現）</li>
                             <li><strong>問題出題:</strong> 敵とのバトル中に問題が出題されます</li>
                             <li><strong>正解でダメージ:</strong> 問題に正解すると敵にダメージを与えます</li>
                             <li><strong>不正解でダメージ:</strong> 問題に不正解すると敵から反撃を受けます</li>
@@ -566,52 +524,42 @@
 
                         <h4>🎁 報酬システム</h4>
                         <ul>
-                            <li><strong>難易度別報酬:</strong> クリアした難易度で報酬が変わります</li>
-                            <li><strong>階別報酬:</strong> 各階をクリアするたびにコインと経験値を獲得</li>
-                            <li><strong>クリアランク:</strong> クリア時間に応じてS/A/B/C評価</li>
-                            <li><strong>ランクボーナス:</strong> S評価で報酬が1.5倍になります</li>
+                            <li><strong>階層別報酬:</strong> 各階をクリアするたびにコインと経験値を獲得（階層が深いほど増加）</li>
+                            <li><strong>宝箱:</strong> 階をクリアするたびに一定確率で、オーブ・ステータス再分配チケット・武器オーブスロット追加チケットのいずれかが手に入ります</li>
+                            <li><strong>素材ドロップ:</strong> ボットマッチでおなじみのモンスターが出現した場合、倒すとそのモンスター本来の素材がドロップします</li>
+                            <li><strong>チェックポイント:</strong> 10階ごとに記録され、次回そこから再開できます</li>
                         </ul>
 
                         <h4>⚠️ 注意事項</h4>
                         <ul>
-                            <li><strong>敗北時:</strong> 敗北すると獲得報酬の30%を獲得できます</li>
+                            <li><strong>敗北時:</strong> このダンジョンで得た報酬はすべて失われ、さらに所持金の半分を失います</li>
                             <li><strong>放棄:</strong> ダンジョンを放棄した場合、獲得報酬は失われます</li>
                             <li><strong>同時進行:</strong> 複数のダンジョンを同時に進行することはできません</li>
                             <li><strong>レベル制限なし:</strong> どのレベルでも挑戦できます</li>
                         </ul>
 
-                        <h4>🏆 難易度別ボス</h4>
+                        <h4>🏆 出現するボスについて</h4>
                         <table class="boss-info-table">
                             <thead>
                                 <tr>
-                                    <th>難易度</th>
                                     <th>ボス名</th>
                                     <th>特徴</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>イージー</td>
-                                    <td>ゴブリンキング</td>
-                                    <td>3連続攻撃とHP回復</td>
-                                </tr>
-                                <tr>
-                                    <td>ノーマル</td>
                                     <td>ダークロード</td>
                                     <td>防御無視攻撃と状態異常</td>
                                 </tr>
                                 <tr>
-                                    <td>ハード</td>
                                     <td>インフェルノドラゴン</td>
                                     <td>火傷付与と強力な全体攻撃</td>
                                 </tr>
                                 <tr>
-                                    <td>ベリーハード</td>
                                     <td>古の神</td>
                                     <td>複数デバフとHP回復</td>
                                 </tr>
                                 <tr>
-                                    <td>ナイトメア</td>
                                     <td>至高の存在</td>
                                     <td>究極のスキル組み合わせ</td>
                                 </tr>
