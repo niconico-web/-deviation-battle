@@ -623,11 +623,11 @@ function validateCustomSkill(skillDescription, playerStats) {
     } else if (desc.includes('呪い') || desc.includes('カース') || desc.includes('デバフ') || desc.includes('弱体化') || desc.includes('curse') || desc.includes('debuff') || desc.includes('weaken')) {
         estimatedStrength = "tier6";
     } else if (desc.includes('敵の攻撃低下') || desc.includes('enemy attack down') || desc.includes('相手の攻撃ダウン') || desc.includes('攻撃弱体') || desc.includes('敵の防御低下') || desc.includes('enemy defense down') || desc.includes('相手の防御ダウン') || desc.includes('防御弱体') || desc.includes('敵の命中低下') || desc.includes('enemy accuracy down') || desc.includes('命中率ダウン')) {
-        estimatedStrength = "tier5";
+        estimatedStrength = "tier3";
     } else if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
         estimatedStrength = "tier2";
     } else if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
-        estimatedStrength = "tier5";
+        estimatedStrength = "tier3";
     } else if (desc.includes('バフ') || desc.includes('強化') || desc.includes('buff') || desc.includes('enhance') || desc.includes('boost')) {
         estimatedStrength = "tier4";
     } else if (desc.includes('スロー') || desc.includes('遅延') || desc.includes('slow') || desc.includes('delay') || desc.includes('hindrance')) {
