@@ -284,7 +284,7 @@ const FLOOR_6_MONSTERS = {
 // ===================================
 const FLOOR_7_MONSTERS = {
     easy: [
-        { id: 'basilisk_1', name: '��ジリスク', level: 7, hp: 75, atk: 21, def: 9, speed: 16 },
+        { id: 'basilisk_1', name: 'バジリスク', level: 7, hp: 75, atk: 21, def: 9, speed: 16 },
         { id: 'chimera_1', name: 'キメラ', level: 7, hp: 72, atk: 23, def: 8, speed: 14 }
     ],
     normal: [
@@ -630,7 +630,7 @@ function getBossByDifficulty(difficulty) {
  */
 function getFloorRewardCoinsByFloor(floor) {
     const f = Math.max(1, floor);
-    return Math.round(40 * f * Math.pow(1.05, f));
+    return Math.round(5 * f * Math.pow(1.05, f));
 }
 
 /**
