@@ -4,14 +4,18 @@
 // ============================================
 
 const DungeonEngine = require("../managers/DungeonEngine");
-const BattleEngine = require("../managers/BattleEngine");
-const MonstersData = require("../data/monsters-data");
 
 const dungeonManager = new DungeonEngine.DungeonManager();
 
 // ===================================
 // ダンジョンソケットハンドラー登録
 // ===================================
+// 依頼により全面リニューアル：難易度を廃止し、無限に続く1本のダンジョンに変更。
+// 実際のモンスター・ボスの抽選やバトル処理はクライアント側（dungeon.js・battle.js、
+// 既存のボット戦と同じ仕組み）で行うため、ここでは階層の進行状況・報酬・宝箱抽選のみを扱う。
+// なお、以前ここにあった dungeon:getQuestion / dungeon:answerQuestion / dungeon:executeCommand は
+// 実際には使われていない仮実装（"2+2=4"固定の問題、{atk:20,speed:50}固定のダミーステータスなど）で、
+// かつ廃止した Dungeon.getCurrentFloorMonsters() に依存していたため、今回まとめて削除した。
 function registerDungeonHandlers(io, socket) {
     console.log(`[Dungeon] Socket handlers registered for ${socket.id}`);
 
@@ -21,220 +25,23 @@ function registerDungeonHandlers(io, socket) {
     socket.on("dungeon:start", (data, callback) => {
         try {
             const playerId = (data && data.playerId) || socket.id;
-            const difficulty = data.difficulty;
+            const startFloor = (data && data.startFloor) || 1;
 
-            console.log(`[Dungeon] Player ${playerId} starting dungeon - difficulty: ${difficulty}`);
+            console.log(`[Dungeon] Player ${playerId} starting dungeon - startFloor: ${startFloor}`);
 
-            // パラメータ検証
-            if (!difficulty) {
-                return callback({ error: "難易度を指定してください" });
-            }
-
-            const validDifficulties = ["easy", "normal", "hard", "very_hard", "nightmare"];
-            if (!validDifficulties.includes(difficulty)) {
-                return callback({ error: "無効な難易度です" });
-            }
-
-            // 初回クリアかどうか（クライアント側のplayer.dungeonClears履歴から判定して送られてくる）。
-            // 未指定の場合は安全側（初回扱い＝特別報酬あり）にしておく。
-            const isFirstClear = data.isFirstClear !== undefined ? !!data.isFirstClear : true;
-
-            // ダンジョン開始
-            const result = dungeonManager.startDungeon(playerId, difficulty, isFirstClear);
+            const result = dungeonManager.startDungeon(playerId, startFloor);
             if (result.error) {
                 return callback(result);
             }
 
             callback({
                 success: true,
-                dungeon: result.dungeon,
-                currentMonsters: result.currentMonsters
+                dungeon: result.dungeon
             });
 
         } catch (error) {
             console.error("[Dungeon] Error starting dungeon:", error);
             callback({ error: "ダンジョン開始に失敗しました" });
-        }
-    });
-
-    // ===================================
-    // 問題取得
-    // ===================================
-    socket.on("dungeon:getQuestion", (data, callback) => {
-        try {
-            const playerId = (data && data.playerId) || socket.id;
-
-            // プレイヤーがダンジョン中かチェック
-            const dungeon = dungeonManager.getDungeon(playerId);
-            if (!dungeon) {
-                return callback({ error: "アクティブなダンジョンがありません" });
-            }
-
-            // BattleEngineから問題を取得
-            // 実装は既存のBattleEngineを参照
-            const question = {
-                question: "2 + 2 = ?",
-                options: ["3", "4", "5", "6"],
-                subjectDisplayName: "算数",
-                questionId: Math.random().toString(36).substr(2, 9)
-            };
-
-            callback({ success: true, ...question });
-
-        } catch (error) {
-            console.error("[Dungeon] Error getting question:", error);
-            callback({ error: "問題の取得に失敗しました" });
-        }
-    });
-
-    // ===================================
-    // 回答処理
-    // ===================================
-    socket.on("dungeon:answerQuestion", (data, callback) => {
-        try {
-            const playerId = (data && data.playerId) || socket.id;
-            const answer = data.answer;
-
-            // ダンジョンチェック
-            const dungeon = dungeonManager.getDungeon(playerId);
-            if (!dungeon) {
-                return callback({ error: "アクティブなダンジョンがありません" });
-            }
-
-            // 敵を取得
-            const enemies = dungeon.getCurrentFloorMonsters();
-            if (!enemies || enemies.length === 0) {
-                return callback({ error: "敵が見つかりません" });
-            }
-
-            const enemy = enemies[0];
-
-            // 回答判定（実装例）
-            const isCorrect = answer === "4"; // 簡略化した例
-            let damage = 0;
-
-            if (isCorrect) {
-                // ダメージ計算（BattleEngine.jsのcalculateDamageを使用）
-                const damageResult = BattleEngine.calculateDamage(
-                    { atk: 20, speed: 50 }, // プレイヤーの仮のステータス
-                    enemy,
-                    0, // 回答時間
-                    { isSureHit: true }
-                );
-                damage = damageResult.damage;
-                
-                // 敵のHP減少
-                enemy.hp = Math.max(0, enemy.hp - damage);
-            } else {
-                // 敵からの反撃ダメージ（BattleEngine.jsのcalculateDamageを使用）
-                const damageResult = BattleEngine.calculateDamage(
-                    enemy,
-                    { def: 10, speed: 50 }, // プレイヤーの仮のステータス
-                    0,
-                    { isSureHit: true }
-                );
-                damage = damageResult.damage;
-            }
-
-            callback({
-                success: true,
-                isCorrect: isCorrect,
-                damage: damage,
-                enemyHp: enemy.hp,
-                currentMonsters: [enemy]
-            });
-
-        } catch (error) {
-            console.error("[Dungeon] Error processing answer:", error);
-            callback({ error: "回答処理に失敗しました" });
-        }
-    });
-
-    // ===================================
-    // コマンド実行
-    // ===================================
-    socket.on("dungeon:executeCommand", (data, callback) => {
-        try {
-            const playerId = (data && data.playerId) || socket.id;
-            const command = data.command; // 'attack', 'special', 'guard', 'ultimate'
-
-            // ダンジョンチェック
-            const dungeon = dungeonManager.getDungeon(playerId);
-            if (!dungeon) {
-                return callback({ error: "アクティブなダンジョンがありません" });
-            }
-
-            const enemies = dungeon.getCurrentFloorMonsters();
-            if (!enemies || enemies.length === 0) {
-                return callback({ error: "敵が見つかりません" });
-            }
-
-            const enemy = enemies[0];
-
-            // コマンド処理（BattleEngine.jsのcalculateDamageを使用）
-            let baseAtk = 20; // プレイヤーの基本攻撃力
-            let damage = 0;
-            
-            switch (command) {
-                case "attack":
-                    // 通常攻撃
-                    const attackResult = BattleEngine.calculateDamage(
-                        { atk: baseAtk, speed: 50 },
-                        enemy,
-                        0,
-                        { isSureHit: true }
-                    );
-                    damage = attackResult.damage;
-                    break;
-                case "special":
-                    // 特殊攻撃（1.5倍）
-                    const specialResult = BattleEngine.calculateDamage(
-                        { atk: baseAtk * 1.5, speed: 50 },
-                        enemy,
-                        0,
-                        { isSureHit: true }
-                    );
-                    damage = specialResult.damage;
-                    break;
-                case "guard":
-                    // 防御は次のターンのダメージを軽減
-                    damage = 0;
-                    break;
-                case "ultimate":
-                    // 必殺技（2.5倍）
-                    const ultimateResult = BattleEngine.calculateDamage(
-                        { atk: baseAtk * 2.5, speed: 50 },
-                        enemy,
-                        0,
-                        { isSureHit: true }
-                    );
-                    damage = ultimateResult.damage;
-                    break;
-                default:
-                    damage = 10;
-            }
-
-            // ダメージ適用
-            enemy.hp = Math.max(0, enemy.hp - damage);
-
-            // 敵が倒されたかチェック
-            let winner = null;
-            if (enemy.hp <= 0) {
-                winner = "player";
-            }
-
-            callback({
-                success: true,
-                command: command,
-                damage: damage,
-                enemyHp: enemy.hp,
-                currentMonsters: [enemy],
-                winner: winner
-            });
-
-        } catch (error) {
-            console.error("[Dungeon] Error executing command:", error);
-            callback({ error: "コマンド実行に失敗しました" });
         }
     });
 
@@ -251,37 +58,17 @@ function registerDungeonHandlers(io, socket) {
                 return callback({ error: "アクティブなダンジョンがありません" });
             }
 
-            // 階をクリア
+            // 階をクリア（無限に続くため、常に「次の階へ」を返す）
             const result = dungeonManager.clearFloor(playerId, data.battleReward || {});
             if (result.error) {
                 return callback(result);
             }
 
-            // クリア完了チェック
-            if (result.cleared) {
-                // ダンジョンクリア
-                // result（completeDungeon()の戻り値）にはdifficultyが含まれていないため、
-                // 削除前のdungeonオブジェクトから明示的に補って結果画面で表示できるようにする。
-                const rankResult = DungeonEngine.calculateDungeonRank(dungeon);
-                return callback({
-                    success: true,
-                    cleared: true,
-                    dungeon: { ...result, difficulty: dungeon.difficulty },
-                    rank: rankResult.rank,
-                    isFirstClear: result.isFirstClear,
-                    totalCoins: result.totalCoins,
-                    totalExp: result.totalExp,
-                    rewards: result.rewards
-                });
-            }
-
-            // 次の階へ進む
             callback({
                 success: true,
                 floorReward: result.floorReward,
                 dungeon: result.dungeonState,
-                nextFloor: result.nextFloor,
-                nextMonsters: result.nextMonsters
+                nextFloor: result.nextFloor
             });
 
         } catch (error) {
@@ -294,8 +81,7 @@ function registerDungeonHandlers(io, socket) {
     // プレイヤー敗北
     // ===================================
     // 敗北時はそのダンジョンで得た報酬（コイン・経験値・アイテム）を全て失う。
-    // サーバー側では何も加算せず破棄するだけなので、レスポンスにcoins/expは含めない
-    // （以前の「30%だけ回復できる」仕様は依頼により廃止）。
+    // サーバー側では何も加算せず破棄するだけなので、レスポンスにcoins/expは含めない。
     // 加えて、プレイヤーの所持金の半分を失わせる処理はクライアント側（result.js）で行う。
     socket.on("dungeon:playerDefeated", (data, callback) => {
         try {
@@ -314,7 +100,7 @@ function registerDungeonHandlers(io, socket) {
                 success: true,
                 defeated: true,
                 floor: result.floor,
-                difficulty: result.difficulty,
+                checkpoint: result.checkpoint,
                 message: result.message
             });
 
@@ -342,7 +128,7 @@ function registerDungeonHandlers(io, socket) {
                 success: true,
                 retreated: true,
                 floor: result.floor,
-                difficulty: result.difficulty,
+                checkpoint: result.checkpoint,
                 totalCoins: result.totalCoins,
                 totalExp: result.totalExp,
                 rewards: result.rewards
@@ -404,16 +190,9 @@ function registerDungeonHandlers(io, socket) {
     // 依頼の経緯：ダンジョンは index.html（開始）→ battle.html（戦闘）→
     // result.html（結果）と複数のページ遷移をまたいで進行するが、ページ遷移のたびに
     // Socket.IOの接続は一度切断されて新しい接続（新しいsocket.id）が張り直される。
-    // 以前はここでsocket.id（＝その場限りの接続ID）をキーにダンジョンを即座に
-    // 放棄していたため、フロアをクリアした直後（battle.html→result.htmlへ遷移した
-    // タイミング）に毎回ダンジョンが消えてしまい、「アクティブなダンジョンが
-    // ありません」エラーになっていた。
-    // 対策として、ダンジョンのキー自体をsocket.idではなくプレイヤーの永続ID
-    // （data.playerId、クライアントのplayer.idをそのまま送っている）に変更した
-    // （上記の各ハンドラを参照）。これによりページ遷移でsocket.idが変わっても
-    // 同じダンジョンセッションを引き続き参照できるため、切断時に自動放棄する
-    // 処理はここでは行わない（ダンジョンは明示的なdungeon:abandon、または
-    // クリア/撤退/敗北によって終了するまでサーバー上に残る）。
+    // ダンジョンのキーはsocket.idではなくプレイヤーの永続ID（data.playerId）にしているため、
+    // 切断時に自動放棄する処理はここでは行わない（ダンジョンは明示的なdungeon:abandon、
+    // またはクリア/撤退/敗北によって終了するまでサーバー上に残る）。
     socket.on("disconnect", () => {
         // 意図的に何もしない（上記コメント参照）
     });
