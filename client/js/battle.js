@@ -2300,11 +2300,11 @@ function executeStrongAttack(skillEffect, usedSkill) {
     }
 
     // 猛毒の一撃／灼熱の一撃
-    if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+    if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
         enemyPoisonTurns = 3;
         addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
     }
-    if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+    if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
         enemyBurnTurns = 3;
         addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
     }
@@ -3322,7 +3322,7 @@ function resolvePlayerCommand(command) {
             addLog("ボットにダメージ: " + damage);
 
             // 猛毒の一撃（poison_on_hit）：25%の確率で相手に3ターンの毒を付与
-            if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+            if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
                 enemyPoisonTurns = 3;
                 addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
             }
