@@ -548,40 +548,40 @@ function validateCustomSkill(skillDescription, playerStats) {
     
     // キーワードベースの強度判定（緩和された判定 - より広範な解釈）
     if (estimatedMultiplier >= 3.0 || desc.includes('3倍') || desc.includes('3.0') || desc.includes('3x') || desc.includes('triple')) {
-        estimatedStrength = "tier15";
-    } else if (estimatedMultiplier >= 2.5 || desc.includes('2.5') || desc.includes('2.5x')) {
-        estimatedStrength = "tier14";
-    } else if (estimatedMultiplier >= 2.0 || desc.includes('2.0') || desc.includes('double') || desc.includes('2x') || desc.includes('二倍')) {
-        estimatedStrength = "tier13";
-    } else if (estimatedMultiplier >= 1.8 || desc.includes('1.8x') || desc.includes('1.9x')) {
-        estimatedStrength = "tier12";
-    } else if (estimatedMultiplier >= 1.6 || desc.includes('1.6x') || desc.includes('1.7x')) {
-        estimatedStrength = "tier11";
-    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.5x') || desc.includes('50%up') || desc.includes('半分')) {
-        estimatedStrength = "tier10";
-    } else if (estimatedMultiplier >= 1.4 || desc.includes('1.4x')) {
-        estimatedStrength = "tier9";
-    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.3x') || desc.includes('30%up')) {
         estimatedStrength = "tier8";
-    } else if (estimatedMultiplier >= 1.25 || desc.includes('1.25x')) {
+    } else if (estimatedMultiplier >= 2.5 || desc.includes('2.5') || desc.includes('2.5x')) {
         estimatedStrength = "tier7";
-    } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%') || desc.includes('少し') || desc.includes('1.2x') || desc.includes('20%up')) {
+    } else if (estimatedMultiplier >= 2.0 || desc.includes('2.0') || desc.includes('double') || desc.includes('2x') || desc.includes('二倍')) {
         estimatedStrength = "tier6";
-    } else if (estimatedMultiplier >= 1.15 || desc.includes('1.15x')) {
+    } else if (estimatedMultiplier >= 1.8 || desc.includes('1.8x') || desc.includes('1.9x')) {
         estimatedStrength = "tier5";
-    } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%') || desc.includes('わずか') || desc.includes('1.1x') || desc.includes('10%up')) {
+    } else if (estimatedMultiplier >= 1.6 || desc.includes('1.6x') || desc.includes('1.7x')) {
         estimatedStrength = "tier4";
-    } else if (estimatedMultiplier >= 1.05 || desc.includes('5%') || desc.includes('1.05x')) {
+    } else if (estimatedMultiplier >= 1.5 || desc.includes('1.5x') || desc.includes('50%up') || desc.includes('半分')) {
         estimatedStrength = "tier3";
-    } else if (estimatedMultiplier > 1.0) {
+    } else if (estimatedMultiplier >= 1.4 || desc.includes('1.4x')) {
         estimatedStrength = "tier2";
+    } else if (estimatedMultiplier >= 1.3 || desc.includes('1.3x') || desc.includes('30%up')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier >= 1.25 || desc.includes('1.25x')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier >= 1.2 || desc.includes('25%') || desc.includes('30%') || desc.includes('少し') || desc.includes('1.2x') || desc.includes('20%up')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier >= 1.15 || desc.includes('1.15x')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier >= 1.1 || desc.includes('10%') || desc.includes('15%') || desc.includes('わずか') || desc.includes('1.1x') || desc.includes('10%up')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier >= 1.05 || desc.includes('5%') || desc.includes('1.05x')) {
+        estimatedStrength = "tier1";
+    } else if (estimatedMultiplier > 1.0) {
+        estimatedStrength = "tier1";
     }
     
     // 特殊効果の補正（緩和された判定 - より広範な解釈）
     if (desc.includes('リスポーン') || desc.includes('復活') || desc.includes('respawn') || desc.includes('revive') || desc.includes('resurrect')) {
         estimatedStrength = "tier13";
     } else if (desc.includes('即死') || desc.includes('一撃') || desc.includes('instant') || desc.includes('onehit') || desc.includes('kill')) {
-        estimatedStrength = "tier14";
+        estimatedStrength = "tier20";
     } else if (desc.includes('インビジブル') || desc.includes('透明') || desc.includes('invisible') || desc.includes('stealth') || desc.includes('hide')) {
         estimatedStrength = "tier11";
     } else if (desc.includes('リフレクト') || desc.includes('反射') || desc.includes('reflect') || desc.includes('mirror')) {
@@ -625,7 +625,7 @@ function validateCustomSkill(skillDescription, playerStats) {
     } else if (desc.includes('敵の攻撃低下') || desc.includes('enemy attack down') || desc.includes('相手の攻撃ダウン') || desc.includes('攻撃弱体') || desc.includes('敵の防御低下') || desc.includes('enemy defense down') || desc.includes('相手の防御ダウン') || desc.includes('防御弱体') || desc.includes('敵の命中低下') || desc.includes('enemy accuracy down') || desc.includes('命中率ダウン')) {
         estimatedStrength = "tier5";
     } else if (desc.includes('毒') || desc.includes('poison') || desc.includes('burn') || desc.includes('burning') || desc.includes('bleed')) {
-        estimatedStrength = "tier5";
+        estimatedStrength = "tier2";
     } else if (desc.includes('リジェネ') || desc.includes('再生') || desc.includes('regen') || desc.includes('regeneration') || desc.includes('restore')) {
         estimatedStrength = "tier5";
     } else if (desc.includes('バフ') || desc.includes('強化') || desc.includes('buff') || desc.includes('enhance') || desc.includes('boost')) {
@@ -916,7 +916,7 @@ function parseEffectFromDescription(description) {
     }
 
     // さらなる倍率パターン
-    if (desc.includes("強") && (desc.includes("攻撃") || desc.includes("ダメージ"))) {
+    if (desc.includes("強")) {
         if (!finalEffect.damageMultiplier) {
             finalEffect.damageMultiplier = 1.3;
         }
@@ -1561,7 +1561,7 @@ function renderTree() {
             } else if (isUnlocked) {
                 alert('このスキルは既に習得済みです。');
             } else {
-                alert('このスキルはまだ習得できません。前提スキルを解放してください。');
+                alert('このスキルはまだ習得できません。前提スキルを解放してください。または、スキルポイントをためてください');
             }
         };
 

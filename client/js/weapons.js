@@ -628,15 +628,6 @@ function applyOrbToWeapon(weapon, orbs) {
     newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
     newWeapon.upgradeCount = 0; // 強化回数をリセット
 
-    // Tier4オーブが使用されている場合、倍率上限を10倍に設定
-    const hasTier4Orb = orbs.some(orb => orb.tier === "tier4");
-    if (hasTier4Orb) {
-        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4;
-        newWeapon.hasTier4Orb = true; // フラグを設定
-    } else {
-        newWeapon.maxMultiplier = ORIGINAL_WEAPON_MAX_MULTIPLIER;
-        newWeapon.hasTier4Orb = false;
-    }
 
     return newWeapon;
 }
