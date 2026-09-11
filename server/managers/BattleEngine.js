@@ -710,11 +710,11 @@ function applyOnHitStatusEffects(attacker, defender, result) {
     if (!attacker || !defender) return;
     if (defender.hp <= 0) return;
 
-    if (hasUniqueAbility(attacker, 'poison_on_hit') && Math.random() < 0.25) {
+    if (hasUniqueAbility(attacker, 'poison_on_hit') && Math.random() < 1.00) {
         defender.poisonTurns = 3;
         result.onHitPoisonInflicted = true;
     }
-    if (hasUniqueAbility(attacker, 'burn_on_hit') && Math.random() < 0.25) {
+    if (hasUniqueAbility(attacker, 'burn_on_hit') && Math.random() < 1.00) {
         defender.burnTurns = 3;
         result.onHitBurnInflicted = true;
     }
