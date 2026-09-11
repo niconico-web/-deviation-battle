@@ -69,11 +69,11 @@ const DUNGEON_REWARDS = {
 // 1〜10階すべてでこの関数を使う。プレイヤーの実際の所持コイン等への反映は、
 // ダンジョンをクリアするか撤退した時点でまとめて行う（負けた場合は反映されず全て失う）。
 const FLOOR_REWARD_BASE = {
-    easy: { coins: 5, exp: 30 },
-    normal: { coins: 10, exp: 60 },
-    hard: { coins: 15, exp: 120 },
-    very_hard: { coins: 20, exp: 240 },
-    nightmare: { coins: 50, exp: 480 }
+    easy: { coins: 60, exp: 30 },
+    normal: { coins: 120, exp: 60 },
+    hard: { coins: 250, exp: 120 },
+    very_hard: { coins: 500, exp: 240 },
+    nightmare: { coins: 1000, exp: 480 }
 };
 
 function getFloorRewardCoins(floor, difficulty) {
@@ -284,7 +284,7 @@ const FLOOR_6_MONSTERS = {
 // ===================================
 const FLOOR_7_MONSTERS = {
     easy: [
-        { id: 'basilisk_1', name: 'バジリスク', level: 7, hp: 75, atk: 21, def: 9, speed: 16 },
+        { id: 'basilisk_1', name: '��ジリスク', level: 7, hp: 75, atk: 21, def: 9, speed: 16 },
         { id: 'chimera_1', name: 'キメラ', level: 7, hp: 72, atk: 23, def: 8, speed: 14 }
     ],
     normal: [

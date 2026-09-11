@@ -360,6 +360,17 @@ function applyUniqueAbilityDefense(damage, defender) {
 /**
  * ライフドレイン: 与えたダメージの20%をHP回復
  */
+/**
+ * 不正解時の自傷ダメージ。依頼により、ダンジョンに限らずどの戦闘でも
+ * 「問題を間違えたら自分のHPの半分が減る」という統一ルールにする
+ * （相手の攻撃力を基準にした計算ではなく、常に自分の現在HPの半分を基準にする。
+ *  回避判定も行わない。鉄壁(damage_cut_half)や根性(guts)などの防御系固有能力は
+ *  この後に別途適用される）。
+ */
+function getWrongAnswerSelfDamage(defender) {
+    return Math.max(1, Math.floor((defender && defender.hp || 0) / 2));
+}
+
 function applyLifeDrain(attacker, damageDealt) {
     if (!hasUniqueAbility(attacker, "life_drain")) {
         return 0;
@@ -1078,6 +1089,29 @@ function processPlayerAnswer(battle, playerId, answer, usedSkill) {
         }
     } else {
         result.gaugeCount = player.gaugeCount || 0;
+
+        // 依頼により、不正解時は自分のHPの半分を失う（ダンジョンに限らず統一ルール）。
+        // このPvPモードは元々「不正解時は相手からの反撃なし」という設計だったが、
+        // 依頼を受けて自傷ペナルティを追加する。
+        let wrongAnswerDamage = getWrongAnswerSelfDamage(player);
+        wrongAnswerDamage = applyUniqueAbilityDefense(wrongAnswerDamage, player); // 鉄壁（damage_cut_half）は維持
+
+        if (player.hp - wrongAnswerDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
+            player.hp = 1;
+            result.gutsSurvive = true;
+            result.gutsSurvivePlayerName = player.name;
+        } else {
+            player.hp = Math.max(0, player.hp - wrongAnswerDamage);
+        }
+        result.damage = wrongAnswerDamage;
+        result.playerHp = player.hp;
+        result.wrongAnswer = true;
+
+        if (player.hp <= 0) {
+            battle.finished = true;
+            result.winner = enemyId;
+        }
+
         result.nextQuestion = generatePlayerQuestion(battle, playerId);
     }
 
@@ -1560,61 +1594,34 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
         }
     } else {
         // 不正解の場合 - 間違えた方がダメージを受ける
+        // 依頼により、ダンジョンに限らずどの戦闘でも「問題を間違えたら自分のHPの半分が減る」
+        // という統一ルールに変更（相手の攻撃力ベースの計算・回避判定は行わない）。
         const attacker = enemy;
         const defender = player;
-        // 「根性」の攻撃力アップ効果
-        let attackerAtk = attacker.atk;
-        if (attacker.hp === 1 && hasUniqueAbility(attacker, 'guts')) {
-            attackerAtk = Math.floor(attackerAtk * 3);
-            result.gutsAtkBoost = true;
-            result.gutsAtkBoostPlayerName = attacker.name;
-        }
 
-        // 敵が必中能力を持っているかチェック
-        const isEnemySureHit = hasUniqueAbility(attacker, "ignore_evasion");
-        
-        const damageResult = calculateDamage(attacker, defender, 0, {
-            isSureHit: isEnemySureHit,
-            attackerAtk: attackerAtk,
-            defenderDef: getStatWithDebuffs(defender, 'def')
-        });
-        let damage = damageResult.damage;
-        const dodgeChance = damageResult.dodgeChance;
-        
-        // ユニーク能力によるダメージボーナスを適用
-        damage = applyUniqueAbilityDamageBonus(damage, attacker);
-        
-        // 回避判定
-        const dodgeRoll = Math.random() * 100;
-        if (dodgeRoll < dodgeChance) {
-            result.damage = 0;
-            result.dodged = true;
-            result.dodgeChance = dodgeChance;
+        let finalDamage = getWrongAnswerSelfDamage(defender);
+        finalDamage = applyUniqueAbilityDefense(finalDamage, defender); // 鉄壁（damage_cut_half）は維持
+
+        if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
+            defender.hp = 1;
+            result.gutsSurvive = true;
+            result.gutsSurvivePlayerName = defender.name;
         } else {
-            // ユニーク能力によるダメージ軽減を適用（防御側）
-            let finalDamage = applyUniqueAbilityDefense(damage, defender);
-
-            if (defender.hp - finalDamage <= 0 && defender.hp > 1 && hasUniqueAbility(defender, 'guts')) {
-                defender.hp = 1;
-                result.gutsSurvive = true;
-                result.gutsSurvivePlayerName = defender.name;
-            } else {
-                defender.hp = Math.max(0, defender.hp - finalDamage);
-            }
-            result.damage = finalDamage;
-            result.playerHp = defender.hp;
-            result.firstCorrect = false;
-            result.wrongAnswer = true;
-            
-            // ライフドレイン: ダメージの20%をHP回復
-            const healAmount = applyLifeDrain(attacker, finalDamage);
-            if (healAmount > 0) {
-                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
-                result.enemyLifedrainHealed = healAmount;
-            }
-            applyOnHitStatusEffects(attacker, defender, result);
-            applyDamageReflect(attacker, defender, finalDamage, result);
+            defender.hp = Math.max(0, defender.hp - finalDamage);
         }
+        result.damage = finalDamage;
+        result.playerHp = defender.hp;
+        result.firstCorrect = false;
+        result.wrongAnswer = true;
+
+        // ライフドレイン: ダメージの20%をHP回復
+        const healAmount = applyLifeDrain(attacker, finalDamage);
+        if (healAmount > 0) {
+            attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmount);
+            result.enemyLifedrainHealed = healAmount;
+        }
+        applyOnHitStatusEffects(attacker, defender, result);
+        applyDamageReflect(attacker, defender, finalDamage, result);
         
         // 勝利判定
         if (defender.hp <= 0) {
@@ -2228,6 +2235,34 @@ function processRaidPlayerAnswer(battle, playerId, answer, usedSkill) {
         }
     } else {
         result.gaugeCount = player.gaugeCount || 0;
+
+        // 依頼により、不正解時は自分のHPの半分を失う（ダンジョンに限らず統一ルール）。
+        // このレイドモードは元々「不正解時はボスからの反撃なし」という設計だったが、
+        // 依頼を受けて自傷ペナルティを追加する。
+        let wrongAnswerDamage = getWrongAnswerSelfDamage(player);
+        wrongAnswerDamage = applyUniqueAbilityDefense(wrongAnswerDamage, player); // 鉄壁（damage_cut_half）は維持
+
+        if (player.hp - wrongAnswerDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
+            player.hp = 1;
+            result.gutsSurvive = true;
+            result.gutsSurvivePlayerName = player.name;
+        } else {
+            player.hp = Math.max(0, player.hp - wrongAnswerDamage);
+        }
+        result.damage = wrongAnswerDamage;
+        result.playerHp = player.hp;
+        result.wrongAnswer = true;
+
+        if (player.hp <= 0) {
+            result.playerDown = true;
+            const anyoneAlive = Object.values(battle.players).some(p => !p.isBoss && p.hp > 0);
+            if (!anyoneAlive) {
+                battle.finished = true;
+                result.winner = boss.id || 'boss';
+                result.raidDefeat = true;
+            }
+        }
+
         result.nextQuestion = generatePlayerQuestion(battle, playerId);
     }
 

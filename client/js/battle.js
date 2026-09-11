@@ -3364,10 +3364,11 @@ function resolvePlayerCommand(command) {
 function handleWrongAnswer(skillEffect) {
         addLog("不正解...");
         
-        // 不正解時、即座にダメージを受ける
-        let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-        const defReduction = Math.floor(myDef * 0.1);
-        let damage = Math.max(1, Math.floor(enemy.atk * 0.5) - defReduction);
+        // 依頼により、不正解時は自分のHPの半分を失う（ダンジョンに限らず統一ルール）。
+        // 以前は敵の攻撃力ベースで計算していたが、敵が弱いとダメージが1〜2程度に
+        // 丸め込まれてしまい「ペナルティが無い」ように見えてしまっていたため撤廃し、
+        // 常に自分の現在HPの半分を基準にする（回避判定も行わない）。
+        let damage = Math.max(1, Math.floor(me.hp / 2));
         
         // ボス戦の場合、ボスがスキルを使うことがある
         let bossUsedSkillOnMiss = null;
@@ -3387,15 +3388,8 @@ function handleWrongAnswer(skillEffect) {
         
         // スキルによるダメージ軽減
         damage = applyIncomingDamageReduction(damage);
-        
-        // 回避判定（プレイヤーの回避率）
-        // 「残像」（self_evasion_boost）を持っている場合、回避率+15%
-        const myDodgeChance = calculateDodgeChance(me.speed) + (hasUniqueAbility(me, 'self_evasion_boost') ? 15 : 0);
-        const dodgeRoll = Math.random() * 100;
-        if (dodgeRoll < myDodgeChance) {
-            showDamage("myDamage", 0);
-            addLog("回避！ダメージなし");
-        } else {
+
+        {
             if (me.hp - damage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
                 me.hp = 1;
                 addLog(`${me.name}は根性で持ちこたえた！`);
