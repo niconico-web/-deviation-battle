@@ -2930,7 +2930,7 @@ function tickBotBattleStatus() {
     }
     // プレイヤー自身の毒・火傷（ボスのスキルで付与されたもの）
     if (myBurnTurns > 0) {
-        const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.05));
+        const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.10));
         me.hp = Math.max(0, me.hp - burnDamage);
         myBurnTurns--;
         addLog(`火傷ダメージ！${me.name}に${burnDamage}のダメージ（残り${myBurnTurns}ターン）`);
@@ -2938,7 +2938,7 @@ function tickBotBattleStatus() {
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (myPoisonTurns > 0) {
-        const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.03));
+        const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.08));
         me.hp = Math.max(0, me.hp - poisonDamage);
         myPoisonTurns--;
         addLog(`毒ダメージ！${me.name}に${poisonDamage}のダメージ（残り${myPoisonTurns}ターン）`);
@@ -2946,14 +2946,14 @@ function tickBotBattleStatus() {
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (enemyBurnTurns > 0) {
-        const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.05));
+        const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.10));
         enemy.hp = Math.max(0, enemy.hp - burnDamage);
         enemyBurnTurns--;
         addLog(`火傷ダメージ！${enemy.name}に${burnDamage}のダメージ（残り${enemyBurnTurns}ターン）`);
         updateHP();
     }
     if (enemyPoisonTurns > 0) {
-        const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * 0.03));
+        const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * 0.08));
         enemy.hp = Math.max(0, enemy.hp - poisonDamage);
         enemyPoisonTurns--;
         addLog(`毒ダメージ！${enemy.name}に${poisonDamage}のダメージ（残り${enemyPoisonTurns}ターン）`);
