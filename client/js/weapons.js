@@ -477,12 +477,12 @@ const ORB_UNIQUE_ABILITIES = {
     },
     venomous_strike: {
         name: '猛毒の一撃',
-        description: '攻撃がヒットした時、25%の確率で相手に3ターンの毒（毎ターン最大HPの3%のダメージ）を付与する',
+        description: '攻撃がヒットした時、必ず相手に3ターンの毒（毎ターン最大HPの3%のダメージ）を付与する',
         effect: 'poison_on_hit'
     },
     blazing_strike: {
         name: '灼熱の一撃',
-        description: '攻撃がヒットした時、25%の確率で相手に3ターンの火傷（毎ターン最大HPの5%のダメージ）を付与する',
+        description: '攻撃がヒットした時、必ず相手に3ターンの火傷（毎ターン最大HPの5%のダメージ）を付与する',
         effect: 'burn_on_hit'
     },
     afterimage: {
