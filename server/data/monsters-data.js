@@ -638,7 +638,7 @@ function getFloorRewardCoinsByFloor(floor) {
  */
 function getFloorRewardExpByFloor(floor) {
     const f = Math.max(1, floor);
-    return Math.round(20 * f * Math.pow(1.05, f));
+    return Math.round(5 * f * Math.pow(1.05, f));
 }
 
 // 階層をクリアするたびに、一定確率で「宝箱」としてオーブ・ステータス再分配チケット・
