@@ -630,7 +630,7 @@ function getBossByDifficulty(difficulty) {
  */
 function getFloorRewardCoinsByFloor(floor) {
     const f = Math.max(1, floor);
-    return Math.round(5 * f * Math.pow(1.05, f));
+    return Math.round(1 * f * Math.pow(1.05, f));
 }
 
 /**
