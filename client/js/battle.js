@@ -46,13 +46,18 @@ let playerATB = 0;                    // 自分の行動ゲージの表示用の
 let playerCorrectCount = 0;           // 今の行動ゲージ内での連続正解数
 let playerRequiredCount = 7;          // 行動ゲージを満タンにするために必要な正解数（素早さで決まる）
 let enemyATB = 0;                     // ボスの行動ゲージ（0〜100）
-let atbInterval = null;               // ボスのゲージ進行用のタイマー
+let atbInterval = null;               // ボスのゲージ進行用のタイマー（毒・火傷等の継続効果もここで一緒に進行させる）
 let atbPlayerActionPending = false;   // 出題中〜コマンド確定まで。この間は次の問題を出題しない
 let atbBossTelegraphActive = false;   // ボスの攻撃予備動作（テレグラフ）中。この間だけボスのゲージは止まる
 let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中かどうか
 let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
 const ATB_TICK_MS = 100;              // ボス側ゲージ更新の間隔
 const ATB_MAX = 100;
+// 毒・火傷・防御低下等の継続効果は、かつては「1ターン＝出題1回」ごとに処理していたが、
+// ATB化で出題ペース（正解速度）と「ターン」が一致しなくなり、「ターン」という概念自体が
+// 無くなったため、実時間3秒に1回のペースで処理するように統一する（STATUS_TICK_MS）。
+const STATUS_TICK_MS = 3000;          // 継続効果を処理する間隔（実時間3秒）
+let statusTickElapsedMs = 0;          // atbInterval側で経過時間を積み上げるためのカウンタ
 const ATB_BASE_FILL_MS = 10000;       // ボス側：素早さが五分五分なら約10秒でゲージ満タンになる基準値
 const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分が1問答えられる制限時間
 const ATB_BOSS_TELEGRAPH_MS = 700;       // ボスの攻撃予備動作の時間（この間にガードできる）
@@ -2034,6 +2039,7 @@ function startATBBattleLoop() {
     atbGuardActivated = false;
     playerCorrectCount = 0;
     playerRequiredCount = getRequiredCorrectCount(me.speed);
+    statusTickElapsedMs = 0;
     if (atbInterval) clearInterval(atbInterval);
     updateATBBars();
     addLog(`バトル開始！正解を重ねて行動ゲージを溜めよう！（必要な正解数: ${playerRequiredCount}回 / すばやさ ${me.name}:${me.speed || 0} vs ${enemy.name}:${enemy.speed || 0}）`);
@@ -2055,13 +2061,27 @@ function startATBBattleLoop() {
 
             try {
                 if (!atbBossTelegraphActive) {
-                    enemyATB += getATBGainPerTick(enemy.speed, me.speed);
+                    // 敵の速度低下デバフ（enemySpeedDebuff）をゲージ進行速度に反映する
+                    const effectiveEnemySpeed = Math.max(1, Math.floor((enemy.speed || 0) * (1 - enemySpeedDebuff)));
+                    enemyATB += getATBGainPerTick(effectiveEnemySpeed, me.speed);
                     if (enemyATB >= ATB_MAX) {
                         enemyATB = ATB_MAX;
                         triggerBossTelegraph();
                     }
                 }
                 updateATBBars();
+
+                // 毒・火傷等の継続効果は、出題ペースに関係なく実時間3秒ごとに進行させる
+                statusTickElapsedMs += ATB_TICK_MS;
+                if (statusTickElapsedMs >= STATUS_TICK_MS) {
+                    statusTickElapsedMs -= STATUS_TICK_MS;
+                    tickBotBattleStatus();
+                    if (battleEnd) {
+                        clearInterval(atbInterval);
+                        atbInterval = null;
+                        return;
+                    }
+                }
             } catch (error) {
                 // 1tick分の処理が失敗しても、そのままバトル全体が止まってしまわないようにする
                 console.error('[ATB] ループ処理でエラーが発生しました。', error);
@@ -2112,7 +2132,8 @@ function askNextPlayerQuestion() {
 
         currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
 
-        tickBotBattleStatus();
+        // 毒・火傷等の継続効果は、ここ（出題ごと）ではなくstartATBBattleLoop内のatbIntervalで
+        // 実時間3秒ごとに処理する（「ターン」という概念がATB化で無くなったため）。
         if (battleEnd) return;
         if (enemy.hp <= 0) { finishBotBattle("win"); return; }
 
@@ -2174,20 +2195,41 @@ function handleATBAnswer(selectedOption) {
         let baseAtk = attackType === 'special' ? (me.special || me.atk) : (me.atk || 0);
         
         // 正解のたびに小さな追撃ダメージ（攻撃力の0.5倍）
-        const defReduction = Math.floor((enemy.def || 0) * 0.1);
+        // 敵の防御力低下デバフ（enemyDefDebuff）を反映する
+        const effectiveEnemyDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
+        const defReduction = Math.floor(effectiveEnemyDef * 0.1);
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
         
-        // アクティブスキルのダメージ倍率を適用
-        if (skillEffect && skillEffect.damageMultiplier) {
-            chipDamage = Math.floor(chipDamage * skillEffect.damageMultiplier);
-            addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
+        // アクティブスキルの効果を適用（ダメージ倍率だけでなく、毒・火傷・デバフ・回復等も
+        // 全てapplySkillEffect()経由でまとめて処理する。以前はダメージ倍率しか見ておらず、
+        // 毒・火傷付与やその他の効果を持つスキルがATB戦闘では何も起こらないバグになっていた）
+        if (usedSkill) {
+            chipDamage = applySkillEffect(chipDamage, me, enemy, usedSkill);
         }
         
-        enemy.hp = Math.max(0, enemy.hp - chipDamage);
+        // 根性（guts）：HPが1残る形で持ちこたえる（必殺技等、他の攻撃と同様の処理に統一）
+        if (enemy.hp - chipDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+            enemy.hp = 1;
+            addLog(`${enemy.name}は根性で持ちこたえた！`);
+        } else {
+            enemy.hp = Math.max(0, enemy.hp - chipDamage);
+        }
         showDamage("enemyDamage", chipDamage);
         addLog(`${me.name}の連続攻撃！ ${enemy.name}に ${chipDamage} のダメージ！`);
 
         updateHP();
+
+        // 猛毒の一撃／灼熱の一撃（武器固有能力：攻撃がヒットした時100%で付与。
+        // 以前はexecuteStrongAttack（必殺技）でしか判定しておらず、大半を占めるこの
+        // 連続攻撃（正解のたびの小ダメージ）では武器を持っていても何も起こらなかった）
+        if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0) {
+            enemyPoisonTurns = 3;
+            addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
+        }
+        if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0) {
+            enemyBurnTurns = 3;
+            addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
+        }
 
         if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 10);
@@ -2242,8 +2284,8 @@ function executeStrongAttack(skillEffect, usedSkill) {
         addLog(`${me.name}の攻撃力が大器晩成で1.3倍に！`);
     }
 
-    // 貫通（相手の防御を半減）
-    let enemyDef = enemy.def || 0;
+    // 貫通（相手の防御を半減）／敵の防御力低下デバフ（enemyDefDebuff）を反映する
+    let enemyDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
     if (hasUniqueAbility(me, 'ignore_def_half')) {
         enemyDef = Math.floor(enemyDef * 0.5);
     }
@@ -2251,10 +2293,10 @@ function executeStrongAttack(skillEffect, usedSkill) {
     const defReduction = Math.floor(enemyDef * 0.1);
     let strongDamage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
 
-    // アクティブスキルのダメージ倍率を適用
-    if (skillEffect && skillEffect.damageMultiplier) {
-        strongDamage = Math.floor(strongDamage * skillEffect.damageMultiplier);
-        addLog(`スキル効果でダメージ${skillEffect.damageMultiplier}倍！`);
+    // アクティブスキルの効果を適用（ダメージ倍率だけでなく、毒・火傷・デバフ・回復等も
+    // 全てapplySkillEffect()経由でまとめて処理する）
+    if (usedSkill) {
+        strongDamage = applySkillEffect(strongDamage, me, enemy, usedSkill);
     }
 
     // 必殺技発動：武器の必殺技名・ダメージ倍率をコマンド選択の必殺技と統一する
@@ -2299,12 +2341,12 @@ function executeStrongAttack(skillEffect, usedSkill) {
         updateHP();
     }
 
-    // 猛毒の一撃／灼熱の一撃
-    if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
+    // 猛毒の一撃／灼熱の一撃（武器説明のとおり、攻撃ヒット時100%で付与）
+    if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0) {
         enemyPoisonTurns = 3;
         addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
     }
-    if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
+    if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0) {
         enemyBurnTurns = 3;
         addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
     }
@@ -2401,8 +2443,23 @@ function activateATBGuard() {
 function resolveBossAttack() {
     if (battleEnd) return;
 
+    // 敵の命中率低下デバフ（enemyAccuracyDebuff）：確率でボスの攻撃を完全に外す
+    if (enemyAccuracyDebuff > 0 && Math.random() < enemyAccuracyDebuff) {
+        addLog(`${enemy.name}の攻撃は命中率低下で外れた！`);
+        const missGuardPopup = document.getElementById('atbGuardPopup');
+        if (missGuardPopup) missGuardPopup.style.display = 'none';
+        atbBossTelegraphActive = false;
+        enemyATB = 0;
+        updateATBBars();
+        return;
+    }
+
     let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-    const botAtk = enemy.atk;
+    // 敵の攻撃力低下デバフ（enemyAtkDebuff）を反映する
+    let botAtk = enemy.atk;
+    if (enemyAtkDebuff > 0) {
+        botAtk = Math.floor(botAtk * (1 - enemyAtkDebuff));
+    }
 
     // ボスのアクティブスキル使用（一定確率）
     let bossUsedSkill = null;
@@ -2427,7 +2484,13 @@ function resolveBossAttack() {
         addLog("鉄壁発動！ダメージ50%カット");
     }
 
-    me.hp = Math.max(0, me.hp - damage);
+    // 根性（guts）：HPが1残る形で持ちこたえる（他の攻撃と同様の処理に統一）
+    if (me.hp - damage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
+        me.hp = 1;
+        addLog(`${me.name}は根性で持ちこたえた！`);
+    } else {
+        me.hp = Math.max(0, me.hp - damage);
+    }
     showDamage("myDamage", damage);
     addLog(`${enemy.name}から ${damage} のダメージ！`);
     updateHP();
@@ -2913,7 +2976,9 @@ function displayQuestion(question, isFirstQuestion = false) {
     }
 }
 
-// ボット戦の継続効果（火傷・自身の防御低下・敵デバフ）を1ターン分進める
+// ボット戦の継続効果（火傷・毒・自身の防御低下・敵デバフ）を実時間3秒分進める
+// （atbInterval側のSTATUS_TICK_MSカウンタから呼ばれる。以前は出題ごと=「1ターン」で
+// 呼んでいたが、ATB化で「ターン」の概念が無くなったため3秒間隔に統一した）
 function tickBotBattleStatus() {
     // 自然治癒（オーブ固有能力）：毎ターン、最大HPの3%を自動回復する
     if (hasUniqueAbility(me, 'hp_regen') && me.hp > 0 && me.hp < me.maxHp) {
@@ -2929,34 +2994,55 @@ function tickBotBattleStatus() {
         updateHP();
     }
     // プレイヤー自身の毒・火傷（ボスのスキルで付与されたもの）
+    // ※根性（guts）持ちはHP1残しの対象になるよう、他の攻撃と同様にガードする
     if (myBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.10));
-        me.hp = Math.max(0, me.hp - burnDamage);
+        if (me.hp - burnDamage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
+            me.hp = 1;
+            addLog(`${me.name}は根性で持ちこたえた！`);
+        } else {
+            me.hp = Math.max(0, me.hp - burnDamage);
+        }
         myBurnTurns--;
-        addLog(`火傷ダメージ！${me.name}に${burnDamage}のダメージ（残り${myBurnTurns}ターン）`);
+        addLog(`火傷ダメージ！${me.name}に${burnDamage}のダメージ（残り${myBurnTurns}回）`);
         updateHP();
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (myPoisonTurns > 0) {
         const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.08));
-        me.hp = Math.max(0, me.hp - poisonDamage);
+        if (me.hp - poisonDamage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
+            me.hp = 1;
+            addLog(`${me.name}は根性で持ちこたえた！`);
+        } else {
+            me.hp = Math.max(0, me.hp - poisonDamage);
+        }
         myPoisonTurns--;
-        addLog(`毒ダメージ！${me.name}に${poisonDamage}のダメージ（残り${myPoisonTurns}ターン）`);
+        addLog(`毒ダメージ！${me.name}に${poisonDamage}のダメージ（残り${myPoisonTurns}回）`);
         updateHP();
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (enemyBurnTurns > 0) {
         const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.10));
-        enemy.hp = Math.max(0, enemy.hp - burnDamage);
+        if (enemy.hp - burnDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+            enemy.hp = 1;
+            addLog(`${enemy.name}は根性で持ちこたえた！`);
+        } else {
+            enemy.hp = Math.max(0, enemy.hp - burnDamage);
+        }
         enemyBurnTurns--;
-        addLog(`火傷ダメージ！${enemy.name}に${burnDamage}のダメージ（残り${enemyBurnTurns}ターン）`);
+        addLog(`火傷ダメージ！${enemy.name}に${burnDamage}のダメージ（残り${enemyBurnTurns}回）`);
         updateHP();
     }
     if (enemyPoisonTurns > 0) {
         const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * 0.08));
-        enemy.hp = Math.max(0, enemy.hp - poisonDamage);
+        if (enemy.hp - poisonDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
+            enemy.hp = 1;
+            addLog(`${enemy.name}は根性で持ちこたえた！`);
+        } else {
+            enemy.hp = Math.max(0, enemy.hp - poisonDamage);
+        }
         enemyPoisonTurns--;
-        addLog(`毒ダメージ！${enemy.name}に${poisonDamage}のダメージ（残り${enemyPoisonTurns}ターン）`);
+        addLog(`毒ダメージ！${enemy.name}に${poisonDamage}のダメージ（残り${enemyPoisonTurns}回）`);
         updateHP();
     }
     if (myDefDebuffTurns > 0) {
@@ -3321,13 +3407,13 @@ function resolvePlayerCommand(command) {
             showDamage("enemyDamage", damage);
             addLog("ボットにダメージ: " + damage);
 
-            // 猛毒の一撃（poison_on_hit）：25%の確率で相手に3ターンの毒を付与
-            if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0 && Math.random() < 1.00) {
+            // 猛毒の一撃（poison_on_hit）：相手に3ターンの毒を付与（100%）
+            if (hasUniqueAbility(me, 'poison_on_hit') && enemy.hp > 0) {
                 enemyPoisonTurns = 3;
                 addLog(`猛毒の一撃！${enemy.name}に毒を付与した！`);
             }
-            // 灼熱の一撃（burn_on_hit）：25%の確率で相手に3ターンの火傷を付与
-            if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0 && Math.random() < 0.25) {
+            // 灼熱の一撃（burn_on_hit）：相手に3ターンの火傷を付与（100%）
+            if (hasUniqueAbility(me, 'burn_on_hit') && enemy.hp > 0) {
                 enemyBurnTurns = 3;
                 addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
             }
