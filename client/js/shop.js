@@ -976,6 +976,32 @@ function showOrbSelectionDialog(weapon, ticketIndex) {
         updatedWeapon.orbs = updatedWeapon.orbs || [];
         updatedWeapon.orbs.push(selectedOrb.id);
 
+        // 以前はオーブIDを記録するだけで、ステータスボーナス・倍率・tier4固有能力が
+        // 一切反映されておらず「オーブが消費されるだけで何も起きない」不具合があった。
+        // 武器作成時（applyOrbToWeapon）と同じ計算式で、既存の効果に追加分を上乗せする。
+        updatedWeapon.statBonuses = mergeStatBonuses(
+            updatedWeapon.statBonuses,
+            { [selectedOrb.statType]: selectedOrb.bonus }
+        );
+
+        const tierMult = ORB_TIER_MULTIPLIER_FACTORS[selectedOrb.tier] || 1.0;
+        updatedWeapon.multiplier = (updatedWeapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER) * tierMult;
+        // 強化（訓練）の上限倍率が、追加後の倍率より低いままだと以後強化できなくなるため、
+        // 武器合成の時と同様に上限も引き上げておく
+        const currentMaxMult = typeof getWeaponMaxMultiplier === 'function'
+            ? getWeaponMaxMultiplier(player.weapons[weaponIndex])
+            : updatedWeapon.multiplier;
+        updatedWeapon.maxMultiplier = Math.max(currentMaxMult, updatedWeapon.multiplier);
+
+        // Tier4オーブなら固有能力を付与する（既に同じ能力を持っていれば重複させない）
+        if (selectedOrb.uniqueAbility) {
+            const existingAbilities = updatedWeapon.uniqueAbilities || [];
+            const alreadyHasAbility = existingAbilities.some(a => a.effect === selectedOrb.uniqueAbility.effect);
+            updatedWeapon.uniqueAbilities = alreadyHasAbility
+                ? existingAbilities
+                : [...existingAbilities, selectedOrb.uniqueAbility];
+        }
+
         // オーブスロット上限を増加（絶対上限5つを超えないようにする）
         updatedWeapon.maxOrbSlots = Math.min(
             MAX_WEAPON_ORB_SLOTS_ABSOLUTE,
@@ -993,9 +1019,15 @@ function showOrbSelectionDialog(weapon, ticketIndex) {
         player.orbs = remainingOrbs;
         player.dungeonItems = remainingItems;
 
+        // 装備中の武器だった場合は、装備データ側も同じ内容に同期する
+        if (player.equippedWeapon && player.equippedWeapon.id === weapon.id) {
+            player.equippedWeapon = updatedWeapon;
+        }
+
         localStorage.setItem("player", JSON.stringify(player));
 
-        alert(`${getOrbDisplayName(selectedOrb)} を ${weapon.name} に追加しました！オーブスロット上限が ${updatedWeapon.maxOrbSlots} になりました。`);
+        const abilityNote = selectedOrb.uniqueAbility ? `固有能力「${selectedOrb.uniqueAbility.name}」も引き継ぎました！` : '';
+        alert(`${getOrbDisplayName(selectedOrb)} を ${weapon.name} に追加しました！オーブスロット上限が ${updatedWeapon.maxOrbSlots} になりました。${abilityNote}`);
         document.body.removeChild(dialog);
         renderOriginalWeapons();
         updateStatus(player);
