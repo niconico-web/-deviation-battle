@@ -81,6 +81,29 @@
                         <input type="text" id="loadPlayerId" placeholder="6文字のIDを入力" maxlength="6">
                     </div>
                 </div>
+                <div id="debugMenu" class="setting-box">
+                    <h3>デバッグメニュー</h3>
+                    <p class="help-text">動作確認・データ修復用のツールです。ブラウザのコンソールが使えないスマホからも操作できます。</p>
+
+                    <div class="field-group">
+                        <h4>ダンジョン報酬を入手する</h4>
+                        <label class="field-label" for="debugRewardSelect">報酬の種類</label>
+                        <select id="debugRewardSelect"></select>
+                        <label class="field-label" for="debugRewardCount">個数</label>
+                        <input type="number" id="debugRewardCount" value="1" min="1" max="99" step="1">
+                        <button type="button" id="debugGiveRewardBtn" class="btn btn-secondary">入手する</button>
+                    </div>
+
+                    <div class="field-group">
+                        <h4>武器の固有能力を修復する</h4>
+                        <p class="help-text">武器オーブスロット拡張チケットの過去の不具合で、tier4固有能力が付与されずオーブだけ消費されてしまった武器に、能力を手動で付け直せます。</p>
+                        <label class="field-label" for="debugWeaponSelect">対象の武器</label>
+                        <select id="debugWeaponSelect"></select>
+                        <label class="field-label" for="debugAbilitySelect">付与する固有能力</label>
+                        <select id="debugAbilitySelect"></select>
+                        <button type="button" id="debugGiveAbilityBtn" class="btn btn-secondary">付与する</button>
+                    </div>
+                </div>
                 <button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">プレイヤー削除</button>
             </section>
 

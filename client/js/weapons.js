@@ -1352,6 +1352,77 @@ function listTier4Abilities() {
 }
 
 // ============================================
+// デバッグ用「既存の武器へのTier4固有能力付与」（データ修復用）
+// 武器オーブスロット拡張チケットには過去、オーブが消費されるだけでtier4固有能力が
+// 付与されない不具合があった。修正前にチケットを使ってしまった武器は、当時どの
+// 固有能力だったかという情報自体が失われており自動では復元できないため、
+// プレイヤー自身がブラウザのコンソールから手動で能力を付け直すためのコマンド。
+// listTier4Abilities() でキー一覧を確認し、
+// giveDebugWeaponUniqueAbility("武器名（部分一致可）", "キー") のように実行する。
+// ============================================
+
+/**
+ * 既存の武器（id完全一致、または名前の部分一致）に、指定したTier4固有能力を直接付与する。
+ * @param {string} weaponNameOrId - 武器のid、または名前（部分一致で検索）
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugWeaponUniqueAbility(weaponNameOrId, abilityKey, player) {
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) {
+        console.error(`[Debug] 不明な固有能力キーです: "${abilityKey}"。listTier4Abilities() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const weapons = p.weapons || [];
+    const targetWeapon = weapons.find(w => w.id === weaponNameOrId)
+        || weapons.find(w => w.name === weaponNameOrId)
+        || weapons.find(w => w.name && w.name.includes(weaponNameOrId));
+    if (!targetWeapon) {
+        console.error(`[Debug] 武器が見つかりません: "${weaponNameOrId}"`);
+        return null;
+    }
+
+    const existingAbilities = targetWeapon.uniqueAbilities || [];
+    const alreadyHas = existingAbilities.some(a => a && a.effect === entry.ability.effect);
+    const updatedWeapon = {
+        ...targetWeapon,
+        uniqueAbilities: alreadyHas
+            ? existingAbilities
+            : [...existingAbilities, { key: entry.key, ...entry.ability }]
+    };
+
+    const updatedWeapons = weapons.map(w => (w.id === targetWeapon.id ? updatedWeapon : w));
+    const updated = { ...p, weapons: updatedWeapons };
+    if (updated.equippedWeapon && updated.equippedWeapon.id === targetWeapon.id) {
+        updated.equippedWeapon = updatedWeapon;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] 「${targetWeapon.name}」に固有能力「${entry.ability.name}」を付与しました。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
 // デバッグ用「ダンジョン報酬」付与
 // 開発中の動作確認用。ブラウザのコンソールから
 // listDebugDungeonRewards() で使えるキー一覧を確認し、

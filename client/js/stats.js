@@ -388,9 +388,15 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     // 行っている（player.dailyMissionsの進捗更新）。しかしこの関数はその前に読み込んだ
     // 古いplayerオブジェクトを保持し続けているため、そのままdailyMissionsを使って
     // 最後に保存すると、たった今保存された進捗更新を上書きして消してしまう。
-    // そのため保存直前に最新のdailyMissionsだけを読み直す。
+    // そのため保存直前に最新のdailyMissions・dungeonItems・dungeonCheckpointだけを
+    // 読み直す（dungeonItems/dungeonCheckpointも同様に、buildPlayer()の呼び出しに
+    // 渡し忘れていたため、バトル終了のたびにチケット類とチェックポイントが
+    // 消えてしまう不具合があった）。
     const latestRaw = localStorage.getItem("player");
-    const latestDailyMissions = latestRaw ? JSON.parse(latestRaw).dailyMissions : player.dailyMissions;
+    const latestSnapshot = latestRaw ? JSON.parse(latestRaw) : null;
+    const latestDailyMissions = latestSnapshot ? latestSnapshot.dailyMissions : player.dailyMissions;
+    const latestDungeonItems = latestSnapshot ? latestSnapshot.dungeonItems : player.dungeonItems;
+    const latestDungeonCheckpoint = latestSnapshot ? latestSnapshot.dungeonCheckpoint : player.dungeonCheckpoint;
 
     const updated = buildPlayer(player.name, stats, newXp, {
         hp: player.hp,
@@ -408,6 +414,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         bossDefeats: player.bossDefeats || {},
         dungeonClears: player.dungeonClears || {},
         materials: player.materials || {},
+        dungeonItems: latestDungeonItems || [],
+        dungeonCheckpoint: latestDungeonCheckpoint || 0,
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: latestDailyMissions,
@@ -550,6 +558,9 @@ function buildPlayer(name, stats, xp, options = {}) {
         // ダンジョン報酬チケット（オーブスロット拡張・ステータス再分配・武器合成等）が
         // 静かに失われていた。dailyMissions/guildと同様にここで明示的に引き継ぐ。
         dungeonItems: options.dungeonItems || [],
+        // ダンジョンのチェックポイント（到達済みの最深部）も、上と同じ理由で
+        // ここに無いと勉強終了・バトル終了のたびに0にリセットされてしまっていた。
+        dungeonCheckpoint: options.dungeonCheckpoint || 0,
         pvpWins: options.pvpWins || 0,
         bossRunCount: options.bossRunCount || 0,
         // 以前はここに無く、対戦・勉強・キャラ編集のたびにこれらのフィールドが
