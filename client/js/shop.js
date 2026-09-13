@@ -383,14 +383,32 @@ function renderOriginalWeapons() {
         }
 
         // オーブスロット追加ボタン（currentOrbCount/maxOrbSlotsは上でオーブスロット数表示用に定義済みのものを再利用）
+        // 以前は「currentOrbCount < maxOrbSlots」の場合だけボタンを表示していたが、
+        // 武器作成時に選べるオーブは最大3つ＝maxOrbSlotsの初期値も3つのため、
+        // オーブを3つ選んで作った武器は常に currentOrbCount === maxOrbSlots となり、
+        // ボタンが一度も表示されない不具合があった（スロットを拡張したくても
+        // 拡張ボタンが出ない「鶏と卵」状態）。スロットが埋まっていてもチケットで
+        // 拡張できるよう、絶対上限（5つ）未満かどうかだけを条件にする。
         const hasOrbSlotTicket = (player.dungeonItems || []).some(item => item.id === 'extra_orb_slot');
         
-        if (weapon.isOriginal && currentOrbCount < maxOrbSlots && hasOrbSlotTicket) {
+        if (weapon.isOriginal && maxOrbSlots < MAX_WEAPON_ORB_SLOTS_ABSOLUTE && hasOrbSlotTicket) {
             const addOrbSlotBtn = document.createElement("button");
             addOrbSlotBtn.className = "btn btn-small btn-info";
-            addOrbSlotBtn.textContent = "オーブスロット追加";
+            addOrbSlotBtn.textContent = "オーブスロット拡張";
             addOrbSlotBtn.onclick = () => addOrbSlotToWeapon(weapon);
             actionContainer.appendChild(addOrbSlotBtn);
+        }
+
+        // 武器合成ボタン（ダンジョン報酬「武器合成チケット」使用。他のオリジナル武器が
+        // 1つ以上必要なので、合成できる相手がいる場合のみボタンを表示する）
+        const hasWeaponSynthesisTicket = (player.dungeonItems || []).some(item => item.id === 'weapon_synthesis_ticket');
+        const otherOriginalWeaponsCount = (player.weapons || []).filter(w => w.isOriginal && w.id !== weapon.id).length;
+        if (weapon.isOriginal && hasWeaponSynthesisTicket && otherOriginalWeaponsCount > 0) {
+            const synthesizeWeaponBtn = document.createElement("button");
+            synthesizeWeaponBtn.className = "btn btn-small btn-warning";
+            synthesizeWeaponBtn.textContent = "武器合成";
+            synthesizeWeaponBtn.onclick = () => openWeaponSynthesisDialog(weapon);
+            actionContainer.appendChild(synthesizeWeaponBtn);
         }
 
         // オリジナル武器の限界突破ボタン（ボス武器でない場合）
@@ -734,6 +752,9 @@ function bulkUpgradeOriginalWeaponUI(weapon) {
 
 // オリジナル武器作成時に組み込めるオーブの最大数（help.htmlの説明と一致させる）
 const MAX_WEAPON_ORBS = 3;
+// オーブスロット拡張チケットで拡張できる、武器1つあたりのオーブスロット数の絶対上限
+// （依頼により、初期3つ→チケット使用で最大5つまで拡張できるようにする）
+const MAX_WEAPON_ORB_SLOTS_ABSOLUTE = 5;
 
 function showCreateWeaponDialog() {
     const modal = document.getElementById('createWeaponModal');
@@ -854,6 +875,277 @@ function getSelectedBonusMaterials() {
     });
     // 最大3つに制限
     return selectedMaterials.slice(0, 3);
+}
+
+// 武器にオーブスロットを追加する関数
+// （以前はinitShop()内のローカル関数として定義されていたため、initShop()の外にある
+// renderOriginalWeapons()のボタンからは実際には呼び出せず「ReferenceError」になる
+// 不具合があった。他の武器操作系関数（upgradeOriginalWeaponUI等）と同様に
+// トップレベル関数として定義し直す）
+function addOrbSlotToWeapon(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    // オーブ追加チケットの所持チェック
+    const ticketIndex = (player.dungeonItems || []).findIndex(item => item.id === 'extra_orb_slot');
+    if (ticketIndex === -1) {
+        alert('オーブ追加チケットを持っていません。');
+        return;
+    }
+
+    // オーブスロット上限チェック（依頼により絶対上限は5つ。埋まっているかどうかではなく
+    // 上限に達しているかどうかで判定する）
+    const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
+
+    if (maxOrbSlots >= MAX_WEAPON_ORB_SLOTS_ABSOLUTE) {
+        alert(`オーブスロットはこれ以上拡張できません（上限${MAX_WEAPON_ORB_SLOTS_ABSOLUTE}つ）。`);
+        return;
+    }
+
+    // オーブ選択ダイアログを表示
+    showOrbSelectionDialog(weapon, ticketIndex);
+}
+
+// オーブ選択ダイアログを表示
+function showOrbSelectionDialog(weapon, ticketIndex) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    // ダイアログを作成
+    const dialog = document.createElement('div');
+    dialog.className = 'modal';
+    dialog.id = 'orbSelectionModal';
+    dialog.innerHTML = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>オーブを選択</h2>
+            <p>${weapon.name} に追加するオーブを選択してください。</p>
+            <div id="orbSelectionContainer"></div>
+            <button id="confirmOrbSelection" class="btn btn-primary">確定</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+
+    // オーブ選択肢を生成
+    const orbContainer = document.getElementById('orbSelectionContainer');
+    const orbs = player.orbs || [];
+
+    if (orbs.length === 0) {
+        orbContainer.innerHTML = '<p>追加できるオーブがありません。</p>';
+    } else {
+        orbs.forEach((orb, index) => {
+            const orbDiv = document.createElement('div');
+            orbDiv.className = 'orb-selection-item';
+            orbDiv.innerHTML = `
+                <input type="radio" name="orbSelection" value="${index}" id="orb-${index}">
+                <label for="orb-${index}">${getOrbDisplayName(orb)}</label>
+            `;
+            orbContainer.appendChild(orbDiv);
+        });
+    }
+
+    // イベントリスナー
+    dialog.querySelector('.close').onclick = () => {
+        document.body.removeChild(dialog);
+    };
+
+    document.getElementById('confirmOrbSelection').onclick = () => {
+        const selectedOrbRadio = document.querySelector('input[name="orbSelection"]:checked');
+        if (!selectedOrbRadio) {
+            alert('オーブを選択してください。');
+            return;
+        }
+
+        const orbIndex = parseInt(selectedOrbRadio.value);
+        const selectedOrb = orbs[orbIndex];
+
+        if (!selectedOrb) {
+            alert('オーブの取得に失敗しました。');
+            return;
+        }
+
+        // 武器にオーブを追加
+        const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
+        if (weaponIndex === -1) {
+            alert('武器が見つかりません。');
+            return;
+        }
+
+        // オーブを武器に追加
+        const updatedWeapon = { ...player.weapons[weaponIndex] };
+        updatedWeapon.orbs = updatedWeapon.orbs || [];
+        updatedWeapon.orbs.push(selectedOrb.id);
+
+        // オーブスロット上限を増加（絶対上限5つを超えないようにする）
+        updatedWeapon.maxOrbSlots = Math.min(
+            MAX_WEAPON_ORB_SLOTS_ABSOLUTE,
+            (updatedWeapon.maxOrbSlots || MAX_WEAPON_ORBS) + 1
+        );
+
+        // オーブをプレイヤーから削除
+        const remainingOrbs = player.orbs.filter((o, i) => i !== orbIndex);
+
+        // チケットを消費
+        const remainingItems = player.dungeonItems.filter((item, i) => i !== ticketIndex);
+
+        // 武器を更新
+        player.weapons[weaponIndex] = updatedWeapon;
+        player.orbs = remainingOrbs;
+        player.dungeonItems = remainingItems;
+
+        localStorage.setItem("player", JSON.stringify(player));
+
+        alert(`${getOrbDisplayName(selectedOrb)} を ${weapon.name} に追加しました！オーブスロット上限が ${updatedWeapon.maxOrbSlots} になりました。`);
+        document.body.removeChild(dialog);
+        renderOriginalWeapons();
+        updateStatus(player);
+    };
+
+    dialog.style.display = 'flex';
+}
+
+// 武器合成チケットを使った合成後の倍率上限（依頼により20倍固定）
+const WEAPON_SYNTHESIS_MAX_MULTIPLIER = 20;
+
+// 武器合成ダイアログを表示（weaponが「ベース」、選択した方が「素材」として消費される）
+function openWeaponSynthesisDialog(weapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const ticketIndex = (player.dungeonItems || []).findIndex(item => item.id === 'weapon_synthesis_ticket');
+    if (ticketIndex === -1) {
+        alert('武器合成チケットを持っていません。');
+        return;
+    }
+
+    const materialCandidates = (player.weapons || []).filter(w => w.isOriginal && w.id !== weapon.id);
+    if (materialCandidates.length === 0) {
+        alert('合成に使える他のオリジナル武器がありません。');
+        return;
+    }
+
+    const dialog = document.createElement('div');
+    dialog.className = 'modal';
+    dialog.id = 'weaponSynthesisModal';
+    dialog.innerHTML = `
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>武器合成</h2>
+            <p>${weapon.name}（倍率${weapon.multiplier.toFixed(3)}x）に合成する武器を選んでください。</p>
+            <p style="font-size:0.85em;color:#ccc;">選んだ武器は消滅し、倍率がベースの武器に加算されます（上限${WEAPON_SYNTHESIS_MAX_MULTIPLIER}倍）。tier4固有能力は両方の武器から引き継がれます。</p>
+            <div id="weaponSynthesisSelectContainer"></div>
+            <button id="confirmWeaponSynthesis" class="btn btn-primary">合成する</button>
+        </div>
+    `;
+    document.body.appendChild(dialog);
+
+    const selectContainer = document.getElementById('weaponSynthesisSelectContainer');
+    materialCandidates.forEach((candidate, index) => {
+        const abilityNames = (candidate.uniqueAbilities || []).map(a => a.name).join('、');
+        const div = document.createElement('div');
+        div.className = 'orb-selection-item';
+        div.innerHTML = `
+            <input type="radio" name="weaponSynthesisSelection" value="${index}" id="synth-weapon-${index}">
+            <label for="synth-weapon-${index}">${candidate.name}（倍率${candidate.multiplier.toFixed(3)}x）${abilityNames ? `★${abilityNames}★` : ''}</label>
+        `;
+        selectContainer.appendChild(div);
+    });
+
+    dialog.querySelector('.close').onclick = () => {
+        document.body.removeChild(dialog);
+    };
+
+    document.getElementById('confirmWeaponSynthesis').onclick = () => {
+        const selectedRadio = document.querySelector('input[name="weaponSynthesisSelection"]:checked');
+        if (!selectedRadio) {
+            alert('合成する武器を選択してください。');
+            return;
+        }
+        const materialWeapon = materialCandidates[parseInt(selectedRadio.value)];
+        if (!materialWeapon) {
+            alert('武器の取得に失敗しました。');
+            return;
+        }
+        document.body.removeChild(dialog);
+        synthesizeWeapons(weapon, materialWeapon);
+    };
+
+    dialog.style.display = 'flex';
+}
+
+// 武器合成の実処理：baseWeaponにmaterialWeaponを合成する
+// ・倍率はお互いの倍率を単純加算し、上限20倍でキャップする
+// ・tier4固有能力は両方の武器から引き継ぐ（同じ能力が重複する場合は1つにまとめる）
+// ・素材武器と武器合成チケットは消費される
+function synthesizeWeapons(baseWeapon, materialWeapon) {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const ticketIndex = (player.dungeonItems || []).findIndex(item => item.id === 'weapon_synthesis_ticket');
+    if (ticketIndex === -1) {
+        alert('武器合成チケットを持っていません。');
+        return;
+    }
+
+    const baseIndex = player.weapons.findIndex(w => w.id === baseWeapon.id);
+    const materialIndex = player.weapons.findIndex(w => w.id === materialWeapon.id);
+    if (baseIndex === -1 || materialIndex === -1 || baseIndex === materialIndex) {
+        alert('武器が見つかりません。');
+        return;
+    }
+
+    const currentBase = player.weapons[baseIndex];
+    const currentMaterial = player.weapons[materialIndex];
+
+    // 倍率を加算（上限20倍）
+    const combinedMultiplier = Math.min(
+        WEAPON_SYNTHESIS_MAX_MULTIPLIER,
+        (currentBase.multiplier || 0) + (currentMaterial.multiplier || 0)
+    );
+
+    // tier4固有能力を両方から引き継ぐ（effectが重複するものは1つにまとめる）
+    const mergedAbilities = [...(currentBase.uniqueAbilities || []), ...(currentMaterial.uniqueAbilities || [])];
+    const dedupedAbilities = [];
+    const seenEffects = new Set();
+    mergedAbilities.forEach(ability => {
+        if (ability && ability.effect && !seenEffects.has(ability.effect)) {
+            seenEffects.add(ability.effect);
+            dedupedAbilities.push(ability);
+        }
+    });
+
+    const updatedWeapon = { ...currentBase };
+    updatedWeapon.multiplier = combinedMultiplier;
+    // 合成後の倍率が既存の上限倍率（maxMultiplier）を超える場合、上限倍率も
+    // 合成後の値まで引き上げておく（そうしないとcanUpgradeOriginalWeapon()が
+    // 常にfalseを返し、進捗バーの計算もおかしくなってしまうため）
+    const currentMaxMult = typeof getWeaponMaxMultiplier === 'function' ? getWeaponMaxMultiplier(currentBase) : combinedMultiplier;
+    updatedWeapon.maxMultiplier = Math.max(currentMaxMult, combinedMultiplier);
+    updatedWeapon.uniqueAbilities = dedupedAbilities;
+
+    // 素材武器を削除（idで除外。装備中だった場合は解除する）
+    const remainingWeapons = player.weapons.filter(w => w.id !== currentMaterial.id);
+    const updatedRemainingWeapons = remainingWeapons.map(w => w.id === currentBase.id ? updatedWeapon : w);
+
+    let equippedWeapon = player.equippedWeapon;
+    if (equippedWeapon && equippedWeapon.id === currentMaterial.id) {
+        equippedWeapon = null;
+    } else if (equippedWeapon && equippedWeapon.id === currentBase.id) {
+        equippedWeapon = updatedWeapon;
+    }
+
+    const remainingItems = player.dungeonItems.filter((item, i) => i !== ticketIndex);
+
+    player.weapons = updatedRemainingWeapons;
+    player.equippedWeapon = equippedWeapon;
+    player.dungeonItems = remainingItems;
+
+    localStorage.setItem("player", JSON.stringify(player));
+
+    alert(`${currentBase.name} に ${currentMaterial.name} を合成しました！新しい倍率: ${combinedMultiplier.toFixed(3)}x`);
+    renderOriginalWeapons();
+    renderInventory();
+    updateStatus(player);
 }
 
 function initShop() {
@@ -992,126 +1284,6 @@ function initShop() {
         closeOrbSynthesisBtn.onclick = () => {
             orbSynthesisModal.style.display = 'none';
         };
-    }
-
-    // 武器にオーブスロットを追加する関数
-    function addOrbSlotToWeapon(weapon) {
-        const player = getPlayerData();
-        if (!player) return;
-
-        // オーブ追加チケットの所持チェック
-        const ticketIndex = (player.dungeonItems || []).findIndex(item => item.id === 'extra_orb_slot');
-        if (ticketIndex === -1) {
-            alert('オーブ追加チケットを持っていません。');
-            return;
-        }
-
-        // 現在のオーブスロット数チェック
-        const currentOrbCount = (weapon.orbs || []).length;
-        const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
-        
-        if (currentOrbCount >= maxOrbSlots) {
-            alert('これ以上オーブスロットを追加できません。');
-            return;
-        }
-
-        // オーブ選択ダイアログを表示
-        showOrbSelectionDialog(weapon, ticketIndex);
-    }
-
-    // オーブ選択ダイアログを表示
-    function showOrbSelectionDialog(weapon, ticketIndex) {
-        const player = getPlayerData();
-        if (!player) return;
-
-        // ダイアログを作成
-        const dialog = document.createElement('div');
-        dialog.className = 'modal';
-        dialog.id = 'orbSelectionModal';
-        dialog.innerHTML = `
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>オーブを選択</h2>
-                <p>${weapon.name} に追加するオーブを選択してください。</p>
-                <div id="orbSelectionContainer"></div>
-                <button id="confirmOrbSelection" class="btn btn-primary">確定</button>
-            </div>
-        `;
-        document.body.appendChild(dialog);
-
-        // オーブ選択肢を生成
-        const orbContainer = document.getElementById('orbSelectionContainer');
-        const orbs = player.orbs || [];
-        
-        if (orbs.length === 0) {
-            orbContainer.innerHTML = '<p>追加できるオーブがありません。</p>';
-        } else {
-            orbs.forEach((orb, index) => {
-                const orbDiv = document.createElement('div');
-                orbDiv.className = 'orb-selection-item';
-                orbDiv.innerHTML = `
-                    <input type="radio" name="orbSelection" value="${index}" id="orb-${index}">
-                    <label for="orb-${index}">${getOrbDisplayName(orb)}</label>
-                `;
-                orbContainer.appendChild(orbDiv);
-            });
-        }
-
-        // イベントリスナー
-        dialog.querySelector('.close').onclick = () => {
-            document.body.removeChild(dialog);
-        };
-
-        document.getElementById('confirmOrbSelection').onclick = () => {
-            const selectedOrbRadio = document.querySelector('input[name="orbSelection"]:checked');
-            if (!selectedOrbRadio) {
-                alert('オーブを選択してください。');
-                return;
-            }
-
-            const orbIndex = parseInt(selectedOrbRadio.value);
-            const selectedOrb = orbs[orbIndex];
-            
-            if (!selectedOrb) {
-                alert('オーブの取得に失敗しました。');
-                return;
-            }
-
-            // 武器にオーブを追加
-            const weaponIndex = player.weapons.findIndex(w => w.id === weapon.id);
-            if (weaponIndex === -1) {
-                alert('武器が見つかりません。');
-                return;
-            }
-
-            // オーブを武器に追加
-            const updatedWeapon = { ...player.weapons[weaponIndex] };
-            updatedWeapon.orbs = updatedWeapon.orbs || [];
-            updatedWeapon.orbs.push(selectedOrb.id);
-            
-            // オーブスロット上限を増加
-            updatedWeapon.maxOrbSlots = (updatedWeapon.maxOrbSlots || MAX_WEAPON_ORBS) + 1;
-            
-            // オーブをプレイヤーから削除
-            const remainingOrbs = player.orbs.filter((o, i) => i !== orbIndex);
-            
-            // チケットを消費
-            const remainingItems = player.dungeonItems.filter((item, i) => i !== ticketIndex);
-
-            // 武器を更新
-            player.weapons[weaponIndex] = updatedWeapon;
-            player.orbs = remainingOrbs;
-            player.dungeonItems = remainingItems;
-
-            localStorage.setItem("player", JSON.stringify(player));
-            
-            alert(`${getOrbDisplayName(selectedOrb)} を ${weapon.name} に追加しました！オーブスロット上限が ${updatedWeapon.maxOrbSlots} になりました。`);
-            document.body.removeChild(dialog);
-            renderOriginalWeapons();
-            updateStatus(player);
-        };
-
-        dialog.style.display = 'flex';
     }
 
     // 低ティアのオーブを指定数消費して、1つ上のティアのオーブを合成する

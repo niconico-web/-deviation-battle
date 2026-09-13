@@ -53,11 +53,10 @@ let atbGuardWindowOpen = false;       // ガードが間に合う受付時間中
 let atbGuardActivated = false;        // 今回のテレグラフでガードを発動済みか
 const ATB_TICK_MS = 100;              // ボス側ゲージ更新の間隔
 const ATB_MAX = 100;
-// 毒・火傷・防御低下等の継続効果は、かつては「1ターン＝出題1回」ごとに処理していたが、
-// ATB化で出題ペース（正解速度）と「ターン」が一致しなくなり、「ターン」という概念自体が
-// 無くなったため、実時間3秒に1回のペースで処理するように統一する（STATUS_TICK_MS）。
-const STATUS_TICK_MS = 3000;          // 継続効果を処理する間隔（実時間3秒）
-let statusTickElapsedMs = 0;          // atbInterval側で経過時間を積み上げるためのカウンタ
+// 毒・火傷・防御低下等の継続効果の「1ターン」の定義。
+// 一時期（ATB化直後）は実時間3秒に1回のペースで処理していたが、依頼により
+// 「1ターン＝1回正解する」ことと定義し直した。実際の処理は、正解した瞬間
+// （handleATBAnswerのisCorrect分岐内）でtickBotBattleStatus()を1回呼ぶ形で行う。
 const ATB_BASE_FILL_MS = 10000;       // ボス側：素早さが五分五分なら約10秒でゲージ満タンになる基準値
 const ATB_PLAYER_QUIZ_TIMEOUT_MS = 4000; // 自分が1問答えられる制限時間
 const ATB_BOSS_TELEGRAPH_MS = 700;       // ボスの攻撃予備動作の時間（この間にガードできる）
@@ -2039,7 +2038,6 @@ function startATBBattleLoop() {
     atbGuardActivated = false;
     playerCorrectCount = 0;
     playerRequiredCount = getRequiredCorrectCount(me.speed);
-    statusTickElapsedMs = 0;
     if (atbInterval) clearInterval(atbInterval);
     updateATBBars();
     addLog(`バトル開始！正解を重ねて行動ゲージを溜めよう！（必要な正解数: ${playerRequiredCount}回 / すばやさ ${me.name}:${me.speed || 0} vs ${enemy.name}:${enemy.speed || 0}）`);
@@ -2070,18 +2068,11 @@ function startATBBattleLoop() {
                     }
                 }
                 updateATBBars();
-
-                // 毒・火傷等の継続効果は、出題ペースに関係なく実時間3秒ごとに進行させる
-                statusTickElapsedMs += ATB_TICK_MS;
-                if (statusTickElapsedMs >= STATUS_TICK_MS) {
-                    statusTickElapsedMs -= STATUS_TICK_MS;
-                    tickBotBattleStatus();
-                    if (battleEnd) {
-                        clearInterval(atbInterval);
-                        atbInterval = null;
-                        return;
-                    }
-                }
+                // 毒・火傷等の継続効果は、以前は実時間3秒ごとに進行させていたが、
+                // 依頼により「1ターン＝1回正解する」ことと定義し直したため、
+                // ここ（実時間ベースのループ）では進行させない。
+                // 実際の進行はhandleATBAnswer()の正解時にtickBotBattleStatus()を
+                // 1回呼ぶ形で行う。
             } catch (error) {
                 // 1tick分の処理が失敗しても、そのままバトル全体が止まってしまわないようにする
                 console.error('[ATB] ループ処理でエラーが発生しました。', error);
@@ -2230,6 +2221,12 @@ function handleATBAnswer(selectedOption) {
             enemyBurnTurns = 3;
             addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
         }
+
+        // 「1ターン＝1回正解する」の定義に基づき、毒・火傷・デバフ等の継続効果を
+        // 正解1回につき1回だけ進行させる（自分の毒・火傷でここで戦闘不能になる
+        // 可能性もあるため、直後にbattleEndを確認して処理を打ち切る）。
+        tickBotBattleStatus();
+        if (battleEnd) return;
 
         if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 10);
@@ -2976,9 +2973,9 @@ function displayQuestion(question, isFirstQuestion = false) {
     }
 }
 
-// ボット戦の継続効果（火傷・毒・自身の防御低下・敵デバフ）を実時間3秒分進める
-// （atbInterval側のSTATUS_TICK_MSカウンタから呼ばれる。以前は出題ごと=「1ターン」で
-// 呼んでいたが、ATB化で「ターン」の概念が無くなったため3秒間隔に統一した）
+// ボット戦の継続効果（火傷・毒・自身の防御低下・敵デバフ）を1ターン分進める。
+// 「1ターン」＝「1回正解する」と定義し、handleATBAnswer()の正解時に1回だけ呼ばれる
+// （以前は実時間3秒ごとに呼んでいたが、依頼によりこの定義に変更した）。
 function tickBotBattleStatus() {
     // 自然治癒（オーブ固有能力）：毎ターン、最大HPの3%を自動回復する
     if (hasUniqueAbility(me, 'hp_regen') && me.hp > 0 && me.hp < me.maxHp) {

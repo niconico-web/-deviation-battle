@@ -642,9 +642,9 @@ function getFloorRewardExpByFloor(floor) {
 }
 
 // 階層をクリアするたびに、一定確率で「宝箱」としてオーブ・ステータス再分配チケット・
-// 武器オーブスロット追加チケットのいずれかが手に入る（依頼：「敵を倒していくとオーブや
-// ステータスの再分配チケット、武器にオーブスロットを新しく追加するやつが出てくるような
-// 宝箱みたいに出てくる感じ」）。
+// 武器オーブスロット追加チケット・武器合成チケットのいずれかが手に入る（依頼：「敵を倒して
+// いくとオーブやステータスの再分配チケット、武器にオーブスロットを新しく追加するやつが
+// 出てくるような宝箱みたいに出てくる感じ」。後日、武器合成チケットを追加依頼）。
 const DUNGEON_CHEST_DROP_CHANCE = 0.35;
 const DUNGEON_CHEST_TABLE = [
     { type: 'orb', tier: 'tier1', weight: 30, description: 'オーブ（Tier1）' },
@@ -652,7 +652,8 @@ const DUNGEON_CHEST_TABLE = [
     { type: 'orb', tier: 'tier3', weight: 14, description: 'オーブ（Tier3）' },
     { type: 'orb', tier: 'tier4', weight: 6, description: 'オーブ（Tier4）' },
     { type: 'item', itemId: 'stat_reallocator', description: 'ステータス再分配チケット', rarity: 'legendary', weight: 4 },
-    { type: 'item', itemId: 'extra_orb_slot', description: '武器オーブスロット追加チケット', rarity: 'mythic', weight: 2 }
+    { type: 'item', itemId: 'extra_orb_slot', description: '武器オーブスロット追加チケット', rarity: 'mythic', weight: 2 },
+    { type: 'item', itemId: 'weapon_synthesis_ticket', description: '武器合成チケット', rarity: 'mythic', weight: 2 }
 ];
 
 /**
