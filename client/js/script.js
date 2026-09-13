@@ -382,6 +382,7 @@ function createCharacter() {
         dungeonClears: existing?.dungeonClears,
         materials: existing?.materials,
         dungeonItems: dungeonItemsForPlayer,
+        dungeonCheckpoint: existing?.dungeonCheckpoint || 0,
         pvpWins: existing?.pvpWins,
         bossRunCount: existing?.bossRunCount,
         dailyMissions: existing?.dailyMissions,
@@ -646,6 +647,44 @@ function updateStatus(player) {
             setTimeout(() => window.openTutorialTopic("reincarnation"), 300);
         }
     }
+
+    renderDebugMenu(player);
+}
+
+// デバッグメニュー（スマホ等、ブラウザのコンソールが使えない環境向けのUI）の
+// プルダウン内容を、最新のプレイヤーデータに合わせて更新する。
+// ボタン自体のクリックイベントは（要素が作り直されるわけではないので）
+// DOMContentLoaded側で1回だけバインドする。
+function renderDebugMenu(player) {
+    const rewardSelect = document.getElementById('debugRewardSelect');
+    const weaponSelect = document.getElementById('debugWeaponSelect');
+    const abilitySelect = document.getElementById('debugAbilitySelect');
+    if (!rewardSelect || !weaponSelect || !abilitySelect) return;
+
+    if (typeof DEBUG_DUNGEON_REWARD_TABLE === 'object') {
+        const previousRewardValue = rewardSelect.value;
+        rewardSelect.innerHTML = Object.entries(DEBUG_DUNGEON_REWARD_TABLE)
+            .map(([key, entry]) => `<option value="${key}">${entry.label}</option>`)
+            .join('');
+        if (previousRewardValue) rewardSelect.value = previousRewardValue;
+    }
+
+    const originalWeapons = ((player && player.weapons) || []).filter(w => w.isOriginal);
+    const previousWeaponValue = weaponSelect.value;
+    weaponSelect.innerHTML = originalWeapons.length > 0
+        ? originalWeapons.map(w => `<option value="${w.id}">${w.name}</option>`).join('')
+        : '<option value="">（オリジナル武器がありません）</option>';
+    if (previousWeaponValue && originalWeapons.some(w => w.id === previousWeaponValue)) {
+        weaponSelect.value = previousWeaponValue;
+    }
+
+    if (typeof ORB_UNIQUE_ABILITIES === 'object') {
+        const previousAbilityValue = abilitySelect.value;
+        abilitySelect.innerHTML = Object.entries(ORB_UNIQUE_ABILITIES)
+            .map(([key, ability]) => `<option value="${key}">${ability.name}（${ability.description}）</option>`)
+            .join('');
+        if (previousAbilityValue) abilitySelect.value = previousAbilityValue;
+    }
 }
 
 function updateXpDisplay(player) {
@@ -811,6 +850,8 @@ function applyStudyRewards(seconds) {
         bossDefeats: player.bossDefeats || {},
         dungeonClears: player.dungeonClears || {},
         materials: player.materials || {},
+        dungeonItems: player.dungeonItems || [],
+        dungeonCheckpoint: player.dungeonCheckpoint || 0,
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: player.dailyMissions,
@@ -1079,6 +1120,12 @@ if (typeof listDebugDungeonRewards === "function") {
 if (typeof giveDebugDungeonReward === "function") {
     window.giveDebugDungeonReward = giveDebugDungeonReward;
 }
+// デバッグ用（データ修復用）: 武器オーブスロット拡張チケットの過去の不具合で
+// tier4固有能力が付与されないまま残ってしまった既存の武器に、ブラウザのコンソールから
+// giveDebugWeaponUniqueAbility("武器名（部分一致可）", "キー") として手動で能力を付け直せる。
+if (typeof giveDebugWeaponUniqueAbility === "function") {
+    window.giveDebugWeaponUniqueAbility = giveDebugWeaponUniqueAbility;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に
@@ -1343,6 +1390,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.clear();
                 alert(I18N.deleted);
                 location.reload();
+            }
+        });
+    }
+
+    // ============================================================
+    // デバッグメニュー（スマホ等でブラウザのコンソールが使えない場合の代替UI）
+    // ボタンは静的なHTML要素なので、DOMContentLoaded時に1回だけバインドする
+    // ============================================================
+    const debugGiveRewardBtn = document.getElementById("debugGiveRewardBtn");
+    if (debugGiveRewardBtn) {
+        debugGiveRewardBtn.addEventListener("click", () => {
+            const rewardSelect = document.getElementById("debugRewardSelect");
+            const countInput = document.getElementById("debugRewardCount");
+            const rewardKey = rewardSelect ? rewardSelect.value : null;
+            const count = countInput ? (parseInt(countInput.value, 10) || 1) : 1;
+            if (!rewardKey || typeof giveDebugDungeonReward !== "function") return;
+
+            const updated = giveDebugDungeonReward(rewardKey, count);
+            if (updated) {
+                const label = (typeof DEBUG_DUNGEON_REWARD_TABLE === "object" && DEBUG_DUNGEON_REWARD_TABLE[rewardKey])
+                    ? DEBUG_DUNGEON_REWARD_TABLE[rewardKey].label
+                    : rewardKey;
+                alert(`${label} を ${count}個 付与しました。`);
+                renderDebugMenu(updated);
+            }
+        });
+    }
+
+    const debugGiveAbilityBtn = document.getElementById("debugGiveAbilityBtn");
+    if (debugGiveAbilityBtn) {
+        debugGiveAbilityBtn.addEventListener("click", () => {
+            const weaponSelect = document.getElementById("debugWeaponSelect");
+            const abilitySelect = document.getElementById("debugAbilitySelect");
+            const weaponId = weaponSelect ? weaponSelect.value : null;
+            const abilityKey = abilitySelect ? abilitySelect.value : null;
+            if (!weaponId) {
+                alert("対象の武器がありません。まずオリジナル武器を作成してください。");
+                return;
+            }
+            if (!abilityKey || typeof giveDebugWeaponUniqueAbility !== "function") return;
+
+            const updated = giveDebugWeaponUniqueAbility(weaponId, abilityKey);
+            if (updated) {
+                alert("固有能力を付与しました。");
+                renderDebugMenu(updated);
+                if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
             }
         });
     }
