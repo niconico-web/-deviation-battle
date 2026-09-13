@@ -546,6 +546,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         bossDefeats: options.bossDefeats || {},
         dungeonClears: options.dungeonClears || {},
         materials: options.materials || {},
+        // 以前はここに無く、キャラ作成・転生（createCharacter経由）のたびに
+        // ダンジョン報酬チケット（オーブスロット拡張・ステータス再分配・武器合成等）が
+        // 静かに失われていた。dailyMissions/guildと同様にここで明示的に引き継ぐ。
+        dungeonItems: options.dungeonItems || [],
         pvpWins: options.pvpWins || 0,
         bossRunCount: options.bossRunCount || 0,
         // 以前はここに無く、対戦・勉強・キャラ編集のたびにこれらのフィールドが

@@ -315,6 +315,7 @@ function createCharacter() {
     const stats = getStatsFromInputs();
     const existing = getPlayerData();
     const prestigeMode = isPrestigeMode && !!existing;
+    const statReallocationMode = isStatReallocationMode && !!existing;
 
     // 名前のバリデーション（新規作成時のみ）
     if (!existing && typeof validateName === "function") {
@@ -325,8 +326,8 @@ function createCharacter() {
         }
     }
 
-    if (!existing || prestigeMode) {
-        // 新規作成時、またはプレステージによる再配分時は
+    if (!existing || prestigeMode || statReallocationMode) {
+        // 新規作成時、プレステージ（転生）、ステータス再分配チケット使用時は
         // 持ち点250ポイントちょうどを配分することを要求する
         const validation = validateStatAllocation(stats);
         if (!validation.ok) { alert(validation.message); return; }
@@ -352,6 +353,19 @@ function createCharacter() {
         : (existing?.prestigeBonusPercent || 0);
     const skillTreeForPlayer = prestigeMode ? { unlockedNodes: [], availablePoints: 0 } : existing?.skillTree;
     const skillSlotsForPlayer = prestigeMode ? [null, null, null] : existing?.skillSlots;
+
+    // ステータス再分配チケット使用時は、使用したチケットだけをdungeonItemsから取り除く
+    // （転生と違い、レベル・スキルツリー・他のダンジョンアイテムには一切手を付けない）
+    let dungeonItemsForPlayer = existing?.dungeonItems || [];
+    if (statReallocationMode) {
+        const ticketIndex = dungeonItemsForPlayer.findIndex(item => item.id === 'stat_reallocator');
+        if (ticketIndex === -1) {
+            alert('ステータス再分配チケットを持っていません。');
+            return;
+        }
+        dungeonItemsForPlayer = dungeonItemsForPlayer.filter((item, i) => i !== ticketIndex);
+    }
+
     const player = buildPlayer(name, stats, xp, {
         totalStudySeconds,
         grade: stats.grade,
@@ -367,6 +381,7 @@ function createCharacter() {
         bossDefeats: existing?.bossDefeats,
         dungeonClears: existing?.dungeonClears,
         materials: existing?.materials,
+        dungeonItems: dungeonItemsForPlayer,
         pvpWins: existing?.pvpWins,
         bossRunCount: existing?.bossRunCount,
         dailyMissions: existing?.dailyMissions,
@@ -397,6 +412,7 @@ function createCharacter() {
     
     // Lock stat inputs after creation
     isPrestigeMode = false;
+    isStatReallocationMode = false;
     lockStatInputs(true);
     document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
     
@@ -416,6 +432,8 @@ function createCharacter() {
                 .replace("{bonus}", roundedEarned)
                 .replace("{total}", roundedTotal)
         );
+    } else if (statReallocationMode) {
+        alert("ステータスを再分配しました！");
     } else {
         alert(I18N.charCreated);
     }
@@ -427,6 +445,34 @@ function createCharacter() {
 // 1回あたりのボーナス量は固定ではなく、実行時点のステータス・レベル・戦力スコアで決まる
 // （calculatePrestigeBonusPercent()、詳細はstats.js参照）。
 let isPrestigeMode = false;
+
+// ステータス再分配チケット（ダンジョン報酬）：レベル・スキルツリー・武器等は一切変えずに、
+// 持ち点250をもう一度最初から配分し直せる。転生と違って永続ボーナスは得られない代わりに、
+// 実行回数の制限はチケットの所持数だけで決まる（1回使うと1枚消費）。
+let isStatReallocationMode = false;
+
+function startStatReallocation() {
+    const player = getPlayerData();
+    if (!player) return;
+
+    const hasTicket = (player.dungeonItems || []).some(item => item.id === 'stat_reallocator');
+    if (!hasTicket) {
+        alert("ステータス再分配チケットを持っていません。ダンジョンの宝箱で入手できます。");
+        return;
+    }
+
+    const confirmed = confirm("ステータス再分配チケットを1枚使って、持ち点250を最初から配分し直しますか？（レベルや武器、スキルはそのまま維持されます）");
+    if (!confirmed) return;
+
+    isPrestigeMode = false;
+    isStatReallocationMode = true;
+    setStatsToInputs(DEFAULT_STATS);
+    lockStatInputs(false);
+    document.getElementById("statAllocationDesc").textContent = "ステータス再分配：持ち点250をもう一度配分してください。";
+    const createBtn = document.getElementById("createCharBtn");
+    if (createBtn) createBtn.textContent = "再分配を確定する";
+    updateRemainingPoints();
+}
 
 function startPrestige() {
     const player = getPlayerData();
@@ -447,6 +493,7 @@ function startPrestige() {
     );
     if (!confirmed) return;
 
+    isStatReallocationMode = false;
     isPrestigeMode = true;
     setStatsToInputs(DEFAULT_STATS);
     lockStatInputs(false);
@@ -545,6 +592,17 @@ function updateStatus(player) {
     }
     prestigeHtml += "</div>";
 
+    // ステータス再分配チケット所持時だけ、再分配ボタンを表示する
+    const hasStatReallocationTicket = (player.dungeonItems || []).some(item => item.id === 'stat_reallocator');
+    let statReallocationHtml = "";
+    if (hasStatReallocationTicket) {
+        statReallocationHtml =
+            "<div class='prestige-box'><h3>ステータス再分配</h3>" +
+            "<p>ダンジョンで入手したチケットを使って、持ち点250を配分し直せます（レベル・武器・スキルは維持されます）。</p>" +
+            "<button type='button' id='statReallocationBtn' class='btn btn-secondary'>ステータスを再分配する</button>" +
+            "</div>";
+    }
+
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
         "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
@@ -559,11 +617,16 @@ function updateStatus(player) {
         "<p>特殊" + I18N.colon + (battleStats.special != null ? battleStats.special : battleStats.atk) + "</p>" +
         "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>" +
-        "<hr>" + prestigeHtml;
+        "<hr>" + prestigeHtml + statReallocationHtml;
 
     const prestigeBtn = document.getElementById("prestigeBtn");
     if (prestigeBtn) {
         prestigeBtn.addEventListener("click", startPrestige);
+    }
+
+    const statReallocationBtn = document.getElementById("statReallocationBtn");
+    if (statReallocationBtn) {
+        statReallocationBtn.addEventListener("click", startStatReallocation);
     }
 
     // 転生の「?」ボタンはステータス画面が再描画されるたびにHTMLが作り直されるため、
