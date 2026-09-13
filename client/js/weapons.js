@@ -500,6 +500,11 @@ const ORB_UNIQUE_ABILITIES = {
         description: '戦闘の最初の攻撃は必ずクリティカルになる',
         effect: 'first_strike_crit'
     },
+    natural_healing: {
+        name: '自然治癒',
+        description: '毎ターン、自分の最大HPの3%を自動で回復する',
+        effect: 'hp_regen'
+    },
     iron_will: {
         name: '不動の心',
         description: '相手から受けるステータスデバフ（能力低下）を50%の確率で無効化する',
