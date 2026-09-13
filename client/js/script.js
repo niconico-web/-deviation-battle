@@ -1069,6 +1069,16 @@ if (typeof giveDebugTier4AbilityWeapon === "function") {
 if (typeof listTier4Abilities === "function") {
     window.listTier4Abilities = listTier4Abilities;
 }
+// デバッグ用: ブラウザのコンソールで listDebugDungeonRewards() を実行すると使えるキー一覧を表示し、
+// giveDebugDungeonReward("キー", 個数) を実行すると、そのダンジョン宝箱報酬（オーブや
+// ステータス再分配チケット・オーブスロット拡張チケット・武器合成チケットなど）を
+// 現在のプレイヤーに付与する（テスト用）。
+if (typeof listDebugDungeonRewards === "function") {
+    window.listDebugDungeonRewards = listDebugDungeonRewards;
+}
+if (typeof giveDebugDungeonReward === "function") {
+    window.giveDebugDungeonReward = giveDebugDungeonReward;
+}
 window.syncPlayerToServer = syncPlayerToServer;
 
 // グローバルにアクセス可能に

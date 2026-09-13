@@ -585,6 +585,9 @@ function getOrbDisplayName(orb) {
     return name;
 }
 
+// オーブのティアごとの倍率係数（武器作成時・オーブスロット拡張チケット使用時の両方で使う）
+const ORB_TIER_MULTIPLIER_FACTORS = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 };
+
 function applyOrbToWeapon(weapon, orbs) {
     if (!weapon || !orbs || orbs.length === 0) return weapon;
 
@@ -620,7 +623,7 @@ function applyOrbToWeapon(weapon, orbs) {
     // オーブの合計倍率を計算
     let orbMultiplier = 1.0;
     for (const orb of orbs) {
-        const tierMult = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 }[orb.tier] || 1.0;
+        const tierMult = ORB_TIER_MULTIPLIER_FACTORS[orb.tier] || 1.0;
         orbMultiplier *= tierMult;
     }
 
@@ -1346,6 +1349,102 @@ function listTier4Abilities() {
         console.log(`${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
     });
     return keys;
+}
+
+// ============================================
+// デバッグ用「ダンジョン報酬」付与
+// 開発中の動作確認用。ブラウザのコンソールから
+// listDebugDungeonRewards() で使えるキー一覧を確認し、
+// giveDebugDungeonReward("キー", 個数) を実行すると、
+// そのダンジョン宝箱報酬（オーブ or 各種チケット）が
+// 現在のプレイヤーに追加される（script.js からグローバル公開）。
+// サーバー側のDUNGEON_CHEST_TABLE（server/data/monsters-data.js）に
+// 対応するキーを揃えている。
+// ============================================
+
+const DEBUG_DUNGEON_REWARD_TABLE = {
+    tier1_orb: { type: 'orb', tier: 'tier1', label: 'Tier1オーブ' },
+    tier2_orb: { type: 'orb', tier: 'tier2', label: 'Tier2オーブ' },
+    tier3_orb: { type: 'orb', tier: 'tier3', label: 'Tier3オーブ' },
+    tier4_orb: { type: 'orb', tier: 'tier4', label: 'Tier4オーブ' },
+    stat_reallocator: { type: 'item', itemId: 'stat_reallocator', label: 'ステータス再分配チケット', rarity: 'legendary' },
+    extra_orb_slot: { type: 'item', itemId: 'extra_orb_slot', label: '武器オーブスロット拡張チケット', rarity: 'mythic' },
+    weapon_synthesis_ticket: { type: 'item', itemId: 'weapon_synthesis_ticket', label: '武器合成チケット', rarity: 'mythic' }
+};
+
+/**
+ * ブラウザのコンソールで使えるダンジョン報酬のキー一覧を表示する。
+ * @returns {string[]} キーの配列
+ */
+function listDebugDungeonRewards() {
+    const keys = Object.keys(DEBUG_DUNGEON_REWARD_TABLE);
+    keys.forEach(key => {
+        const entry = DEBUG_DUNGEON_REWARD_TABLE[key];
+        console.log(`${key} : ${entry.label}`);
+    });
+    return keys;
+}
+
+/**
+ * 指定したダンジョン報酬（オーブ or チケット）を、現在のプレイヤーに指定個数付与する。
+ * ブラウザのコンソールから `giveDebugDungeonReward("weapon_synthesis_ticket")` や
+ * `giveDebugDungeonReward("extra_orb_slot", 3)` のように実行する想定。
+ * 使えるキーが分からない場合は `listDebugDungeonRewards()` を先に実行すると一覧が表示される。
+ * @param {string} rewardKey - DEBUG_DUNGEON_REWARD_TABLEのキー
+ * @param {number} [count=1] - 付与する個数（1以上の整数に丸められる）
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugDungeonReward(rewardKey, count = 1, player) {
+    const entry = DEBUG_DUNGEON_REWARD_TABLE[rewardKey];
+    if (!entry) {
+        console.error(`[Debug] 不明なキーです: "${rewardKey}"。listDebugDungeonRewards() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const n = Math.max(1, Math.floor(count) || 1);
+    const updated = { ...p };
+
+    if (entry.type === 'orb') {
+        updated.orbs = [...(updated.orbs || [])];
+        for (let i = 0; i < n; i++) {
+            const orb = createOrb(entry.tier);
+            if (orb) updated.orbs.push(orb);
+        }
+    } else if (entry.type === 'item') {
+        updated.dungeonItems = [...(updated.dungeonItems || [])];
+        for (let i = 0; i < n; i++) {
+            updated.dungeonItems.push({
+                id: entry.itemId,
+                name: entry.label,
+                rarity: entry.rarity || null,
+                obtainedAt: Date.now()
+            });
+        }
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] ${entry.label} を ${n}個 付与しました。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+        if (typeof renderOrbInventory === "function") renderOrbInventory();
+    }
+
+    return updated;
 }
 
 // ============================================
