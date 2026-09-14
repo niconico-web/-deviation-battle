@@ -867,6 +867,12 @@ const WEAPON_CATALOG = {
         tier2: { name: "精神増幅器", ultimate: "サイコバースト" },
         tier3: { name: "第三の眼", ultimate: "マインドクラッシュ" },
         unique: { name: "全能の意識体　アカシャ", ultimate: "アカシックレコード" }
+    },
+    summons_rod: {
+        tier1: { name: "ぼろい杖", ultimate: "スライム召喚" },
+        tier2: { name: "召喚術の杖", ultimate: "ゴーレム召喚" },
+        tier3: { name: "サモナーロッド", ultimate: "ドラゴン召喚" },
+        unique: { name: "マモノヲスベルモノ", ultimate: "魔王召喚" }
     }
 };
 
