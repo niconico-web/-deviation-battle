@@ -36,7 +36,20 @@ const PRESTIGE_BASE_BONUS_PERCENT = 5; // 基準ボーナス％（3つの基準�
 const PRESTIGE_REFERENCE_STAT_TOTAL = 250; // 基準ステータス合計（初期持ち点と同じ）
 const PRESTIGE_REFERENCE_LEVEL = PRESTIGE_UNLOCK_LEVEL; // 基準レベル（転生解放レベルと同じ）
 const PRESTIGE_REFERENCE_POWER_SCORE = 500; // 基準戦力スコア
-const PRESTIGE_MAX_BONUS_PER_RUN = 20; // 1回の転生で得られる永続ボーナス％の上限（暴騰防止のための上限。累積そのものには上限なし）
+const PRESTIGE_MAX_BONUS_PER_RUN = 20; // 1回の転生で得られる永続ボーナス％の上限（暴騰防止のための上限）
+// 累積ボーナス％自体の上限。以前は無制限に積み上げられ、やり込むほど基礎ステータスが
+// （後述の通り乗算ではなく加算に変わった後も）際限なく伸び続けてしまっていたため、
+// 「やり込むほど有利になるが、いずれ頭打ちになる」設計にするために導入。
+const PRESTIGE_BONUS_PERCENT_CAP = 300;
+
+// 次回の転生で実際に加算される永続ボーナス％（上限考慮後）を計算する。
+// 既に上限に達している場合は0を返す。
+function getPrestigeBonusGainForNextRun(player) {
+    const current = Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player && player.prestigeBonusPercent) || 0);
+    const remaining = Math.max(0, PRESTIGE_BONUS_PERCENT_CAP - current);
+    const raw = calculatePrestigeBonusPercent(player);
+    return Math.min(raw, remaining);
+}
 
 // server/socket/ranking.js の戦力スコアと同じ重み付け（勉強時間・対人戦勝利・ボス周回）。
 // サーバー未接続時でもクライアント側だけで転生ボーナスを計算できるようにするための複製。
@@ -271,14 +284,44 @@ function canPrestige(player) {
     return level >= PRESTIGE_UNLOCK_LEVEL;
 }
 
-// これまでの転生で積み上げた永続ボーナス％から、現在適用される永続ステータス倍率を計算する
+// 【旧実装・現在は未使用】これまでの転生で積み上げた永続ボーナス％から、
+// 現在適用される永続ステータス倍率を計算する。
+// 乗算方式だと、武器やスキルで基礎ステータス自体が伸びるほど転生ボーナスまで
+// 連動して膨れ上がり、「後半は勉強しなくても勝手に強くなり続ける」原因の一つに
+// なっていたため、getStatsFromPlayer()側は加算方式（getPrestigeBonusFlatAmount）に
+// 切り替えた。互換のため関数自体は残す。
 function getPrestigeBonusMultiplier(player) {
-    const bonusPercent = (player && player.prestigeBonusPercent) || 0;
+    const bonusPercent = Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player && player.prestigeBonusPercent) || 0);
     return 1 + bonusPercent / 100;
 }
 
+// 転生ボーナス％を「基礎値への一律加算量」に変換する。
+// 基準は初期振り分け（250点を5ステータスで割った50）を単位とし、
+// ボーナス100%ごとに各ステータス+50する緩やかな加算とする。
+// 乗算ではないため、武器・スキル・勉強でどれだけ基礎値を伸ばしても
+// 転生ボーナス自体の重みが相対的に薄れも膨れもしない。
+function getPrestigeBonusFlatAmount(player) {
+    const bonusPercent = Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player && player.prestigeBonusPercent) || 0);
+    if (bonusPercent <= 0) return 0;
+    return Math.floor((bonusPercent / 100) * (TOTAL_STAT_POINTS / STAT_KEYS.length));
+}
+
 function calcStudyXp(s) { return Math.floor(s / 4); }
-function calcStatGain(s) { return Math.max(1, Math.floor(s / 60)); }
+
+// 勉強で得られるステータス成長量。
+// 以前は時間だけで決まる固定値だったため、転生ボーナス（永続・乗算）や
+// 武器強化で基礎値がどんどん伸びていく後半になるほど、勉強で増える分の
+// 「相対的な価値」が薄れてしまっていた。
+// レベルと転生回数（＝今の強さ）に応じて成長量自体を緩やかに引き上げることで、
+// 育成が進んでも勉強し続ける意味が残るようにする。
+function calcStatGain(s, player) {
+    const base = Math.max(1, Math.floor(s / 60));
+    if (!player) return base;
+    const level = player.level || calcLevel(player.xp || 0);
+    const prestigeCount = player.prestigeCount || 0;
+    const growthMultiplier = 1 + Math.floor(level / 10) * 0.1 + prestigeCount * 0.15;
+    return Math.max(base, Math.floor(base * growthMultiplier));
+}
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
 
 function applyBattleRewards(won, turns, damage, options = {}) {
@@ -504,13 +547,13 @@ function getStatsFromPlayer(player, withPassives = false) {
         // 次にステータスを取得する際にまた同じ倍率がかかる……という具合に、
         // バトルや勉強、あるいはページ再読み込み後の再計算のたびに転生ボーナスが
         // 二重・三重に重ねがけされていく不具合の原因になっていた。
-        const prestigeMultiplier = getPrestigeBonusMultiplier(p);
-        if (prestigeMultiplier !== 1) {
-            baseStats.maxHp = Math.floor(baseStats.maxHp * prestigeMultiplier);
-            baseStats.atk = Math.floor(baseStats.atk * prestigeMultiplier);
-            baseStats.def = Math.floor(baseStats.def * prestigeMultiplier);
-            baseStats.speed = Math.floor(baseStats.speed * prestigeMultiplier);
-            baseStats.special = Math.floor(baseStats.special * prestigeMultiplier);
+        const prestigeFlatBonus = getPrestigeBonusFlatAmount(p);
+        if (prestigeFlatBonus > 0) {
+            baseStats.maxHp += prestigeFlatBonus;
+            baseStats.atk += prestigeFlatBonus;
+            baseStats.def += prestigeFlatBonus;
+            baseStats.speed += prestigeFlatBonus;
+            baseStats.special += prestigeFlatBonus;
         }
 
         result = baseStats;

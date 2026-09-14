@@ -967,6 +967,39 @@ function getWeaponBaseMultiplierForProgress(weapon) {
     return (weapon && weapon.baseMultiplier != null) ? weapon.baseMultiplier : ORIGINAL_WEAPON_BASE_MULTIPLIER;
 }
 
+// 武器の「限界突破・強化・オーブスロット拡張・合成前」の素の上限倍率を返す。
+// ボス武器は生成時にmaxMultiplier===baseMultiplierで始まる（限界突破するまで強化不可）ため、
+// baseMultiplierがそのまま素の上限になる。通常のオリジナル武器はORIGINAL_WEAPON_MAX_MULTIPLIERが
+// 素の上限。baseMultiplierが記録されていない古い武器データはORIGINAL_WEAPON_MAX_MULTIPLIERに
+// フォールバックする（ベストエフォート）。
+function getWeaponPristineMaxMultiplier(weapon) {
+    if (!weapon) return ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    if (weapon.sourceBossId) {
+        return weapon.baseMultiplier != null ? weapon.baseMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    }
+    return ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+// 転生時に、武器の倍率(multiplier)・上限倍率(maxMultiplier)・強化回数・召喚モンスター契約を
+// 素の状態に戻す。武器そのもの（tier4固有能力・オーブ）は消えない。
+// 対象は「倍率を強化で伸ばせる」武器（isOriginal）のみ。ショップの固定倍率武器は対象外。
+// summonedMonstersは全武器種共通で持ちうるフィールドなので、isOriginal判定に関わらずクリアする。
+function resetWeaponMultiplierForPrestige(weapon) {
+    if (!weapon) return weapon;
+    if (!weapon.isOriginal) {
+        return weapon.summonedMonsters ? { ...weapon, summonedMonsters: [] } : weapon;
+    }
+    return {
+        ...weapon,
+        multiplier: getWeaponBaseMultiplierForProgress(weapon),
+        maxMultiplier: getWeaponPristineMaxMultiplier(weapon),
+        upgradeCount: 0,
+        limitBreakLevel: 0,
+        originalLimitBreakLevel: 0,
+        summonedMonsters: []
+    };
+}
+
 function upgradeOriginalWeapon(weapon) {
     if (!weapon.isOriginal) return weapon;
     const max = getWeaponMaxMultiplier(weapon);
