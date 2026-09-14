@@ -178,14 +178,27 @@ function generateDungeonEncounter(floor, battleStats) {
     if (useBotMonster) {
         const monster = BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
         const mult = floorFactor * (monster.statMultiplier != null ? monster.statMultiplier : 1.0);
-        const maxHp = Math.max(1, Math.round(stats.maxHp * mult));
+        // ステータス合計に倍率をかけてから、HP・攻撃・防御・速さ・特殊にランダムに
+        // 再配分する（そのまま各ステータスに倍率を当てはめる方式だと個体差が出ないため）。
+        const randomized = (typeof generateRandomizedBotStats === 'function')
+            ? generateRandomizedBotStats(stats, mult)
+            : {
+                maxHp: Math.max(1, Math.round(stats.maxHp * mult)),
+                atk: Math.max(1, Math.round(stats.atk * mult)),
+                def: Math.max(1, Math.round(stats.def * mult)),
+                speed: Math.max(1, Math.round(stats.speed * mult)),
+                special: Math.max(1, Math.round((stats.special || stats.atk) * mult)),
+                attackType: 'attack'
+            };
         return {
             id: 'dungeon_bot_' + monster.id + '_' + Date.now(),
             name: monster.name,
-            maxHp, hp: maxHp,
-            atk: Math.max(1, Math.round(stats.atk * mult)),
-            def: Math.max(1, Math.round(stats.def * mult)),
-            speed: Math.max(1, Math.round(stats.speed * mult)),
+            maxHp: randomized.maxHp, hp: randomized.maxHp,
+            atk: randomized.atk,
+            def: randomized.def,
+            speed: randomized.speed,
+            special: randomized.special,
+            attackType: randomized.attackType,
             level: floor,
             isBot: true,
             isBoss: false,

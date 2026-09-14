@@ -68,7 +68,12 @@ function renderShop() {
         }
         
         typeSection.appendChild(tierGrid);
-        container.appendChild(typeSection);
+        // ステータス上昇の無い武器種（サモンズロッド等）は購入可能なtier1〜3が
+        // カタログに存在しないため、tierGridが空になる。見出しだけの空セクションを
+        // 表示しないよう、中身が無ければセクションごとスキップする。
+        if (tierGrid.children.length > 0) {
+            container.appendChild(typeSection);
+        }
     }
 
     container.querySelectorAll(".buy-btn").forEach(btn => {

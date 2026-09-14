@@ -641,6 +641,48 @@ const BOT_MONSTERS = [
     },
 ];
 
+// ボットの攻撃力に対する「特殊」ステータスの目安比率（プレイヤーのbuildPlayer()と同じ、
+// special省略時はatkの0.6倍というデフォルト計算に合わせる）。
+const BOT_SPECIAL_RATIO_FALLBACK = 0.6;
+
+// ランダムなステータス配分でも、1つのステータスに極端に偏りすぎない（0や1になって
+// 事実上機能しなくなる）よう、最低限確保する割合。
+const BOT_STAT_MIN_SHARE = 0.08;
+
+/**
+ * ボットのステータスを、「各ステータスにそのまま倍率を当てはめる」のではなく、
+ * 「ステータス合計に倍率を当てはめてから、その合計をステータス（HP・攻撃・防御・
+ * 速さ・特殊）にランダムに再配分する」方式で生成する。
+ * これにより、同じ強さ（statMultiplier）のモンスターでも、攻撃特化・防御特化・
+ * 速さ特化など個体差が生まれる。攻撃タイプ（attackType）も、特殊が攻撃より高い
+ * 場合は'special'（特殊攻撃寄りのボット）になるよう合わせて決める。
+ * @param {object} baseStats - プレイヤーの実ステータス（maxHp/atk/def/speed/special）
+ * @param {number} statMultiplier - モンスターごとの強さ倍率
+ * @returns {{maxHp:number, atk:number, def:number, speed:number, special:number, attackType:string}}
+ */
+function generateRandomizedBotStats(baseStats, statMultiplier) {
+    const mult = statMultiplier != null ? statMultiplier : 1.0;
+    const special = baseStats.special != null ? baseStats.special : Math.floor((baseStats.atk || 0) * BOT_SPECIAL_RATIO_FALLBACK);
+    const total = ((baseStats.maxHp || 0) + (baseStats.atk || 0) + (baseStats.def || 0) + (baseStats.speed || 0) + special) * mult;
+
+    const statNames = ["maxHp", "atk", "def", "speed", "special"];
+    const rawWeights = statNames.map(() => Math.random());
+    const rawSum = rawWeights.reduce((a, b) => a + b, 0);
+
+    const evenShare = 1 / statNames.length;
+    const remainder = 1 - BOT_STAT_MIN_SHARE * statNames.length;
+    const result = {};
+    statNames.forEach((stat, i) => {
+        const normalizedRaw = rawSum > 0 ? rawWeights[i] / rawSum : evenShare;
+        const share = BOT_STAT_MIN_SHARE + remainder * normalizedRaw;
+        result[stat] = Math.max(1, Math.round(total * share));
+    });
+
+    // 特殊が攻撃より高く配分された場合は、特殊攻撃寄りのボットにする
+    result.attackType = result.special > result.atk ? 'special' : 'attack';
+    return result;
+}
+
 function setupOnlineEventHandlers() {
     if (onlineHandlersSetup) {
         return;
@@ -765,29 +807,20 @@ function setupOnlineEventHandlers() {
             // プレイヤーの学年に合わせてボットの学年を設定
             const playerGrade = player.grade || 1;
 
-            // モンスターのステータスは、プレイヤーの実ステータス（武器補正込み）に
-            // モンスターごとの強さ倍率（statMultiplier）をかけて決定する。
+            // モンスターのステータスは、プレイヤーの実ステータス（武器補正込み）の合計に
+            // モンスターごとの強さ倍率（statMultiplier）をかけた総量を、HP・攻撃・防御・
+            // 速さ・特殊にランダムに再配分して決める（同じ強さでも個体差が出るように）。
             // 例: スライムはプレイヤーの0.5倍、ゴブリンは0.8倍、強力なモンスターは2倍前後。
             // これにより、プレイヤーが成長するほどモンスターも相対的に強くなり、
             // 常に歯ごたえのあるバトルになる。
             const statMultiplier = randomMonster.statMultiplier != null ? randomMonster.statMultiplier : 1.0;
-            const baseMaxHp = Math.max(1, Math.round(battleStats.maxHp * statMultiplier));
-            const baseAtk = Math.max(1, Math.round(battleStats.atk * statMultiplier));
-            const baseDef = Math.max(1, Math.round(battleStats.def * statMultiplier));
-            const baseSpeed = Math.max(1, Math.round(battleStats.speed * statMultiplier));
-
-            const botBaseStats = {
-                maxHp: baseMaxHp,
-                atk: baseAtk,
-                def: baseDef,
-                speed: baseSpeed
-            };
+            const botBaseStats = generateRandomizedBotStats(battleStats, statMultiplier);
 
             const botPlayer = {
                 id: "bot_" + Date.now(),
                 name: randomMonster.name,
                 ...botBaseStats,
-                hp: baseMaxHp,
+                hp: botBaseStats.maxHp,
                 grade: playerGrade,
                 isBot: true,
                 monsterType: randomMonster.monsterType,

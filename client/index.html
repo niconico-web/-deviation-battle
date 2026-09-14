@@ -61,7 +61,22 @@
                             <label>防御: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>速さ: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
                             <label>特殊: <input id="statSpecial" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>学年: <input id="statGrade" type="number" value="1" min="1" max="12" step="1"></label>
+                            <label>学年:
+                                <select id="statGrade">
+                                    <option value="1">小学1年</option>
+                                    <option value="2">小学2年</option>
+                                    <option value="3">小学3年</option>
+                                    <option value="4">小学4年</option>
+                                    <option value="5">小学5年</option>
+                                    <option value="6">小学6年</option>
+                                    <option value="7">中学1年</option>
+                                    <option value="8">中学2年</option>
+                                    <option value="9">中学3年</option>
+                                    <option value="10">高校1年</option>
+                                    <option value="11">高校2年</option>
+                                    <option value="12">高校3年</option>
+                                </select>
+                            </label>
                         </div>
                         <p id="remainingPoints" class="remaining-points">残り持ち点：0 / 250</p>
                     </div>
@@ -160,6 +175,7 @@
                             <option value="shoes">シューズ</option>
                             <option value="bow">弓</option>
                             <option value="esper">超能力</option>
+                            <option value="summons_rod">サモンズロッド</option>
                         </select>
                         <label class="field-label" for="ultimateName">必殺技名</label>
                         <input type="text" id="ultimateName" placeholder="必殺技名を入力" maxlength="20">
@@ -186,6 +202,7 @@
                                 <option value="shoes">シューズ</option>
                                 <option value="bow">弓</option>
                                 <option value="esper">超能力</option>
+                                <option value="summons_rod">サモンズロッド</option>
                             </select>
                         </div>
                         <button type="button" id="createWeaponBtn" class="btn btn-primary">作成する</button>
@@ -274,6 +291,15 @@
                             <button type="button" class="attack-type-btn active" data-attack-type="attack">⚔️ 攻撃</button>
                             <button type="button" class="attack-type-btn" data-attack-type="special">✨ 特殊</button>
                         </div>
+                    </div>
+                    <div id="summonMonsterBox" class="setting-box" style="display: none;">
+                        <h3>モンスター選択（サモンズロッド）</h3>
+                        <p class="help-text">素材を1つ消費して、その素材を落とすモンスターを配下にできます（最大3体）。配下のモンスターは、正解するたびに追加攻撃を行います。</p>
+                        <p id="summonMonsterSubNote" class="help-text" style="display: none;">サブ武器種（デュアルウェポン）として使っているため、追加攻撃の倍率は低めになります。</p>
+                        <div id="summonedMonsterList"></div>
+                        <label class="field-label" for="summonMaterialSelect">素材を選んで召喚</label>
+                        <select id="summonMaterialSelect"></select>
+                        <button type="button" id="summonMonsterBtn" class="btn btn-primary">召喚する</button>
                     </div>
                     <div id="skillSlotsContainer" class="skill-slots-container"></div>
                     <h3>使用可能なアクティブスキル</h3>
@@ -627,6 +653,7 @@
     <script src="js/social.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/online.js"></script>
+    <script src="js/summons.js"></script>
     <script src="js/help.js"></script>
     <script src="js/guild.js"></script>
     <script src="js/dungeon.js"></script>
