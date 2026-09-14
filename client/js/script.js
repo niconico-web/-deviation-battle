@@ -347,12 +347,26 @@ function createCharacter() {
     const prestigeCount = prestigeMode ? (existing?.prestigeCount || 0) + 1 : (existing?.prestigeCount || 0);
     // 転生実行時に「今回分」得られる永続ボーナス％は、リセット前（existing）の
     // ステータス・レベル・戦力スコアを基準に決まる。リセット後の値では計算しない。
-    const earnedBonusPercent = prestigeMode ? calculatePrestigeBonusPercent(existing) : 0;
+    // 累積には上限(PRESTIGE_BONUS_PERCENT_CAP)があるため、上限考慮後の実加算量を使う。
+    const earnedBonusPercent = prestigeMode ? getPrestigeBonusGainForNextRun(existing) : 0;
     const prestigeBonusPercent = prestigeMode
-        ? (existing?.prestigeBonusPercent || 0) + earnedBonusPercent
+        ? Math.min(PRESTIGE_BONUS_PERCENT_CAP, (existing?.prestigeBonusPercent || 0) + earnedBonusPercent)
         : (existing?.prestigeBonusPercent || 0);
     const skillTreeForPlayer = prestigeMode ? { unlockedNodes: [], availablePoints: 0 } : existing?.skillTree;
     const skillSlotsForPlayer = prestigeMode ? [null, null, null] : existing?.skillSlots;
+    // 転生時は武器の倍率・上限倍率・強化回数だけを素の状態に戻す（武器自体・オーブ・
+    // 召喚モンスター契約・tier4固有能力は消えない）。武器の育成もまた勉強・バトルを
+    // 続ける理由の一つとして機能するようにするための調整。
+    const weaponsForPlayer = prestigeMode
+        ? (existing?.weapons || []).map(w => (typeof resetWeaponMultiplierForPrestige === 'function' ? resetWeaponMultiplierForPrestige(w) : w))
+        : (existing?.weapons || []);
+    const equippedWeaponForPlayer = prestigeMode
+        ? (existing?.equippedWeapon && typeof resetWeaponMultiplierForPrestige === 'function'
+            ? resetWeaponMultiplierForPrestige(existing.equippedWeapon)
+            : (existing?.equippedWeapon || null))
+        : (existing?.equippedWeapon || null);
+    // 転生時は素材（限界突破素材・武器合成のボーナス素材・召喚モンスターの契約素材等）もリセットする
+    const materialsForPlayer = prestigeMode ? {} : (existing?.materials || {});
 
     // ステータス再分配チケット使用時は、使用したチケットだけをdungeonItemsから取り除く
     // （転生と違い、レベル・スキルツリー・他のダンジョンアイテムには一切手を付けない）
@@ -371,8 +385,8 @@ function createCharacter() {
         grade: stats.grade,
         id: existing?.id,
         coins: existing?.coins || 0,
-        weapons: existing?.weapons || [],
-        equippedWeapon: existing?.equippedWeapon || null,
+        weapons: weaponsForPlayer,
+        equippedWeapon: equippedWeaponForPlayer,
         weaponWins: existing?.weaponWins || {},
         orbs: existing?.orbs || [],
         skillTree: skillTreeForPlayer,
@@ -380,7 +394,7 @@ function createCharacter() {
         customSkills: existing?.customSkills,
         bossDefeats: existing?.bossDefeats,
         dungeonClears: existing?.dungeonClears,
-        materials: existing?.materials,
+        materials: materialsForPlayer,
         dungeonItems: dungeonItemsForPlayer,
         dungeonCheckpoint: existing?.dungeonCheckpoint || 0,
         pvpWins: existing?.pvpWins,
@@ -485,13 +499,18 @@ function startPrestige() {
     }
 
     // 今回の転生で得られる永続ボーナス％は、実行時点のステータス・レベル・戦力スコアから決まる
-    const earnedBonusPercent = Math.round(calculatePrestigeBonusPercent(player) * 10) / 10;
-    const totalBonusPercent = Math.round(((player.prestigeBonusPercent || 0) + earnedBonusPercent) * 10) / 10;
-    const confirmed = confirm(
-        I18N.prestigeConfirmMsg
-            .replace("{bonus}", earnedBonusPercent)
-            .replace("{total}", totalBonusPercent)
-    );
+    // （累積の上限PRESTIGE_BONUS_PERCENT_CAPを考慮した実加算量）
+    const earnedBonusPercent = Math.round(getPrestigeBonusGainForNextRun(player) * 10) / 10;
+    const totalBonusPercent = Math.round(Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player.prestigeBonusPercent || 0) + earnedBonusPercent) * 10) / 10;
+    let confirmMsg = I18N.prestigeConfirmMsg
+        .replace("{bonus}", earnedBonusPercent)
+        .replace("{total}", totalBonusPercent);
+    if (earnedBonusPercent <= 0) {
+        confirmMsg += "\n（永続ボーナスは既に上限+" + PRESTIGE_BONUS_PERCENT_CAP + "%に達しています。今回の転生では武器の倍率・上限倍率・召喚モンスター契約・素材のみリセットされます）";
+    } else {
+        confirmMsg += "\n（転生すると武器の倍率・上限倍率・召喚モンスター契約・素材もリセットされます。武器自体やオーブは消えません）";
+    }
+    const confirmed = confirm(confirmMsg);
     if (!confirmed) return;
 
     isStatReallocationMode = false;
@@ -585,7 +604,7 @@ function updateStatus(player) {
         "<p>" + I18N.prestigeCountLabel + I18N.colon + prestigeCount + I18N.prestigeTimesSuffix + "</p>" +
         "<p>" + I18N.prestigeBonusLabel + I18N.colon + "+" + prestigeBonusPercent + "%</p>";
     if (canPrestige(player)) {
-        const nextBonusPercent = Math.round(calculatePrestigeBonusPercent(player) * 10) / 10;
+        const nextBonusPercent = Math.round(getPrestigeBonusGainForNextRun(player) * 10) / 10;
         prestigeHtml += "<p class='prestige-next-bonus'>" + I18N.prestigeNextBonusLabel + I18N.colon + "+" + nextBonusPercent + "%</p>";
         prestigeHtml += "<button type='button' id='prestigeBtn' class='btn btn-secondary'>" + I18N.prestigeBtn + "</button>";
     } else {
@@ -749,7 +768,7 @@ function applyStudyRewards(seconds) {
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
-    let statGain = calcStatGain(seconds);
+    let statGain = calcStatGain(seconds, player);
     const oldLevel = player.level || calcLevel(player.xp || 0);
     
     // 圧倒的成長性をチェック

@@ -645,17 +645,23 @@ const BOT_MONSTERS = [
 // special省略時はatkの0.6倍というデフォルト計算に合わせる）。
 const BOT_SPECIAL_RATIO_FALLBACK = 0.6;
 
-// ランダムなステータス配分でも、1つのステータスに極端に偏りすぎない（0や1になって
-// 事実上機能しなくなる）よう、最低限確保する割合。
-const BOT_STAT_MIN_SHARE = 0.08;
+// ランダムな個体差用のブレ幅（各ステータスごとに0.7〜1.3倍）
+const BOT_STAT_VARIANCE_MIN = 0.7;
+const BOT_STAT_VARIANCE_MAX = 1.3;
 
 /**
- * ボットのステータスを、「各ステータスにそのまま倍率を当てはめる」のではなく、
- * 「ステータス合計に倍率を当てはめてから、その合計をステータス（HP・攻撃・防御・
- * 速さ・特殊）にランダムに再配分する」方式で生成する。
- * これにより、同じ強さ（statMultiplier）のモンスターでも、攻撃特化・防御特化・
- * 速さ特化など個体差が生まれる。攻撃タイプ（attackType）も、特殊が攻撃より高い
- * 場合は'special'（特殊攻撃寄りのボット）になるよう合わせて決める。
+ * ボットのステータスを、プレイヤーの各ステータス（HP・攻撃・防御・速さ・特殊）に
+ * それぞれ「モンスターごとの強さ倍率(statMultiplier) × 個体差ブレ(0.7〜1.3倍)」を
+ * 掛けて決める。
+ * 【重要】以前は「ステータス合計に倍率をかけてから、その合計をランダムな比率で
+ * 5ステータスに再配分する」方式だったが、武器の倍率（最大20倍）で攻撃だけが
+ * 極端に大きいプレイヤーの場合、合計の大部分が攻撃由来なのに再配分時に均等割りに
+ * 近くなってしまい、ボットの攻撃力が実際のプレイヤー攻撃力より大幅に小さくなる
+ * （＝ボットが瞬殺され、反撃も効かない「弱すぎる」状態になる）副作用があった。
+ * 各ステータスを個別にスケーリングすることで、プレイヤーが攻撃特化なら
+ * ボットも相応に攻撃が高くなり、常にプレイヤーの実際の強さに見合った歯ごたえを保つ。
+ * 個体差ブレはステータスごとに別々の乱数なので、同じ強さのモンスターでも
+ * 攻撃特化・防御特化・速さ特化などの個体差は引き続き生まれる。
  * @param {object} baseStats - プレイヤーの実ステータス（maxHp/atk/def/speed/special）
  * @param {number} statMultiplier - モンスターごとの強さ倍率
  * @returns {{maxHp:number, atk:number, def:number, speed:number, special:number, attackType:string}}
@@ -663,19 +669,19 @@ const BOT_STAT_MIN_SHARE = 0.08;
 function generateRandomizedBotStats(baseStats, statMultiplier) {
     const mult = statMultiplier != null ? statMultiplier : 1.0;
     const special = baseStats.special != null ? baseStats.special : Math.floor((baseStats.atk || 0) * BOT_SPECIAL_RATIO_FALLBACK);
-    const total = ((baseStats.maxHp || 0) + (baseStats.atk || 0) + (baseStats.def || 0) + (baseStats.speed || 0) + special) * mult;
+    const baseValues = {
+        maxHp: baseStats.maxHp || 0,
+        atk: baseStats.atk || 0,
+        def: baseStats.def || 0,
+        speed: baseStats.speed || 0,
+        special: special || 0
+    };
 
     const statNames = ["maxHp", "atk", "def", "speed", "special"];
-    const rawWeights = statNames.map(() => Math.random());
-    const rawSum = rawWeights.reduce((a, b) => a + b, 0);
-
-    const evenShare = 1 / statNames.length;
-    const remainder = 1 - BOT_STAT_MIN_SHARE * statNames.length;
     const result = {};
-    statNames.forEach((stat, i) => {
-        const normalizedRaw = rawSum > 0 ? rawWeights[i] / rawSum : evenShare;
-        const share = BOT_STAT_MIN_SHARE + remainder * normalizedRaw;
-        result[stat] = Math.max(1, Math.round(total * share));
+    statNames.forEach(stat => {
+        const variance = BOT_STAT_VARIANCE_MIN + Math.random() * (BOT_STAT_VARIANCE_MAX - BOT_STAT_VARIANCE_MIN);
+        result[stat] = Math.max(1, Math.round(baseValues[stat] * mult * variance));
     });
 
     // 特殊が攻撃より高く配分された場合は、特殊攻撃寄りのボットにする
