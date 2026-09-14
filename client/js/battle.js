@@ -458,24 +458,32 @@ function calculateDodgeChance(speed) {
 }
 
 function updateStats() {
+    // 各種デバフ・バフを反映した「実際の」ステータスを表示する。
+    // 以前はここで me.atk / enemy.speed 等の生の値をそのまま表示していたため、
+    // スキルで敵の速度を下げても表示上は何も変わらず、「デバフが一切反映されて
+    // いない」ように見えてしまっていた（内部の計算では反映されていても、
+    // 見た目で確認できなければ機能していないのと同じ）。
+    const effectiveMyDef = Math.max(0, (me.def || 0) - myDefDebuff);
+    const effectiveMySpeed = Math.floor((me.speed || 0) * (1 + (mySpeedBuff || 0)) * (hasUniqueAbility(me, 'speed_boost') ? 1.25 : 1));
+
     myAtk.textContent = statLabel("atk", me.atk);
-    myDef.textContent = statLabel("def", me.def);
-    const myDodgeChance = calculateDodgeChance(me.speed);
-    mySpeed.textContent = statLabel("speed", me.speed) + ` (回避${myDodgeChance}%)`;
+    myDef.textContent = statLabel("def", effectiveMyDef);
+    const myDodgeChance = calculateDodgeChance(effectiveMySpeed);
+    mySpeed.textContent = statLabel("speed", effectiveMySpeed) + ` (回避${myDodgeChance}%)`;
     if (mySpecial) mySpecial.textContent = "特殊" + I18N.colon + (me.special != null ? me.special : me.atk);
-    myGrade.textContent = "学年" + I18N.colon + (me.grade || 1);
+    myGrade.textContent = "学年" + I18N.colon + getGradeLabel(me.grade || 1);
     
     // ボスと通常のボットでステータスの持ち方が違うため、直接プロパティを参照する
-    const enemyAtkVal = enemy.atk;
-    const enemyDefVal = enemy.def;
-    const enemySpeedVal = enemy.speed;
+    const enemyAtkVal = Math.max(0, Math.floor((enemy.atk || 0) * (1 - (enemyAtkDebuff || 0))));
+    const enemyDefVal = Math.max(0, Math.floor((enemy.def || 0) * (1 - (enemyDefDebuff || 0))));
+    const enemySpeedVal = Math.max(0, Math.floor((enemy.speed || 0) * (1 - (enemySpeedDebuff || 0))));
     
     enemyAtk.textContent = statLabel("atk", enemyAtkVal);
     enemyDef.textContent = statLabel("def", enemyDefVal);
     const enemyDodgeChance = calculateDodgeChance(enemySpeedVal);
     enemySpeed.textContent = statLabel("speed", enemySpeedVal) + ` (回避${enemyDodgeChance}%)`;
     if (enemySpecial) enemySpecial.textContent = "特殊" + I18N.colon + (enemy.special != null ? enemy.special : enemy.atk);
-    enemyGrade.textContent = "学年" + I18N.colon + (enemy.grade || 1);
+    enemyGrade.textContent = "学年" + I18N.colon + getGradeLabel(enemy.grade || 1);
 }
 
 function updateHP() {
@@ -2190,12 +2198,25 @@ function handleATBAnswer(selectedOption) {
         const effectiveEnemyDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
         const defReduction = Math.floor(effectiveEnemyDef * 0.1);
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
-        
+
+        // 「1ターン＝1回正解する」の定義に基づき、毒・火傷・デバフ・バフ等の継続効果を
+        // 正解1回につき1回だけ進行させる。
+        // ここ（このターンで新しくスキル・固有能力が付与するデバフ／バフより前）で
+        // 呼ぶのが重要：以前は一番最後（このターンで新しく付与した直後）に呼んでいたため、
+        // 「2ターン持続」のはずのデバフ・バフが、付与された直後に自分自身の効果で
+        // 1ターン分減らされてしまい、実質1ターンしか効果が無い（＝ほぼ機能していないように
+        // 見える）不具合になっていた。先に「既存の」継続効果だけを進行させ、このターンで
+        // 新しく付与する分はここでは減らさないようにする。
+        tickBotBattleStatus();
+        if (battleEnd) return;
+
         // アクティブスキルの効果を適用（ダメージ倍率だけでなく、毒・火傷・デバフ・回復等も
         // 全てapplySkillEffect()経由でまとめて処理する。以前はダメージ倍率しか見ておらず、
         // 毒・火傷付与やその他の効果を持つスキルがATB戦闘では何も起こらないバグになっていた）
         if (usedSkill) {
             chipDamage = applySkillEffect(chipDamage, me, enemy, usedSkill);
+            // スキルで新しく付与したデバフ・バフを、即座にステータス表示へ反映する
+            updateStats();
         }
         
         // 根性（guts）：HPが1残る形で持ちこたえる（必殺技等、他の攻撃と同様の処理に統一）
@@ -2222,11 +2243,19 @@ function handleATBAnswer(selectedOption) {
             addLog(`灼熱の一撃！${enemy.name}に火傷を付与した！`);
         }
 
-        // 「1ターン＝1回正解する」の定義に基づき、毒・火傷・デバフ等の継続効果を
-        // 正解1回につき1回だけ進行させる（自分の毒・火傷でここで戦闘不能になる
-        // 可能性もあるため、直後にbattleEndを確認して処理を打ち切る）。
-        tickBotBattleStatus();
-        if (battleEnd) return;
+        // サモンズロッド：配下の召喚モンスターが、正解するたびに追加攻撃を行う
+        // （召喚モンスターの情報はweapon.summonedMonstersに保存済みで、
+        // 倍率は召喚した時点でメイン/サブ武器種に応じて計算済みのものをそのまま使う）
+        if (me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
+            me.equippedWeapon.summonedMonsters.forEach(summon => {
+                if (enemy.hp <= 0) return;
+                const summonDamage = Math.max(1, Math.floor((me.atk || 0) * (summon.multiplier || 0)));
+                enemy.hp = Math.max(0, enemy.hp - summonDamage);
+                showDamage("enemyDamage", summonDamage);
+                addLog(`${summon.monsterEmoji || ''}${summon.monsterName}の追加攻撃！ ${enemy.name}に ${summonDamage} のダメージ！`);
+            });
+            updateHP();
+        }
 
         if (!me.ultimateGauge) me.ultimateGauge = { current: 0, max: 100 };
         me.ultimateGauge.current = Math.min(me.ultimateGauge.max, me.ultimateGauge.current + 10);
@@ -2294,6 +2323,7 @@ function executeStrongAttack(skillEffect, usedSkill) {
     // 全てapplySkillEffect()経由でまとめて処理する）
     if (usedSkill) {
         strongDamage = applySkillEffect(strongDamage, me, enemy, usedSkill);
+        updateStats();
     }
 
     // 必殺技発動：武器の必殺技名・ダメージ倍率をコマンド選択の必殺技と統一する
@@ -2452,8 +2482,10 @@ function resolveBossAttack() {
     }
 
     let myDef = Math.max(0, (me.def || 0) - myDefDebuff);
-    // 敵の攻撃力低下デバフ（enemyAtkDebuff）を反映する
-    let botAtk = enemy.atk;
+    // 敵の攻撃力低下デバフ（enemyAtkDebuff）を反映する。
+    // ボットのステータスがランダム配分され、特殊寄りの個体（attackType==='special'）の
+    // 場合は、攻撃力の代わりに特殊ステータスを使う。
+    let botAtk = (enemy.attackType === 'special' && enemy.special != null) ? enemy.special : enemy.atk;
     if (enemyAtkDebuff > 0) {
         botAtk = Math.floor(botAtk * (1 - enemyAtkDebuff));
     }
@@ -2976,6 +3008,13 @@ function displayQuestion(question, isFirstQuestion = false) {
 // ボット戦の継続効果（火傷・毒・自身の防御低下・敵デバフ）を1ターン分進める。
 // 「1ターン」＝「1回正解する」と定義し、handleATBAnswer()の正解時に1回だけ呼ばれる
 // （以前は実時間3秒ごとに呼んでいたが、依頼によりこの定義に変更した）。
+// 火傷・毒の1ターンあたりのダメージ（最大HPに対する割合）。
+// 「1ターン＝1回正解する」に変更したことで、以前（実時間3秒に1回）より
+// ずっと速いペースでダメージが入るようになり、火傷・毒が強すぎる状態になっていた。
+// そのため、1ターンあたりの割合を半分程度に弱体化する。
+const BURN_DAMAGE_PERCENT = 0.05;   // 以前は0.10
+const POISON_DAMAGE_PERCENT = 0.04; // 以前は0.08
+
 function tickBotBattleStatus() {
     // 自然治癒（オーブ固有能力）：毎ターン、最大HPの3%を自動回復する
     if (hasUniqueAbility(me, 'hp_regen') && me.hp > 0 && me.hp < me.maxHp) {
@@ -2993,7 +3032,7 @@ function tickBotBattleStatus() {
     // プレイヤー自身の毒・火傷（ボスのスキルで付与されたもの）
     // ※根性（guts）持ちはHP1残しの対象になるよう、他の攻撃と同様にガードする
     if (myBurnTurns > 0) {
-        const burnDamage = Math.max(1, Math.floor(me.maxHp * 0.10));
+        const burnDamage = Math.max(1, Math.floor(me.maxHp * BURN_DAMAGE_PERCENT));
         if (me.hp - burnDamage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
             me.hp = 1;
             addLog(`${me.name}は根性で持ちこたえた！`);
@@ -3006,7 +3045,7 @@ function tickBotBattleStatus() {
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (myPoisonTurns > 0) {
-        const poisonDamage = Math.max(1, Math.floor(me.maxHp * 0.08));
+        const poisonDamage = Math.max(1, Math.floor(me.maxHp * POISON_DAMAGE_PERCENT));
         if (me.hp - poisonDamage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
             me.hp = 1;
             addLog(`${me.name}は根性で持ちこたえた！`);
@@ -3019,7 +3058,7 @@ function tickBotBattleStatus() {
         if (me.hp <= 0 && !tryReviveMe()) { finishBotBattle("lose"); return; }
     }
     if (enemyBurnTurns > 0) {
-        const burnDamage = Math.max(1, Math.floor(enemy.maxHp * 0.10));
+        const burnDamage = Math.max(1, Math.floor(enemy.maxHp * BURN_DAMAGE_PERCENT));
         if (enemy.hp - burnDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
             enemy.hp = 1;
             addLog(`${enemy.name}は根性で持ちこたえた！`);
@@ -3031,7 +3070,7 @@ function tickBotBattleStatus() {
         updateHP();
     }
     if (enemyPoisonTurns > 0) {
-        const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * 0.08));
+        const poisonDamage = Math.max(1, Math.floor(enemy.maxHp * POISON_DAMAGE_PERCENT));
         if (enemy.hp - poisonDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
             enemy.hp = 1;
             addLog(`${enemy.name}は根性で持ちこたえた！`);
@@ -3085,6 +3124,10 @@ function tickBotBattleStatus() {
             addLog("自身の速度上昇が終了した。");
         }
     }
+
+    // デバフ・バフの残りターンや値がここで変化するため、
+    // ステータス表示（画面上の攻撃・防御・速さの数値）もあわせて更新する。
+    if (typeof updateStats === 'function') updateStats();
 }
 
 function handleBotAnswer(userAnswer) {

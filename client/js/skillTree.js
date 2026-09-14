@@ -1647,6 +1647,11 @@ function renderSkillSlots(player) {
             };
         });
     }
+
+    // サモンズロッド：モンスター選択UIの更新（武器種・サブ武器種として使っていない場合は非表示になる）
+    if (typeof renderSummonMonsterUI === 'function') {
+        renderSummonMonsterUI(player);
+    }
     
     player.skillSlots.forEach((skill, index) => {
         const slotEl = document.createElement('div');

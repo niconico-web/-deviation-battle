@@ -777,11 +777,20 @@ const WEAPON_TYPES = {
     gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: ["special"], debuff: { def: 0.9 } },
     shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } },
     bow:          { name: "弓",         primary: ["speed", "atk"], secondary: ["special"], debuff: { def: 0.9 } },
-    esper:        { name: "超能力",     primary: ["special", "def"], secondary: ["maxHp"], debuff: { atk: 0.9 } }
+    esper:        { name: "超能力",     primary: ["special", "def"], secondary: ["maxHp"], debuff: { atk: 0.9 } },
+    // サモンズロッド：他の武器種と違い、ステータスは一切上昇しない（primary/secondaryが空）。
+    // その代わり、素材を消費してモンスターを配下にでき、正解するたびに配下が追加攻撃を行う
+    // （具体的な召喚・攻撃処理はweapons.js内のSUMMON関連関数とbattle.js側で行う）。
+    summons_rod: { name: "サモンズロッド", primary: [], secondary: [], debuff: {}, isSummonsRod: true }
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
 const UNIQUE_MULT = 1.65; // tier3(1.20) × 1.375 ≒ 1.65
+
+// デュアルウェポン（サブ武器種）の恩恵は、メインの武器種の半分の強さにする。
+// 以前はサブ武器種のprimary/secondary/debuffを武器種にそのまま完全マージしており、
+// メインと全く同じ強さの恩恵を「サブ」なのに得られてしまっていた。
+const SUB_WEAPON_TYPE_EFFECT_RATIO = 0.5;
 
 const TIER_PRICES = { tier1: 30, tier2: 50, tier3: 100 };
 
@@ -1022,21 +1031,26 @@ function applyWeaponStats(baseStats, weapon) {
         // 基本倍率を取得（武器種のbonusMultは適用しない）
         let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
 
-        // デュアルウェポン能力による武器種情報のマージ
+        // デュアルウェポン能力による武器種情報のマージ。
+        // サブ武器種（secondaryType）の恩恵は、メインの武器種に比べて弱め
+        // （SUB_WEAPON_TYPE_EFFECT_RATIO倍）にする。以前はメインと全く同じ強さで
+        // マージしており、「サブ」武器種の意味が無くなってしまっていた。
+        // メインの武器種に既にあるステータスはメイン側の倍率のままとし、
+        // サブ武器種だけが持つステータスにのみ、弱めた倍率を追加で適用する。
+        let subOnlyPrimary = [];
+        let subOnlySecondary = [];
+        let subOnlyDebuff = {};
         if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.secondaryType) {
             const dualWeaponInfo = WEAPON_TYPES[weapon.secondaryType];
             if (typeConf && dualWeaponInfo) {
-                // primary, secondary, debuffをマージする
-                const mergedPrimary = [...new Set([...typeConf.primary, ...dualWeaponInfo.primary])];
-                const mergedSecondary = [...new Set([...typeConf.secondary, ...dualWeaponInfo.secondary])];
-                const mergedDebuff = {...typeConf.debuff, ...dualWeaponInfo.debuff};
-                
-                typeConf = {
-                    ...typeConf, // bonusMultなどは元の武器種のものを維持
-                    primary: mergedPrimary,
-                    secondary: mergedSecondary,
-                    debuff: mergedDebuff
-                };
+                const mainStats = new Set([...typeConf.primary, ...typeConf.secondary]);
+                subOnlyPrimary = (dualWeaponInfo.primary || []).filter(s => !mainStats.has(s));
+                subOnlySecondary = (dualWeaponInfo.secondary || []).filter(s => !mainStats.has(s) && !subOnlyPrimary.includes(s));
+                Object.entries(dualWeaponInfo.debuff || {}).forEach(([stat, mult]) => {
+                    if (typeConf.debuff[stat] === undefined) {
+                        subOnlyDebuff[stat] = mult;
+                    }
+                });
             }
         }
         
@@ -1074,6 +1088,26 @@ function applyWeaponStats(baseStats, weapon) {
                     if (result[stat] !== undefined) {
                         result[stat] = Math.floor(result[stat] * debuffMult);
                     }
+                }
+            }
+
+            // サブ武器種だけが持つステータス（弱めた倍率で追加適用）
+            for (const stat of subOnlyPrimary) {
+                if (result[stat] !== undefined) {
+                    const fullBonus = statMultipliers[stat] - 1;
+                    result[stat] = Math.floor(result[stat] * (1 + fullBonus * SUB_WEAPON_TYPE_EFFECT_RATIO));
+                }
+            }
+            for (const stat of subOnlySecondary) {
+                if (result[stat] !== undefined) {
+                    const fullBonus = (statMultipliers[stat] * 0.85) - 1;
+                    result[stat] = Math.floor(result[stat] * (1 + fullBonus * SUB_WEAPON_TYPE_EFFECT_RATIO));
+                }
+            }
+            for (const [stat, debuffMult] of Object.entries(subOnlyDebuff)) {
+                if (result[stat] !== undefined) {
+                    const fullReduction = 1 - debuffMult;
+                    result[stat] = Math.floor(result[stat] * (1 - fullReduction * SUB_WEAPON_TYPE_EFFECT_RATIO));
                 }
             }
         } else {

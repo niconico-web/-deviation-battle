@@ -616,7 +616,7 @@ function updateStatus(player) {
         "<p>" + I18N.def + I18N.colon + battleStats.def + "</p>" +
         "<p>" + I18N.speed + I18N.colon + battleStats.speed + "</p>" +
         "<p>特殊" + I18N.colon + (battleStats.special != null ? battleStats.special : battleStats.atk) + "</p>" +
-        "<p>学年" + I18N.colon + player.grade + "</p><hr>" +
+        "<p>学年" + I18N.colon + player.grade + "（" + getGradeLabel(player.grade) + "）</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>" +
         "<hr>" + prestigeHtml + statReallocationHtml;
 
@@ -1352,6 +1352,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.clear();
                 alert(I18N.deleted);
                 location.reload();
+            }
+        });
+    }
+
+    // サモンズロッド：モンスター召喚ボタン（静的なHTML要素なので1回だけバインドする）
+    const summonMonsterBtn = document.getElementById("summonMonsterBtn");
+    if (summonMonsterBtn) {
+        summonMonsterBtn.addEventListener("click", () => {
+            if (typeof summonMonsterFromMaterial === "function") {
+                summonMonsterFromMaterial();
             }
         });
     }
