@@ -32,6 +32,7 @@
             <nav class="main-menu">
                 <button class="menu-btn active" data-section="stats"><span>📝</span> ステータス</button>
                 <button class="menu-btn" data-section="study"><span>📖</span> 勉強</button>
+                <button class="menu-btn" data-section="questionlists"><span>📚</span> 問題リスト</button>
                 <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
                 <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
                 <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
@@ -118,6 +119,84 @@
                     <div class="study-buttons">
                         <button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
                         <button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="section-questionlists" class="content-section">
+                <h2>問題リスト</h2>
+                <div class="setting-box">
+                    <h3>自分だけの問題リスト</h3>
+                    <p class="study-desc">自分で問題と正解を登録した「問題リスト」を作れます。通常のバトルやダンジョンでは使われませんが、下の「模擬戦闘」で単語帳のように使うことができます。友達に配布することもできます。</p>
+                    <div id="questionListsContainer" class="question-list-container">
+                        <!-- renderQuestionListPanel() によってここに一覧が描画される -->
+                    </div>
+                    <div class="study-buttons">
+                        <button type="button" id="questionListCreateBtn" class="btn btn-primary">新しい問題リストを作る</button>
+                        <button type="button" id="questionListImportOpenBtn" class="btn btn-secondary">配布されたリストを読み込む</button>
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>模擬戦闘</h3>
+                    <p class="study-desc">自分の問題リストを使って、ボットが次々に現れる連続戦闘に挑戦できます。勝っても負けてもリザルト画面には進まず、そのまま戦い続けます（負けてもHPが全回復して続行）。素材はドロップしませんが、戦っている時間はそのまま勉強時間としてカウントされ、選んだステータスが上昇しコインも獲得できます。</p>
+                    <button type="button" id="mockBattleOpenBtn" class="btn btn-primary">模擬戦闘を始める</button>
+                </div>
+
+                <!-- 問題リスト作成・編集モーダル -->
+                <div id="questionListEditModal" class="modal">
+                    <div class="modal-content question-list-modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3 id="questionListEditTitle">問題リストを作る</h3>
+                        <label class="field-label" for="questionListNameInput">リスト名</label>
+                        <input type="text" id="questionListNameInput" placeholder="例：社会 歴史人物">
+                        <div id="questionListRowsContainer" class="question-list-rows">
+                            <!-- renderQuestionListEditorRows() によってここに問題の行が描画される -->
+                        </div>
+                        <button type="button" id="questionListAddRowBtn" class="btn btn-secondary">+ 問題を追加</button>
+                        <hr>
+                        <button type="button" id="questionListSaveBtn" class="btn btn-primary">保存する</button>
+                    </div>
+                </div>
+
+                <!-- 問題リスト配布（エクスポート）モーダル -->
+                <div id="questionListExportModal" class="modal">
+                    <div class="modal-content question-list-modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3>配布用データ</h3>
+                        <p class="help-text">下のテキストを友達にコピーして渡すと、友達がそのまま自分の問題リストとして読み込めます。</p>
+                        <textarea id="questionListExportTextarea" class="question-list-export-textarea" rows="10" readonly></textarea>
+                        <button type="button" id="questionListCopyBtn" class="btn btn-primary">コピーする</button>
+                    </div>
+                </div>
+
+                <!-- 問題リストインポートモーダル -->
+                <div id="questionListImportModal" class="modal">
+                    <div class="modal-content question-list-modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3>配布されたリストを読み込む</h3>
+                        <p class="help-text">友達から受け取ったデータをそのまま貼り付けてください。</p>
+                        <textarea id="questionListImportTextarea" class="question-list-export-textarea" rows="10" placeholder="ここに貼り付け"></textarea>
+                        <button type="button" id="questionListImportSubmitBtn" class="btn btn-primary">読み込む</button>
+                    </div>
+                </div>
+
+                <!-- 模擬戦闘 開始設定モーダル -->
+                <div id="mockBattleSetupModal" class="modal">
+                    <div class="modal-content question-list-modal-content">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
+                        <h3>模擬戦闘の設定</h3>
+                        <label class="field-label" for="mockBattleListSelect">使う問題リスト</label>
+                        <select id="mockBattleListSelect"></select>
+                        <p class="field-label">戦闘前に上昇させるステータスを1つ選んでください</p>
+                        <div class="mock-battle-stat-options">
+                            <label><input type="radio" name="mockBattleStat" value="maxHp"> HP</label>
+                            <label><input type="radio" name="mockBattleStat" value="atk" checked> 攻撃</label>
+                            <label><input type="radio" name="mockBattleStat" value="def"> 防御</label>
+                            <label><input type="radio" name="mockBattleStat" value="speed"> 速さ</label>
+                            <label><input type="radio" name="mockBattleStat" value="special"> 特殊</label>
+                        </div>
+                        <button type="button" id="mockBattleStartBtn" class="btn btn-primary">模擬戦闘を開始する</button>
                     </div>
                 </div>
             </section>
@@ -658,6 +737,7 @@
     <script src="js/guild.js"></script>
     <script src="js/dungeon.js"></script>
     <script src="js/tutorial-topics.js"></script>
+    <script src="js/questionLists.js"></script>
     <script src="js/script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

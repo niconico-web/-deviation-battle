@@ -180,6 +180,8 @@ function migratePlayer(player) {
             : (player.prestigeCount || 0) * 5,
         lastLoginDate: player.lastLoginDate || null, // ログインボーナス：最後にボーナスを受け取った日付
         loginStreak: player.loginStreak || 0, // ログインボーナス：連続ログイン日数
+        // プレイヤーが作成した問題リスト（模擬戦闘で使用）。
+        questionLists: player.questionLists || [],
         // Core stats (maxHp, atk, def, speed) will be set below
         maxHp: player.maxHp, // Keep existing if present, otherwise default below
         atk: player.atk,
@@ -456,6 +458,7 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     const latestDailyMissions = latestSnapshot ? latestSnapshot.dailyMissions : player.dailyMissions;
     const latestDungeonItems = latestSnapshot ? latestSnapshot.dungeonItems : player.dungeonItems;
     const latestDungeonCheckpoint = latestSnapshot ? latestSnapshot.dungeonCheckpoint : player.dungeonCheckpoint;
+    const latestQuestionLists = latestSnapshot ? latestSnapshot.questionLists : player.questionLists;
 
     const updated = buildPlayer(player.name, stats, newXp, {
         hp: player.hp,
@@ -484,7 +487,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         prestigeCount: player.prestigeCount,
         prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
-        loginStreak: player.loginStreak
+        loginStreak: player.loginStreak,
+        questionLists: latestQuestionLists || []
     });
 
     // オーブを追加
@@ -631,7 +635,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         prestigeCount: options.prestigeCount || 0,
         prestigeBonusPercent: options.prestigeBonusPercent || 0,
         lastLoginDate: options.lastLoginDate !== undefined ? options.lastLoginDate : null,
-        loginStreak: options.loginStreak || 0
+        loginStreak: options.loginStreak || 0,
+        // プレイヤーが作成した問題リスト（模擬戦闘で使用）。他のダンジョンアイテム類と
+        // 同様、options経由で明示的に渡さないと呼び出しのたびに消えてしまうため注意。
+        questionLists: options.questionLists || []
     };
 }
 

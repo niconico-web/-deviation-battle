@@ -406,7 +406,8 @@ function createCharacter() {
         prestigeCount,
         prestigeBonusPercent,
         lastLoginDate: existing?.lastLoginDate,
-        loginStreak: existing?.loginStreak
+        loginStreak: existing?.loginStreak,
+        questionLists: existing?.questionLists || []
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -842,7 +843,8 @@ function applyStudyRewards(seconds) {
         prestigeCount: player.prestigeCount,
         prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
-        loginStreak: player.loginStreak
+        loginStreak: player.loginStreak,
+        questionLists: player.questionLists || []
     });
 
     // オーブを追加
@@ -1595,6 +1597,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // スキルツリーの初期描画
         if (typeof renderSkillTreeUI === "function") {
             renderSkillTreeUI();
+        }
+
+        // 問題リスト機能（作成・編集・模擬戦闘）の初期化
+        if (typeof initQuestionListsUI === "function") {
+            initQuestionListsUI();
         }
 
         // ステータス入力欄のイベントリスナー

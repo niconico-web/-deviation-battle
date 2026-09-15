@@ -1,6 +1,9 @@
 const isBotBattle = localStorage.getItem("isBotBattle") === "true";
 const isBossBattle = localStorage.getItem("isBossBattle") === "true";
 const isDungeonBattle = localStorage.getItem("isDungeonBattle") === "true";
+// 模擬戦闘（プレイヤーが自作した問題リストを使い、ボットが次々出現する連続戦闘）かどうか。
+// 実際の問題取得・勝敗処理のフックはquestionLists.js側に実装されている。
+const isMockBattle = localStorage.getItem("isMockBattle") === "true";
 const partyDataJSON = localStorage.getItem("partyData");
 const partyData = partyDataJSON && !isBotBattle ? JSON.parse(partyDataJSON) : null;
 // ダンジョンバトルの場合はソケットが必要（サーバーとの通信で階進行を管理するため）
@@ -400,6 +403,11 @@ function initialize() {
     // 実戦形式チュートリアル（練習バトル）の場合、上部にバナーを表示する
     if (isPracticeTutorial && window.PracticeCoach) {
         window.PracticeCoach.start();
+    }
+
+    // 模擬戦闘の場合、バナー表示・経過時間タイマーを開始する
+    if (isMockBattle && typeof initMockBattleUI === "function") {
+        initMockBattleUI();
     }
 
     // スキルを初期化
@@ -2100,36 +2108,48 @@ function askNextPlayerQuestion() {
     atbPlayerActionPending = true; // 出題中〜回答確定までは二重出題を防ぐ
 
     try {
-        // 1つの教科のデータが（何らかの理由で）空でも出題自体が止まらないよう、
-        // 教科をシャッフルして順番に確認する。
-        // ボス戦はボス専用の問題（boss_questions.js）、通常のボット戦・オンライン対戦は
-        // 通常の問題（questions.js、学年に応じた教科・レベル）を使用する。
-        const subjectPool = isBossBattle ? ['math', 'jp', 'eng', 'sci', 'soc'] : ['math', 'jp', 'eng'];
-        const shuffledSubjects = shuffleArray(subjectPool);
-        let bossSubject = null;
-        let bossQuestions = null;
-        for (const subject of shuffledSubjects) {
-            const qs = isBossBattle ? getLocalBossQuestions(subject) : getLocalRegularQuestions(subject);
-            if (qs && qs.length > 0) {
-                bossSubject = subject;
-                bossQuestions = qs;
-                break;
-            }
+        let currentQuestionData = null;
+
+        // 模擬戦闘の場合は、プレイヤーが自作した問題リストから出題する
+        // （デフォルトの学年別問題・ボス専用問題は一切使用しない）
+        if (isMockBattle && typeof getMockBattleQuestion === "function") {
+            currentQuestionData = getMockBattleQuestion();
         }
 
-        let randomQuestion;
-        if (bossQuestions && bossQuestions.length > 0) {
-            randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+        if (currentQuestionData) {
+            currentQuestion = { ...currentQuestionData, id: Date.now() };
         } else {
-            // 保険：問題データが一切見つからない場合でも「出題が止まったまま」に
-            // ならないよう、簡単な問題にフォールバックする
-            // （本来は起きないはず。起きた場合は boss_questions.js / questions.js が読み込めているか要確認）
-            console.error('[ATB] 問題データが見つかりません。boss_questions.js / questions.js の読み込みを確認してください。フォールバック問題を使用します。');
-            bossSubject = 'math';
-            randomQuestion = { question: '3 + 4 = ?', answer: '7' };
-        }
+            // 1つの教科のデータが（何らかの理由で）空でも出題自体が止まらないよう、
+            // 教科をシャッフルして順番に確認する。
+            // ボス戦はボス専用の問題（boss_questions.js）、通常のボット戦・オンライン対戦は
+            // 通常の問題（questions.js、学年に応じた教科・レベル）を使用する。
+            const subjectPool = isBossBattle ? ['math', 'jp', 'eng', 'sci', 'soc'] : ['math', 'jp', 'eng'];
+            const shuffledSubjects = shuffleArray(subjectPool);
+            let bossSubject = null;
+            let bossQuestions = null;
+            for (const subject of shuffledSubjects) {
+                const qs = isBossBattle ? getLocalBossQuestions(subject) : getLocalRegularQuestions(subject);
+                if (qs && qs.length > 0) {
+                    bossSubject = subject;
+                    bossQuestions = qs;
+                    break;
+                }
+            }
 
-        currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+            let randomQuestion;
+            if (bossQuestions && bossQuestions.length > 0) {
+                randomQuestion = bossQuestions[Math.floor(Math.random() * bossQuestions.length)];
+            } else {
+                // 保険：問題データが一切見つからない場合でも「出題が止まったまま」に
+                // ならないよう、簡単な問題にフォールバックする
+                // （本来は起きないはず。起きた場合は boss_questions.js / questions.js が読み込めているか要確認）
+                console.error('[ATB] 問題データが見つかりません。boss_questions.js / questions.js の読み込みを確認してください。フォールバック問題を使用します。');
+                bossSubject = 'math';
+                randomQuestion = { question: '3 + 4 = ?', answer: '7' };
+            }
+
+            currentQuestion = { ...randomQuestion, id: Date.now(), subject: bossSubject, subjectDisplayName: getSubjectDisplayName(bossSubject) };
+        }
 
         // 毒・火傷等の継続効果は、ここ（出題ごと）ではなくstartATBBattleLoop内のatbIntervalで
         // 実時間3秒ごとに処理する（「ターン」という概念がATB化で無くなったため）。
@@ -3648,6 +3668,15 @@ function handleWrongAnswer(skillEffect) {
 }
 
 function finishBotBattle(result) {
+    // 模擬戦闘の場合はリザルト画面へ遷移せず、勝敗に応じて戦闘を継続する
+    // （勝利：新しい敵が出現／敗北：HP全回復して続行）。battleEndも立てない。
+    if (isMockBattle) {
+        if (typeof handleMockBattleRoundEnd === "function") {
+            handleMockBattleRoundEnd(result);
+        }
+        return;
+    }
+
     if (battleEnd) return;
     battleEnd = true;
     if (timerInterval) clearInterval(timerInterval);
