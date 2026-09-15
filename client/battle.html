@@ -67,6 +67,31 @@
     background: #7f8c8d;
     color: white;
 }
+
+.mock-battle-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #2c2f33;
+    border: 2px solid #f1c40f;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    color: #ecf0f1;
+}
+
+.mock-battle-banner-info {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 0.9em;
+}
+
+.mock-battle-banner-info strong {
+    color: #f1c40f;
+}
 </style>
 <script>
 if ('serviceWorker' in navigator) {
@@ -83,6 +108,15 @@ if ('serviceWorker' in navigator) {
 <header class="battle-header">
 <button type="button" id="tutorialOpenBtn" class="tutorial-open-btn" aria-label="遊び方">?</button>
 <h1>&#12496;&#12488;&#12523;</h1><p id="turnText" class="turn-text"></p></header>
+<div id="mockBattleBanner" class="mock-battle-banner" style="display:none;">
+    <div class="mock-battle-banner-info">
+        <strong>模擬戦闘中</strong>
+        <span>問題リスト：<span id="mockBattleBannerListName">-</span></span>
+        <span>上昇ステータス：<span id="mockBattleBannerStat">-</span></span>
+        <span>経過時間：<span id="mockBattleBannerTimer">00:00:00</span></span>
+    </div>
+    <button type="button" id="mockBattleExitBtn" class="btn btn-danger btn-small">模擬戦闘を終了する</button>
+</div>
 <div class="players">
 <div class="card player-card" id="playerCard"><p class="card-label">&#12354;&#12394;&#12383;</p><h2 id="myName">----</h2>
 <div id="myDamage" class="damage"></div><div class="hpbar"><div id="myHPBar" class="fill"></div></div>
@@ -174,6 +208,7 @@ if ('serviceWorker' in navigator) {
 <script src="js/materials.js?v=1788086431048"></script>
 <script src="js/tutorial.js?v=1788086431048"></script>
 <script src="js/practice-coach.js?v=1788086431048"></script>
+<script src="js/questionLists.js?v=1788086431048"></script>
 <script src="js/battle.js?v=1788086431048"></script>
 </body>
 </html>
