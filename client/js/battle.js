@@ -88,6 +88,16 @@ let myMultiHitTurns = 0;          // 複数回攻撃の残りターン
 let myMultiHitMultiplier = 0.6;   // 複数回攻撃1回あたりのダメージ倍率（スキルごとに変わる）
 let mySpeedBuff = 0;              // 自身の速さ上昇率
 let mySpeedBuffTurns = 0;         // 速さ上昇の残りターン
+// 以下4つ（myDodgeChance/myDodgeTurns/myCounterActive/myCounterTurns/myShield）は
+// 元々ここでの宣言（let）が無く、applySkillEffect()内の代入がどこにも束縛されない
+// 暗黙のグローバルになってしまっていた。そのため「回避率アップ」「幻影（絶対回避）」
+// 「反撃」「シールド」といったスキル効果が、実際の被ダメージ処理
+// （resolveBossAttack）から一切参照されず、常に無効化されていた不具合を修正。
+let myDodgeChance = 0;            // スキルによる自身の回避率アップ（0〜1の割合。1.0で完全回避）
+let myDodgeTurns = 0;             // 回避率アップの残りターン
+let myCounterActive = false;      // 反撃態勢が有効か
+let myCounterTurns = 0;           // 反撃態勢の残りターン
+let myShield = 0;                 // スキルで得たシールド（被ダメージから先に減算される）
 let myReviveAvailable = false;    // 戦闘不能時に一度だけ復活できるか
 let myRevivePercent = 0;          // 復活時のHP割合
 let myFirstAttackDone = false;    // 「会心の初撃」用：自分の最初の攻撃が済んだか
@@ -2264,12 +2274,25 @@ function handleATBAnswer(selectedOption) {
         }
 
         // サモンズロッド：配下の召喚モンスターが、正解するたびに追加攻撃を行う
-        // （召喚モンスターの情報はweapon.summonedMonstersに保存済みで、
-        // 倍率は召喚した時点でメイン/サブ武器種に応じて計算済みのものをそのまま使う）
+        // （召喚モンスターの情報はweapon.summonedMonstersに保存済み。以前は
+        // 「プレイヤーの攻撃力の固定%」だったが、依頼によりモンスターごとの
+        // 基礎合計ステータス（baseTotalStat、召喚時に確定）とプレイヤーの現在の
+        // 合計ステータスから、召喚モンスター自身の「現在の攻撃力」を毎回計算し、
+        // それを基にダメージを算出する方式に変更した。
         if (me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
+            const summonPlayerTotalStat = (typeof getPlayerTotalStatForSummon === 'function')
+                ? getPlayerTotalStatForSummon(me)
+                : ((me.maxHp || 0) + (me.atk || 0) + (me.def || 0) + (me.speed || 0) + (me.special || 0));
             me.equippedWeapon.summonedMonsters.forEach(summon => {
                 if (enemy.hp <= 0) return;
-                const summonDamage = Math.max(1, Math.floor((me.atk || 0) * (summon.multiplier || 0)));
+                let summonAtk;
+                if (summon.baseTotalStat != null && typeof getSummonCurrentAtk === 'function') {
+                    summonAtk = getSummonCurrentAtk(summon, summonPlayerTotalStat);
+                } else {
+                    // 旧形式（multiplierのみを持つ召喚データ）との後方互換
+                    summonAtk = Math.floor((me.atk || 0) * (summon.multiplier || 0) * 2);
+                }
+                const summonDamage = Math.max(1, Math.floor(summonAtk * 0.5));
                 enemy.hp = Math.max(0, enemy.hp - summonDamage);
                 showDamage("enemyDamage", summonDamage);
                 addLog(`${summon.monsterEmoji || ''}${summon.monsterName}の追加攻撃！ ${enemy.name}に ${summonDamage} のダメージ！`);
@@ -2533,6 +2556,38 @@ function resolveBossAttack() {
         addLog("鉄壁発動！ダメージ50%カット");
     }
 
+    // 回避判定：素早さによる基礎回避率 + スキルによる回避率アップ（幻影など、1.0で完全回避）
+    // + 「残像」（self_evasion_boost）固有能力の+15%
+    const baseDodgeChance = calculateDodgeChance(me.speed);
+    const skillDodgeBonus = myDodgeTurns > 0 ? Math.floor(myDodgeChance * 100) : 0;
+    const selfEvasionBonus = hasUniqueAbility(me, 'self_evasion_boost') ? 15 : 0;
+    const totalMyDodgeChance = Math.min(100, baseDodgeChance + skillDodgeBonus + selfEvasionBonus);
+    if (Math.random() * 100 < totalMyDodgeChance) {
+        showDamage("myDamage", 0);
+        addLog(`${me.name}は${enemy.name}の攻撃を回避した！`);
+        if (myDodgeTurns > 0) {
+            myDodgeTurns = 0;
+            myDodgeChance = 0; // 回避成功で消費（幻影などの単発回避スキルを想定）
+        }
+        const dodgeGuardPopup = document.getElementById('atbGuardPopup');
+        if (dodgeGuardPopup) dodgeGuardPopup.style.display = 'none';
+        atbBossTelegraphActive = false;
+        enemyATB = 0;
+        updateATBBars();
+        return;
+    }
+
+    // スキルによるダメージ軽減／無敵（次の1回だけ有効、使い切り）
+    damage = applyIncomingDamageReduction(damage);
+
+    // シールド：スキルで得た分だけ先にダメージを吸収する
+    if (myShield > 0 && damage > 0) {
+        const absorbed = Math.min(myShield, damage);
+        myShield -= absorbed;
+        damage -= absorbed;
+        addLog(`シールドが${absorbed}のダメージを吸収！（残りシールド: ${myShield}）`);
+    }
+
     // 根性（guts）：HPが1残る形で持ちこたえる（他の攻撃と同様の処理に統一）
     if (me.hp - damage <= 0 && me.hp > 1 && hasUniqueAbility(me, 'guts')) {
         me.hp = 1;
@@ -2544,12 +2599,27 @@ function resolveBossAttack() {
     addLog(`${enemy.name}から ${damage} のダメージ！`);
     updateHP();
 
+    // 反撃：被弾した際、反撃態勢中なら自分の攻撃力の30%分を確実に返す（1回で消費）
+    if (myCounterActive && damage > 0 && enemy.hp > 0) {
+        const counterDamage = Math.max(1, Math.floor((me.atk || 0) * 0.3));
+        enemy.hp = Math.max(0, enemy.hp - counterDamage);
+        addLog(`反撃！${enemy.name}に${counterDamage}のダメージ！`);
+        showDamage("enemyDamage", counterDamage);
+        myCounterActive = false;
+        myCounterTurns = 0;
+    }
+
     const guardPopup = document.getElementById('atbGuardPopup');
     if (guardPopup) guardPopup.style.display = 'none';
 
     atbBossTelegraphActive = false;
     enemyATB = 0;
     updateATBBars();
+
+    if (enemy.hp <= 0) {
+        finishBotBattle("win");
+        return;
+    }
 
     if (me.hp <= 0 && !tryReviveMe()) {
         finishBotBattle("lose");
@@ -3142,6 +3212,20 @@ function tickBotBattleStatus() {
         if (mySpeedBuffTurns === 0) {
             mySpeedBuff = 0;
             addLog("自身の速度上昇が終了した。");
+        }
+    }
+    if (myDodgeTurns > 0) {
+        myDodgeTurns--;
+        if (myDodgeTurns === 0) {
+            myDodgeChance = 0;
+            addLog("回避率上昇が終了した。");
+        }
+    }
+    if (myCounterTurns > 0) {
+        myCounterTurns--;
+        if (myCounterTurns === 0) {
+            myCounterActive = false;
+            addLog("反撃態勢が終了した。");
         }
     }
 

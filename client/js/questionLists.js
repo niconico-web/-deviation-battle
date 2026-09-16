@@ -425,8 +425,10 @@ const MOCK_BATTLE_ENEMY_NAMES = [
 
 function generateMockBattleEnemy(baseStats, grade) {
     const stats = baseStats || {};
-    // プレイヤーの実ステータス合計を基準に、0.75〜1.35倍の範囲でランダムな強さの敵を作る
-    const mult = 0.75 + Math.random() * 0.6;
+    // プレイヤーの実ステータス合計を基準に、ランダムな強さの敵を作る。
+    // 依頼により「ボットが弱すぎる」ため、他のボット戦（通常のボットマッチ・ダンジョン）と
+    // 同様に大幅に底上げしてある（以前は0.75〜1.35倍だった）。
+    const mult = 2.0 + Math.random() * 2.0;
     const total = ((stats.maxHp || 100) + (stats.atk || 10) + (stats.def || 10) + (stats.speed || 10)) * mult;
 
     // 合計値をHP・攻撃・防御・速さにランダムに再配分（個体差を出す）
@@ -673,8 +675,6 @@ function applyMockBattleRewards(seconds, statKey) {
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: player.dailyMissions,
-        guild: player.guild,
-        adventurerExp: player.adventurerExp || 0,
         special: player.special,
         prestigeCount: player.prestigeCount,
         prestigeBonusPercent: player.prestigeBonusPercent,
@@ -687,10 +687,6 @@ function applyMockBattleRewards(seconds, statKey) {
 
     if (typeof updateMissionProgress === "function") {
         updateMissionProgress("study", seconds);
-    }
-    if (typeof addAdventurerExp === "function") {
-        const adventurerExpGain = Math.floor(seconds / 120);
-        if (adventurerExpGain > 0) addAdventurerExp(updated, adventurerExpGain);
     }
 
     return { statGain, statKey: validKey, gainedXp, gainedCoins, newLevel, oldLevel, hasOverwhelmingGrowth, seconds };

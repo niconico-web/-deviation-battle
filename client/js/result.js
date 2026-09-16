@@ -53,11 +53,6 @@ function handleNormalResult() {
         enemy: enemy
     });
 
-    // ギルドクエスト進捗更新（ボス討伐）
-    if (won && wasBossBattle === "true" && typeof updateGuildQuestProgress === 'function') {
-        updateGuildQuestProgress('defeat_boss', { bossId: enemy.id, difficulty: battleDifficultyValue });
-    }
-
     if (!updatedPlayer) {
         console.error("[Result] applyBattleRewards returned null. Player data might be lost or not updated.");
     } else {

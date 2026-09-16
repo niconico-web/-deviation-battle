@@ -27,16 +27,14 @@ function loadSocialData() {
             console.log('[SocialManager] No social data file found, starting with empty data.');
             socialData = {
                 friends: {},
-                friendRequests: {},
-                guildInvites: {}
+                friendRequests: {}
             };
         }
     } catch (error) {
         console.error('[SocialManager] Error loading social data:', error);
         socialData = {
             friends: {},
-            friendRequests: {},
-            guildInvites: {}
+            friendRequests: {}
         };
     }
 }
@@ -229,51 +227,6 @@ function getFriendRequests(playerId) {
     return socialData.friendRequests[playerId];
 }
 
-// ギルド招待を送信
-function sendGuildInvite(fromId, fromName, toId, guildId, guildName) {
-    if (!socialData.guildInvites) {
-        socialData.guildInvites = {};
-    }
-    
-    if (!socialData.guildInvites[toId]) {
-        socialData.guildInvites[toId] = [];
-    }
-    
-    // 既に招待中かチェック
-    const existingInvite = socialData.guildInvites[toId].find(
-        invite => invite.guildId === guildId
-    );
-    
-    if (existingInvite) {
-        return { success: false, message: '既にこのギルドから招待されています' };
-    }
-    
-    const inviteId = 'GI_' + Date.now().toString(36).toUpperCase();
-    const invite = {
-        id: inviteId,
-        fromId,
-        fromName,
-        toId,
-        guildId,
-        guildName,
-        createdAt: Date.now()
-    };
-    
-    socialData.guildInvites[toId].push(invite);
-    saveSocialData();
-    
-    return { success: true, invite };
-}
-
-// ギルド招待リストを取得
-function getGuildInvites(playerId) {
-    if (!socialData.guildInvites || !socialData.guildInvites[playerId]) {
-        return [];
-    }
-    
-    return socialData.guildInvites[playerId];
-}
-
 // 起動時ロード
 loadSocialData();
 
@@ -283,7 +236,5 @@ module.exports = {
     respondFriendRequest,
     removeFriend,
     getFriendList,
-    getFriendRequests,
-    sendGuildInvite,
-    getGuildInvites
+    getFriendRequests
 };

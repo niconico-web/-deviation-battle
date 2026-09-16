@@ -70,25 +70,5 @@ module.exports = function(io){
             const requests = SocialManager.getFriendRequests(playerId);
             socket.emit("social:friendRequests", requests);
         });
-
-        // ギルド招待送信
-        socket.on("social:sendGuildInvite", (data) => {
-            const { fromId, fromName, toId, guildId, guildName } = data;
-            console.log(`[Social] Guild invite: ${fromId} -> ${toId} for guild ${guildId}`);
-            
-            const result = SocialManager.sendGuildInvite(fromId, fromName, toId, guildId, guildName);
-            socket.emit("social:guildInviteResult", result);
-            
-            if (result.success) {
-                // 相手に通知
-                io.to(toId).emit("social:guildInviteReceived", result.invite);
-            }
-        });
-
-        // ギルド招待リスト取得
-        socket.on("social:getGuildInvites", (playerId) => {
-            const invites = SocialManager.getGuildInvites(playerId);
-            socket.emit("social:guildInvites", invites);
-        });
     });
 };

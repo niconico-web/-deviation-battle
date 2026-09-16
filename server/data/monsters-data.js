@@ -626,26 +626,36 @@ function getBossByDifficulty(difficulty) {
 // ===================================
 
 /**
- * 階層番号だけを基準にしたコイン報酬。指数的に増加していく。
+ * 階層番号だけを基準にしたコイン報酬。
+ * 以前は 1 * floor * 1.05^floor という指数関数で、深く潜り続けるだけで
+ * 際限なく（100階で1万枚超、200階では300万枚超）増え続けてしまい、
+ * 依頼により「報酬がおいしすぎる」状態になっていた。
+ * 平方根ベースの緩やかな増加＋上限キャップに変更し、無限に潜っても
+ * 1階あたりの報酬が青天井にならないようにする。
  */
 function getFloorRewardCoinsByFloor(floor) {
     const f = Math.max(1, floor);
-    return Math.round(1 * f * Math.pow(1.05, f));
+    const raw = 5 + Math.floor(Math.sqrt(f) * 4);
+    return Math.min(raw, 60); // 1階あたり最大60コイン
 }
 
 /**
- * 階層番号だけを基準にした経験値報酬。指数的に増加していく。
+ * 階層番号だけを基準にした経験値報酬。コインと同様の理由で指数関数をやめ、
+ * 平方根ベース＋上限キャップに変更。
  */
 function getFloorRewardExpByFloor(floor) {
     const f = Math.max(1, floor);
-    return Math.round(5 * f * Math.pow(1.05, f));
+    const raw = 10 + Math.floor(Math.sqrt(f) * 8);
+    return Math.min(raw, 120); // 1階あたり最大120経験値
 }
 
 // 階層をクリアするたびに、一定確率で「宝箱」としてオーブ・ステータス再分配チケット・
 // 武器オーブスロット追加チケット・武器合成チケットのいずれかが手に入る（依頼：「敵を倒して
 // いくとオーブやステータスの再分配チケット、武器にオーブスロットを新しく追加するやつが
 // 出てくるような宝箱みたいに出てくる感じ」。後日、武器合成チケットを追加依頼）。
-const DUNGEON_CHEST_DROP_CHANCE = 0.35;
+// 以前は35%という高確率で、無限に潜れる仕様と組み合わさると宝箱報酬だけでも
+// 際限なく積み上がってしまっていたため、依頼により引き下げた。
+const DUNGEON_CHEST_DROP_CHANCE = 0.15;
 const DUNGEON_CHEST_TABLE = [
     { type: 'orb', tier: 'tier1', weight: 30, description: 'オーブ（Tier1）' },
     { type: 'orb', tier: 'tier2', weight: 22, description: 'オーブ（Tier2）' },

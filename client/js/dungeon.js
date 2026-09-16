@@ -60,6 +60,12 @@ function getDungeonFloorFactor(floor) {
 // ボスは同じ階の通常モンスターよりもずっと強い（依頼：「ボスはとても強いです」）
 const DUNGEON_BOSS_STAT_MULTIPLIER = 2.4;
 
+// 依頼により「ボットが弱すぎる」ため、ダンジョン内のモンスター（ボットマッチのモンスター・
+// ダンジョン専用モンスター）にも底上げをかける。階層による自然な強化（getDungeonFloorFactor）
+// があるため、通常のボットマッチ（BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIER=5倍）よりは
+// 控えめな2倍とする。
+const DUNGEON_MONSTER_STRENGTH_BOOST = 2.0;
+
 // 通常モンスターの中からボスが出現する確率（依頼：「低確率だけど、ボスバトルのボスも
 // たまに出てくるようにして」）
 const DUNGEON_BOSS_ENCOUNTER_CHANCE = 0.05;
@@ -177,7 +183,7 @@ function generateDungeonEncounter(floor, battleStats) {
 
     if (useBotMonster) {
         const monster = BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
-        const mult = floorFactor * (monster.statMultiplier != null ? monster.statMultiplier : 1.0);
+        const mult = floorFactor * (monster.statMultiplier != null ? monster.statMultiplier : 1.0) * DUNGEON_MONSTER_STRENGTH_BOOST;
         // ステータス合計に倍率をかけてから、HP・攻撃・防御・速さ・特殊にランダムに
         // 再配分する（そのまま各ステータスに倍率を当てはめる方式だと個体差が出ないため）。
         const randomized = (typeof generateRandomizedBotStats === 'function')
@@ -209,7 +215,7 @@ function generateDungeonEncounter(floor, battleStats) {
     }
 
     const flavor = DUNGEON_FLAVOR_MONSTERS[Math.floor(Math.random() * DUNGEON_FLAVOR_MONSTERS.length)];
-    const mult = floorFactor * flavor.statMultiplier;
+    const mult = floorFactor * flavor.statMultiplier * DUNGEON_MONSTER_STRENGTH_BOOST;
     const maxHp = Math.max(1, Math.round(stats.maxHp * mult));
     return {
         id: 'dungeon_flavor_' + flavor.id + '_' + Date.now(),

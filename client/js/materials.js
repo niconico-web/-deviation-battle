@@ -296,33 +296,28 @@ function calculateOrbRarity(materialIds) {
     if (!materialIds || materialIds.length === 0) return null;
 
     let totalRarity = 0;
-    let maxRarity = 0;
 
     for (const materialId of materialIds) {
         const material = MATERIAL_DATA[materialId];
         if (material) {
             totalRarity += material.rarity;
-            maxRarity = Math.max(maxRarity, material.rarity);
         }
     }
 
-    // 平均レア度を計算
+    // 平均レア度を計算（素材のレア度は1〜4で、そのままtier1〜4に対応する）
     const avgRarity = totalRarity / materialIds.length;
+    let tierNumber = Math.floor(avgRarity);
 
-    // 平均レア度に基づいてティアを決定
-    // avgRarity >= 3.5: tier4
-    // avgRarity >= 2.5: tier3
-    // avgRarity >= 1.5: tier2
-    // avgRarity < 1.5: tier1
-    if (avgRarity >= 3.5) {
-        return 'tier4';
-    } else if (avgRarity >= 2.5) {
-        return 'tier3';
-    } else if (avgRarity >= 1.5) {
-        return 'tier2';
-    } else {
-        return 'tier1';
+    // 素材が1〜4個の場合は、平均レア度（切り捨て）よりも1段階低いオーブになる。
+    // 5個ぴったり使った場合のみ、平均レア度（切り捨て）そのままのオーブができる。
+    if (materialIds.length < 5) {
+        tierNumber -= 1;
     }
+
+    // tier1未満・tier4超過にはならないよう範囲を丸める
+    tierNumber = Math.max(1, Math.min(4, tierNumber));
+
+    return `tier${tierNumber}`;
 }
 
 // 武器素材として使用できる素材ID（説明欄に「武器の素材」とあるもの）

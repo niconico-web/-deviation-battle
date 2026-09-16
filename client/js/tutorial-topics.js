@@ -244,22 +244,6 @@
                 }
             ]
         },
-        guild: {
-            storageKey: 'sb_tutorial_guild_seen',
-            buttonId: 'tutorialOpenBtn-guild',
-            steps: [
-                {
-                    icon: '🏰',
-                    title: 'ギルドに参加しよう',
-                    body: '「ギルドを作成」で新しいギルドを作るか、「ギルド一覧を見る」から既存のギルドに参加できます。\nギルドに入ると、マイギルド欄で詳細を確認できます。'
-                },
-                {
-                    icon: '🚪',
-                    title: 'ギルドを抜ける',
-                    body: '合わないと感じたら、マイギルド欄の「ギルドを脱退」からいつでも抜けられます。\n別のギルドに参加し直すこともできます。'
-                }
-            ]
-        },
         reincarnation: {
             storageKey: 'sb_tutorial_reincarnation_seen',
             buttonId: 'tutorialOpenBtn-reincarnation',
@@ -299,8 +283,7 @@
         skills: 'skill',
         online: 'online',
         'boss-battle': 'boss',
-        ranking: 'ranking',
-        guild: 'guild'
+        ranking: 'ranking'
     };
 
     let currentTopicKey = null;
