@@ -627,5 +627,20 @@ function formatTime(s) { const h = Math.floor(s / 3600), m = Math.floor((s % 360
 
 function getPlayerData() {
     const raw = localStorage.getItem("player");
-    return raw ? migratePlayer(JSON.parse(raw)) : null;
+    if (!raw) return null;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        console.error("[Stats] プレイヤーデータのJSON解析に失敗しました:", e);
+        return null;
+    }
+    // migratePlayer()が例外を投げても、保存データ自体は壊れていないので
+    // nullを返して「データが消えた」ように見せない（script.js側のgetPlayerData()と同じ方針）。
+    try {
+        return migratePlayer(parsed);
+    } catch (e) {
+        console.error("[Stats] migratePlayer()の実行中にエラーが発生しました。変換前のデータをそのまま返します:", e);
+        return parsed;
+    }
 }

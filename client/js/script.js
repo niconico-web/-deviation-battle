@@ -1125,16 +1125,29 @@ function updateOnlineButtons(isConnected) {
 function getPlayerData() {
     const raw = localStorage.getItem("player");
     if (!raw) return null;
+
+    let parsed;
     try {
-        const player = JSON.parse(raw);
-        // migratePlayer関数（stats.jsにある想定）で古いデータ構造を新しいものに変換
-        return typeof migratePlayer === "function" ? migratePlayer(player) : player;
+        parsed = JSON.parse(raw);
     } catch (e) {
         console.error("プレイヤーデータの解析に失敗しました:", e);
         console.error("破損した可能性のあるデータ:", raw); // 破損データをログに出力
         // localStorage.removeItem("player"); // 根本原因がわかるまで、データを自動削除しないようにします
         alert("プレイヤーデータの読み込みに失敗しました。データが破損している可能性があります。開発者コンソールで詳細を確認してください。");
         return null;
+    }
+
+    // ここから下：JSON自体は正常に読めているので、保存データは壊れていない。
+    // migratePlayer()（新機能追加のたびに更新される変換処理）が何らかの理由で
+    // 例外を投げても、絶対に「データが消えた」ように見せてはいけないため、
+    // 失敗時は変換前の生データをそのまま返す（新フィールドの初期化が一部
+    // 漏れる可能性はあるが、キャラクターごと消えたように見えるよりずっと安全）。
+    if (typeof migratePlayer !== "function") return parsed;
+    try {
+        return migratePlayer(parsed);
+    } catch (e) {
+        console.error("migratePlayer()の実行中にエラーが発生しました。変換前のデータをそのまま返します:", e);
+        return parsed;
     }
 }
 
