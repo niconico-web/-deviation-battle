@@ -649,6 +649,12 @@ const BOT_SPECIAL_RATIO_FALLBACK = 0.6;
 const BOT_STAT_VARIANCE_MIN = 0.7;
 const BOT_STAT_VARIANCE_MAX = 1.3;
 
+// 依頼により「ボットが弱すぎる」ため、通常のボットマッチ（オンラインタブの「ボットバトル」）
+// で戦うボットのステータスを、モンスターごとの強さ倍率(statMultiplier)に加えて
+// さらにこの倍率で底上げする。5倍という大きな値だが、依頼の強い要望
+// （「もっともっともっともっと強くしていい」）に応えるためあえて大きく設定した。
+const BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIER = 5.0;
+
 /**
  * ボットのステータスを、プレイヤーの各ステータス（HP・攻撃・防御・速さ・特殊）に
  * それぞれ「モンスターごとの強さ倍率(statMultiplier) × 個体差ブレ(0.7〜1.3倍)」を
@@ -819,7 +825,7 @@ function setupOnlineEventHandlers() {
             // 例: スライムはプレイヤーの0.5倍、ゴブリンは0.8倍、強力なモンスターは2倍前後。
             // これにより、プレイヤーが成長するほどモンスターも相対的に強くなり、
             // 常に歯ごたえのあるバトルになる。
-            const statMultiplier = randomMonster.statMultiplier != null ? randomMonster.statMultiplier : 1.0;
+            const statMultiplier = (randomMonster.statMultiplier != null ? randomMonster.statMultiplier : 1.0) * BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIER;
             const botBaseStats = generateRandomizedBotStats(battleStats, statMultiplier);
 
             const botPlayer = {

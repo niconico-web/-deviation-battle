@@ -170,8 +170,6 @@ function migratePlayer(player) {
         bossRunCount: player.bossRunCount || 0,
         totalStudySeconds: player.totalStudySeconds || 0,
         grade: player.grade || 1,
-        guild: player.guild || null, // Preserve guild membership
-        adventurerExp: player.adventurerExp || 0, // Preserve adventurer experience
         prestigeCount: player.prestigeCount || 0, // 転生（旧プレステージ）実行回数
         // 転生による永続ボーナス％の累積値。旧・固定5%方式で保存されていたデータ
         // （prestigeBonusPercentが無い）は、回数×5%として引き継ぐ。
@@ -356,18 +354,6 @@ function applyBattleRewards(won, turns, damage, options = {}) {
     // 対人戦（ボット戦・ボス戦以外）に勝利した場合はランキング用の勝利数を加算する
     if (won && !isBossBattle && !isBotBattle) {
         player.pvpWins = (player.pvpWins || 0) + 1;
-        // ギルドクエスト進捗更新
-        if (typeof updateGuildQuestProgress === 'function') {
-            updateGuildQuestProgress('win_online', 1);
-        }
-    }
-    // ギルドに参加した状態で戦った場合、勝敗の種類（対人戦・ボット戦・ボス戦）を問わず
-    // 冒険者経験値を追加する（勝利で2経験値）。
-    // 以前は対人戦（ボット戦・ボス戦以外）に勝利した場合のみ加算していたため、
-    // ヘルプ画面が説明する「ギルドに加入した状態で戦うと冒険者経験値が上がる」という
-    // 挙動が、ボットバトルでの通常モンスター討伐やボス戦では機能していなかった。
-    if (won && typeof addAdventurerExp === 'function') {
-        addAdventurerExp(player, 2);
     }
 
     console.log(`[Stats] applyBattleRewards START: won=${won}, equippedWeapon=${player.equippedWeapon?.name}, weaponWins=${JSON.stringify(player.weaponWins)}`);
@@ -421,9 +407,9 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         if (droppedMaterial) {
             player.materials = player.materials || {};
             player.materials[droppedMaterial] = (player.materials[droppedMaterial] || 0) + 1;
-            // ギルドクエスト進捗更新
-            if (typeof updateGuildQuestProgress === 'function') {
-                updateGuildQuestProgress('collect_material', { materialId: droppedMaterial, count: 1 });
+            // ミッション進捗更新（素材収集ミッション）
+            if (typeof updateMissionProgress === 'function') {
+                updateMissionProgress('collect_material', { materialId: droppedMaterial, count: 1 });
             }
             console.log(`[Stats] Material dropped: ${droppedMaterial}, total: ${player.materials[droppedMaterial]}`);
             localStorage.removeItem("droppedMaterial");
@@ -481,8 +467,6 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: latestDailyMissions,
-        guild: player.guild,
-        adventurerExp: player.adventurerExp || 0,
         special: player.special,
         prestigeCount: player.prestigeCount,
         prestigeBonusPercent: player.prestigeBonusPercent,
@@ -619,19 +603,16 @@ function buildPlayer(name, stats, xp, options = {}) {
         materials: options.materials || {},
         // 以前はここに無く、キャラ作成・転生（createCharacter経由）のたびに
         // ダンジョン報酬チケット（オーブスロット拡張・ステータス再分配・武器合成等）が
-        // 静かに失われていた。dailyMissions/guildと同様にここで明示的に引き継ぐ。
+        // 静かに失われていた。dailyMissionsと同様にここで明示的に引き継ぐ。
         dungeonItems: options.dungeonItems || [],
         // ダンジョンのチェックポイント（到達済みの最深部）も、上と同じ理由で
         // ここに無いと勉強終了・バトル終了のたびに0にリセットされてしまっていた。
         dungeonCheckpoint: options.dungeonCheckpoint || 0,
         pvpWins: options.pvpWins || 0,
         bossRunCount: options.bossRunCount || 0,
-        // 以前はここに無く、対戦・勉強・キャラ編集のたびにこれらのフィールドが
-        // 静かに失われていた（デイリーミッションが毎回リセットされる、
-        // ギルド所属が対戦後に消えるなどの不具合の原因）。
+        // 以前はここに無く、対戦・勉強・キャラ編集のたびにこのフィールドが
+        // 静かに失われていた（デイリーミッションが毎回リセットされる不具合の原因）。
         dailyMissions: options.dailyMissions !== undefined ? options.dailyMissions : null,
-        guild: options.guild !== undefined ? options.guild : null,
-        adventurerExp: options.adventurerExp || 0,
         prestigeCount: options.prestigeCount || 0,
         prestigeBonusPercent: options.prestigeBonusPercent || 0,
         lastLoginDate: options.lastLoginDate !== undefined ? options.lastLoginDate : null,

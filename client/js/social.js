@@ -29,11 +29,6 @@ class SocialSystem {
             this.sendFriendRequest();
         });
 
-        // ギルド招待
-        document.getElementById('guildInviteBtn')?.addEventListener('click', () => {
-            this.sendGuildInvitation();
-        });
-
         // 対戦申請
         document.getElementById('challengePlayerBtn')?.addEventListener('click', () => {
             this.challengePlayer();
@@ -76,15 +71,6 @@ class SocialSystem {
                 this.showNotification('フレンドになりました！', 'success');
             } else {
                 this.showNotification('フレンド申請が拒否されました', 'info');
-            }
-        });
-
-        // ギルド招待結果
-        window.socket.on('social:guildInviteResult', (response) => {
-            if (response.success) {
-                this.showNotification('ギルド招待を送信しました', 'success');
-            } else {
-                this.showNotification(response.message, 'error');
             }
         });
 
@@ -187,32 +173,6 @@ class SocialSystem {
                 fromId: currentPlayer.id,
                 fromName: currentPlayer.name,
                 toId: this.searchedPlayer.id
-            });
-        }
-    }
-
-    sendGuildInvitation() {
-        if (!this.searchedPlayer) return;
-
-        const currentPlayer = this.getPlayerData();
-        if (!currentPlayer || !currentPlayer.id) {
-            this.showNotification('プレイヤーデータが見つかりません', 'error');
-            return;
-        }
-
-        // ギルドに所属しているか確認
-        if (!currentPlayer.guildId) {
-            this.showNotification('まずはギルドに参加してください', 'error');
-            return;
-        }
-
-        if (window.socket) {
-            window.socket.emit('social:sendGuildInvite', {
-                fromId: currentPlayer.id,
-                fromName: currentPlayer.name,
-                toId: this.searchedPlayer.id,
-                guildId: currentPlayer.guildId,
-                guildName: currentPlayer.guildName
             });
         }
     }

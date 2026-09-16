@@ -400,8 +400,6 @@ function createCharacter() {
         pvpWins: existing?.pvpWins,
         bossRunCount: existing?.bossRunCount,
         dailyMissions: existing?.dailyMissions,
-        guild: existing?.guild,
-        adventurerExp: existing?.adventurerExp,
         special: existing?.special,
         prestigeCount,
         prestigeBonusPercent,
@@ -837,8 +835,6 @@ function applyStudyRewards(seconds) {
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
         dailyMissions: player.dailyMissions,
-        guild: player.guild,
-        adventurerExp: player.adventurerExp || 0,
         special: player.special,
         prestigeCount: player.prestigeCount,
         prestigeBonusPercent: player.prestigeBonusPercent,
@@ -890,15 +886,6 @@ function applyStudyRewards(seconds) {
     // デイリーミッションの進捗を更新
     if (typeof updateMissionProgress === 'function') {
         updateMissionProgress('study', seconds);
-    }
-    
-    // ギルドに参加している場合、冒険者経験値を追加（1分あたり0.5経験値）
-    if (typeof addAdventurerExp === 'function') {
-        const adventurerExpGain = Math.floor(seconds / 120); // 2分で1経験値（上がりにくくする）
-        if (adventurerExpGain > 0) {
-            const player = getPlayerData();
-            addAdventurerExp(player, adventurerExpGain);
-        }
     }
 }
 
@@ -1587,11 +1574,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     orbCraftingModal.style.display = 'none';
                 });
             }
-        }
-
-        // ギルドシステムの初期化
-        if (typeof initializeGuildSystem === "function") {
-            initializeGuildSystem();
         }
 
         // スキルツリーの初期描画

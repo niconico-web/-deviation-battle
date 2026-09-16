@@ -16,11 +16,27 @@ const SUMMON_MAX_MONSTERS = 3;
 // メインの場合よりも弱くする（武器種の恩恵をサブでは弱めるのと同じ考え方）。
 const SUMMON_SUB_TYPE_MULTIPLIER_RATIO = 0.5;
 
-// 召喚モンスターの追加攻撃倍率の範囲。モンスターのstatMultiplier（BOT_MONSTERS）に応じて
-// この範囲に線形マッピングする。
-// 例: 最弱モンスター(statMultiplier最小)は自分の攻撃力の10%、最強モンスターは60%の追加攻撃。
-const SUMMON_MULTIPLIER_MIN = 0.1;
-const SUMMON_MULTIPLIER_MAX = 0.6;
+// ============================================================
+// 召喚モンスターのステータスシステム
+// 以前は「プレイヤーの攻撃力の何%」という単純な倍率だったが、依頼により
+// 「モンスターごとに固定の合計ステータスがあり、プレイヤーのステータスに応じて
+// それが伸びていく」方式に変更。例：スライムは合計ステータス250、
+// 原初の巨人のような最強クラスのモンスターは合計ステータス25000、というように、
+// モンスターの強さ（BOT_MONSTERSのstatMultiplier）に応じて基礎値が決まり、
+// そこからプレイヤー自身の合計ステータスの伸びに比例して成長する。
+// ============================================================
+
+// 召喚モンスターの基礎合計ステータスの範囲（最弱モンスター〜最強モンスター）
+const SUMMON_BASE_TOTAL_STAT_MIN = 250;
+const SUMMON_BASE_TOTAL_STAT_MAX = 25000;
+
+// 「プレイヤーの合計ステータスがこの値の時、召喚モンスターは基礎値そのまま」という基準値。
+// 新規キャラクター相当の合計ステータス（最弱モンスターの基礎値と同じ250）を基準にすることで、
+// プレイヤーが成長するほど配下モンスターも一緒に強くなっていく。
+const SUMMON_PLAYER_BASELINE_TOTAL_STAT = 250;
+
+// 合計ステータスのうち、実際の追加攻撃力（atk相当）として使う割合
+const SUMMON_ATTACK_STAT_SHARE = 0.35;
 
 /**
  * BOT_MONSTERSに含まれるstatMultiplierの最小値・最大値を求める。
@@ -56,20 +72,59 @@ function findMonsterForMaterial(materialId) {
 }
 
 /**
- * モンスターのstatMultiplierから、召喚モンスターの追加攻撃倍率を計算する。
+ * モンスターのstatMultiplierから、召喚モンスターの「基礎合計ステータス」を求める。
+ * 250〜25000という100倍の開きがあるため、線形補間ではなく対数（指数）補間を使う
+ * （線形だと大半のモンスターが最低値付近に固まってしまうため）。
+ * この関数はBOT_MONSTERSを必要とするため、online.jsが読み込まれているindex.html側
+ * （召喚時・プレビュー表示時）でのみ呼び出す。
  * @param {object} monster - BOT_MONSTERSの要素
- * @param {boolean} isSubType - サモンズロッドがサブ武器種（デュアルウェポン）として使われているか
- * @returns {number} 自分の攻撃力に対する倍率
+ * @returns {number}
  */
-function calculateSummonMultiplier(monster, isSubType) {
+function getMonsterSummonBaseTotalStat(monster) {
     const { min, max } = getMonsterStatMultiplierRange();
     const statMult = (monster && monster.statMultiplier != null) ? monster.statMultiplier : 1.0;
     const ratio = Math.max(0, Math.min(1, (statMult - min) / (max - min)));
-    let mult = SUMMON_MULTIPLIER_MIN + ratio * (SUMMON_MULTIPLIER_MAX - SUMMON_MULTIPLIER_MIN);
-    if (isSubType) {
-        mult *= SUMMON_SUB_TYPE_MULTIPLIER_RATIO;
-    }
-    return Math.round(mult * 1000) / 1000;
+    const logMin = Math.log(SUMMON_BASE_TOTAL_STAT_MIN);
+    const logMax = Math.log(SUMMON_BASE_TOTAL_STAT_MAX);
+    const logValue = logMin + ratio * (logMax - logMin);
+    return Math.round(Math.exp(logValue));
+}
+
+/**
+ * ステータス一式（maxHp/atk/def/speed/special相当のオブジェクト）から
+ * 召喚モンスターの成長計算に使う「プレイヤーの合計ステータス」を求める。
+ * @param {object} statsLike
+ * @returns {number}
+ */
+function getPlayerTotalStatForSummon(statsLike) {
+    if (!statsLike) return SUMMON_PLAYER_BASELINE_TOTAL_STAT;
+    return Math.max(1, (statsLike.maxHp || 0) + (statsLike.atk || 0) + (statsLike.def || 0) + (statsLike.speed || 0) + (statsLike.special || 0));
+}
+
+/**
+ * 召喚モンスターの「現在の合計ステータス」を求める（基礎値 × プレイヤーの成長倍率）。
+ * @param {number} baseTotalStat - 召喚時に固定保存された基礎合計ステータス
+ * @param {number} playerTotalStat - 現在のプレイヤーの合計ステータス
+ * @returns {number}
+ */
+function getSummonCurrentTotalStat(baseTotalStat, playerTotalStat) {
+    const growthFactor = Math.max(1, (playerTotalStat || SUMMON_PLAYER_BASELINE_TOTAL_STAT) / SUMMON_PLAYER_BASELINE_TOTAL_STAT);
+    return (baseTotalStat || 0) * growthFactor;
+}
+
+/**
+ * 召喚モンスターの「現在の追加攻撃力」を求める。battle.js側（実際のダメージ計算）と
+ * index.html側（UIプレビュー）の両方から呼ばれる共通ロジック。
+ * @param {object} summon - weapon.summonedMonstersの要素（baseTotalStat・isSubTypeを含む）
+ * @param {number} playerTotalStat - 現在のプレイヤーの合計ステータス
+ * @returns {number}
+ */
+function getSummonCurrentAtk(summon, playerTotalStat) {
+    if (!summon) return 0;
+    const currentTotal = getSummonCurrentTotalStat(summon.baseTotalStat, playerTotalStat);
+    let atk = currentTotal * SUMMON_ATTACK_STAT_SHARE;
+    if (summon.isSubType) atk *= SUMMON_SUB_TYPE_MULTIPLIER_RATIO;
+    return Math.max(1, Math.floor(atk));
 }
 
 /**
@@ -117,15 +172,19 @@ function renderSummonMonsterUI(player) {
     const listEl = document.getElementById('summonedMonsterList');
     if (listEl) {
         const summoned = weapon.summonedMonsters || [];
+        const playerTotalStat = getPlayerTotalStatForSummon(typeof getStatsFromPlayer === 'function' ? getStatsFromPlayer(player) : player);
         if (summoned.length === 0) {
             listEl.innerHTML = '<p>配下のモンスターはいません。</p>';
         } else {
-            listEl.innerHTML = summoned.map((s, index) => `
+            listEl.innerHTML = summoned.map((s, index) => {
+                const currentAtk = getSummonCurrentAtk(s, playerTotalStat);
+                return `
                 <div class="summoned-monster-item">
-                    <span>${s.monsterEmoji || ''} ${s.monsterName}（追加攻撃: 自分の攻撃力の${(s.multiplier * 100).toFixed(1)}%）</span>
+                    <span>${s.monsterEmoji || ''} ${s.monsterName}（現在の追加攻撃力: ${currentAtk}）</span>
                     <button type="button" class="btn btn-small btn-danger-outline" data-summon-index="${index}">解放する</button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
             listEl.querySelectorAll('[data-summon-index]').forEach(btn => {
                 btn.onclick = () => removeSummonedMonster(parseInt(btn.dataset.summonIndex, 10));
             });
@@ -144,6 +203,7 @@ function renderSummonMonsterUI(player) {
 
         const currentCount = (weapon.summonedMonsters || []).length;
         const atMax = currentCount >= SUMMON_MAX_MONSTERS;
+        const playerTotalStatForPreview = getPlayerTotalStatForSummon(typeof getStatsFromPlayer === 'function' ? getStatsFromPlayer(player) : player);
 
         if (atMax) {
             select.innerHTML = `<option value="">配下は既に${SUMMON_MAX_MONSTERS}体（上限）です</option>`;
@@ -154,11 +214,12 @@ function renderSummonMonsterUI(player) {
         } else {
             select.disabled = false;
             select.innerHTML = summonableEntries.map(entry => {
-                const previewMult = calculateSummonMultiplier(entry.monster, isSubType);
+                const baseTotalStat = getMonsterSummonBaseTotalStat(entry.monster);
+                const previewAtk = getSummonCurrentAtk({ baseTotalStat, isSubType }, playerTotalStatForPreview);
                 const matName = (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[entry.matId])
                     ? MATERIAL_DATA[entry.matId].name
                     : entry.matId;
-                return `<option value="${entry.matId}">${matName}（${entry.monster.monsterEmoji || ''}${entry.monster.name} / 追加攻撃${(previewMult * 100).toFixed(1)}%・所持${materials[entry.matId]}個）</option>`;
+                return `<option value="${entry.matId}">${matName}（${entry.monster.monsterEmoji || ''}${entry.monster.name} / 合計ステータス${baseTotalStat}・現在の追加攻撃力${previewAtk}・所持${materials[entry.matId]}個）</option>`;
             }).join('');
         }
 
@@ -210,13 +271,17 @@ function summonMonsterFromMaterial() {
         return;
     }
 
-    const multiplier = calculateSummonMultiplier(monster, isSubType);
+    // 召喚モンスターの「基礎合計ステータス」を固定保存する。実際の追加攻撃力は
+    // これとプレイヤーの現在の合計ステータスから戦闘のたびに動的に計算される
+    // （プレイヤーが成長するほど、配下モンスターも一緒に強くなっていく）。
+    const baseTotalStat = getMonsterSummonBaseTotalStat(monster);
     const newSummon = {
         materialId,
         monsterId: monster.id,
         monsterName: monster.name,
         monsterEmoji: monster.monsterEmoji,
-        multiplier
+        baseTotalStat,
+        isSubType
     };
 
     const updatedWeapon = {
@@ -237,7 +302,9 @@ function summonMonsterFromMaterial() {
     };
 
     localStorage.setItem("player", JSON.stringify(updatedPlayer));
-    alert(`${monster.monsterEmoji || ''}${monster.name}を配下にしました！（追加攻撃: 自分の攻撃力の${(multiplier * 100).toFixed(1)}%）`);
+    const playerTotalStat = getPlayerTotalStatForSummon(typeof getStatsFromPlayer === 'function' ? getStatsFromPlayer(updatedPlayer) : updatedPlayer);
+    const currentAtk = getSummonCurrentAtk(newSummon, playerTotalStat);
+    alert(`${monster.monsterEmoji || ''}${monster.name}を配下にしました！（合計ステータス${baseTotalStat}・現在の追加攻撃力${currentAtk}）`);
     renderSummonMonsterUI(updatedPlayer);
     if (typeof updateStatus === 'function') updateStatus(updatedPlayer);
 }
