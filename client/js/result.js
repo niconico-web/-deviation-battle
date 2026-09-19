@@ -1,6 +1,14 @@
 // Set up home button immediately so it works even if other scripts fail.
 document.getElementById("homeBtn").onclick = () => location.href = "index.html";
 
+// 「戦果をシェア」ボタン：勝利したときだけ表示する（share.js が読み込まれていない場合は何もしない）
+function setupShareButton(text) {
+    const shareBtn = document.getElementById("shareBtn");
+    if (!shareBtn || !window.SchoolBattleShare) return;
+    shareBtn.style.display = "";
+    shareBtn.onclick = () => window.SchoolBattleShare.shareText(text);
+}
+
 // ソケット接続（ダンジョンバトルの場合必要）
 const wasDungeonBattle = localStorage.getItem("isDungeonBattle") === "true";
 if (wasDungeonBattle) {
@@ -66,6 +74,11 @@ function handleNormalResult() {
 
     title.textContent = won ? I18N.win : I18N.lose;
     title.className = won ? "win" : "lose";
+    if (won) {
+        const foeName = enemy && enemy.name ? enemy.name + "に" : "";
+        const detail = turn > 0 ? `（${turn}ターン・合計${damage}ダメージ）` : "";
+        setupShareButton(`School Battleで${foeName}勝利！${detail}`);
+    }
     document.getElementById("turnText").textContent = I18N.turnCount + " : " + turn;
     document.getElementById("hpText").textContent = I18N.remainHp + " : " + playerHP;
     document.getElementById("damageText").textContent = I18N.totalDamage + " : " + damage;
@@ -248,6 +261,7 @@ function handleDungeonResult(won) {
             };
 
             document.getElementById('turnText').textContent = `第${clearedFloor}階 クリア！`;
+            setupShareButton(`School Battleのダンジョンで第${clearedFloor}階を突破！`);
             let floorMessage = `この階の報酬: コイン+${response.floorReward.coins} / 経験値+${response.floorReward.exp}`;
             if (chestReward) {
                 floorMessage += `\n🎁 宝箱: ${chestReward.description || (chestReward.type === 'orb' ? `オーブ（${chestReward.tier}）` : chestReward.itemId)}`;
