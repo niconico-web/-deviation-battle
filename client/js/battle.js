@@ -2283,6 +2283,9 @@ function handleATBAnswer(selectedOption) {
             const summonPlayerTotalStat = (typeof getPlayerTotalStatForSummon === 'function')
                 ? getPlayerTotalStatForSummon(me)
                 : ((me.maxHp || 0) + (me.atk || 0) + (me.def || 0) + (me.speed || 0) + (me.special || 0));
+            // 相手の防御力（防御ダウンのデバフ反映済み）。通常の連続攻撃と同じ扱いで、
+            // 配下の追加攻撃のダメージからも差し引く。
+            const summonTargetDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
             me.equippedWeapon.summonedMonsters.forEach(summon => {
                 if (enemy.hp <= 0) return;
                 let summonAtk;
@@ -2292,7 +2295,9 @@ function handleATBAnswer(selectedOption) {
                     // 旧形式（multiplierのみを持つ召喚データ）との後方互換
                     summonAtk = Math.floor((me.atk || 0) * (summon.multiplier || 0) * 2);
                 }
-                const summonDamage = Math.max(1, Math.floor(summonAtk * 0.5));
+                const summonDamage = (typeof calcSummonDamage === 'function')
+                    ? calcSummonDamage(summonAtk, summonTargetDef)
+                    : Math.max(1, Math.floor(summonAtk * 0.5) - Math.floor(summonTargetDef * 0.1));
                 enemy.hp = Math.max(0, enemy.hp - summonDamage);
                 showDamage("enemyDamage", summonDamage);
                 addLog(`${summon.monsterEmoji || ''}${summon.monsterName}の追加攻撃！ ${enemy.name}に ${summonDamage} のダメージ！`);
