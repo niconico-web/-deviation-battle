@@ -4,7 +4,22 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>School Battle</title>
+    <title>School Battle - 勉強するほど強くなるクイズ×RPGバトル</title>
+    <meta name="description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <link rel="canonical" href="%%SITE_URL%%/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="School Battle">
+    <meta property="og:locale" content="ja_JP">
+    <meta property="og:title" content="School Battle - 勉強するほど強くなるクイズ×RPGバトル">
+    <meta property="og:description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <meta property="og:url" content="%%SITE_URL%%/">
+    <meta property="og:image" content="%%SITE_URL%%/images/og-image.jpg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="School Battle - 勉強するほど強くなるクイズ×RPGバトル">
+    <meta name="twitter:description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <meta name="twitter:image" content="%%SITE_URL%%/images/og-image.jpg">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/style-dungeon.css">
     <link rel="stylesheet" href="css/ability-popup.css">
@@ -40,6 +55,7 @@
                 <button class="menu-btn" data-section="dungeon"><span>🏰</span> ダンジョン</button>
                 <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
                 <button class="menu-btn" data-section="help"><span>❓</span> ヘルプ</button>
+                <button type="button" id="shareInviteBtn" class="share-menu-btn"><span>📣</span> 友達に紹介</button>
             </nav>
         </aside>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
@@ -641,6 +657,7 @@
     <script src="js/dungeon.js"></script>
     <script src="js/tutorial-topics.js"></script>
     <script src="js/questionLists.js"></script>
+    <script src="js/share.js"></script>
     <script src="js/script.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

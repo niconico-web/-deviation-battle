@@ -272,6 +272,38 @@ body {
     color: var(--accent-blue);
 }
 
+/* 「友達に紹介」ボタン（.menu-btnとは別クラス：セクション切替の処理に巻き込まないため） */
+.share-menu-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-top: 1px solid var(--border-color);
+    border-left: 3px solid transparent;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    transition: background-color 0.2s, color 0.2s;
+    position: relative;
+    z-index: 10;
+}
+
+.share-menu-btn span {
+    margin-right: 10px;
+    font-size: 1.05rem;
+    width: 20px;
+    text-align: center;
+}
+
+.share-menu-btn:hover {
+    background-color: rgba(91, 155, 213, 0.1);
+    color: var(--text-primary);
+}
+
 /* メインコンテンツ */
 .main-content {
     flex-grow: 1;

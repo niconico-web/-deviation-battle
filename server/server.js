@@ -26,6 +26,33 @@ const io = new Server(server, {
 io.setMaxListeners(20);
 
 const path = require("path");
+const fs = require("fs");
+
+// ---- トップページ：OGP（共有時のプレビュー）用に絶対URLを差し込んで返す ----
+// client/index.html 内の %%SITE_URL%% を、実際にアクセスされたドメインに置き換える。
+// X・LINE・Discordなどは og:image に絶対URLを要求するため。
+// 独自ドメインに変えてもコード修正は不要（環境変数 SITE_URL を設定すればそちらを優先）。
+const INDEX_HTML_PATH = path.join(__dirname, "../client/index.html");
+
+function getSiteBaseUrl(req) {
+    if (process.env.SITE_URL) return process.env.SITE_URL.replace(/\/+$/, "");
+    const proto = String(req.headers["x-forwarded-proto"] || req.protocol).split(",")[0].trim();
+    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "").split(",")[0].trim();
+    // Hostヘッダーは外部から自由に書き換えられるため、HTMLに埋め込む前に形式を検証する
+    if (!/^https?$/.test(proto) || !/^[a-z0-9.-]+(:\d{1,5})?$/i.test(host)) return "";
+    return `${proto}://${host}`;
+}
+
+app.get(["/", "/index.html"], (req, res, next) => {
+    fs.readFile(INDEX_HTML_PATH, "utf8", (err, html) => {
+        if (err) return next();
+        res.set({
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store, no-cache, must-revalidate"
+        });
+        res.send(html.replace(/%%SITE_URL%%/g, getSiteBaseUrl(req)));
+    });
+});
 
 app.use(express.static(path.join(__dirname, "../client"), {
     setHeaders(res, filePath) {

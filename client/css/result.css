@@ -97,3 +97,8 @@ body {
         padding: 26px 28px;
     }
 }
+
+#shareBtn {
+    background: #e67e22;
+    color: #fff;
+}
