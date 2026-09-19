@@ -154,6 +154,12 @@ function getEquippedSummonsRodInfo(player) {
     const weapon = player && player.equippedWeapon;
     if (!weapon) return { weapon: null, isSummonsRod: false, isSubType: false };
 
+    // サモンズロッドが無効化されている間（weapons.jsのSUMMONS_ROD_ENABLED=false）は、
+    // どの武器を装備していてもサモンズロッド扱いにしない（召喚UIも追加攻撃も動かなくなる）。
+    if (typeof SUMMONS_ROD_ENABLED !== 'undefined' && !SUMMONS_ROD_ENABLED) {
+        return { weapon, isSummonsRod: false, isSubType: false };
+    }
+
     const hasDualWeapon = weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon');
 
     if (weapon.type === 'summons_rod') {
