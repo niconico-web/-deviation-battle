@@ -778,10 +778,34 @@ const WEAPON_TYPES = {
     shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } },
     bow:          { name: "弓",         primary: ["speed", "atk"], secondary: ["special"], debuff: { def: 0.9 } },
     esper:        { name: "超能力",     primary: ["special", "def"], secondary: ["maxHp"], debuff: { atk: 0.9 } },
+    // 六尺杖（ろくしゃくじょう）：約1.8m（六尺）の長い棒を使う棒術の武器。
+    // 守りの構えから長い間合いで相手を制する耐久型。魔法の杖の「物理版」にあたる構成で、
+    // 防御・HPを主に、攻撃・速さにも補正がかかる代わりに、特殊は少し低下する。
+    rokushaku_staff: { name: "六尺杖", primary: ["def", "maxHp"], secondary: ["atk", "speed"], debuff: { special: 0.9 } }
+};
+
+// ============================================================
+// サモンズロッドの有効/無効スイッチ
+// 依頼により、サモンズロッドは「いったん消す」ことになったため、現在はfalse（無効）。
+//   ・false：武器種（ショップ・オリジナル武器作成・ボスドロップ等）から外れ、
+//            配下の召喚UIも追加攻撃も動かない。
+//   ・true ：下のsummons_rodが武器種に復活し、召喚UI・追加攻撃も元通りに動く
+//            （index.htmlの2か所の<select>にも、コメントアウトしてあるoptionを戻すこと）。
+// 所持している武器や契約済みのモンスターのデータは一切消していないので、
+// trueに戻せばそのまま使える。
+// ============================================================
+const SUMMONS_ROD_ENABLED = false;
+if (SUMMONS_ROD_ENABLED) {
     // サモンズロッド：他の武器種と違い、ステータスは一切上昇しない（primary/secondaryが空）。
     // その代わり、素材を消費してモンスターを配下にでき、正解するたびに配下が追加攻撃を行う
-    // （具体的な召喚・攻撃処理はweapons.js内のSUMMON関連関数とbattle.js側で行う）。
-    summons_rod: { name: "サモンズロッド", primary: [], secondary: [], debuff: {}, isSummonsRod: true }
+    // （具体的な召喚・攻撃処理はsummons.jsとbattle.js側で行う）。
+    WEAPON_TYPES.summons_rod = { name: "サモンズロッド", primary: [], secondary: [], debuff: {}, isSummonsRod: true };
+}
+
+// 現在は武器種として存在しない（無効化された）武器種の表示名。
+// すでに持っている武器の種類名が、内部ID（summons_rodなど）のまま表示されるのを防ぐ。
+const LEGACY_WEAPON_TYPE_LABELS = {
+    summons_rod: "サモンズロッド（現在使用不可）"
 };
 
 const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
@@ -868,6 +892,15 @@ const WEAPON_CATALOG = {
         tier3: { name: "第三の眼", ultimate: "マインドクラッシュ" },
         unique: { name: "全能の意識体　アカシャ", ultimate: "アカシックレコード" }
     },
+    // 六尺杖：ショップに並ぶのはtier1〜3。ユニークは神話の如意棒（孫悟空の武器）がモチーフ。
+    rokushaku_staff: {
+        tier1: { name: "樫の六尺杖", ultimate: "払い打ち" },
+        tier2: { name: "鉄芯の六尺杖", ultimate: "旋風打ち" },
+        tier3: { name: "羅漢の六尺杖", ultimate: "羅漢乱舞" },
+        unique: { name: "神棒　如意金箍棒", ultimate: "如意伸縮撃" }
+    },
+    // サモンズロッド：現在は無効（SUMMONS_ROD_ENABLED参照）。武器種（WEAPON_TYPES）から外れているため
+    // ショップには並ばないが、すでに持っている武器の必殺技名などを引けるよう、カタログ自体は残している。
     summons_rod: {
         tier1: { name: "ぼろい杖", ultimate: "スライム召喚" },
         tier2: { name: "召喚術の杖", ultimate: "ゴーレム召喚" },
@@ -1809,7 +1842,7 @@ function getWeaponDisplayName(weapon) {
 }
 
 function getWeaponTypeLabel(type) {
-    return WEAPON_TYPES[type]?.name || type;
+    return WEAPON_TYPES[type]?.name || LEGACY_WEAPON_TYPE_LABELS[type] || type;
 }
 
 // 必殺技名を取得

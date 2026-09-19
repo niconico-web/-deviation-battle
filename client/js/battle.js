@@ -2279,7 +2279,10 @@ function handleATBAnswer(selectedOption) {
         // 基礎合計ステータス（baseTotalStat、召喚時に確定）とプレイヤーの現在の
         // 合計ステータスから、召喚モンスター自身の「現在の攻撃力」を毎回計算し、
         // それを基にダメージを算出する方式に変更した。
-        if (me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
+        // サモンズロッドが無効化されている間（weapons.jsのSUMMONS_ROD_ENABLED=false）は、
+        // 契約済みの配下がいても追加攻撃を行わない（データ自体は消えていない）。
+        const summonsRodEnabled = (typeof SUMMONS_ROD_ENABLED === 'undefined') || SUMMONS_ROD_ENABLED;
+        if (summonsRodEnabled && me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
             const summonPlayerTotalStat = (typeof getPlayerTotalStatForSummon === 'function')
                 ? getPlayerTotalStatForSummon(me)
                 : ((me.maxHp || 0) + (me.atk || 0) + (me.def || 0) + (me.speed || 0) + (me.special || 0));

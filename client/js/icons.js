@@ -66,6 +66,19 @@ const WEAPON_ICON_DATA = {
         <line x1="12" y1="32" x2="17" y2="32"/>
         <line x1="47" y1="32" x2="52" y2="32"/>
     ` },
+    // 六尺杖：左下から右上へ斜めに伸びる長い木の棒。両端に金属の石突・先金、中ほどに握りの巻き革、
+    // 木の艶のハイライト、振り抜いた軌跡を描いた棒術の武器。
+    rokushaku_staff: { color: "#d9a86c", inner: `
+        <line x1="13" y1="52" x2="51" y2="12" stroke-width="5"/>
+        <line x1="17.1" y1="46.7" x2="45.9" y2="16.3" stroke="#f6dcb0" stroke-width="1" opacity="0.85"/>
+        <line x1="13" y1="52" x2="15.7" y2="49.2" stroke="#cfd6de" stroke-width="5.8" stroke-linecap="butt"/>
+        <line x1="48.3" y1="14.8" x2="51" y2="12" stroke="#cfd6de" stroke-width="5.8" stroke-linecap="butt"/>
+        <line x1="26" y1="33.9" x2="30.4" y2="38.1" stroke="#7a4e22" stroke-width="1.7" stroke-linecap="butt"/>
+        <line x1="28.7" y1="31.1" x2="33" y2="35.3" stroke="#7a4e22" stroke-width="1.7" stroke-linecap="butt"/>
+        <line x1="31.3" y1="28.3" x2="35.7" y2="32.5" stroke="#7a4e22" stroke-width="1.7" stroke-linecap="butt"/>
+        <path d="M11 27 Q14 17 24 11" fill="none" stroke-width="1.8" opacity="0.6"/>
+        <path d="M47 53 Q54 49 57 40" fill="none" stroke-width="1.8" opacity="0.6"/>
+    ` },
 };
 
 const BOSS_ICON_DATA = {
