@@ -125,6 +125,26 @@ function getSummonCurrentAtk(summon, playerTotalStat) {
     return Math.max(1, Math.floor(atk));
 }
 
+// 配下の追加攻撃のダメージ計算式。プレイヤー自身の連続攻撃（battle.jsのhandleATBAnswer）と
+// 同じく「攻撃力 × 0.5 − 相手の防御力 × 0.1」（最低1ダメージ）。
+// 以前は相手の防御力を一切考慮せず「攻撃力 × 0.5」がそのまま入っていたため、
+// 防御の高い相手にも配下の攻撃が素通しになっていた。
+const SUMMON_DAMAGE_ATK_RATE = 0.5;
+const SUMMON_DEFENSE_REDUCTION_RATE = 0.1;
+
+/**
+ * 配下1体の追加攻撃が相手に与えるダメージを求める。
+ * @param {number} summonAtk - getSummonCurrentAtk()で求めた配下の現在の追加攻撃力
+ * @param {number} enemyDef - 相手の防御力（防御ダウンのデバフ反映済みの値を渡す）
+ * @returns {number} 最低1
+ */
+function calcSummonDamage(summonAtk, enemyDef) {
+    const def = Math.max(0, Math.floor(enemyDef || 0));
+    const raw = Math.floor((summonAtk || 0) * SUMMON_DAMAGE_ATK_RATE);
+    const reduction = Math.floor(def * SUMMON_DEFENSE_REDUCTION_RATE);
+    return Math.max(1, raw - reduction);
+}
+
 /**
  * 現在装備中の武器が「サモンズロッド」を(メイン or サブ武器種として)使っているかを調べる。
  * @param {object} player
