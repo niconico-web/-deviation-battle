@@ -649,16 +649,115 @@ const BOT_SPECIAL_RATIO_FALLBACK = 0.6;
 const BOT_STAT_VARIANCE_MIN = 0.7;
 const BOT_STAT_VARIANCE_MAX = 1.3;
 
-// 依頼により「ボットが弱すぎる」ため、通常のボットマッチ（オンラインタブの「ボットバトル」）
-// で戦うボットのステータスを、モンスターごとの強さ倍率(statMultiplier)に加えて
-// さらにこの倍率で底上げする。5倍という大きな値だが、依頼の強い要望
-// （「もっともっともっともっと強くしていい」）に応えるためあえて大きく設定した。
-const BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIER = 5.0;
+// 【ボットバトルのステータス仕様（依頼により変更）】
+// 以前はプレイヤーの実ステータスにモンスターごとの倍率をかけて決めていたため、
+// プレイヤーが強くなるほどボットも一緒に強くなってしまっていた。
+// 現在は、モンスターごとに「固定の合計ステータス」（monster-stats.jsの表。
+// 例：スライム=250、原初の巨人=1000000）が決まっており、プレイヤーのステータスとは
+// 一切関係なく常に一定。合計だけが固定で、HP・攻撃・防御・速さ・特殊への振り分けは
+// 戦うたびにランダムに決まる（generateFixedBotStats）。
+// （以前の「ボットが弱すぎる」対策の5倍底上げ＝BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIERも、
+// 強さを表で直接決める方式になったため廃止した）
+
+// 各ステータスに最低限割り振る合計の割合（極端な偏りで、HPがほぼ0のような
+// 不自然なボットにならないための下限。5ステータス×8% = 合計40%は必ず均等に配る）
+const BOT_STAT_MIN_SHARE = 0.08;
+
+// 「おまかせ（ランダム）」でモンスターを選ぶ際に、プレイヤーの現在の合計ステータスに
+// 対して、何倍〜何倍の強さのモンスターを候補にするか。
+// ボットの強さは固定なので、まったく制限せずに全モンスターから選ぶと、
+// 序盤のプレイヤーが合計100万のモンスターと当たるような勝負にならない対戦が
+// 頻発してしまう。そのため「選ぶ候補」だけをプレイヤーの強さに近いものに絞る
+// （選ばれたモンスター自身のステータスはプレイヤーに関係なく固定のまま）。
+// モンスターを個別に選べば、この範囲外の強敵・弱敵とも自由に対戦できる。
+const BOT_RANDOM_MATCH_MIN_RATIO = 0.3;
+const BOT_RANDOM_MATCH_MAX_RATIO = 6.0;
+
+/**
+ * 固定の合計ステータスを、HP・攻撃・防御・速さ・特殊にランダムに振り分ける。
+ * 合計は必ずtotalStatちょうどになる（丸め誤差は最大のステータスで吸収する）。
+ * 各ステータスにはBOT_STAT_MIN_SHARE分の最低保証があり、残りはランダムな比率で配る。
+ * @param {number} totalStat - モンスターごとの固定の合計ステータス
+ * @returns {{maxHp:number, atk:number, def:number, speed:number, special:number, attackType:string}}
+ */
+function generateFixedBotStats(totalStat) {
+    const statNames = ["maxHp", "atk", "def", "speed", "special"];
+    const total = Math.max(statNames.length, Math.round(totalStat || 0));
+    const flexibleShare = 1 - BOT_STAT_MIN_SHARE * statNames.length;
+
+    // 指数分布の乱数を正規化すると、5つの比率が「すべての振り分けが等確率」になる
+    const weights = statNames.map(() => -Math.log(1 - Math.random()));
+    const weightSum = weights.reduce((a, b) => a + b, 0);
+
+    const result = {};
+    let assigned = 0;
+    statNames.forEach((stat, i) => {
+        const share = BOT_STAT_MIN_SHARE + flexibleShare * (weights[i] / weightSum);
+        result[stat] = Math.max(1, Math.round(total * share));
+        assigned += result[stat];
+    });
+
+    // 四捨五入のズレで合計がずれた分を、一番大きいステータスで調整して合計を厳密に揃える
+    const diff = total - assigned;
+    if (diff !== 0) {
+        const largest = statNames.reduce((a, b) => (result[b] > result[a] ? b : a));
+        result[largest] = Math.max(1, result[largest] + diff);
+    }
+
+    // 特殊が攻撃より高く配分された場合は、特殊攻撃寄りのボットにする
+    result.attackType = result.special > result.atk ? 'special' : 'attack';
+    return result;
+}
+
+/**
+ * ステータス一式から合計（HP+攻撃+防御+速さ+特殊）を求める。
+ * specialが無い場合はgenerateRandomizedBotStatsと同じく攻撃の0.6倍で補う。
+ */
+function getStatTotalForBotMatch(stats) {
+    const s = stats || {};
+    const special = s.special != null ? s.special : Math.floor((s.atk || 0) * BOT_SPECIAL_RATIO_FALLBACK);
+    return Math.max(1, (s.maxHp || 0) + (s.atk || 0) + (s.def || 0) + (s.speed || 0) + (special || 0));
+}
+
+/**
+ * 「おまかせ（ランダム）」用：プレイヤーの強さに近い固定合計ステータスのモンスターから
+ * ランダムに1体選ぶ。範囲内に該当モンスターがいなければ、一番近い強さのものを選ぶ。
+ * @param {object} playerStats - プレイヤーの実ステータス（武器補正込み）
+ * @returns {object} BOT_MONSTERSの要素
+ */
+function pickRandomBotMonsterForPlayer(playerStats) {
+    const playerTotal = getStatTotalForBotMatch(playerStats);
+    const minTotal = playerTotal * BOT_RANDOM_MATCH_MIN_RATIO;
+    const maxTotal = playerTotal * BOT_RANDOM_MATCH_MAX_RATIO;
+
+    const candidates = BOT_MONSTERS.filter(m => {
+        const t = getMonsterTotalStat(m);
+        return t >= minTotal && t <= maxTotal;
+    });
+    if (candidates.length > 0) {
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    // 範囲内に1体もいない場合（極端に弱い／強いプレイヤー）は、強さが一番近いものを選ぶ
+    let closest = BOT_MONSTERS[0];
+    let closestDistance = Infinity;
+    BOT_MONSTERS.forEach(m => {
+        const distance = Math.abs(Math.log(getMonsterTotalStat(m) / playerTotal));
+        if (distance < closestDistance) {
+            closestDistance = distance;
+            closest = m;
+        }
+    });
+    return closest;
+}
 
 /**
  * ボットのステータスを、プレイヤーの各ステータス（HP・攻撃・防御・速さ・特殊）に
  * それぞれ「モンスターごとの強さ倍率(statMultiplier) × 個体差ブレ(0.7〜1.3倍)」を
  * 掛けて決める。
+ * 【注意】通常のボットバトルは固定合計ステータス方式（generateFixedBotStats）に変更済み。
+ * この関数は、階層とプレイヤーの強さに合わせて敵が強くなる「ダンジョン」（dungeon.js）
+ * 専用として残している。
  * 【重要】以前は「ステータス合計に倍率をかけてから、その合計をランダムな比率で
  * 5ステータスに再配分する」方式だったが、武器の倍率（最大20倍）で攻撃だけが
  * 極端に大きいプレイヤーの場合、合計の大部分が攻撃由来なのに再配分時に均等割りに
@@ -704,12 +803,17 @@ function setupOnlineEventHandlers() {
     // モンスター選択欄に選択肢を追加
     const botMonsterSelectEl = document.getElementById("botMonsterSelect");
     if (botMonsterSelectEl) {
-        BOT_MONSTERS.forEach(m => {
-            const opt = document.createElement("option");
-            opt.value = m.id;
-            opt.textContent = `${m.monsterEmoji} ${m.name}`;
-            botMonsterSelectEl.appendChild(opt);
-        });
+        // ボットの強さ（合計ステータス）はモンスターごとに固定なので、選ぶ時に強さが分かるよう
+        // 合計ステータスを表示し、弱い順に並べる。
+        BOT_MONSTERS
+            .map(m => ({ monster: m, total: getMonsterTotalStat(m) }))
+            .sort((a, b) => a.total - b.total)
+            .forEach(({ monster, total }) => {
+                const opt = document.createElement("option");
+                opt.value = monster.id;
+                opt.textContent = `${monster.monsterEmoji} ${monster.name}（合計${total.toLocaleString()}）`;
+                botMonsterSelectEl.appendChild(opt);
+            });
     }
 
     // ボタンイベントハンドラーの設定
@@ -809,24 +913,23 @@ function setupOnlineEventHandlers() {
 
             const battleStats = getBattleStats(player);
 
-            // モンスター選択欄で選ばれたモンスターを使用（「おまかせ」ならランダム）
+            // モンスター選択欄で選ばれたモンスターを使用。
+            // 「おまかせ」なら、プレイヤーの強さに近いモンスターの中からランダムに選ぶ
+            // （選ばれたモンスター自身の強さはプレイヤーに関係なく固定）。
             const monsterSelect = document.getElementById("botMonsterSelect");
             const selectedId = monsterSelect ? monsterSelect.value : "random";
             const randomMonster = (selectedId && selectedId !== "random")
-                ? (BOT_MONSTERS.find(m => m.id === selectedId) || BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)])
-                : BOT_MONSTERS[Math.floor(Math.random() * BOT_MONSTERS.length)];
+                ? (BOT_MONSTERS.find(m => m.id === selectedId) || pickRandomBotMonsterForPlayer(battleStats))
+                : pickRandomBotMonsterForPlayer(battleStats);
 
             // プレイヤーの学年に合わせてボットの学年を設定
             const playerGrade = player.grade || 1;
 
-            // モンスターのステータスは、プレイヤーの実ステータス（武器補正込み）の合計に
-            // モンスターごとの強さ倍率（statMultiplier）をかけた総量を、HP・攻撃・防御・
-            // 速さ・特殊にランダムに再配分して決める（同じ強さでも個体差が出るように）。
-            // 例: スライムはプレイヤーの0.5倍、ゴブリンは0.8倍、強力なモンスターは2倍前後。
-            // これにより、プレイヤーが成長するほどモンスターも相対的に強くなり、
-            // 常に歯ごたえのあるバトルになる。
-            const statMultiplier = (randomMonster.statMultiplier != null ? randomMonster.statMultiplier : 1.0) * BOT_MATCH_GLOBAL_STRENGTH_MULTIPLIER;
-            const botBaseStats = generateRandomizedBotStats(battleStats, statMultiplier);
+            // モンスターのステータスは、モンスターごとに決まっている固定の合計ステータス
+            // （monster-stats.js。例: スライム=250、原初の巨人=1000000）を、
+            // HP・攻撃・防御・速さ・特殊にランダムに振り分けて決める。
+            // プレイヤーのステータスには一切左右されない（合計は常に一定、内訳だけが毎回変わる）。
+            const botBaseStats = generateFixedBotStats(getMonsterTotalStat(randomMonster));
 
             const botPlayer = {
                 id: "bot_" + Date.now(),

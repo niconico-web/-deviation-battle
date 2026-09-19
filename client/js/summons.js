@@ -6,9 +6,9 @@
 // の管理UI＝index.html「装備スキル」タブの武器種選択のところに表示する）。
 //
 // 召喚モンスターは、召喚時点の武器（メイン武器種 or サブ武器種＝デュアルウェポン）に
-// 紐付けて weapon.summonedMonsters に保存する。倍率もこの時点で確定させて保存するので、
-// battle.js側（online.jsが読み込まれていないbattle.html）はBOT_MONSTERSを一切参照せず、
-// 保存済みの値をそのまま使うだけで済む。
+// 紐付けて weapon.summonedMonsters に保存する。battle.js側（online.jsが読み込まれて
+// いないbattle.html）はBOT_MONSTERSを参照せず、保存済みのmonsterId/baseTotalStatと、
+// monster-stats.js（battle.htmlでも読み込む）の固定値の表だけで強さを求める。
 
 const SUMMON_MAX_MONSTERS = 3;
 
@@ -18,46 +18,27 @@ const SUMMON_SUB_TYPE_MULTIPLIER_RATIO = 0.5;
 
 // ============================================================
 // 召喚モンスターのステータスシステム
-// 以前は「プレイヤーの攻撃力の何%」という単純な倍率だったが、依頼により
-// 「モンスターごとに固定の合計ステータスがあり、プレイヤーのステータスに応じて
-// それが伸びていく」方式に変更。例：スライムは合計ステータス250、
-// 原初の巨人のような最強クラスのモンスターは合計ステータス25000、というように、
-// モンスターの強さ（BOT_MONSTERSのstatMultiplier）に応じて基礎値が決まり、
-// そこからプレイヤー自身の合計ステータスの伸びに比例して成長する。
+// モンスターごとに固定の合計ステータスがある（monster-stats.jsの表。例：スライム=250、
+// 原初の巨人=1000000。ボットバトルで戦う時の強さと同じ値）。契約（配下）にすると、
+// この値を基準に、プレイヤーのステータスに応じて「ほんの少しだけ」上下する。
+// 以前はプレイヤーの合計ステータスに比例して際限なく伸びていたが、依頼により
+// 固定値が主体・プレイヤーによる増減は最大±10%程度、という仕様に変更した。
 // ============================================================
 
-// 召喚モンスターの基礎合計ステータスの範囲（最弱モンスター〜最強モンスター）
-const SUMMON_BASE_TOTAL_STAT_MIN = 250;
-const SUMMON_BASE_TOTAL_STAT_MAX = 25000;
+// プレイヤーのステータスによる増減の最大幅（0.10 = 基準値の最大±10%）。
+// プレイヤーの合計ステータスが契約モンスターの合計ステータスより高いほど上がり（最大+10%）、
+// 低いほど下がる（最大-10%）。同じくらいなら基準値のまま。
+const SUMMON_PLAYER_ADJUST_MAX_RATE = 0.10;
 
-// 「プレイヤーの合計ステータスがこの値の時、召喚モンスターは基礎値そのまま」という基準値。
-// 新規キャラクター相当の合計ステータス（最弱モンスターの基礎値と同じ250）を基準にすることで、
-// プレイヤーが成長するほど配下モンスターも一緒に強くなっていく。
-const SUMMON_PLAYER_BASELINE_TOTAL_STAT = 250;
+// プレイヤーと契約モンスターの合計ステータスの差を、何桁分で最大幅に近づけるか。
+// 大きいほど、増減がなだらか（＝差がよほど大きくないと最大幅に達しない）。
+const SUMMON_PLAYER_ADJUST_SCALE_DECADES = 2;
 
 // 合計ステータスのうち、実際の追加攻撃力（atk相当）として使う割合
 const SUMMON_ATTACK_STAT_SHARE = 0.35;
 
-/**
- * BOT_MONSTERSに含まれるstatMultiplierの最小値・最大値を求める。
- * @returns {{min: number, max: number}}
- */
-function getMonsterStatMultiplierRange() {
-    if (typeof BOT_MONSTERS === 'undefined' || !BOT_MONSTERS.length) {
-        return { min: 0.3, max: 2.2 };
-    }
-    let min = Infinity;
-    let max = -Infinity;
-    BOT_MONSTERS.forEach(m => {
-        const v = m.statMultiplier != null ? m.statMultiplier : 1.0;
-        if (v < min) min = v;
-        if (v > max) max = v;
-    });
-    if (!isFinite(min) || !isFinite(max) || min === max) {
-        return { min: 0.3, max: 2.2 };
-    }
-    return { min, max };
-}
+// プレイヤーのステータス情報が取れなかった場合に使う仮の合計ステータス（新規キャラ相当）
+const SUMMON_PLAYER_FALLBACK_TOTAL_STAT = 250;
 
 /**
  * 指定した素材IDをドロップするモンスターを1体探す（複数該当する場合は最初の1体）。
@@ -72,56 +53,73 @@ function findMonsterForMaterial(materialId) {
 }
 
 /**
- * モンスターのstatMultiplierから、召喚モンスターの「基礎合計ステータス」を求める。
- * 250〜25000という100倍の開きがあるため、線形補間ではなく対数（指数）補間を使う
- * （線形だと大半のモンスターが最低値付近に固まってしまうため）。
- * この関数はBOT_MONSTERSを必要とするため、online.jsが読み込まれているindex.html側
+ * モンスターの「基礎合計ステータス」（固定値）を求める。ボットバトルで戦う時と同じ値。
+ * この関数はBOT_MONSTERSの要素を受け取るため、online.jsが読み込まれているindex.html側
  * （召喚時・プレビュー表示時）でのみ呼び出す。
  * @param {object} monster - BOT_MONSTERSの要素
  * @returns {number}
  */
 function getMonsterSummonBaseTotalStat(monster) {
-    const { min, max } = getMonsterStatMultiplierRange();
-    const statMult = (monster && monster.statMultiplier != null) ? monster.statMultiplier : 1.0;
-    const ratio = Math.max(0, Math.min(1, (statMult - min) / (max - min)));
-    const logMin = Math.log(SUMMON_BASE_TOTAL_STAT_MIN);
-    const logMax = Math.log(SUMMON_BASE_TOTAL_STAT_MAX);
-    const logValue = logMin + ratio * (logMax - logMin);
-    return Math.round(Math.exp(logValue));
+    return getMonsterTotalStat(monster);
+}
+
+/**
+ * 配下モンスター1体分の「基礎合計ステータス」を返す。
+ * monster-stats.jsの表に載っているモンスターは常にその最新の値を使う
+ * （表の数値を調整した場合や、以前の計算方式で契約した配下にも反映される）。
+ * 表に無い場合は、契約時に保存した値（weapon.summonedMonstersのbaseTotalStat）を使う。
+ * @param {object} summon - weapon.summonedMonstersの要素
+ * @returns {number}
+ */
+function getSummonBaseTotalStat(summon) {
+    if (!summon) return 0;
+    if (summon.monsterId != null && typeof getMonsterTotalStatById === 'function') {
+        const fixed = getMonsterTotalStatById(summon.monsterId);
+        if (fixed != null) return fixed;
+    }
+    return summon.baseTotalStat || 0;
 }
 
 /**
  * ステータス一式（maxHp/atk/def/speed/special相当のオブジェクト）から
- * 召喚モンスターの成長計算に使う「プレイヤーの合計ステータス」を求める。
+ * 「プレイヤーの合計ステータス」を求める。
  * @param {object} statsLike
  * @returns {number}
  */
 function getPlayerTotalStatForSummon(statsLike) {
-    if (!statsLike) return SUMMON_PLAYER_BASELINE_TOTAL_STAT;
+    if (!statsLike) return SUMMON_PLAYER_FALLBACK_TOTAL_STAT;
     return Math.max(1, (statsLike.maxHp || 0) + (statsLike.atk || 0) + (statsLike.def || 0) + (statsLike.speed || 0) + (statsLike.special || 0));
 }
 
 /**
- * 召喚モンスターの「現在の合計ステータス」を求める（基礎値 × プレイヤーの成長倍率）。
- * @param {number} baseTotalStat - 召喚時に固定保存された基礎合計ステータス
+ * 召喚モンスターの「現在の合計ステータス」を求める（基礎値 ± ほんの少しの増減）。
+ * プレイヤーの合計ステータスが基礎値と同じなら基礎値のまま。プレイヤーが強いほど
+ * 最大+SUMMON_PLAYER_ADJUST_MAX_RATE、弱いほど最大-SUMMON_PLAYER_ADJUST_MAX_RATEの範囲で増減する。
+ * （tanhで頭打ちにしているため、どれだけプレイヤーが強くなっても弱くなっても、
+ * 増減は最大±10%を超えない）
+ * @param {number} baseTotalStat - 基礎合計ステータス（固定値）
  * @param {number} playerTotalStat - 現在のプレイヤーの合計ステータス
  * @returns {number}
  */
 function getSummonCurrentTotalStat(baseTotalStat, playerTotalStat) {
-    const growthFactor = Math.max(1, (playerTotalStat || SUMMON_PLAYER_BASELINE_TOTAL_STAT) / SUMMON_PLAYER_BASELINE_TOTAL_STAT);
-    return (baseTotalStat || 0) * growthFactor;
+    const base = baseTotalStat || 0;
+    if (base <= 0) return 0;
+    const playerTotal = Math.max(1, playerTotalStat || SUMMON_PLAYER_FALLBACK_TOTAL_STAT);
+    const decadesAbove = Math.log10(playerTotal / base);
+    const adjust = Math.tanh(decadesAbove / SUMMON_PLAYER_ADJUST_SCALE_DECADES) * SUMMON_PLAYER_ADJUST_MAX_RATE;
+    return base * (1 + adjust);
 }
 
 /**
  * 召喚モンスターの「現在の追加攻撃力」を求める。battle.js側（実際のダメージ計算）と
  * index.html側（UIプレビュー）の両方から呼ばれる共通ロジック。
- * @param {object} summon - weapon.summonedMonstersの要素（baseTotalStat・isSubTypeを含む）
+ * @param {object} summon - weapon.summonedMonstersの要素（monsterId/baseTotalStat・isSubTypeを含む）
  * @param {number} playerTotalStat - 現在のプレイヤーの合計ステータス
  * @returns {number}
  */
 function getSummonCurrentAtk(summon, playerTotalStat) {
     if (!summon) return 0;
-    const currentTotal = getSummonCurrentTotalStat(summon.baseTotalStat, playerTotalStat);
+    const currentTotal = getSummonCurrentTotalStat(getSummonBaseTotalStat(summon), playerTotalStat);
     let atk = currentTotal * SUMMON_ATTACK_STAT_SHARE;
     if (summon.isSubType) atk *= SUMMON_SUB_TYPE_MULTIPLIER_RATIO;
     return Math.max(1, Math.floor(atk));
@@ -215,7 +213,7 @@ function renderSummonMonsterUI(player) {
             select.disabled = false;
             select.innerHTML = summonableEntries.map(entry => {
                 const baseTotalStat = getMonsterSummonBaseTotalStat(entry.monster);
-                const previewAtk = getSummonCurrentAtk({ baseTotalStat, isSubType }, playerTotalStatForPreview);
+                const previewAtk = getSummonCurrentAtk({ monsterId: entry.monster.id, baseTotalStat, isSubType }, playerTotalStatForPreview);
                 const matName = (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[entry.matId])
                     ? MATERIAL_DATA[entry.matId].name
                     : entry.matId;
@@ -271,9 +269,9 @@ function summonMonsterFromMaterial() {
         return;
     }
 
-    // 召喚モンスターの「基礎合計ステータス」を固定保存する。実際の追加攻撃力は
-    // これとプレイヤーの現在の合計ステータスから戦闘のたびに動的に計算される
-    // （プレイヤーが成長するほど、配下モンスターも一緒に強くなっていく）。
+    // 召喚モンスターの「基礎合計ステータス」（モンスターごとの固定値）を保存する。
+    // 実際の追加攻撃力は、これにプレイヤーの現在の合計ステータスに応じたほんの少しの
+    // 増減（最大±10%）を加えたものから、戦闘のたびに動的に計算される。
     const baseTotalStat = getMonsterSummonBaseTotalStat(monster);
     const newSummon = {
         materialId,
