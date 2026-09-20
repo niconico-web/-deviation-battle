@@ -314,7 +314,6 @@ function createCharacter() {
     const name = document.getElementById("playerName").value.trim() || I18N.unnamed;
     const stats = getStatsFromInputs();
     const existing = getPlayerData();
-    const prestigeMode = isPrestigeMode && !!existing;
     const statReallocationMode = isStatReallocationMode && !!existing;
 
     // 名前のバリデーション（新規作成時のみ）
@@ -326,8 +325,8 @@ function createCharacter() {
         }
     }
 
-    if (!existing || prestigeMode || statReallocationMode) {
-        // 新規作成時、プレステージ（転生）、ステータス再分配チケット使用時は
+    if (!existing || statReallocationMode) {
+        // 新規作成時、ステータス再分配チケット使用時は
         // 持ち点250ポイントちょうどを配分することを要求する
         const validation = validateStatAllocation(stats);
         if (!validation.ok) { alert(validation.message); return; }
@@ -340,36 +339,20 @@ function createCharacter() {
         }
     }
 
-    // プレステージ時はレベル（xp）とスキルツリーもリセットする。
-    // ただし学年（grade）はリセット対象外（statsから取得した現在の学年をそのまま使う）。
-    const xp = prestigeMode ? 0 : (existing ? existing.xp : 0);
+    // 転生機能は廃止された。過去の転生で得た永続ボーナス（prestigeCount / prestigeBonusPercent）は、
+    // 既存プレイヤーの強さが下がらないようそのまま引き継ぐ（新たに増やす手段は無い）。
+    const xp = existing ? existing.xp : 0;
     const totalStudySeconds = existing ? (existing.totalStudySeconds || 0) : 0;
-    const prestigeCount = prestigeMode ? (existing?.prestigeCount || 0) + 1 : (existing?.prestigeCount || 0);
-    // 転生実行時に「今回分」得られる永続ボーナス％は、リセット前（existing）の
-    // ステータス・レベル・戦力スコアを基準に決まる。リセット後の値では計算しない。
-    // 累積には上限(PRESTIGE_BONUS_PERCENT_CAP)があるため、上限考慮後の実加算量を使う。
-    const earnedBonusPercent = prestigeMode ? getPrestigeBonusGainForNextRun(existing) : 0;
-    const prestigeBonusPercent = prestigeMode
-        ? Math.min(PRESTIGE_BONUS_PERCENT_CAP, (existing?.prestigeBonusPercent || 0) + earnedBonusPercent)
-        : (existing?.prestigeBonusPercent || 0);
-    const skillTreeForPlayer = prestigeMode ? { unlockedNodes: [], availablePoints: 0 } : existing?.skillTree;
-    const skillSlotsForPlayer = prestigeMode ? [null, null, null] : existing?.skillSlots;
-    // 転生時は武器の倍率・上限倍率・強化回数だけを素の状態に戻す（武器自体・オーブ・
-    // 召喚モンスター契約・tier4固有能力は消えない）。武器の育成もまた勉強・バトルを
-    // 続ける理由の一つとして機能するようにするための調整。
-    const weaponsForPlayer = prestigeMode
-        ? (existing?.weapons || []).map(w => (typeof resetWeaponMultiplierForPrestige === 'function' ? resetWeaponMultiplierForPrestige(w) : w))
-        : (existing?.weapons || []);
-    const equippedWeaponForPlayer = prestigeMode
-        ? (existing?.equippedWeapon && typeof resetWeaponMultiplierForPrestige === 'function'
-            ? resetWeaponMultiplierForPrestige(existing.equippedWeapon)
-            : (existing?.equippedWeapon || null))
-        : (existing?.equippedWeapon || null);
-    // 転生時は素材（限界突破素材・武器合成のボーナス素材・召喚モンスターの契約素材等）もリセットする
-    const materialsForPlayer = prestigeMode ? {} : (existing?.materials || {});
+    const prestigeCount = existing?.prestigeCount || 0;
+    const prestigeBonusPercent = existing?.prestigeBonusPercent || 0;
+    const skillTreeForPlayer = existing?.skillTree;
+    const skillSlotsForPlayer = existing?.skillSlots;
+    const weaponsForPlayer = existing?.weapons || [];
+    const equippedWeaponForPlayer = existing?.equippedWeapon || null;
+    const materialsForPlayer = existing?.materials || {};
 
     // ステータス再分配チケット使用時は、使用したチケットだけをdungeonItemsから取り除く
-    // （転生と違い、レベル・スキルツリー・他のダンジョンアイテムには一切手を付けない）
+    // （レベル・スキルツリー・他のダンジョンアイテムには一切手を付けない）
     let dungeonItemsForPlayer = existing?.dungeonItems || [];
     if (statReallocationMode) {
         const ticketIndex = dungeonItemsForPlayer.findIndex(item => item.id === 'stat_reallocator');
@@ -405,7 +388,8 @@ function createCharacter() {
         prestigeBonusPercent,
         lastLoginDate: existing?.lastLoginDate,
         loginStreak: existing?.loginStreak,
-        questionLists: existing?.questionLists || []
+        questionLists: existing?.questionLists || [],
+        craftCurrency: existing?.craftCurrency
     });
     localStorage.setItem("player", JSON.stringify(player));
     updateStatus(player);
@@ -419,13 +403,11 @@ function createCharacter() {
     }
 
     // 新規キャラクター作成時のみ、初回ログインボーナスも確認する
-    // （プレステージ時は同じcreateCharacter()を経由するが、ボーナス表示は不要）
     if (!existing && typeof checkAndGrantLoginBonus === "function") {
         checkAndGrantLoginBonus();
     }
     
     // Lock stat inputs after creation
-    isPrestigeMode = false;
     isStatReallocationMode = false;
     lockStatInputs(true);
     document.getElementById("statAllocationDesc").textContent = I18N.fixedStats;
@@ -438,30 +420,15 @@ function createCharacter() {
 
     syncPlayerToServer(true);
 
-    if (prestigeMode) {
-        const roundedEarned = Math.round(earnedBonusPercent * 10) / 10;
-        const roundedTotal = Math.round(prestigeBonusPercent * 10) / 10;
-        alert(
-            I18N.prestigeDone
-                .replace("{bonus}", roundedEarned)
-                .replace("{total}", roundedTotal)
-        );
-    } else if (statReallocationMode) {
+    if (statReallocationMode) {
         alert("ステータスを再分配しました！");
     } else {
         alert(I18N.charCreated);
     }
 }
 
-// 転生機能（旧・プレステージ）：一定レベルに到達したプレイヤーが、ステータスを
-// 最初の振り分け可能な状態（持ち点250）に戻して再配分する代わりに、
-// 全ステータスに永続的な倍率ボーナスを得られる（実行するたびに加算、上限なし）。
-// 1回あたりのボーナス量は固定ではなく、実行時点のステータス・レベル・戦力スコアで決まる
-// （calculatePrestigeBonusPercent()、詳細はstats.js参照）。
-let isPrestigeMode = false;
-
 // ステータス再分配チケット（ダンジョン報酬）：レベル・スキルツリー・武器等は一切変えずに、
-// 持ち点250をもう一度最初から配分し直せる。転生と違って永続ボーナスは得られない代わりに、
+// 持ち点250をもう一度最初から配分し直せる。
 // 実行回数の制限はチケットの所持数だけで決まる（1回使うと1枚消費）。
 let isStatReallocationMode = false;
 
@@ -478,47 +445,12 @@ function startStatReallocation() {
     const confirmed = confirm("ステータス再分配チケットを1枚使って、持ち点250を最初から配分し直しますか？（レベルや武器、スキルはそのまま維持されます）");
     if (!confirmed) return;
 
-    isPrestigeMode = false;
     isStatReallocationMode = true;
     setStatsToInputs(DEFAULT_STATS);
     lockStatInputs(false);
     document.getElementById("statAllocationDesc").textContent = "ステータス再分配：持ち点250をもう一度配分してください。";
     const createBtn = document.getElementById("createCharBtn");
     if (createBtn) createBtn.textContent = "再分配を確定する";
-    updateRemainingPoints();
-}
-
-function startPrestige() {
-    const player = getPlayerData();
-    if (!player) return;
-
-    if (!canPrestige(player)) {
-        alert(I18N.prestigeLevelRequired.replace("{level}", PRESTIGE_UNLOCK_LEVEL));
-        return;
-    }
-
-    // 今回の転生で得られる永続ボーナス％は、実行時点のステータス・レベル・戦力スコアから決まる
-    // （累積の上限PRESTIGE_BONUS_PERCENT_CAPを考慮した実加算量）
-    const earnedBonusPercent = Math.round(getPrestigeBonusGainForNextRun(player) * 10) / 10;
-    const totalBonusPercent = Math.round(Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player.prestigeBonusPercent || 0) + earnedBonusPercent) * 10) / 10;
-    let confirmMsg = I18N.prestigeConfirmMsg
-        .replace("{bonus}", earnedBonusPercent)
-        .replace("{total}", totalBonusPercent);
-    if (earnedBonusPercent <= 0) {
-        confirmMsg += "\n（永続ボーナスは既に上限+" + PRESTIGE_BONUS_PERCENT_CAP + "%に達しています。今回の転生では武器の倍率・上限倍率・召喚モンスター契約・素材のみリセットされます）";
-    } else {
-        confirmMsg += "\n（転生すると武器の倍率・上限倍率・召喚モンスター契約・素材もリセットされます。武器自体やオーブは消えません）";
-    }
-    const confirmed = confirm(confirmMsg);
-    if (!confirmed) return;
-
-    isStatReallocationMode = false;
-    isPrestigeMode = true;
-    setStatsToInputs(DEFAULT_STATS);
-    lockStatInputs(false);
-    document.getElementById("statAllocationDesc").textContent = I18N.prestigeAllocationDesc;
-    const createBtn = document.getElementById("createCharBtn");
-    if (createBtn) createBtn.textContent = I18N.prestigeConfirmBtn;
     updateRemainingPoints();
 }
 
@@ -595,21 +527,11 @@ function updateStatus(player) {
     // 武器補正を適用したステータスを取得
     const battleStats = getBattleStats(player);
     const weaponDetailsHtml = formatWeaponDetailsHTML(player.equippedWeapon);
-    const prestigeCount = player.prestigeCount || 0;
-    const prestigeBonusPercent = Math.round((player.prestigeBonusPercent || 0) * 10) / 10;
-
-    let prestigeHtml = "<div class='prestige-box'><h3>" + I18N.prestigeTitle +
-        " <button type='button' id='tutorialOpenBtn-reincarnation' class='tutorial-open-btn tutorial-open-btn-inline' aria-label='転生の遊び方'>?</button></h3>" +
-        "<p>" + I18N.prestigeCountLabel + I18N.colon + prestigeCount + I18N.prestigeTimesSuffix + "</p>" +
-        "<p>" + I18N.prestigeBonusLabel + I18N.colon + "+" + prestigeBonusPercent + "%</p>";
-    if (canPrestige(player)) {
-        const nextBonusPercent = Math.round(getPrestigeBonusGainForNextRun(player) * 10) / 10;
-        prestigeHtml += "<p class='prestige-next-bonus'>" + I18N.prestigeNextBonusLabel + I18N.colon + "+" + nextBonusPercent + "%</p>";
-        prestigeHtml += "<button type='button' id='prestigeBtn' class='btn btn-secondary'>" + I18N.prestigeBtn + "</button>";
-    } else {
-        prestigeHtml += "<p class='prestige-locked'>" + I18N.prestigeLocked.replace("{level}", PRESTIGE_UNLOCK_LEVEL) + "</p>";
-    }
-    prestigeHtml += "</div>";
+    // 転生機能は廃止済み。過去の転生で得た永続ボーナスが残っている場合だけ、参考として表示する。
+    const legacyPrestigeBonus = Math.round((player.prestigeBonusPercent || 0) * 10) / 10;
+    const legacyPrestigeHtml = legacyPrestigeBonus > 0
+        ? "<p>これまでに得た永続ボーナス（旧・転生）：全ステータス+" + legacyPrestigeBonus + "%</p>"
+        : "";
 
     // ステータス再分配チケット所持時だけ、再分配ボタンを表示する
     const hasStatReallocationTicket = (player.dungeonItems || []).some(item => item.id === 'stat_reallocator');
@@ -636,34 +558,11 @@ function updateStatus(player) {
         "<p>特殊" + I18N.colon + (battleStats.special != null ? battleStats.special : battleStats.atk) + "</p>" +
         "<p>学年" + I18N.colon + player.grade + "（" + getGradeLabel(player.grade) + "）</p><hr>" +
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>" +
-        "<hr>" + prestigeHtml + statReallocationHtml;
-
-    const prestigeBtn = document.getElementById("prestigeBtn");
-    if (prestigeBtn) {
-        prestigeBtn.addEventListener("click", startPrestige);
-    }
+        "<hr>" + legacyPrestigeHtml + statReallocationHtml;
 
     const statReallocationBtn = document.getElementById("statReallocationBtn");
     if (statReallocationBtn) {
         statReallocationBtn.addEventListener("click", startStatReallocation);
-    }
-
-    // 転生の「?」ボタンはステータス画面が再描画されるたびにHTMLが作り直されるため、
-    // tutorial-topics.js側の一括バインド（DOMContentLoaded時）では拾えない。
-    // ここで直接バインドする。
-    const reincarnationTutorialBtn = document.getElementById("tutorialOpenBtn-reincarnation");
-    if (reincarnationTutorialBtn && typeof window.openTutorialTopic === "function") {
-        reincarnationTutorialBtn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            window.openTutorialTopic("reincarnation");
-        });
-    }
-
-    // レベル20に到達して転生が解放された最初のタイミングで、一度だけ自動的にチュートリアルを表示する
-    if (canPrestige(player) && typeof window.openTutorialTopic === "function" && typeof window.isTutorialTopicSeen === "function") {
-        if (!window.isTutorialTopicSeen("reincarnation")) {
-            setTimeout(() => window.openTutorialTopic("reincarnation"), 300);
-        }
     }
 }
 
@@ -778,7 +677,12 @@ function applyStudyRewards(seconds) {
         );
     }
     
-    if (hasOverwhelmingGrowth) {
+    // 叡智の頂（Tier5）は2.5倍。圧倒的成長性（Tier4）と両方持っている場合は高い方だけを適用する。
+    const hasApexWisdom = !!(player.equippedWeapon && player.equippedWeapon.uniqueAbilities &&
+        player.equippedWeapon.uniqueAbilities.some(ability => ability.effect === "study_growth_x2_5"));
+    if (hasApexWisdom) {
+        statGain = Math.floor(statGain * 2.5);
+    } else if (hasOverwhelmingGrowth) {
         statGain *= 2;
     }
     
@@ -805,6 +709,12 @@ function applyStudyRewards(seconds) {
     if (seconds >= 25 * 60 && typeof rollOrbDrop === "function") {
         droppedOrb = rollOrbDrop(1.0); // 100%ドロップ
     }
+
+    // オーブ工房の結晶（累計勉強時間が一定の間隔をまたぐたびに貯まる）。
+    // totalStudySecondsを加算する「前」の値を基準に計算する必要があるため、buildPlayer()より前で計算する。
+    const craftGrant = (typeof grantStudyCraftCurrency === "function")
+        ? grantStudyCraftCurrency(player, seconds)
+        : null;
 
     const newXp = (player.xp || 0) + gainedXp;
     const newLevel = calcLevel(newXp);
@@ -840,7 +750,8 @@ function applyStudyRewards(seconds) {
         prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak,
-        questionLists: player.questionLists || []
+        questionLists: player.questionLists || [],
+        craftCurrency: craftGrant ? craftGrant.currency : player.craftCurrency
     });
 
     // オーブを追加
@@ -871,10 +782,16 @@ function applyStudyRewards(seconds) {
               (I18N.xp || "XP") + " +" + gainedXp + "\n" +
               subjectLabel + (I18N.statUp || "の能力") + " +" + statGain;
 
-    if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
+    if (hasApexWisdom) msg += "（叡智の頂発動中！）";
+    else if (hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
     if (gainedCoins > 0) msg += `\n30分以上の勉強ボーナス +${gainedCoins}コイン`;
     if (droppedOrb && typeof getOrbDisplayName === "function") {
         msg += "\n\n★オーブを入手！★\n" + getOrbDisplayName(droppedOrb);
+    }
+    if (craftGrant && typeof formatCraftCurrencyGain === "function") {
+        const craftText = formatCraftCurrencyGain(craftGrant.gain);
+        if (craftText) msg += "\n\n💎 工房の結晶を獲得！\n" + craftText;
+        if (craftGrant.capped) msg += "\n（結晶の計算は1回の勉強につき3時間分までです）";
     }
     alert(msg);
     if (typeof renderShop === "function") {
@@ -882,6 +799,7 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
+    if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
 
     // デイリーミッションの進捗を更新
     if (typeof updateMissionProgress === 'function') {
@@ -1293,6 +1211,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // オーブ工房タブを開いたときは、結晶の所持数・オーブ一覧を最新状態で再描画する
+            if (section === 'workshop') {
+                try {
+                    if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
+                } catch (e) {
+                    console.error("Error rendering workshop tab:", e);
+                }
+            }
+
             // デイリーミッションタブを開いたときは最新状態を再描画する
             if (section === 'missions') {
                 try {
@@ -1393,8 +1320,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 全体をtry/catchで保護している）
     // ============================================================
     try {
-        // ショップ画面（武器作成ボタン・オーブ合成モーダルなど）のイベントを初期化する
-        // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
+        // ショップ画面（武器作成ボタンなど）のイベントを初期化する
+        // ※ これを呼ばないと「武器を作成」ボタンが一切反応しなくなる
         if (typeof initShop === "function") {
             initShop();
         }
@@ -1571,24 +1498,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // オーブ作成モーダルの開閉
-        const openOrbCraftingBtn = document.getElementById('openOrbCraftingBtn');
-        const orbCraftingModal = document.getElementById('orbCraftingModal');
-        if (openOrbCraftingBtn && orbCraftingModal) {
-            openOrbCraftingBtn.addEventListener('click', () => {
-                if (typeof showMaterialCraftingUI === "function") {
-                    showMaterialCraftingUI();
-                }
-                orbCraftingModal.style.display = 'flex';
-            });
-            const closeOrbCraftingBtn = orbCraftingModal.querySelector('.close');
-            if (closeOrbCraftingBtn) {
-                closeOrbCraftingBtn.addEventListener('click', () => {
-                    orbCraftingModal.style.display = 'none';
-                });
-            }
-        }
-
         // スキルツリーの初期描画
         if (typeof renderSkillTreeUI === "function") {
             renderSkillTreeUI();
@@ -1597,6 +1506,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // 問題リスト機能（作成・編集・模擬戦闘）の初期化
         if (typeof initQuestionListsUI === "function") {
             initQuestionListsUI();
+        }
+
+        // オーブ工房（結晶によるオーブの厳選）の初期化
+        if (typeof initOrbWorkshopUI === "function") {
+            initOrbWorkshopUI();
         }
 
         // ステータス入力欄のイベントリスナー

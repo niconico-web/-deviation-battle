@@ -99,6 +99,7 @@ let myCounterActive = false;      // 反撃態勢が有効か
 let myCounterTurns = 0;           // 反撃態勢の残りターン
 let myShield = 0;                 // スキルで得たシールド（被ダメージから先に減算される）
 let myReviveAvailable = false;    // 戦闘不能時に一度だけ復活できるか
+let myPhoenixUsed = false;        // Tier5固有能力「不死鳥の加護」（1戦闘1回の復活）を使用済みか
 let myRevivePercent = 0;          // 復活時のHP割合
 let myFirstAttackDone = false;    // 「会心の初撃」用：自分の最初の攻撃が済んだか
 let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
@@ -374,16 +375,19 @@ function initialize() {
         }
     }
 
-    // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
+    // ユニーク能力「リ・ミゼラブル」（0.8倍）／Tier5「覇王の威圧」（0.65倍）の効果をバトル開始時に適用
+    // 両方持っている場合は、より強い方（覇王の威圧）だけを適用する。
     const applyReMiserable = (player, target) => {
         if (player.equippedWeapon && player.equippedWeapon.uniqueAbilities) {
-            const hasReMiserable = player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+            const hasCrush = player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_crush");
+            const hasReMiserable = hasCrush || player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
             if (hasReMiserable) {
-                addLog(`${player.name}の「リ・ミゼラブル」発動！ ${target.name}の全ステータスがダウン！`);
-                target.atk = Math.floor(target.atk * 0.8);
-                target.def = Math.floor(target.def * 0.8);
-                target.speed = Math.floor(target.speed * 0.8);
-                target.maxHp = Math.floor(target.maxHp * 0.8);
+                const debuffRate = hasCrush ? 0.65 : 0.8;
+                addLog(`${player.name}の「${hasCrush ? "覇王の威圧" : "リ・ミゼラブル"}」発動！ ${target.name}の全ステータスがダウン！`);
+                target.atk = Math.floor(target.atk * debuffRate);
+                target.def = Math.floor(target.def * debuffRate);
+                target.speed = Math.floor(target.speed * debuffRate);
+                target.maxHp = Math.floor(target.maxHp * debuffRate);
                 // maxHpが減ったことに伴い、現在のHPも調整
                 if (target.hp > target.maxHp) {
                     target.hp = target.maxHp;
@@ -1406,6 +1410,15 @@ function startSkillActivationWindow() {
 // 復活権を持っていれば消費してHPをrevivePercent分回復させtrueを返す。
 // 持っていなければ何もせずfalseを返す（＝通常通り敗北処理を続ける）。
 function tryReviveMe() {
+    // Tier5固有能力「不死鳥の加護」：1回の戦闘中に1度だけ、HPが0になってもHP50%で復活する。
+    // スキル「不死身」の復活権とは別枠なので、先にこちらを消費する（両方持っていれば2回耐えられる）。
+    if (me && me.hp <= 0 && !myPhoenixUsed && hasUniqueAbility(me, 'phoenix_blessing')) {
+        myPhoenixUsed = true;
+        me.hp = Math.max(1, Math.floor(me.maxHp * 0.5));
+        addLog(`不死鳥の加護が発動！HP${me.hp}で復活した！`);
+        updateHP();
+        return true;
+    }
     if (myReviveAvailable && me && me.hp <= 0) {
         myReviveAvailable = false;
         me.hp = Math.max(1, Math.floor(me.maxHp * (myRevivePercent || 0.5)));
@@ -2084,7 +2097,8 @@ function startATBBattleLoop() {
             }
 
             try {
-                if (!atbBossTelegraphActive) {
+                // 模擬戦闘では敵は攻撃してこない（ダメージを受けない）ので、敵の行動ゲージは進めない
+                if (!atbBossTelegraphActive && !isMockBattle) {
                     // 敵の速度低下デバフ（enemySpeedDebuff）をゲージ進行速度に反映する
                     const effectiveEnemySpeed = Math.max(1, Math.floor((enemy.speed || 0) * (1 - enemySpeedDebuff)));
                     enemyATB += getATBGainPerTick(effectiveEnemySpeed, me.speed);
@@ -2113,6 +2127,24 @@ function startATBBattleLoop() {
 /**
  * プレイヤーに次の問題を即座に出題する（問題と問題の間の待ち時間は0）。
  */
+// 模擬戦闘で間違えた（または時間切れになった）とき、正解の選択肢を緑色に光らせて、
+// 少し待ってから次の問題に進む（単語帳として、正解を確認する時間をとるため）。
+const MOCK_WRONG_ANSWER_WAIT_MS = 2000;
+
+function revealCorrectChoiceAndContinue(correctAnswer) {
+    const target = String(correctAnswer == null ? '' : correctAnswer).trim();
+    choicesContainer.querySelectorAll('.choice-btn').forEach(btn => {
+        if (btn.textContent.trim() === target) btn.classList.add('correct-reveal');
+    });
+    addLog(`正解は「${target}」`);
+    atbPlayerActionPending = true; // 待っている間に、次の問題が二重に出題されないようにする
+    setTimeout(() => {
+        if (battleEnd) return;
+        atbPlayerActionPending = false;
+        askNextPlayerQuestion();
+    }, MOCK_WRONG_ANSWER_WAIT_MS);
+}
+
 function askNextPlayerQuestion() {
     if (battleEnd) return;
     atbPlayerActionPending = true; // 出題中〜回答確定までは二重出題を防ぐ
@@ -2182,7 +2214,13 @@ function askNextPlayerQuestion() {
             const buttons = choicesContainer.querySelectorAll('.choice-btn');
             buttons.forEach(btn => btn.disabled = true);
             enableSkillButtons(false);
+            const timedOutAnswer = currentQuestion ? currentQuestion.answer : null;
             currentQuestion = null;
+            // 模擬戦闘では、時間切れも「間違い」と同じく正解を見せてから次へ進む
+            if (isMockBattle && timedOutAnswer != null) {
+                revealCorrectChoiceAndContinue(timedOutAnswer);
+                return;
+            }
             atbPlayerActionPending = false;
             askNextPlayerQuestion();
         }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
@@ -2210,6 +2248,7 @@ function handleATBAnswer(selectedOption) {
 
     const isCorrect = currentQuestion && selectedOption.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
+    const correctAnswerText = currentQuestion ? currentQuestion.answer : null;
     currentQuestion = null;
     atbPlayerActionPending = false;
 
@@ -2225,7 +2264,9 @@ function handleATBAnswer(selectedOption) {
         
         // 正解のたびに小さな追撃ダメージ（攻撃力の0.5倍）
         // 敵の防御力低下デバフ（enemyDefDebuff）を反映する
-        const effectiveEnemyDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
+        // 神殺し（Tier5）を持っていれば、相手の防御を完全に無視する
+        const godSlayer = hasUniqueAbility(me, 'god_slayer');
+        const effectiveEnemyDef = godSlayer ? 0 : Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
         const defReduction = Math.floor(effectiveEnemyDef * 0.1);
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
 
@@ -2249,6 +2290,9 @@ function handleATBAnswer(selectedOption) {
             updateStats();
         }
         
+        // 神殺し（Tier5）：与えるダメージ1.25倍
+        if (godSlayer) chipDamage = Math.floor(chipDamage * 1.25);
+
         // 根性（guts）：HPが1残る形で持ちこたえる（必殺技等、他の攻撃と同様の処理に統一）
         if (enemy.hp - chipDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
             enemy.hp = 1;
@@ -2283,9 +2327,9 @@ function handleATBAnswer(selectedOption) {
         // 契約済みの配下がいても追加攻撃を行わない（データ自体は消えていない）。
         const summonsRodEnabled = (typeof SUMMONS_ROD_ENABLED === 'undefined') || SUMMONS_ROD_ENABLED;
         if (summonsRodEnabled && me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
-            const summonPlayerTotalStat = (typeof getPlayerTotalStatForSummon === 'function')
-                ? getPlayerTotalStatForSummon(me)
-                : ((me.maxHp || 0) + (me.atk || 0) + (me.def || 0) + (me.speed || 0) + (me.special || 0));
+            // 配下の攻撃力は「プレイヤーの攻撃力の何割か」（割合はモンスターの強さで決まる。summons.js参照）。
+            // 基準にするのは、通常の連続攻撃と同じ攻撃力（攻撃タイプが特殊なら特殊攻撃力）。
+            const summonPlayerAttack = baseAtk;
             // 相手の防御力（防御ダウンのデバフ反映済み）。通常の連続攻撃と同じ扱いで、
             // 配下の追加攻撃のダメージからも差し引く。
             const summonTargetDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
@@ -2293,7 +2337,7 @@ function handleATBAnswer(selectedOption) {
                 if (enemy.hp <= 0) return;
                 let summonAtk;
                 if (summon.baseTotalStat != null && typeof getSummonCurrentAtk === 'function') {
-                    summonAtk = getSummonCurrentAtk(summon, summonPlayerTotalStat);
+                    summonAtk = getSummonCurrentAtk(summon, summonPlayerAttack);
                 } else {
                     // 旧形式（multiplierのみを持つ召喚データ）との後方互換
                     summonAtk = Math.floor((me.atk || 0) * (summon.multiplier || 0) * 2);
@@ -2329,7 +2373,12 @@ function handleATBAnswer(selectedOption) {
         }
     } else {
         addLog("不正解…");
-        askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
+        if (isMockBattle && correctAnswerText != null) {
+            // 模擬戦闘：正解の選択肢を緑に光らせて、少し待ってから次の問題へ
+            revealCorrectChoiceAndContinue(correctAnswerText);
+        } else {
+            askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
+        }
     }
 }
 
@@ -2366,6 +2415,9 @@ function executeStrongAttack(skillEffect, usedSkill) {
     if (hasUniqueAbility(me, 'ignore_def_half')) {
         enemyDef = Math.floor(enemyDef * 0.5);
     }
+    // 神殺し（Tier5）：相手の防御を完全に無視する
+    const strongGodSlayer = hasUniqueAbility(me, 'god_slayer');
+    if (strongGodSlayer) enemyDef = 0;
 
     const defReduction = Math.floor(enemyDef * 0.1);
     let strongDamage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
@@ -2394,6 +2446,9 @@ function executeStrongAttack(skillEffect, usedSkill) {
         strongDamage = Math.floor(strongDamage * critMultiplier);
         addLog(isForcedFirstStrikeCrit ? "会心の初撃！" : "クリティカルヒット！");
     }
+
+    // 神殺し（Tier5）：与えるダメージ1.25倍
+    if (strongGodSlayer) strongDamage = Math.floor(strongDamage * 1.25);
 
     // 必殺技発動後、ゲージをリセット（コマンド選択の必殺技と同じ挙動）
     me.ultimateGauge.current = 0;
@@ -2521,6 +2576,16 @@ function activateATBGuard() {
 function resolveBossAttack() {
     if (battleEnd) return;
 
+    // 模擬戦闘ではダメージを一切受けない（敵の行動ゲージ自体を進めていないので通常は来ないが、念のため）
+    if (isMockBattle) {
+        const mockGuardPopup = document.getElementById('atbGuardPopup');
+        if (mockGuardPopup) mockGuardPopup.style.display = 'none';
+        atbBossTelegraphActive = false;
+        enemyATB = 0;
+        updateATBBars();
+        return;
+    }
+
     // 敵の命中率低下デバフ（enemyAccuracyDebuff）：確率でボスの攻撃を完全に外す
     if (enemyAccuracyDebuff > 0 && Math.random() < enemyAccuracyDebuff) {
         addLog(`${enemy.name}の攻撃は命中率低下で外れた！`);
@@ -2562,6 +2627,13 @@ function resolveBossAttack() {
     if (hasUniqueAbility(me, 'damage_cut_half')) {
         damage = Math.floor(damage * 0.5);
         addLog("鉄壁発動！ダメージ50%カット");
+    }
+
+    // 絶対障壁（Tier5）：ダメージ60%カット。鉄壁と重ねた場合も、ここで別途0.4倍が掛かる
+    // （同時に持つには「Tier4オーブ＋Tier5オーブ」が必要で、実質2枠を使うため許容範囲）。
+    if (hasUniqueAbility(me, 'absolute_barrier')) {
+        damage = Math.max(1, Math.floor(damage * 0.4));
+        addLog("絶対障壁発動！ダメージ60%カット");
     }
 
     // 回避判定：素早さによる基礎回避率 + スキルによる回避率アップ（幻影など、1.0で完全回避）
@@ -3601,6 +3673,8 @@ function resolvePlayerCommand(command) {
 
 function handleWrongAnswer(skillEffect) {
         addLog("不正解...");
+        // 模擬戦闘では、不正解でもダメージを受けない
+        if (isMockBattle) return;
         
         // 依頼により、不正解時は自分のHPの半分を失う（ダンジョンに限らず統一ルール）。
         // 以前は敵の攻撃力ベースで計算していたが、敵が弱いとダメージが1〜2程度に
@@ -3884,6 +3958,7 @@ function handleDungeonNextFloor() {
 function resetDungeonBattle() {
     // 戦闘状態をリセット
     battleEnd = false;
+    myPhoenixUsed = false; // 不死鳥の加護は「1戦闘に1回」なので、次の階（次の戦闘）では使えるように戻す
     currentQuestion = null;
     questionStartTime = null;
     

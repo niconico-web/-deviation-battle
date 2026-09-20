@@ -22,68 +22,11 @@ function getGradeLabel(grade) {
     return `高校${g - 9}年`;
 }
 
-// 転生機能（旧・プレステージ）：このレベルに到達すると、ステータスを最初の
-// 振り分け可能な状態（持ち点250）にリセットして再配分する代わりに、
-// 永続的な全ステータス倍率ボーナスを得られるようになる。
-// 実行回数に制限はなく、ボーナスは実行するたびに加算され、上限はない。
-//
-// ボーナスの「量」は固定ではなく、転生を実行した瞬間の
-// （1）ステータス合計 (2)レベル (3)戦力スコア（ランキングと同じ計算式）
-// の3つを基準値と比較して決まる。育成が進んでいるほど、1回の転生で
-// 得られる永続ボーナスも大きくなる（＝やり込むほど転生の価値が上がる）。
-const PRESTIGE_UNLOCK_LEVEL = 20;
-const PRESTIGE_BASE_BONUS_PERCENT = 5; // 基準ボーナス％（3つの基準値すべてがちょうど基準値の場合の1回あたりのボーナス）
-const PRESTIGE_REFERENCE_STAT_TOTAL = 250; // 基準ステータス合計（初期持ち点と同じ）
-const PRESTIGE_REFERENCE_LEVEL = PRESTIGE_UNLOCK_LEVEL; // 基準レベル（転生解放レベルと同じ）
-const PRESTIGE_REFERENCE_POWER_SCORE = 500; // 基準戦力スコア
-const PRESTIGE_MAX_BONUS_PER_RUN = 20; // 1回の転生で得られる永続ボーナス％の上限（暴騰防止のための上限）
-// 累積ボーナス％自体の上限。以前は無制限に積み上げられ、やり込むほど基礎ステータスが
-// （後述の通り乗算ではなく加算に変わった後も）際限なく伸び続けてしまっていたため、
-// 「やり込むほど有利になるが、いずれ頭打ちになる」設計にするために導入。
+// 【転生機能は廃止】
+// 過去の転生で得た永続ボーナス（player.prestigeBonusPercent）と転生回数（player.prestigeCount）は、
+// 既存プレイヤーの強さが下がらないよう、そのまま有効にしている（新たに増やす手段は無い）。
+// 累積ボーナス％の上限（基礎値への加算量の計算に使う）。
 const PRESTIGE_BONUS_PERCENT_CAP = 300;
-
-// 次回の転生で実際に加算される永続ボーナス％（上限考慮後）を計算する。
-// 既に上限に達している場合は0を返す。
-function getPrestigeBonusGainForNextRun(player) {
-    const current = Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player && player.prestigeBonusPercent) || 0);
-    const remaining = Math.max(0, PRESTIGE_BONUS_PERCENT_CAP - current);
-    const raw = calculatePrestigeBonusPercent(player);
-    return Math.min(raw, remaining);
-}
-
-// server/socket/ranking.js の戦力スコアと同じ重み付け（勉強時間・対人戦勝利・ボス周回）。
-// サーバー未接続時でもクライアント側だけで転生ボーナスを計算できるようにするための複製。
-function calculatePlayerPowerScore(player) {
-    if (!player) return 0;
-    const studyMinutes = Math.floor((player.totalStudySeconds || 0) / 60);
-    const pvpWins = player.pvpWins || 0;
-    const bossRunCount = player.bossRunCount || 0;
-    return studyMinutes * 1 + pvpWins * 30 + bossRunCount * 15;
-}
-
-// 今、転生を実行した場合に「今回分」として得られる永続ボーナス％を計算する。
-// （プレイヤーが持つ累積ボーナスに、この戻り値が加算される）
-//
-// 各基準値との比率をそのまま合算すると、やり込むほど（特に勉強時間に比例する
-// 戦力スコアは際限なく伸びるため）1回の転生で数十%〜という非現実的な倍率に
-// 膨れ上がってしまっていた。平方根で伸びを緩やかにし、さらに1回あたりの
-// ボーナスに上限（PRESTIGE_MAX_BONUS_PER_RUN）を設けることで、
-// 「育成が進むほど少し有利になる」程度の緩やかな変化に抑える。
-function calculatePrestigeBonusPercent(player) {
-    if (!player) return 0;
-    const level = player.level || calcLevel(player.xp || 0);
-    const statsNow = getStatsFromPlayer(player, true);
-    const statTotal = STAT_KEYS.reduce((sum, key) => sum + (statsNow[key] || 0), 0);
-    const powerScore = calculatePlayerPowerScore(player);
-
-    const statFactor = Math.sqrt(statTotal / PRESTIGE_REFERENCE_STAT_TOTAL);
-    const levelFactor = Math.sqrt(level / PRESTIGE_REFERENCE_LEVEL);
-    const powerFactor = Math.sqrt(1 + (powerScore / PRESTIGE_REFERENCE_POWER_SCORE));
-
-    const combinedFactor = (statFactor + levelFactor + powerFactor) / 3;
-    const bonus = PRESTIGE_BASE_BONUS_PERCENT * combinedFactor;
-    return Math.min(PRESTIGE_MAX_BONUS_PER_RUN, bonus);
-}
 
 function getSubjectDisplayName(subject) {
     const subjectNames = {
@@ -180,6 +123,8 @@ function migratePlayer(player) {
         loginStreak: player.loginStreak || 0, // ログインボーナス：連続ログイン日数
         // プレイヤーが作成した問題リスト（模擬戦闘で使用）。
         questionLists: player.questionLists || [],
+        // オーブ工房の結晶（混沌/神聖/刻印）。古いデータには無いので0で初期化する。
+        craftCurrency: player.craftCurrency || { chaos: 0, divine: 0, imprint: 0 },
         // Core stats (maxHp, atk, def, speed) will be set below
         maxHp: player.maxHp, // Keep existing if present, otherwise default below
         atk: player.atk,
@@ -277,24 +222,6 @@ function calcLevel(xp) {
     // 浮動小数点数の問題で負の値にならないように、最低でも1を返すようにします。
     return Math.max(1, level);
 }
-// プレイヤーが転生を実行可能なレベルに達しているかどうか
-function canPrestige(player) {
-    if (!player) return false;
-    const level = player.level || calcLevel(player.xp || 0);
-    return level >= PRESTIGE_UNLOCK_LEVEL;
-}
-
-// 【旧実装・現在は未使用】これまでの転生で積み上げた永続ボーナス％から、
-// 現在適用される永続ステータス倍率を計算する。
-// 乗算方式だと、武器やスキルで基礎ステータス自体が伸びるほど転生ボーナスまで
-// 連動して膨れ上がり、「後半は勉強しなくても勝手に強くなり続ける」原因の一つに
-// なっていたため、getStatsFromPlayer()側は加算方式（getPrestigeBonusFlatAmount）に
-// 切り替えた。互換のため関数自体は残す。
-function getPrestigeBonusMultiplier(player) {
-    const bonusPercent = Math.min(PRESTIGE_BONUS_PERCENT_CAP, (player && player.prestigeBonusPercent) || 0);
-    return 1 + bonusPercent / 100;
-}
-
 // 転生ボーナス％を「基礎値への一律加算量」に変換する。
 // 基準は初期振り分け（250点を5ステータスで割った50）を単位とし、
 // ボーナス100%ごとに各ステータス+50する緩やかな加算とする。
@@ -472,7 +399,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak,
-        questionLists: latestQuestionLists || []
+        questionLists: latestQuestionLists || [],
+        craftCurrency: player.craftCurrency
     });
 
     // オーブを追加
@@ -619,7 +547,10 @@ function buildPlayer(name, stats, xp, options = {}) {
         loginStreak: options.loginStreak || 0,
         // プレイヤーが作成した問題リスト（模擬戦闘で使用）。他のダンジョンアイテム類と
         // 同様、options経由で明示的に渡さないと呼び出しのたびに消えてしまうため注意。
-        questionLists: options.questionLists || []
+        questionLists: options.questionLists || [],
+        // オーブ工房の結晶（勉強時間で貯まる）。他のフィールドと同様、options経由で
+        // 明示的に渡さないと呼び出しのたびに0へ戻ってしまうため注意（全呼び出し箇所で引き継ぐこと）。
+        craftCurrency: options.craftCurrency || { chaos: 0, divine: 0, imprint: 0 }
     };
 }
 
