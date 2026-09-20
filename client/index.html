@@ -241,12 +241,6 @@
                     <p>オリジナル武器を作成して、自分だけの最強武器を目指そう！</p>
                     <button id="showCreateWeaponModalBtn" class="btn btn-primary">オリジナル武器を作成</button>
                 </div>
-                <h3>オーブ合成 <button type="button" id="tutorialOpenBtn-orb" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="オーブの遊び方">?</button></h3>
-                <div class="setting-box">
-                    <p>低ティアのオーブを複数使って、高ティアのオーブを作成できます。</p>
-                    <button id="openOrbSynthesisBtn" class="btn btn-primary">オーブ合成</button>
-                </div>
-
                 <!-- オリジナル武器作成モーダル -->
                 <div id="createWeaponModal" class="modal">
                     <div class="modal-content">
@@ -270,9 +264,7 @@
                             <option value="bow">弓</option>
                             <option value="esper">超能力</option>
                             <option value="rokushaku_staff">六尺杖</option>
-                            <!-- サモンズロッドは「いったん消す」ため無効化中（復活時はweapons.jsのSUMMONS_ROD_ENABLEDをtrueにして、下の行のコメントを外す）
                             <option value="summons_rod">サモンズロッド</option>
-                            -->
                         </select>
                         <label class="field-label" for="ultimateName">必殺技名</label>
                         <input type="text" id="ultimateName" placeholder="必殺技名を入力" maxlength="20">
@@ -300,9 +292,7 @@
                                 <option value="bow">弓</option>
                                 <option value="esper">超能力</option>
                                 <option value="rokushaku_staff">六尺杖</option>
-                                <!-- サモンズロッドは無効化中（復活方法は上のweaponType欄のコメントを参照）
                                 <option value="summons_rod">サモンズロッド</option>
-                                -->
                             </select>
                         </div>
                         <button type="button" id="createWeaponBtn" class="btn btn-primary">作成する</button>
@@ -310,7 +300,7 @@
                 </div>
                 <h3>素材管理 <button type="button" id="tutorialOpenBtn-material" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="素材の遊び方">?</button></h3>
                 <div class="setting-box">
-                    <p>モンスターから入手した素材を確認・管理できます。</p>
+                    <p>モンスターから入手した素材を確認できます。素材からのオーブ作成は「オーブ工房」タブで行えます。</p>
                     <button id="openMaterialManagementBtn" class="btn btn-primary">素材管理</button>
                 </div>
 
@@ -321,18 +311,6 @@
                         <h3>素材インベントリ</h3>
                         <div id="materialsInventoryList" class="materials-inventory-list">
                             <!-- renderMaterialsInventory() によってここに一覧が描画される -->
-                        </div>
-                        <hr>
-                        <button id="openOrbCraftingBtn" class="btn btn-primary">オーブ作成</button>
-                    </div>
-                </div>
-
-                <!-- オーブ作成モーダル -->
-                <div id="orbCraftingModal" class="modal">
-                    <div class="modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <div id="materialCraftingContainer">
-                            <!-- showMaterialCraftingUI() によってここにUIが描画される -->
                         </div>
                     </div>
                 </div>
@@ -350,16 +328,55 @@
                 <div id="orbInventory" class="orb-inventory-list">
                     <!-- Orbs will be rendered here -->
                 </div>
-                <div id="orbSynthesisModal" class="modal">
+            </section>
+
+            <section id="section-workshop" class="content-section">
+                <h2>オーブ工房</h2>
+                <div class="setting-box">
+                    <h3>勉強でたまる「結晶」</h3>
+                    <p class="study-desc">勉強タイマーや模擬戦闘で勉強すると、勉強時間に応じて結晶が貯まります（累計の勉強時間が10分・30分・60分を超えるたびに、それぞれ1個ずつ）。結晶を使うと、持っているオーブの数値やステータスの種類、固有能力を引き直して「厳選」できます。</p>
+                    <div id="workshopCurrency" class="workshop-currency">
+                        <!-- renderWorkshopCurrency() によってここに結晶の所持数が描画される -->
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>素材からオーブを作る <button type="button" id="tutorialOpenBtn-orb" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="オーブの遊び方">?</button></h3>
+                    <p class="study-desc">モンスターから入手した素材を最大5つ選んで、オーブに変換できます。素材の平均レア度（切り捨て）がオーブのティアになりますが、これは5つ使った場合のみです。1〜4つの場合は1段階低いティアになります。</p>
+                    <div id="materialCraftingContainer">
+                        <!-- showMaterialCraftingUI() によってここにUIが描画される -->
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>オーブ合成</h3>
+                    <p class="study-desc">同じティアのオーブを複数消費して、1つ上のティアのオーブを1個合成します。材料には、品質の低いオーブから先に使われます（厳選した良いオーブが残ります）。</p>
+                    <div id="workshopSynthesis" class="workshop-synthesis">
+                        <!-- renderWorkshopSynthesis() によってここに描画される -->
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>オーブを厳選する</h3>
+                    <p class="study-desc">リロールの結果は「この結果にする」か「元のままにする」を選べます（結晶はどちらを選んでも消費されます）。工房で厳選できるのは所持オーブだけで、武器にセット済みのオーブは対象外です。混沌の結晶はティアが高いオーブほど多く消費します。</p>
+                    <label class="field-label" for="workshopTierFilter">表示するティア</label>
+                    <select id="workshopTierFilter">
+                        <option value="all">すべて</option>
+                        <option value="tier5">Tier5</option>
+                        <option value="tier4">Tier4</option>
+                        <option value="tier3">Tier3</option>
+                        <option value="tier2">Tier2</option>
+                        <option value="tier1">Tier1</option>
+                    </select>
+                    <div id="workshopOrbList" class="workshop-orb-list">
+                        <!-- renderOrbWorkshop() によってここにオーブ一覧が描画される -->
+                    </div>
+                </div>
+
+                <!-- リロール結果モーダル（「この結果にする／元のままにする」を選ぶまで閉じられない） -->
+                <div id="workshopResultModal" class="modal">
                     <div class="modal-content">
-                        <h3>オーブ合成</h3>
-                        <p>Tier1オーブ: <span id="tier1OrbCount">0</span>個</p>
-                        <p>Tier2オーブ: <span id="tier2OrbCount">0</span>個</p>
-                        <p>Tier3オーブ: <span id="tier3OrbCount">0</span>個</p>
-                        <button id="synthesizeTier2Btn" class="btn btn-primary">Tier1オーブ5つでTier2オーブを合成</button>
-                        <button id="synthesizeTier3Btn" class="btn btn-primary">Tier2オーブ5つでTier3オーブを合成</button>
-                        <button id="synthesizeTier4Btn" class="btn btn-primary">Tier3オーブ10個でTier4オーブを合成</button>
-                        <button id="closeOrbSynthesisBtn" class="btn btn-secondary">閉じる</button>
+                        <div id="workshopResultBody"></div>
                     </div>
                 </div>
             </section>
@@ -429,7 +446,7 @@
                     </div>
                     <div id="summonMonsterBox" class="setting-box" style="display: none;">
                         <h3>モンスター選択（サモンズロッド）</h3>
-                        <p class="help-text">素材を1つ消費して、その素材を落とすモンスターを配下にできます（最大3体）。配下のモンスターは、正解するたびに追加攻撃を行います。</p>
+                        <p class="help-text">素材を1つ消費して、その素材を落とすモンスターを配下にできます（最大3体）。配下のモンスターは、正解するたびに追加攻撃を行います。追加攻撃力は「あなたの攻撃力の何割か」で、その割合はモンスターが強いほど高くなります（相手の防御力の分だけダメージは減ります）。</p>
                         <p id="summonMonsterSubNote" class="help-text" style="display: none;">サブ武器種（デュアルウェポン）として使っているため、追加攻撃の倍率は低めになります。</p>
                         <div id="summonedMonsterList"></div>
                         <label class="field-label" for="summonMaterialSelect">素材を選んで召喚</label>

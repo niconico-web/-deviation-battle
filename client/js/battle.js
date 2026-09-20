@@ -2097,7 +2097,8 @@ function startATBBattleLoop() {
             }
 
             try {
-                if (!atbBossTelegraphActive) {
+                // 模擬戦闘では敵は攻撃してこない（ダメージを受けない）ので、敵の行動ゲージは進めない
+                if (!atbBossTelegraphActive && !isMockBattle) {
                     // 敵の速度低下デバフ（enemySpeedDebuff）をゲージ進行速度に反映する
                     const effectiveEnemySpeed = Math.max(1, Math.floor((enemy.speed || 0) * (1 - enemySpeedDebuff)));
                     enemyATB += getATBGainPerTick(effectiveEnemySpeed, me.speed);
@@ -2126,6 +2127,24 @@ function startATBBattleLoop() {
 /**
  * プレイヤーに次の問題を即座に出題する（問題と問題の間の待ち時間は0）。
  */
+// 模擬戦闘で間違えた（または時間切れになった）とき、正解の選択肢を緑色に光らせて、
+// 少し待ってから次の問題に進む（単語帳として、正解を確認する時間をとるため）。
+const MOCK_WRONG_ANSWER_WAIT_MS = 2000;
+
+function revealCorrectChoiceAndContinue(correctAnswer) {
+    const target = String(correctAnswer == null ? '' : correctAnswer).trim();
+    choicesContainer.querySelectorAll('.choice-btn').forEach(btn => {
+        if (btn.textContent.trim() === target) btn.classList.add('correct-reveal');
+    });
+    addLog(`正解は「${target}」`);
+    atbPlayerActionPending = true; // 待っている間に、次の問題が二重に出題されないようにする
+    setTimeout(() => {
+        if (battleEnd) return;
+        atbPlayerActionPending = false;
+        askNextPlayerQuestion();
+    }, MOCK_WRONG_ANSWER_WAIT_MS);
+}
+
 function askNextPlayerQuestion() {
     if (battleEnd) return;
     atbPlayerActionPending = true; // 出題中〜回答確定までは二重出題を防ぐ
@@ -2195,7 +2214,13 @@ function askNextPlayerQuestion() {
             const buttons = choicesContainer.querySelectorAll('.choice-btn');
             buttons.forEach(btn => btn.disabled = true);
             enableSkillButtons(false);
+            const timedOutAnswer = currentQuestion ? currentQuestion.answer : null;
             currentQuestion = null;
+            // 模擬戦闘では、時間切れも「間違い」と同じく正解を見せてから次へ進む
+            if (isMockBattle && timedOutAnswer != null) {
+                revealCorrectChoiceAndContinue(timedOutAnswer);
+                return;
+            }
             atbPlayerActionPending = false;
             askNextPlayerQuestion();
         }, ATB_PLAYER_QUIZ_TIMEOUT_MS);
@@ -2223,6 +2248,7 @@ function handleATBAnswer(selectedOption) {
 
     const isCorrect = currentQuestion && selectedOption.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
+    const correctAnswerText = currentQuestion ? currentQuestion.answer : null;
     currentQuestion = null;
     atbPlayerActionPending = false;
 
@@ -2301,9 +2327,9 @@ function handleATBAnswer(selectedOption) {
         // 契約済みの配下がいても追加攻撃を行わない（データ自体は消えていない）。
         const summonsRodEnabled = (typeof SUMMONS_ROD_ENABLED === 'undefined') || SUMMONS_ROD_ENABLED;
         if (summonsRodEnabled && me.equippedWeapon && Array.isArray(me.equippedWeapon.summonedMonsters) && enemy.hp > 0) {
-            const summonPlayerTotalStat = (typeof getPlayerTotalStatForSummon === 'function')
-                ? getPlayerTotalStatForSummon(me)
-                : ((me.maxHp || 0) + (me.atk || 0) + (me.def || 0) + (me.speed || 0) + (me.special || 0));
+            // 配下の攻撃力は「プレイヤーの攻撃力の何割か」（割合はモンスターの強さで決まる。summons.js参照）。
+            // 基準にするのは、通常の連続攻撃と同じ攻撃力（攻撃タイプが特殊なら特殊攻撃力）。
+            const summonPlayerAttack = baseAtk;
             // 相手の防御力（防御ダウンのデバフ反映済み）。通常の連続攻撃と同じ扱いで、
             // 配下の追加攻撃のダメージからも差し引く。
             const summonTargetDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
@@ -2311,7 +2337,7 @@ function handleATBAnswer(selectedOption) {
                 if (enemy.hp <= 0) return;
                 let summonAtk;
                 if (summon.baseTotalStat != null && typeof getSummonCurrentAtk === 'function') {
-                    summonAtk = getSummonCurrentAtk(summon, summonPlayerTotalStat);
+                    summonAtk = getSummonCurrentAtk(summon, summonPlayerAttack);
                 } else {
                     // 旧形式（multiplierのみを持つ召喚データ）との後方互換
                     summonAtk = Math.floor((me.atk || 0) * (summon.multiplier || 0) * 2);
@@ -2347,7 +2373,12 @@ function handleATBAnswer(selectedOption) {
         }
     } else {
         addLog("不正解…");
-        askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
+        if (isMockBattle && correctAnswerText != null) {
+            // 模擬戦闘：正解の選択肢を緑に光らせて、少し待ってから次の問題へ
+            revealCorrectChoiceAndContinue(correctAnswerText);
+        } else {
+            askNextPlayerQuestion(); // 待ち時間0で次の問題（ペナルティなし、進捗も増えない）
+        }
     }
 }
 
@@ -2544,6 +2575,16 @@ function activateATBGuard() {
 /** ボスの攻撃予備動作が終わった時点で実際にダメージを解決する。 */
 function resolveBossAttack() {
     if (battleEnd) return;
+
+    // 模擬戦闘ではダメージを一切受けない（敵の行動ゲージ自体を進めていないので通常は来ないが、念のため）
+    if (isMockBattle) {
+        const mockGuardPopup = document.getElementById('atbGuardPopup');
+        if (mockGuardPopup) mockGuardPopup.style.display = 'none';
+        atbBossTelegraphActive = false;
+        enemyATB = 0;
+        updateATBBars();
+        return;
+    }
 
     // 敵の命中率低下デバフ（enemyAccuracyDebuff）：確率でボスの攻撃を完全に外す
     if (enemyAccuracyDebuff > 0 && Math.random() < enemyAccuracyDebuff) {
@@ -3632,6 +3673,8 @@ function resolvePlayerCommand(command) {
 
 function handleWrongAnswer(skillEffect) {
         addLog("不正解...");
+        // 模擬戦闘では、不正解でもダメージを受けない
+        if (isMockBattle) return;
         
         // 依頼により、不正解時は自分のHPの半分を失う（ダンジョンに限らず統一ルール）。
         // 以前は敵の攻撃力ベースで計算していたが、敵が弱いとダメージが1〜2程度に

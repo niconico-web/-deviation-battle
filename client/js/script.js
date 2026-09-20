@@ -799,7 +799,11 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
+<<<<<<< HEAD
     if (typeof renderOrbWorkshop === "function") renderOrbWorkshop();
+=======
+    if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 
     // デイリーミッションの進捗を更新
     if (typeof updateMissionProgress === 'function') {
@@ -1214,7 +1218,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // オーブ工房タブを開いたときは、結晶の所持数・オーブ一覧を最新状態で再描画する
             if (section === 'workshop') {
                 try {
+<<<<<<< HEAD
                     if (typeof renderOrbWorkshop === "function") renderOrbWorkshop();
+=======
+                    if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
+>>>>>>> 4f2a802 (広報活動頑張りたい)
                 } catch (e) {
                     console.error("Error rendering workshop tab:", e);
                 }
@@ -1320,8 +1328,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 全体をtry/catchで保護している）
     // ============================================================
     try {
-        // ショップ画面（武器作成ボタン・オーブ合成モーダルなど）のイベントを初期化する
-        // ※ これを呼ばないと「武器を作成」「オーブ合成」ボタンが一切反応しなくなる
+        // ショップ画面（武器作成ボタンなど）のイベントを初期化する
+        // ※ これを呼ばないと「武器を作成」ボタンが一切反応しなくなる
         if (typeof initShop === "function") {
             initShop();
         }
@@ -1494,24 +1502,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (closeMaterialManagementBtn) {
                 closeMaterialManagementBtn.addEventListener('click', () => {
                     materialManagementModal.style.display = 'none';
-                });
-            }
-        }
-
-        // オーブ作成モーダルの開閉
-        const openOrbCraftingBtn = document.getElementById('openOrbCraftingBtn');
-        const orbCraftingModal = document.getElementById('orbCraftingModal');
-        if (openOrbCraftingBtn && orbCraftingModal) {
-            openOrbCraftingBtn.addEventListener('click', () => {
-                if (typeof showMaterialCraftingUI === "function") {
-                    showMaterialCraftingUI();
-                }
-                orbCraftingModal.style.display = 'flex';
-            });
-            const closeOrbCraftingBtn = orbCraftingModal.querySelector('.close');
-            if (closeOrbCraftingBtn) {
-                closeOrbCraftingBtn.addEventListener('click', () => {
-                    orbCraftingModal.style.display = 'none';
                 });
             }
         }

@@ -1,6 +1,13 @@
 // orbWorkshop.js
 // ============================================================
+<<<<<<< HEAD
 // オーブ工房：勉強時間で貯まる「結晶」を使って、手持ちのオーブを厳選（リロール）する。
+=======
+// オーブ工房：オーブに関する操作を1か所にまとめたもの。
+//   ・素材からオーブを作る（materials.jsのshowMaterialCraftingUIを埋め込み表示）
+//   ・オーブ合成（低ティア→1つ上のティア）
+//   ・勉強時間で貯まる「結晶」を使って、手持ちのオーブを厳選（リロール）する
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 //
 // 結晶は player.craftCurrency = { chaos, divine, imprint } に保存する。
 // 累計勉強時間（player.totalStudySeconds）が一定の間隔をまたぐたびに1個ずつ貯まる方式なので、
@@ -282,6 +289,89 @@ function renderOrbWorkshop() {
     }
 }
 
+<<<<<<< HEAD
+=======
+// ------------------------------------------------------------
+// オーブ合成（以前はショップにあった機能。低ティアのオーブを複数消費して1つ上のティアを1個合成する）
+// ------------------------------------------------------------
+const ORB_SYNTHESIS_RECIPES = [
+    { from: "tier1", to: "tier2", count: 5 },
+    { from: "tier2", to: "tier3", count: 5 },
+    { from: "tier3", to: "tier4", count: 10 }
+];
+
+function renderWorkshopSynthesis() {
+    const box = document.getElementById("workshopSynthesis");
+    if (!box) return;
+    const player = getPlayerData();
+    const orbs = (player && player.orbs) || [];
+    box.innerHTML = "";
+    for (const recipe of ORB_SYNTHESIS_RECIPES) {
+        const have = orbs.filter(o => o && o.tier === recipe.from).length;
+        const row = document.createElement("div");
+        row.className = "workshop-synthesis-row";
+
+        const label = document.createElement("div");
+        label.className = "workshop-synthesis-label";
+        label.textContent = `${getWorkshopTierLabel(recipe.from)}オーブ 所持 ${have}個`;
+        row.appendChild(label);
+
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn btn-small btn-primary";
+        btn.textContent = `${recipe.count}個で${getWorkshopTierLabel(recipe.to)}を合成`;
+        btn.disabled = have < recipe.count;
+        btn.addEventListener("click", () => synthesizeWorkshopOrbs(recipe));
+        row.appendChild(btn);
+
+        box.appendChild(row);
+    }
+}
+
+/** 低ティアのオーブを指定数消費して、1つ上のティアのオーブを1個作る。品質の低いものから先に消費する。 */
+function synthesizeWorkshopOrbs(recipe) {
+    if (workshopPending) return; // 厳選の結果を選んでいる最中は合成しない
+    const player = getPlayerData();
+    if (!player) return;
+    const orbs = player.orbs || [];
+
+    // ID未設定の古いオーブがあってもまとめて消えないよう、IDではなく位置(index)で消費対象を決める
+    const candidates = orbs
+        .map((orb, index) => ({ orb, index }))
+        .filter(item => item.orb && item.orb.tier === recipe.from);
+    if (candidates.length < recipe.count) {
+        alert(`${getWorkshopTierLabel(recipe.from)}オーブが${recipe.count}個必要です（現在: ${candidates.length}個）`);
+        return;
+    }
+    candidates.sort((a, b) => getOrbRollQuality(a.orb) - getOrbRollQuality(b.orb));
+    const consumeIndexes = new Set(candidates.slice(0, recipe.count).map(item => item.index));
+    const remaining = orbs.filter((orb, index) => !consumeIndexes.has(index));
+
+    const newOrb = createOrb(recipe.to);
+    if (!newOrb) {
+        alert("オーブの合成に失敗しました。");
+        return;
+    }
+    remaining.push(newOrb);
+
+    localStorage.setItem("player", JSON.stringify({ ...player, orbs: remaining }));
+    // ミッション進捗はlocalStorageのプレイヤーを直接読み書きするので、保存の後に呼ぶ
+    if (typeof updateMissionProgress === "function") updateMissionProgress("synthesize_orb");
+
+    alert(`オーブを合成しました！\n新しいオーブ: ${getOrbDisplayName(newOrb)}`);
+    savePlayerAfterWorkshop(getPlayerData());
+}
+
+/** 工房の全パーツ（結晶・素材からの作成・合成・厳選一覧）を最新の状態で描画し直す。 */
+function refreshOrbWorkshopAll() {
+    renderOrbWorkshop();
+    renderWorkshopSynthesis();
+    if (typeof showMaterialCraftingUI === "function" && document.getElementById("materialCraftingContainer")) {
+        showMaterialCraftingUI();
+    }
+}
+
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 function savePlayerAfterWorkshop(player) {
     localStorage.setItem("player", JSON.stringify(player));
     if (typeof updateStatus === "function") {
@@ -290,6 +380,10 @@ function savePlayerAfterWorkshop(player) {
     if (typeof syncPlayerToServer === "function") syncPlayerToServer(true);
     if (typeof renderOrbInventory === "function") renderOrbInventory();
     renderOrbWorkshop();
+<<<<<<< HEAD
+=======
+    renderWorkshopSynthesis();
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 }
 
 /** 結晶を消費してリロール結果を作り、「採用／元のまま」の選択モーダルを開く。 */
@@ -417,7 +511,11 @@ function initOrbWorkshopUI() {
             renderOrbWorkshop();
         });
     }
+<<<<<<< HEAD
     renderOrbWorkshop();
+=======
+    refreshOrbWorkshopAll();
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 }
 
 // ------------------------------------------------------------
@@ -437,4 +535,9 @@ function giveDebugCraftCurrency(chaos = 0, divine = 0, imprint = 0) {
 }
 window.giveDebugCraftCurrency = giveDebugCraftCurrency;
 window.renderOrbWorkshop = renderOrbWorkshop;
+<<<<<<< HEAD
+=======
+window.refreshOrbWorkshopAll = refreshOrbWorkshopAll;
+window.renderWorkshopSynthesis = renderWorkshopSynthesis;
+>>>>>>> 4f2a802 (広報活動頑張りたい)
 window.initOrbWorkshopUI = initOrbWorkshopUI;
