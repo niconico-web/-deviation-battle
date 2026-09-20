@@ -840,7 +840,7 @@ const WEAPON_TYPES = {
 // 所持している武器や契約済みのモンスターのデータは一切消していないので、
 // trueに戻せばそのまま使える。
 // ============================================================
-const SUMMONS_ROD_ENABLED = false;
+const SUMMONS_ROD_ENABLED = true;
 if (SUMMONS_ROD_ENABLED) {
     // サモンズロッド：他の武器種と違い、ステータスは一切上昇しない（primary/secondaryが空）。
     // その代わり、素材を消費してモンスターを配下にでき、正解するたびに配下が追加攻撃を行う
