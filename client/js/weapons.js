@@ -781,7 +781,7 @@ const WEAPON_TYPES = {
     // 六尺杖（ろくしゃくじょう）：約1.8m（六尺）の長い棒を使う棒術の武器。
     // 守りの構えから長い間合いで相手を制する耐久型。魔法の杖の「物理版」にあたる構成で、
     // 防御・HPを主に、攻撃・速さにも補正がかかる代わりに、特殊は少し低下する。
-    rokushaku_staff: { name: "六尺杖", primary: ["def", "maxHp"], secondary: ["atk", "speed"], debuff: { special: 0.9 } }
+    rokushaku_staff: { name: "六尺杖、薙刀", primary: ["def", "maxHp"], secondary: ["atk", "speed"], debuff: { special: 0.9 } }
 };
 
 // ============================================================
@@ -895,7 +895,7 @@ const WEAPON_CATALOG = {
     // 六尺杖：ショップに並ぶのはtier1〜3。ユニークは神話の如意棒（孫悟空の武器）がモチーフ。
     rokushaku_staff: {
         tier1: { name: "樫の六尺杖", ultimate: "払い打ち" },
-        tier2: { name: "鉄芯の六尺杖", ultimate: "旋風打ち" },
+        tier2: { name: "鉄芯の薙刀", ultimate: "旋風打ち" },
         tier3: { name: "羅漢の六尺杖", ultimate: "羅漢乱舞" },
         unique: { name: "神棒　如意金箍棒", ultimate: "如意伸縮撃" }
     },
