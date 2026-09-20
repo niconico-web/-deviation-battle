@@ -1718,3 +1718,32 @@ textarea {
     text-align: center;
     margin-bottom: 6px;
 }
+<<<<<<< HEAD
+=======
+
+.workshop-synthesis {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.workshop-synthesis-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 14px;
+}
+
+.craft-orb-preview {
+    color: var(--accent-yellow);
+    font-weight: bold;
+    min-height: 1.4em;
+    margin: 6px 0;
+}
+>>>>>>> 4f2a802 (広報活動頑張りたい)

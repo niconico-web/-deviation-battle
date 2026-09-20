@@ -266,25 +266,6 @@ function initMaterials() {
             materialManagementModal.style.display = 'none';
         };
     }
-    
-    // オーブ作成ボタン
-    const openOrbCraftingBtn = document.getElementById('openOrbCraftingBtn');
-    const orbCraftingModal = document.getElementById('orbCraftingModal');
-    const closeOrbCraftingBtn = orbCraftingModal?.querySelector('.close');
-    
-    if (openOrbCraftingBtn) {
-        openOrbCraftingBtn.onclick = () => {
-            showMaterialCraftingUI();
-            materialManagementModal.style.display = 'none';
-            orbCraftingModal.style.display = 'flex';
-        };
-    }
-    
-    if (closeOrbCraftingBtn) {
-        closeOrbCraftingBtn.onclick = () => {
-            orbCraftingModal.style.display = 'none';
-        };
-    }
 }
 
 /**
@@ -465,18 +446,21 @@ function showMaterialCraftingUI() {
     const selectedMaterials = [];
 
     container.innerHTML = `
-        <h3>オーブ作成</h3>
-        <p>素材を選択してオーブを作成（最大5つ）</p>
+        <p>素材をタップして選択（最大5つ）</p>
         <div id="selectedMaterials" class="selected-materials"></div>
+        <div id="craftOrbPreview" class="craft-orb-preview"></div>
         <div id="materialSelection" class="material-selection"></div>
-        <button id="craftOrbBtn" class="btn-primary" disabled>オーブを作成</button>
-        <button id="clearSelectionBtn" class="btn-secondary">選択をクリア</button>
+        <button id="craftOrbBtn" class="btn btn-primary" disabled>オーブを作成</button>
+        <button id="clearSelectionBtn" class="btn btn-secondary">選択をクリア</button>
     `;
 
     // 素材選択エリアをレンダリング
     const selectionContainer = document.getElementById('materialSelection');
+    if (!Object.keys(materials).some(id => materials[id] > 0 && MATERIAL_DATA[id])) {
+        selectionContainer.innerHTML = '<p>素材を所持していません。モンスターに勝利すると入手できます。</p>';
+    }
     for (const materialId in materials) {
-        if (materials[materialId] > 0) {
+        if (materials[materialId] > 0 && MATERIAL_DATA[materialId]) {
             const material = MATERIAL_DATA[materialId];
             const materialEl = document.createElement('div');
             materialEl.className = 'material-select-item';
@@ -504,6 +488,12 @@ function showMaterialCraftingUI() {
                     alert(`オーブを作成しました！\n${getOrbDisplayName(orb)}`);
                     selectedMaterials.length = 0;
                     showMaterialCraftingUI(); // UIを再描画
+                    // オーブ工房側（オーブ一覧・合成の所持数）とショップのオーブ一覧・ステータス表示も更新する
+                    if (typeof renderOrbWorkshop === 'function') renderOrbWorkshop();
+                    if (typeof renderWorkshopSynthesis === 'function') renderWorkshopSynthesis();
+                    if (typeof renderOrbInventory === 'function') renderOrbInventory();
+                    if (typeof updateStatus === 'function') updateStatus(getPlayerData());
+                    if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
                 }
             } else {
                 alert("オーブの作成に失敗しました。");
@@ -557,5 +547,13 @@ function updateSelectedMaterialsDisplay(selectedMaterials) {
     const craftBtn = document.getElementById('craftOrbBtn');
     if (craftBtn) {
         craftBtn.disabled = selectedMaterials.length === 0;
+    }
+
+    // 今の選択でできるオーブのティアを事前に表示する
+    const preview = document.getElementById('craftOrbPreview');
+    if (preview) {
+        const tier = calculateOrbRarity(selectedMaterials);
+        const tierName = tier && typeof ORB_TIERS !== 'undefined' && ORB_TIERS[tier] ? ORB_TIERS[tier].name : tier;
+        preview.textContent = tier ? `できるオーブ：${tierName}（素材${selectedMaterials.length}個）` : '';
     }
 }

@@ -323,6 +323,20 @@ body {
     cursor: not-allowed;
 }
 
+.choice-btn.correct-reveal,
+.choice-btn.correct-reveal:disabled {
+    opacity: 1 !important;
+    background: #2ecc71 !important;
+    color: #fff !important;
+    box-shadow: 0 0 16px 4px rgba(46, 204, 113, 0.9);
+    animation: correctRevealPulse 0.45s ease-in-out infinite alternate;
+}
+
+@keyframes correctRevealPulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.05); }
+}
+
 .timer {
     text-align: center;
     font-size: 1.125rem;
