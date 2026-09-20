@@ -49,6 +49,7 @@
                 <button class="menu-btn" data-section="questionlists"><span>📚</span> 問題リスト</button>
                 <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
                 <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
+                <button class="menu-btn" data-section="workshop"><span>💎</span> オーブ工房</button>
                 <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
                 <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
@@ -363,6 +364,41 @@
                 </div>
             </section>
 
+            <section id="section-workshop" class="content-section">
+                <h2>オーブ工房</h2>
+                <div class="setting-box">
+                    <h3>勉強でたまる「結晶」</h3>
+                    <p class="study-desc">勉強タイマーや模擬戦闘で勉強すると、勉強時間に応じて結晶が貯まります（累計の勉強時間が10分・30分・60分を超えるたびに、それぞれ1個ずつ）。結晶を使うと、持っているオーブの数値やステータスの種類、固有能力を引き直して「厳選」できます。</p>
+                    <div id="workshopCurrency" class="workshop-currency">
+                        <!-- renderWorkshopCurrency() によってここに結晶の所持数が描画される -->
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>厳選するオーブを選ぶ</h3>
+                    <p class="study-desc">リロールの結果は「この結果にする」か「元のままにする」を選べます（結晶はどちらを選んでも消費されます）。工房で厳選できるのは所持オーブだけで、武器にセット済みのオーブは対象外です。混沌の結晶はティアが高いオーブほど多く消費します。</p>
+                    <label class="field-label" for="workshopTierFilter">表示するティア</label>
+                    <select id="workshopTierFilter">
+                        <option value="all">すべて</option>
+                        <option value="tier5">Tier5</option>
+                        <option value="tier4">Tier4</option>
+                        <option value="tier3">Tier3</option>
+                        <option value="tier2">Tier2</option>
+                        <option value="tier1">Tier1</option>
+                    </select>
+                    <div id="workshopOrbList" class="workshop-orb-list">
+                        <!-- renderOrbWorkshop() によってここにオーブ一覧が描画される -->
+                    </div>
+                </div>
+
+                <!-- リロール結果モーダル（「この結果にする／元のままにする」を選ぶまで閉じられない） -->
+                <div id="workshopResultModal" class="modal">
+                    <div class="modal-content">
+                        <div id="workshopResultBody"></div>
+                    </div>
+                </div>
+            </section>
+
             <section id="section-skills" class="content-section">
                 <h2>スキル <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="スキルの遊び方">?</button></h2>
                 <div class="sub-tabs">
@@ -642,6 +678,7 @@
     <script src="js/stats.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/weapons.js"></script>
+    <script src="js/orbWorkshop.js"></script>
     <script src="js/skillTree.js"></script>
     <script src="js/mission.js"></script>
     <script src="js/loginBonus.js"></script>

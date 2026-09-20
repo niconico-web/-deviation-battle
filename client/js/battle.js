@@ -99,6 +99,7 @@ let myCounterActive = false;      // 反撃態勢が有効か
 let myCounterTurns = 0;           // 反撃態勢の残りターン
 let myShield = 0;                 // スキルで得たシールド（被ダメージから先に減算される）
 let myReviveAvailable = false;    // 戦闘不能時に一度だけ復活できるか
+let myPhoenixUsed = false;        // Tier5固有能力「不死鳥の加護」（1戦闘1回の復活）を使用済みか
 let myRevivePercent = 0;          // 復活時のHP割合
 let myFirstAttackDone = false;    // 「会心の初撃」用：自分の最初の攻撃が済んだか
 let myBurnTurns = 0;              // 自分（プレイヤー）の火傷残りターン
@@ -374,16 +375,19 @@ function initialize() {
         }
     }
 
-    // ユニーク能力「リ・ミゼラブル」の効果をバトル開始時に適用
+    // ユニーク能力「リ・ミゼラブル」（0.8倍）／Tier5「覇王の威圧」（0.65倍）の効果をバトル開始時に適用
+    // 両方持っている場合は、より強い方（覇王の威圧）だけを適用する。
     const applyReMiserable = (player, target) => {
         if (player.equippedWeapon && player.equippedWeapon.uniqueAbilities) {
-            const hasReMiserable = player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
+            const hasCrush = player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_crush");
+            const hasReMiserable = hasCrush || player.equippedWeapon.uniqueAbilities.some(a => a.effect === "enemy_stat_debuff");
             if (hasReMiserable) {
-                addLog(`${player.name}の「リ・ミゼラブル」発動！ ${target.name}の全ステータスがダウン！`);
-                target.atk = Math.floor(target.atk * 0.8);
-                target.def = Math.floor(target.def * 0.8);
-                target.speed = Math.floor(target.speed * 0.8);
-                target.maxHp = Math.floor(target.maxHp * 0.8);
+                const debuffRate = hasCrush ? 0.65 : 0.8;
+                addLog(`${player.name}の「${hasCrush ? "覇王の威圧" : "リ・ミゼラブル"}」発動！ ${target.name}の全ステータスがダウン！`);
+                target.atk = Math.floor(target.atk * debuffRate);
+                target.def = Math.floor(target.def * debuffRate);
+                target.speed = Math.floor(target.speed * debuffRate);
+                target.maxHp = Math.floor(target.maxHp * debuffRate);
                 // maxHpが減ったことに伴い、現在のHPも調整
                 if (target.hp > target.maxHp) {
                     target.hp = target.maxHp;
@@ -1406,6 +1410,15 @@ function startSkillActivationWindow() {
 // 復活権を持っていれば消費してHPをrevivePercent分回復させtrueを返す。
 // 持っていなければ何もせずfalseを返す（＝通常通り敗北処理を続ける）。
 function tryReviveMe() {
+    // Tier5固有能力「不死鳥の加護」：1回の戦闘中に1度だけ、HPが0になってもHP50%で復活する。
+    // スキル「不死身」の復活権とは別枠なので、先にこちらを消費する（両方持っていれば2回耐えられる）。
+    if (me && me.hp <= 0 && !myPhoenixUsed && hasUniqueAbility(me, 'phoenix_blessing')) {
+        myPhoenixUsed = true;
+        me.hp = Math.max(1, Math.floor(me.maxHp * 0.5));
+        addLog(`不死鳥の加護が発動！HP${me.hp}で復活した！`);
+        updateHP();
+        return true;
+    }
     if (myReviveAvailable && me && me.hp <= 0) {
         myReviveAvailable = false;
         me.hp = Math.max(1, Math.floor(me.maxHp * (myRevivePercent || 0.5)));
@@ -2225,7 +2238,9 @@ function handleATBAnswer(selectedOption) {
         
         // 正解のたびに小さな追撃ダメージ（攻撃力の0.5倍）
         // 敵の防御力低下デバフ（enemyDefDebuff）を反映する
-        const effectiveEnemyDef = Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
+        // 神殺し（Tier5）を持っていれば、相手の防御を完全に無視する
+        const godSlayer = hasUniqueAbility(me, 'god_slayer');
+        const effectiveEnemyDef = godSlayer ? 0 : Math.max(0, Math.floor((enemy.def || 0) * (1 - enemyDefDebuff)));
         const defReduction = Math.floor(effectiveEnemyDef * 0.1);
         let chipDamage = Math.max(1, Math.floor(baseAtk * 0.5) - defReduction);
 
@@ -2249,6 +2264,9 @@ function handleATBAnswer(selectedOption) {
             updateStats();
         }
         
+        // 神殺し（Tier5）：与えるダメージ1.25倍
+        if (godSlayer) chipDamage = Math.floor(chipDamage * 1.25);
+
         // 根性（guts）：HPが1残る形で持ちこたえる（必殺技等、他の攻撃と同様の処理に統一）
         if (enemy.hp - chipDamage <= 0 && enemy.hp > 1 && hasUniqueAbility(enemy, 'guts')) {
             enemy.hp = 1;
@@ -2366,6 +2384,9 @@ function executeStrongAttack(skillEffect, usedSkill) {
     if (hasUniqueAbility(me, 'ignore_def_half')) {
         enemyDef = Math.floor(enemyDef * 0.5);
     }
+    // 神殺し（Tier5）：相手の防御を完全に無視する
+    const strongGodSlayer = hasUniqueAbility(me, 'god_slayer');
+    if (strongGodSlayer) enemyDef = 0;
 
     const defReduction = Math.floor(enemyDef * 0.1);
     let strongDamage = Math.max(1, Math.floor(attackerAtk * 0.5) - defReduction);
@@ -2394,6 +2415,9 @@ function executeStrongAttack(skillEffect, usedSkill) {
         strongDamage = Math.floor(strongDamage * critMultiplier);
         addLog(isForcedFirstStrikeCrit ? "会心の初撃！" : "クリティカルヒット！");
     }
+
+    // 神殺し（Tier5）：与えるダメージ1.25倍
+    if (strongGodSlayer) strongDamage = Math.floor(strongDamage * 1.25);
 
     // 必殺技発動後、ゲージをリセット（コマンド選択の必殺技と同じ挙動）
     me.ultimateGauge.current = 0;
@@ -2562,6 +2586,13 @@ function resolveBossAttack() {
     if (hasUniqueAbility(me, 'damage_cut_half')) {
         damage = Math.floor(damage * 0.5);
         addLog("鉄壁発動！ダメージ50%カット");
+    }
+
+    // 絶対障壁（Tier5）：ダメージ60%カット。鉄壁と重ねた場合も、ここで別途0.4倍が掛かる
+    // （同時に持つには「Tier4オーブ＋Tier5オーブ」が必要で、実質2枠を使うため許容範囲）。
+    if (hasUniqueAbility(me, 'absolute_barrier')) {
+        damage = Math.max(1, Math.floor(damage * 0.4));
+        addLog("絶対障壁発動！ダメージ60%カット");
     }
 
     // 回避判定：素早さによる基礎回避率 + スキルによる回避率アップ（幻影など、1.0で完全回避）
@@ -3884,6 +3915,7 @@ function handleDungeonNextFloor() {
 function resetDungeonBattle() {
     // 戦闘状態をリセット
     battleEnd = false;
+    myPhoenixUsed = false; // 不死鳥の加護は「1戦闘に1回」なので、次の階（次の戦闘）では使えるように戻す
     currentQuestion = null;
     questionStartTime = null;
     
