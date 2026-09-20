@@ -608,8 +608,14 @@ function exitMockBattle() {
         msg += "時間：" + (typeof formatTime === "function" ? formatTime(summary.seconds) : summary.seconds + "秒") + "\n";
         msg += "経験値 +" + summary.gainedXp + "\n";
         msg += getMockBattleStatLabel(summary.statKey) + " +" + summary.statGain;
-        if (summary.hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
+        if (summary.hasApexWisdom) msg += "（叡智の頂発動中！）";
+        else if (summary.hasOverwhelmingGrowth) msg += "（圧倒的成長性発動中！）";
         if (summary.gainedCoins > 0) msg += "\n30分以上の勉強ボーナス +" + summary.gainedCoins + "コイン";
+        if (summary.craftGain && typeof formatCraftCurrencyGain === "function") {
+            const craftText = formatCraftCurrencyGain(summary.craftGain);
+            if (craftText) msg += "\n\n💎 工房の結晶を獲得！\n" + craftText;
+            if (summary.craftCapped) msg += "\n（結晶の計算は1回につき3時間分までです）";
+        }
         alert(msg);
     } else {
         alert("模擬戦闘を終了しました。（1分未満だったため報酬はありません）");
@@ -637,7 +643,10 @@ function applyMockBattleRewards(seconds, statKey) {
             ability => ability.effect === "double_study_growth"
         );
     }
-    if (hasOverwhelmingGrowth) statGain *= 2;
+    const hasApexWisdom = !!(player.equippedWeapon && player.equippedWeapon.uniqueAbilities &&
+        player.equippedWeapon.uniqueAbilities.some(ability => ability.effect === "study_growth_x2_5"));
+    if (hasApexWisdom) statGain = Math.floor(statGain * 2.5);
+    else if (hasOverwhelmingGrowth) statGain *= 2;
 
     const validKey = MOCK_BATTLE_STAT_OPTIONS.some(o => o.key === statKey) ? statKey : "atk";
     stats[validKey] = (stats[validKey] || 0) + statGain;
@@ -653,6 +662,11 @@ function applyMockBattleRewards(seconds, statKey) {
     if (newLevel > oldLevel && typeof addSkillPointsOnLevelUp === "function") {
         player = addSkillPointsOnLevelUp(player, oldLevel, newLevel);
     }
+
+    // オーブ工房の結晶（勉強タイマーと同じ計算。totalStudySecondsを加算する前の値が基準）
+    const craftGrant = (typeof grantStudyCraftCurrency === "function")
+        ? grantStudyCraftCurrency(player, seconds)
+        : null;
 
     const updated = buildPlayer(player.name, stats, newXp, {
         hp,
@@ -680,7 +694,8 @@ function applyMockBattleRewards(seconds, statKey) {
         prestigeBonusPercent: player.prestigeBonusPercent,
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak,
-        questionLists: player.questionLists || []
+        questionLists: player.questionLists || [],
+        craftCurrency: craftGrant ? craftGrant.currency : player.craftCurrency
     });
 
     localStorage.setItem("player", JSON.stringify(updated));
@@ -689,7 +704,11 @@ function applyMockBattleRewards(seconds, statKey) {
         updateMissionProgress("study", seconds);
     }
 
-    return { statGain, statKey: validKey, gainedXp, gainedCoins, newLevel, oldLevel, hasOverwhelmingGrowth, seconds };
+    return {
+        statGain, statKey: validKey, gainedXp, gainedCoins, newLevel, oldLevel, hasOverwhelmingGrowth, hasApexWisdom, seconds,
+        craftGain: craftGrant ? craftGrant.gain : null,
+        craftCapped: craftGrant ? craftGrant.capped : false
+    };
 }
 
 // ============================================================

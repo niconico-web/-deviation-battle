@@ -403,7 +403,10 @@ const ORB_TIERS = {
     tier1: { name: "ティア1", dropRate: 0.50, statRange: [0.05, 0.10] },
     tier2: { name: "ティア2", dropRate: 0.30, statRange: [0.10, 0.15] },
     tier3: { name: "ティア3", dropRate: 0.15, statRange: [0.15, 0.20] },
-    tier4: { name: "ティア4", dropRate: 0.05, statRange: [0.15, 0.20] }
+    tier4: { name: "ティア4", dropRate: 0.05, statRange: [0.15, 0.20] },
+    // ティア5：通常のドロップ・合成では入手できない（dropRate 0）。
+    // オーブ工房で「刻印の結晶」を使ったときに、ごくまれにTier4オーブが変化して出現する。
+    tier5: { name: "ティア5", dropRate: 0, statRange: [0.22, 0.30] }
 };
 
 const ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
@@ -512,6 +515,38 @@ const ORB_UNIQUE_ABILITIES = {
     }
 };
 
+// ティア5オーブ専用の固有能力。Tier4の固有能力（ORB_UNIQUE_ABILITIES）とは別のオブジェクトにしてあるのは、
+// Tier4オーブ作成・ボス武器生成・ヘルプ表示がORB_UNIQUE_ABILITIES全体を走査するため、
+// ここに混ぜるとTier5専用能力が他の入手経路にも漏れてしまうため。
+// バランス：Tier4の能力を「一段上」にした程度に抑えてある（倍率は控えめ、無敵・即死級の効果は無い）。
+const ORB_TIER5_ABILITIES = {
+    god_slayer: {
+        name: "神殺し",
+        description: "相手の防御を完全に無視し、与えるダメージが1.25倍になる",
+        effect: "god_slayer"
+    },
+    absolute_barrier: {
+        name: "絶対障壁",
+        description: "相手から受けるダメージを60%カットする（鉄壁は50%）",
+        effect: "absolute_barrier"
+    },
+    overlord_presence: {
+        name: "覇王の威圧",
+        description: "戦闘開始時、相手の全ステータスを0.65倍にする（リ・ミゼラブルは0.8倍）",
+        effect: "enemy_stat_crush"
+    },
+    phoenix_blessing: {
+        name: "不死鳥の加護",
+        description: "1回の戦闘中に1度だけ、HPが0になってもHP50%で復活する",
+        effect: "phoenix_blessing"
+    },
+    apex_wisdom: {
+        name: "叡智の頂",
+        description: "勉強タイマー使用時のステータスの上り幅が2.5倍になる（圧倒的成長性は2倍）",
+        effect: "study_growth_x2_5"
+    }
+};
+
 const ORB_STAT_TYPES = ["atk", "def", "speed", "maxHp", "special"];
 
 const ORB_STAT_LABELS = {
@@ -541,6 +576,16 @@ function createOrb(tier) {
         uniqueAbility: null
     };
     
+    // Tier5はTier5専用の固有能力から1つ付与する
+    if (tier === "tier5") {
+        const t5Keys = Object.keys(ORB_TIER5_ABILITIES);
+        const t5Key = t5Keys[Math.floor(Math.random() * t5Keys.length)];
+        orb.uniqueAbility = {
+            key: t5Key,
+            ...ORB_TIER5_ABILITIES[t5Key]
+        };
+    }
+
     // Tier4のみユニーク能力を付与（ボス能力を除外）
     if (tier === "tier4") {
         const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
@@ -561,6 +606,7 @@ function rollOrbDrop(dropChance = ORB_DROP_CHANCE) {
     let cumulative = 0;
     
     for (const [tier, config] of Object.entries(ORB_TIERS)) {
+        if (!config.dropRate) continue; // Tier5などドロップしないティアは対象外
         cumulative += config.dropRate;
         if (rand < cumulative) {
             return createOrb(tier);
@@ -586,7 +632,7 @@ function getOrbDisplayName(orb) {
 }
 
 // オーブのティアごとの倍率係数（武器作成時・オーブスロット拡張チケット使用時の両方で使う）
-const ORB_TIER_MULTIPLIER_FACTORS = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12 };
+const ORB_TIER_MULTIPLIER_FACTORS = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12, tier5: 1.20 };
 
 function applyOrbToWeapon(weapon, orbs) {
     if (!weapon || !orbs || orbs.length === 0) return weapon;
@@ -1013,26 +1059,6 @@ function getWeaponPristineMaxMultiplier(weapon) {
     return ORIGINAL_WEAPON_MAX_MULTIPLIER;
 }
 
-// 転生時に、武器の倍率(multiplier)・上限倍率(maxMultiplier)・強化回数・召喚モンスター契約を
-// 素の状態に戻す。武器そのもの（tier4固有能力・オーブ）は消えない。
-// 対象は「倍率を強化で伸ばせる」武器（isOriginal）のみ。ショップの固定倍率武器は対象外。
-// summonedMonstersは全武器種共通で持ちうるフィールドなので、isOriginal判定に関わらずクリアする。
-function resetWeaponMultiplierForPrestige(weapon) {
-    if (!weapon) return weapon;
-    if (!weapon.isOriginal) {
-        return weapon.summonedMonsters ? { ...weapon, summonedMonsters: [] } : weapon;
-    }
-    return {
-        ...weapon,
-        multiplier: getWeaponBaseMultiplierForProgress(weapon),
-        maxMultiplier: getWeaponPristineMaxMultiplier(weapon),
-        upgradeCount: 0,
-        limitBreakLevel: 0,
-        originalLimitBreakLevel: 0,
-        summonedMonsters: []
-    };
-}
-
 function upgradeOriginalWeapon(weapon) {
     if (!weapon.isOriginal) return weapon;
     const max = getWeaponMaxMultiplier(weapon);
@@ -1365,6 +1391,16 @@ function findTier4AbilityEntry(input) {
     if (foundKey) {
         return { key: foundKey, ability: ORB_UNIQUE_ABILITIES[foundKey] };
     }
+    // Tier5専用の固有能力もデバッグ武器で試せるようにする
+    if (ORB_TIER5_ABILITIES[input]) {
+        return { key: input, ability: ORB_TIER5_ABILITIES[input] };
+    }
+    const foundT5Key = Object.keys(ORB_TIER5_ABILITIES).find(
+        key => ORB_TIER5_ABILITIES[key].effect === input
+    );
+    if (foundT5Key) {
+        return { key: foundT5Key, ability: ORB_TIER5_ABILITIES[foundT5Key] };
+    }
     return null;
 }
 
@@ -1454,7 +1490,12 @@ function listTier4Abilities() {
         const ability = ORB_UNIQUE_ABILITIES[key];
         console.log(`${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
     });
-    return keys;
+    const t5Keys = Object.keys(ORB_TIER5_ABILITIES);
+    t5Keys.forEach(key => {
+        const ability = ORB_TIER5_ABILITIES[key];
+        console.log(`[Tier5] ${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
+    });
+    return keys.concat(t5Keys);
 }
 
 // ============================================

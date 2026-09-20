@@ -71,17 +71,25 @@ function applyOrbDebuffs(stats, player) {
     
     const result = { ...stats };
     
-    // リ・ミゼラブル: 相手の全ステータスを0.8倍
-    if (hasUniqueAbility(player, "enemy_stat_debuff")) {
-        result.atk = Math.floor(result.atk * 0.8);
-        result.def = Math.floor(result.def * 0.8);
-        result.speed = Math.floor(result.speed * 0.8);
-        result.maxHp = Math.floor(result.maxHp * 0.8);
+    // 覇王の威圧（Tier5）: 相手の全ステータスを0.65倍 / リ・ミゼラブル: 0.8倍（両方ある場合は強い方のみ）
+    const debuffRate = hasUniqueAbility(player, "enemy_stat_crush")
+        ? 0.65
+        : (hasUniqueAbility(player, "enemy_stat_debuff") ? 0.8 : 1);
+    if (debuffRate < 1) {
+        result.atk = Math.floor(result.atk * debuffRate);
+        result.def = Math.floor(result.def * debuffRate);
+        result.speed = Math.floor(result.speed * debuffRate);
+        result.maxHp = Math.floor(result.maxHp * debuffRate);
     }
     
     // 貫通: 防御を50%減らす
     if (hasUniqueAbility(player, "ignore_def_half")) {
         result.def = Math.floor(result.def * 0.5);
+    }
+
+    // 神殺し（Tier5）: 相手の防御を完全に無視する
+    if (hasUniqueAbility(player, "god_slayer")) {
+        result.def = 0;
     }
     
     return result;
@@ -336,6 +344,11 @@ function applyUniqueAbilityDamageBonus(damage, attacker) {
         finalDamage = Math.floor(finalDamage * critMultiplier);
     }
 
+    // 神殺し（Tier5）: 与えるダメージ1.25倍
+    if (hasUniqueAbility(attacker, "god_slayer")) {
+        finalDamage = Math.floor(finalDamage * 1.25);
+    }
+
     return finalDamage;
 }
 
@@ -348,6 +361,11 @@ function applyUniqueAbilityDefense(damage, defender) {
     // 鉄壁: ダメージ50%カット
     if (hasUniqueAbility(defender, "damage_cut_half")) {
         finalDamage = Math.floor(finalDamage * 0.5);
+    }
+
+    // 絶対障壁（Tier5）: ダメージ60%カット
+    if (hasUniqueAbility(defender, "absolute_barrier")) {
+        finalDamage = Math.floor(finalDamage * 0.4);
     }
     
     // ダメージが小さい時に上の軽減で0になってしまうと、その相手には
