@@ -470,16 +470,28 @@ function renderOrbInventory() {
 
         const tierName = (typeof ORB_TIERS !== "undefined" && ORB_TIERS[orb.tier]?.name) || orb.tier;
         const statLabel = (typeof ORB_STAT_LABELS !== "undefined" && ORB_STAT_LABELS[orb.statType]) || orb.statType;
+        const rarityBadge = (typeof getOrbRarityKey === "function" && typeof getRarityBadgeHtml === "function")
+            ? getRarityBadgeHtml(getOrbRarityKey(orb))
+            : "";
 
         let abilityInfo = "";
         if (orb.uniqueAbility) {
             abilityInfo = `<div class="orb-ability">★ ${orb.uniqueAbility.name}</div>`;
         }
 
+        let affixInfo = "";
+        if (Array.isArray(orb.affixes) && orb.affixes.length > 0) {
+            const affixLines = orb.affixes
+                .map(a => `<div class="orb-affix">・${a.label} +${Math.round(a.bonus * 1000) / 10}%</div>`)
+                .join("");
+            affixInfo = `<div class="orb-affixes">${affixLines}</div>`;
+        }
+
         item.innerHTML = `
             <div class="inventory-item-info">
-                <strong>${tierName}オーブ</strong>
+                <strong>${rarityBadge} ${tierName}オーブ</strong>
                 <span>${statLabel} +${Math.round(orb.bonus * 100)}%</span>
+                ${affixInfo}
                 ${abilityInfo}
             </div>`;
         container.appendChild(item);
@@ -984,9 +996,17 @@ function showOrbSelectionDialog(weapon, ticketIndex) {
         // 以前はオーブIDを記録するだけで、ステータスボーナス・倍率・tier4固有能力が
         // 一切反映されておらず「オーブが消費されるだけで何も起きない」不具合があった。
         // 武器作成時（applyOrbToWeapon）と同じ計算式で、既存の効果に追加分を上乗せする。
+        // ダンジョン産オーブが持つランダム付与効果（affixes）も同様に上乗せする。
+        const selectedOrbBonuses = { [selectedOrb.statType]: selectedOrb.bonus };
+        if (Array.isArray(selectedOrb.affixes)) {
+            for (const affix of selectedOrb.affixes) {
+                if (!affix || !affix.statType) continue;
+                selectedOrbBonuses[affix.statType] = (selectedOrbBonuses[affix.statType] || 0) + affix.bonus;
+            }
+        }
         updatedWeapon.statBonuses = mergeStatBonuses(
             updatedWeapon.statBonuses,
-            { [selectedOrb.statType]: selectedOrb.bonus }
+            selectedOrbBonuses
         );
 
         const tierMult = ORB_TIER_MULTIPLIER_FACTORS[selectedOrb.tier] || 1.0;

@@ -557,6 +557,102 @@ const ORB_STAT_LABELS = {
     special: "特殊"
 };
 
+// ============================================
+// レア度（ハクスラ要素：見た目の可視化）
+// ============================================
+// オーブのtier、および宝箱のアイテム報酬（stat_reallocator等がrarity: 'legendary'/'mythic'を
+// 既に使っている）の両方をこの同じキー体系で表示できるようにする。
+const RARITY_INFO = {
+    common: { label: "コモン", colorVar: "--text-secondary" },
+    rare: { label: "レア", colorVar: "--accent-blue" },
+    epic: { label: "エピック", colorVar: "--accent-purple" },
+    legendary: { label: "レジェンダリー", colorVar: "--accent-orange" },
+    mythic: { label: "神話", colorVar: "--accent-red" }
+};
+
+const ORB_TIER_RARITY_KEY = {
+    tier1: "common",
+    tier2: "rare",
+    tier3: "epic",
+    tier4: "legendary",
+    tier5: "mythic"
+};
+
+function getRarityInfo(rarityKey) {
+    return RARITY_INFO[rarityKey] || RARITY_INFO.common;
+}
+
+function getOrbRarityKey(orb) {
+    if (!orb) return "common";
+    return orb.rarity || ORB_TIER_RARITY_KEY[orb.tier] || "common";
+}
+
+/** レア度のラベルを色付きの<span>で返す（inventoryやワークショップのinnerHTMLにそのまま埋め込める）。 */
+function getRarityBadgeHtml(rarityKey) {
+    const info = getRarityInfo(rarityKey);
+    return `<span class="rarity-badge rarity-${rarityKey}" style="color: var(${info.colorVar})">${info.label}</span>`;
+}
+
+// ============================================
+// ダンジョン産オーブの付与効果（アフィックス）システム（ハクスラ要素）
+// ============================================
+// ディアブロ/PoEのような「メインステータス＋ランダムな追加ステータス（アフィックス）」を、
+// ダンジョンの宝箱から出るオーブだけに追加する。既存のオーブ経済（勉強・通常戦闘勝利の
+// ドロップ、オーブ工房の合成・厳選）には一切影響しない別関数（createDungeonOrb）として実装。
+// 付与効果は既存のORB_STAT_TYPES（atk/def/speed/maxHp/special）への追加ボーナスとして
+// applyOrbToWeapon()の集計にそのまま乗るため、新しい戦闘ロジックを増やさずに機能する。
+// tierが高いほど（＝レア度が高いほど）本数・数値の幅が大きくなる。
+const DUNGEON_AFFIX_CONFIG = {
+    tier1: { count: 0, range: [0, 0] },
+    tier2: { count: 1, range: [0.02, 0.05] },
+    tier3: { count: 2, range: [0.03, 0.07] },
+    tier4: { count: 3, range: [0.04, 0.09] }
+    // tier5はダンジョンの宝箱からは出現しない（オーブ工房の刻印の結晶専用のため対象外）
+};
+
+const AFFIX_STAT_LABEL_PREFIX = {
+    atk: "剛力の",
+    def: "堅牢の",
+    speed: "俊敏の",
+    maxHp: "生命の",
+    special: "秘奥の"
+};
+
+/** tierとメインステータス（重複させない）を基に、ランダムな付与効果の配列を生成する。 */
+function generateDungeonOrbAffixes(tier, excludeStatType) {
+    const config = DUNGEON_AFFIX_CONFIG[tier];
+    if (!config || config.count <= 0) return [];
+
+    const pool = ORB_STAT_TYPES.filter(s => s !== excludeStatType);
+    const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+    const count = Math.min(config.count, shuffled.length);
+    const [min, max] = config.range;
+
+    return shuffled.slice(0, count).map(statType => {
+        const bonus = Math.round((min + Math.random() * (max - min)) * 1000) / 1000;
+        return {
+            statType,
+            bonus,
+            label: `${AFFIX_STAT_LABEL_PREFIX[statType] || ""}${ORB_STAT_LABELS[statType] || statType}`
+        };
+    });
+}
+
+/**
+ * ダンジョンの宝箱専用のオーブ生成。通常のcreateOrb()の結果に、
+ * レア度情報（rarity）とランダム付与効果（affixes）を追加して返す。
+ */
+function createDungeonOrb(tier) {
+    const orb = createOrb(tier);
+    if (!orb) return null;
+
+    orb.rarity = ORB_TIER_RARITY_KEY[tier] || "common";
+    orb.affixes = generateDungeonOrbAffixes(tier, orb.statType);
+    orb.dungeonDrop = true;
+
+    return orb;
+}
+
 function createOrb(tier) {
     const tierConfig = ORB_TIERS[tier];
     if (!tierConfig) return null;
@@ -621,9 +717,17 @@ function getOrbDisplayName(orb) {
     const tierName = ORB_TIERS[orb.tier]?.name || orb.tier;
     const statLabel = ORB_STAT_LABELS[orb.statType] || orb.statType;
     const bonusPercent = Math.round(orb.bonus * 100);
-    
-    let name = `${tierName}オーブ (${statLabel}+${bonusPercent}%)`;
-    
+    const rarityLabel = getRarityInfo(getOrbRarityKey(orb)).label;
+
+    let name = `[${rarityLabel}] ${tierName}オーブ (${statLabel}+${bonusPercent}%)`;
+
+    if (Array.isArray(orb.affixes) && orb.affixes.length > 0) {
+        const affixText = orb.affixes
+            .map(a => `${a.label}+${Math.round(a.bonus * 1000) / 10}%`)
+            .join("、");
+        name += ` <${affixText}>`;
+    }
+
     if (orb.uniqueAbility) {
         name += ` [${orb.uniqueAbility.name}]`;
     }
@@ -640,12 +744,22 @@ function applyOrbToWeapon(weapon, orbs) {
     const newWeapon = { ...weapon };
     const totalBonus = {};
 
-    // オーブの補正を集計
+    // オーブの補正を集計（メインステータス＋ダンジョン産オーブのランダム付与効果=アフィックス）
     for (const orb of orbs) {
         if (!totalBonus[orb.statType]) {
             totalBonus[orb.statType] = 0;
         }
         totalBonus[orb.statType] += orb.bonus;
+
+        if (Array.isArray(orb.affixes)) {
+            for (const affix of orb.affixes) {
+                if (!affix || !affix.statType) continue;
+                if (!totalBonus[affix.statType]) {
+                    totalBonus[affix.statType] = 0;
+                }
+                totalBonus[affix.statType] += affix.bonus;
+            }
+        }
     }
 
     // ステータス補正を再計算する。
