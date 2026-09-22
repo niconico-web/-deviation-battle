@@ -799,11 +799,7 @@ function applyStudyRewards(seconds) {
         renderShop();
         renderInventory();
     }
-<<<<<<< HEAD
-    if (typeof renderOrbWorkshop === "function") renderOrbWorkshop();
-=======
     if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
->>>>>>> 4f2a802 (広報活動頑張りたい)
 
     // デイリーミッションの進捗を更新
     if (typeof updateMissionProgress === 'function') {
@@ -1218,11 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // オーブ工房タブを開いたときは、結晶の所持数・オーブ一覧を最新状態で再描画する
             if (section === 'workshop') {
                 try {
-<<<<<<< HEAD
-                    if (typeof renderOrbWorkshop === "function") renderOrbWorkshop();
-=======
                     if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
->>>>>>> 4f2a802 (広報活動頑張りたい)
                 } catch (e) {
                     console.error("Error rendering workshop tab:", e);
                 }

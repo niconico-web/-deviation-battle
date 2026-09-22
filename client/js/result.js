@@ -264,7 +264,11 @@ function handleDungeonResult(won) {
             setupShareButton(`School Battleのダンジョンで第${clearedFloor}階を突破！`);
             let floorMessage = `この階の報酬: コイン+${response.floorReward.coins} / 経験値+${response.floorReward.exp}`;
             if (chestReward) {
-                floorMessage += `\n🎁 宝箱: ${chestReward.description || (chestReward.type === 'orb' ? `オーブ（${chestReward.tier}）` : chestReward.itemId)}`;
+                const chestDesc = chestReward.description
+                    || (chestReward.type === 'orb'
+                        ? `オーブ（${(typeof getRarityInfo === 'function' && typeof ORB_TIER_RARITY_KEY !== 'undefined') ? getRarityInfo(ORB_TIER_RARITY_KEY[chestReward.tier]).label : chestReward.tier}）`
+                        : chestReward.itemId);
+                floorMessage += `\n🎁 宝箱: ${chestDesc}`;
             }
             if (droppedMaterial) {
                 const materialName = (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[droppedMaterial]) ? MATERIAL_DATA[droppedMaterial].name : droppedMaterial;
@@ -413,8 +417,10 @@ function applyDungeonRetreatRewards(retreatResponse, accumulatedRewards) {
     const rewards = accumulatedRewards || { chestRewards: [], materials: [] };
 
     (rewards.chestRewards || []).forEach(chestReward => {
-        if (chestReward.type === 'orb' && typeof createOrb === 'function') {
-            const orb = createOrb(chestReward.tier);
+        if (chestReward.type === 'orb') {
+            const orb = (typeof createDungeonOrb === 'function')
+                ? createDungeonOrb(chestReward.tier)
+                : (typeof createOrb === 'function' ? createOrb(chestReward.tier) : null);
             if (orb) {
                 updatedPlayer.orbs = updatedPlayer.orbs || [];
                 updatedPlayer.orbs.push(orb);

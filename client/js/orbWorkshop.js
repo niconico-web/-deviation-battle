@@ -1,13 +1,9 @@
 // orbWorkshop.js
 // ============================================================
-<<<<<<< HEAD
-// オーブ工房：勉強時間で貯まる「結晶」を使って、手持ちのオーブを厳選（リロール）する。
-=======
 // オーブ工房：オーブに関する操作を1か所にまとめたもの。
 //   ・素材からオーブを作る（materials.jsのshowMaterialCraftingUIを埋め込み表示）
 //   ・オーブ合成（低ティア→1つ上のティア）
 //   ・勉強時間で貯まる「結晶」を使って、手持ちのオーブを厳選（リロール）する
->>>>>>> 4f2a802 (広報活動頑張りたい)
 //
 // 結晶は player.craftCurrency = { chaos, divine, imprint } に保存する。
 // 累計勉強時間（player.totalStudySeconds）が一定の間隔をまたぐたびに1個ずつ貯まる方式なので、
@@ -147,6 +143,7 @@ function rollTier5Orb(orb) {
     return {
         ...orb,
         tier: "tier5",
+        rarity: (typeof ORB_TIER_RARITY_KEY !== "undefined" && ORB_TIER_RARITY_KEY.tier5) || "mythic",
         bonus: rollOrbBonusValue("tier5"),
         uniqueAbility: { key, ...ORB_TIER5_ABILITIES[key] }
     };
@@ -205,6 +202,15 @@ function describeWorkshopRoll(orb) {
     return `<strong>${escapeWorkshopHtml(statLabel)} +${Math.round(orb.bonus * 1000) / 10}%</strong> <span class="workshop-quality ${cls}">${label}</span>`;
 }
 
+/** ダンジョン産オーブが持つランダム付与効果（アフィックス）を表示する。無ければ空文字。 */
+function describeWorkshopAffixes(orb) {
+    if (!Array.isArray(orb.affixes) || orb.affixes.length === 0) return "";
+    const lines = orb.affixes
+        .map(a => `<div class="workshop-affix">・${escapeWorkshopHtml(a.label)} +${Math.round(a.bonus * 1000) / 10}%</div>`)
+        .join("");
+    return `<div class="workshop-affixes">${lines}</div>`;
+}
+
 function describeWorkshopAbility(orb) {
     if (!orb.uniqueAbility) return "";
     return `<div class="workshop-ability">★ ${escapeWorkshopHtml(orb.uniqueAbility.name)}<span class="workshop-ability-desc">${escapeWorkshopHtml(orb.uniqueAbility.description || "")}</span></div>`;
@@ -261,8 +267,12 @@ function renderOrbWorkshop() {
 
         const info = document.createElement("div");
         info.className = "workshop-orb-info";
-        info.innerHTML = `<div class="workshop-orb-title">${escapeWorkshopHtml(getWorkshopTierLabel(orb.tier))}オーブ</div>
+        const rarityBadge = (typeof getOrbRarityKey === "function" && typeof getRarityBadgeHtml === "function")
+            ? getRarityBadgeHtml(getOrbRarityKey(orb))
+            : "";
+        info.innerHTML = `<div class="workshop-orb-title">${rarityBadge} ${escapeWorkshopHtml(getWorkshopTierLabel(orb.tier))}オーブ</div>
             <div>${describeWorkshopRoll(orb)}</div>
+            ${describeWorkshopAffixes(orb)}
             ${describeWorkshopAbility(orb)}`;
         item.appendChild(info);
 
@@ -289,8 +299,6 @@ function renderOrbWorkshop() {
     }
 }
 
-<<<<<<< HEAD
-=======
 // ------------------------------------------------------------
 // オーブ合成（以前はショップにあった機能。低ティアのオーブを複数消費して1つ上のティアを1個合成する）
 // ------------------------------------------------------------
@@ -371,7 +379,6 @@ function refreshOrbWorkshopAll() {
     }
 }
 
->>>>>>> 4f2a802 (広報活動頑張りたい)
 function savePlayerAfterWorkshop(player) {
     localStorage.setItem("player", JSON.stringify(player));
     if (typeof updateStatus === "function") {
@@ -380,10 +387,7 @@ function savePlayerAfterWorkshop(player) {
     if (typeof syncPlayerToServer === "function") syncPlayerToServer(true);
     if (typeof renderOrbInventory === "function") renderOrbInventory();
     renderOrbWorkshop();
-<<<<<<< HEAD
-=======
     renderWorkshopSynthesis();
->>>>>>> 4f2a802 (広報活動頑張りたい)
 }
 
 /** 結晶を消費してリロール結果を作り、「採用／元のまま」の選択モーダルを開く。 */
@@ -511,11 +515,7 @@ function initOrbWorkshopUI() {
             renderOrbWorkshop();
         });
     }
-<<<<<<< HEAD
-    renderOrbWorkshop();
-=======
     refreshOrbWorkshopAll();
->>>>>>> 4f2a802 (広報活動頑張りたい)
 }
 
 // ------------------------------------------------------------
@@ -535,9 +535,6 @@ function giveDebugCraftCurrency(chaos = 0, divine = 0, imprint = 0) {
 }
 window.giveDebugCraftCurrency = giveDebugCraftCurrency;
 window.renderOrbWorkshop = renderOrbWorkshop;
-<<<<<<< HEAD
-=======
 window.refreshOrbWorkshopAll = refreshOrbWorkshopAll;
 window.renderWorkshopSynthesis = renderWorkshopSynthesis;
->>>>>>> 4f2a802 (広報活動頑張りたい)
 window.initOrbWorkshopUI = initOrbWorkshopUI;
