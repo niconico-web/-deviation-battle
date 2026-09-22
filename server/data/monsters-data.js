@@ -655,7 +655,7 @@ function getFloorRewardExpByFloor(floor) {
 // 出てくるような宝箱みたいに出てくる感じ」。後日、武器合成チケットを追加依頼）。
 // 以前は35%という高確率で、無限に潜れる仕様と組み合わさると宝箱報酬だけでも
 // 際限なく積み上がってしまっていたため15%まで引き下げていたが、依頼により再度引き上げ。
-const DUNGEON_CHEST_DROP_CHANCE = 0.30;
+const DUNGEON_CHEST_DROP_CHANCE = 0.45;
 const DUNGEON_CHEST_TABLE = [
     { type: 'orb', tier: 'tier1', weight: 30, description: 'オーブ（Tier1）' },
     { type: 'orb', tier: 'tier2', weight: 22, description: 'オーブ（Tier2）' },
