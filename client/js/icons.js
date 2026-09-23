@@ -79,6 +79,20 @@ const WEAPON_ICON_DATA = {
         <path d="M11 27 Q14 17 24 11" fill="none" stroke-width="1.8" opacity="0.6"/>
         <path d="M47 53 Q54 49 57 40" fill="none" stroke-width="1.8" opacity="0.6"/>
     ` },
+    // サモンズロッド：ネクロマンサー風の杖。柄の先端に骨色の頭蓋骨（眼窩は暗く落とし込み）を掲げ、
+    // 柄元からは召喚した使い魔の魂を思わせる緑色の霧（ソウルミスト）が立ち上る。
+    summons_rod: { color: "#9b6fd9", inner: `
+        <line x1="15" y1="54" x2="37" y2="21" stroke-width="4.4"/>
+        <circle cx="40" cy="16" r="7.5" fill="#e8e2d0" stroke-width="2.4"/>
+        <circle cx="37.3" cy="14" r="1.5" fill="#1b232f" stroke="none"/>
+        <circle cx="42.7" cy="14" r="1.5" fill="#1b232f" stroke="none"/>
+        <path d="M38.3 19.5 Q40 21 41.7 19.5" fill="none" stroke="#1b232f" stroke-width="1.3"/>
+        <line x1="35.5" y1="9.3" x2="36.8" y2="6.5" stroke-width="1.4"/>
+        <line x1="44.5" y1="9.3" x2="43.2" y2="6.5" stroke-width="1.4"/>
+        <path d="M13 50 Q9 44 13 38 Q8 33 12 27" fill="none" stroke="#6fd98f" stroke-width="1.8" opacity="0.85"/>
+        <circle cx="11" cy="26" r="2.1" fill="#6fd98f" stroke="none" opacity="0.9"/>
+        <circle cx="16.5" cy="41.5" r="1.3" fill="#6fd98f" stroke="none" opacity="0.7"/>
+    ` },
 };
 
 const BOSS_ICON_DATA = {
