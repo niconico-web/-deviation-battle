@@ -150,11 +150,24 @@ function rollTier5Orb(orb) {
 }
 
 function rerollOrbChaos(orb) {
-    return { ...orb, statType: rollOrbStatType(), bonus: rollOrbBonusValue(orb.tier) };
+    const statType = rollOrbStatType();
+    const after = { ...orb, statType, bonus: rollOrbBonusValue(orb.tier) };
+    // ハクスラ要素：オーブ結晶（カオス）でも、低確率でランダム付与効果（アフィックス）が付く
+    if (typeof rollBonusAffixes === "function") {
+        const affixes = rollBonusAffixes(orb.tier, statType, WORKSHOP_CHAOS_AFFIX_CHANCE);
+        if (affixes.length > 0) after.affixes = affixes;
+    }
+    return after;
 }
 
 function rerollOrbDivine(orb) {
-    return { ...orb, bonus: rollOrbBonusValue(orb.tier) };
+    const after = { ...orb, bonus: rollOrbBonusValue(orb.tier) };
+    // ハクスラ要素：オーブ結晶（ディバイン）でも、低確率でランダム付与効果（アフィックス）が付く
+    if (typeof rollBonusAffixes === "function") {
+        const affixes = rollBonusAffixes(orb.tier, orb.statType, WORKSHOP_DIVINE_AFFIX_CHANCE);
+        if (affixes.length > 0) after.affixes = affixes;
+    }
+    return after;
 }
 
 function getImprintAbilityPool(excludeKey) {
@@ -359,6 +372,13 @@ function synthesizeWorkshopOrbs(recipe) {
     if (!newOrb) {
         alert("オーブの合成に失敗しました。");
         return;
+    }
+    // ハクスラ要素：オーブ合成でも、低確率でランダム付与効果（アフィックス）が付く
+    if (typeof rollBonusAffixes === "function") {
+        const affixes = rollBonusAffixes(recipe.to, newOrb.statType, SYNTHESIS_ORB_AFFIX_CHANCE);
+        if (affixes.length > 0) {
+            newOrb.affixes = affixes;
+        }
     }
     remaining.push(newOrb);
 

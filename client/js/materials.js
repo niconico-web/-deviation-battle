@@ -418,6 +418,14 @@ function craftOrbFromMaterials(materialIds) {
     // オーブを作成（weapons.jsのcreateOrb関数を使用）
     if (typeof createOrb === 'function') {
         const orb = createOrb(tier);
+        // ハクスラ要素：素材からのオーブ作成でも、低確率でランダム付与効果（アフィックス）が付く
+        if (orb && typeof rollBonusAffixes === 'function') {
+            const affixes = rollBonusAffixes(tier, orb.statType, MATERIAL_ORB_AFFIX_CHANCE);
+            if (affixes.length > 0) {
+                orb.affixes = affixes;
+                orb.rarity = (typeof ORB_TIER_RARITY_KEY !== 'undefined' && ORB_TIER_RARITY_KEY[tier]) || orb.rarity;
+            }
+        }
         return orb;
     } else {
         console.error("createOrb function not available");

@@ -1470,7 +1470,7 @@ textarea {
 
 .btn-info:hover {
     background-color: #138496;
-
+}
     font-size: 0.8rem;
     color: var(--accent-cyan);
 }
