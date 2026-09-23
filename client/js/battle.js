@@ -3864,9 +3864,12 @@ function finishBotBattle(result) {
     // デバッグ武器は奪えない
 
     // ボット戦での素材ドロップ処理
+    // ショップで購入した武器（isOriginalではない通常の武器）を装備している場合は、
+    // 依頼により素材ドロップを確定（100%）にする。オリジナル武器・ボス武器などは対象外。
     if (win && enemy.isBot && enemy.materialDrops) {
+        const isShopWeaponEquipped = !!(me.equippedWeapon && !me.equippedWeapon.isOriginal && !me.equippedWeapon.isDebugWeapon);
         enemy.materialDrops.forEach(drop => {
-            if (Math.random() < drop.chance) {
+            if (isShopWeaponEquipped || Math.random() < drop.chance) {
                 localStorage.setItem("droppedMaterial", drop.materialId);
                 addLog(`${enemy.name}から${MATERIAL_DATA[drop.materialId].name}を入手！`);
             }

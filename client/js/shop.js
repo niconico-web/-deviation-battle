@@ -339,6 +339,13 @@ function renderOriginalWeapons() {
         const maxOrbSlots = weapon.maxOrbSlots || MAX_WEAPON_ORBS;
         const orbSlotText = `<span class="quest-progress">オーブスロット: ${currentOrbCount}/${maxOrbSlots}</span>`;
 
+        // ハクスラ要素：オリジナル武器作成時に直接付いたランダム付与効果（アフィックス）
+        let weaponAffixText = "";
+        if (Array.isArray(weapon.affixes) && weapon.affixes.length > 0) {
+            const affixParts = weapon.affixes.map(a => `${a.label}+${Math.round(a.bonus * 1000) / 10}%`).join("、");
+            weaponAffixText = `<span class="quest-progress orb-affix">✨付与効果: ${affixParts}</span>`;
+        }
+
         item.innerHTML =
             `<div class="quest-item-info">
                 <strong>${weapon.name}</strong>
@@ -347,6 +354,7 @@ function renderOriginalWeapons() {
                     <span class="progress-text">強化進捗: ${progress}% (倍率 ${weapon.multiplier.toFixed(3)}x / ${maxMult.toFixed(1)}x)</span>
                 </div>
                 <span class="quest-progress">${bonusText}</span>
+                ${weaponAffixText}
                 ${abilityText ? `<span class="quest-progress">★${abilityText}★</span>` : ''}
                 ${secondaryTypeText}
                 ${limitBreakText}
@@ -1285,6 +1293,19 @@ function initShop() {
             let weapon = createOriginalWeapon(name, type, {}, ultimateName, selectedBonusMaterials);
 
             weapon = applyOrbToWeapon(weapon, selectedOrbs);
+
+            // ハクスラ要素：オリジナル武器作成でも、低確率でランダム付与効果（アフィックス）が武器に直接付く
+            if (typeof rollBonusAffixes === "function" && typeof mergeStatBonuses === "function") {
+                const weaponAffixes = rollBonusAffixes("tier3", null, ORIGINAL_WEAPON_AFFIX_CHANCE);
+                if (weaponAffixes.length > 0) {
+                    const affixBonuses = {};
+                    for (const affix of weaponAffixes) {
+                        affixBonuses[affix.statType] = (affixBonuses[affix.statType] || 0) + affix.bonus;
+                    }
+                    weapon.statBonuses = mergeStatBonuses(weapon.statBonuses, affixBonuses);
+                    weapon.affixes = (weapon.affixes || []).concat(weaponAffixes);
+                }
+            }
             
             // デュアルウェポン情報を追加
             if (secondaryType) {

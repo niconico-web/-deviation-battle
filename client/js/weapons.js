@@ -618,6 +618,13 @@ const AFFIX_STAT_LABEL_PREFIX = {
     special: "秘奥の"
 };
 
+// 各入手経路での付与効果（アフィックス）発生確率（ダンジョン以外は「たまに付く」程度に抑える）
+const MATERIAL_ORB_AFFIX_CHANCE = 0.15;      // 素材からのオーブ作成
+const SYNTHESIS_ORB_AFFIX_CHANCE = 0.20;     // オーブ工房でのオーブ合成
+const WORKSHOP_CHAOS_AFFIX_CHANCE = 0.15;    // オーブ工房：カオス結晶（ステータス種類ごと変更）
+const WORKSHOP_DIVINE_AFFIX_CHANCE = 0.20;   // オーブ工房：ディバイン結晶（数値のみ再抽選）
+const ORIGINAL_WEAPON_AFFIX_CHANCE = 0.15;   // オリジナル武器作成
+
 /** tierとメインステータス（重複させない）を基に、ランダムな付与効果の配列を生成する。 */
 function generateDungeonOrbAffixes(tier, excludeStatType) {
     const config = DUNGEON_AFFIX_CONFIG[tier];
@@ -651,6 +658,19 @@ function createDungeonOrb(tier) {
     orb.dungeonDrop = true;
 
     return orb;
+}
+
+/**
+ * 汎用のランダム付与効果（アフィックス）ロール。ダンジョンの宝箱（tierに応じて確定）以外の
+ * 入手経路（オーブ工房の結晶・オーブ合成・素材からのオーブ作成・オリジナル武器作成）で、
+ * 低確率でハクスラ要素の付与効果を発生させるために使う。
+ * @param {string} tier ORB_TIERSのキー（tier1〜tier5）。本数・数値幅の基準に使う。
+ * @param {string} excludeStatType メインステータスと重複させたくない場合に指定。
+ * @param {number} chance 0〜1。この確率で発生し、外れた場合は空配列（既存の付与効果には触れない）。
+ */
+function rollBonusAffixes(tier, excludeStatType, chance) {
+    if (Math.random() >= chance) return [];
+    return generateDungeonOrbAffixes(tier, excludeStatType);
 }
 
 function createOrb(tier) {
