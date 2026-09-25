@@ -69,6 +69,39 @@ function clearStudyTimerState() {
     localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
 }
 
+// 保存されたタイマー状態を実際に画面へ復元する共通処理
+// (アプリが完全に終了→再起動された「フレッシュな読み込み」でも、
+//  visibilitychange しか呼ばれていなかった旧実装では復元されず、
+//  進捗がリセットされて見えていた。DOMContentLoaded からも必ず呼ぶ)
+function restoreStudyTimerState() {
+    if (studyStartTime !== null) return; // 既に動作中なら何もしない
+    const studyStartBtn = document.getElementById("studyStart");
+    if (!studyStartBtn) return; // まだDOMが無ければ何もしない
+
+    const savedState = loadStudyTimerState();
+    if (!savedState) return;
+
+    const subjectSelect = document.getElementById("studyFocus");
+    if (subjectSelect) {
+        subjectSelect.value = savedState.subject;
+    }
+    // 中断中に経過した時間を加算して新しい開始時間を設定
+    const gapElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
+    studyElapsedBefore = savedState.elapsed + Math.max(0, gapElapsed);
+    studyStartTime = Date.now(); // 現在時刻から再開
+
+    studyStartBtn.disabled = true;
+    const studyStopBtn = document.getElementById("studyStop");
+    if (studyStopBtn) studyStopBtn.disabled = false;
+    const studyFocusBtn = document.getElementById("studyFocus");
+    if (studyFocusBtn) studyFocusBtn.disabled = true;
+
+    if (studyTimerInterval) clearInterval(studyTimerInterval);
+    studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
+    updateStudyTimerDisplay();
+    console.log('Study timer restored. Gap elapsed:', gapElapsed, 'Total elapsed:', studyElapsedBefore);
+}
+
 // Page Visibility API - スリープ/復帰検出
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -85,30 +118,19 @@ document.addEventListener('visibilitychange', () => {
             checkAndGrantLoginBonus();
         }
 
-        // ページが再表示されたらタイマー状態を復元
-        const savedState = loadStudyTimerState();
-        if (savedState && studyStartTime === null) {
-            // タイマーが停止中なら復元
-            const subjectSelect = document.getElementById("studyFocus");
-            if (subjectSelect) {
-                subjectSelect.value = savedState.subject;
-            }
-            // スリープ中に経過した時間を加算して新しい開始時間を設定
-            const sleepElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
-            studyElapsedBefore = savedState.elapsed + sleepElapsed;
-            studyStartTime = Date.now(); // 現在時刻から再開
-            document.getElementById("studyStart").disabled = true;
-            document.getElementById("studyStop").disabled = false;
-            document.getElementById("studyFocus").disabled = true;
-            studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
-            updateStudyTimerDisplay();
-            console.log('Study timer restored from sleep state. Sleep elapsed:', sleepElapsed, 'Total elapsed:', studyElapsedBefore);
-        }
+        // ページが再表示されたらタイマー状態を復元（動作中でなければ）
+        restoreStudyTimerState();
     }
 });
 
 // アプリが完全に閉じられる前にタイマー状態を保存
 window.addEventListener('beforeunload', () => {
+    saveStudyTimerState();
+});
+
+// pagehide は beforeunload が発生しないモバイル環境(PWA/バックグラウンド化)でも
+// 比較的確実に発火するため、保険として同じ保存処理を仕込む
+window.addEventListener('pagehide', () => {
     saveStudyTimerState();
 });
 
@@ -611,6 +633,9 @@ function stopStudy() {
 function updateStudyTimerDisplay() {
     if (studyStartTime === null) return;
     document.getElementById("studyTimer").textContent = formatTime(studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
+    // 毎秒ここでも保存しておく（visibilitychange/beforeunloadが
+    // 発火しないままアプリが強制終了された場合の保険）
+    saveStudyTimerState();
 }
 
 // Map subjects to the 2 stats they strengthen
@@ -1415,6 +1440,10 @@ document.addEventListener('DOMContentLoaded', () => {
             studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
             updateStatGrowthInfo(); // 初期表示
         }
+
+        // アプリが完全終了→再起動された直後(=フレッシュな読み込み)でも
+        // 保存済みのタイマー状態があれば復元する
+        restoreStudyTimerState();
 
         // データ管理ボタン
         const saveDataBtn = document.getElementById('saveDataBtn');
