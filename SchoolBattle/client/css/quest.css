@@ -1,0 +1,117 @@
+/* ============================================
+// クエストシステムのスタイル
+// ============================================ */
+
+.npc-dialogue-modal {
+    max-width: 500px;
+}
+
+.npc-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #4a4a6a;
+}
+
+.npc-icon {
+    font-size: 48px;
+}
+
+.npc-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.npc-dialogue {
+    background: rgba(30, 30, 50, 0.6);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.npc-dialogue p {
+    color: #e0e0e0;
+    line-height: 1.6;
+    margin: 0;
+}
+
+.npc-quests {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.npc-quests h3 {
+    color: #ffffff;
+    margin: 20px 0 10px 0;
+    font-size: 16px;
+}
+
+.quest-item {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #4a4a6a;
+}
+
+.quest-item strong {
+    color: #4CAF50;
+    font-size: 14px;
+}
+
+.quest-item p {
+    color: #e0e0e0;
+    margin: 5px 0;
+    font-size: 12px;
+}
+
+.quest-rewards {
+    color: #FFC107;
+    font-size: 11px;
+}
+
+.quest-item.in-progress {
+    border-color: #2196F3;
+    background: rgba(33, 150, 243, 0.1);
+}
+
+.quest-progress-bar {
+    height: 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.quest-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2196F3, #64B5F6);
+    transition: width 0.3s ease;
+}
+
+.quest-accept-btn {
+    margin-top: 10px;
+    font-size: 12px;
+    padding: 6px 12px;
+}
+
+/* スクロールバーのカスタマイズ */
+.npc-quests::-webkit-scrollbar {
+    width: 6px;
+}
+
+.npc-quests::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.npc-quests::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 140, 0.6);
+    border-radius: 3px;
+}
+
+.npc-quests::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 160, 0.8);
+}

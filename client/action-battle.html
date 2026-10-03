@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>School Battle - アクションバトル</title>
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; background: #0f1115; color: #eee; font-family: "Hiragino Sans", "Meiryo", sans-serif; overflow: hidden; touch-action: none; user-select: none; }
+    .wrap { display: flex; flex-direction: column; height: 100%; max-width: 1100px; margin: 0 auto; padding: 6px; gap: 6px; }
+    .stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; background: #1b2233; border-radius: 10px; border: 2px solid #2b3550; touch-action: none; }
+    .intro { position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%); font-size: 1.4rem; font-weight: bold; background: rgba(0,0,0,0.6); padding: 10px 22px; border-radius: 10px; transition: opacity .6s; pointer-events: none; text-align: center; }
+    .intro.hide { opacity: 0; }
+    .end-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; background: rgba(0,0,0,0.55); border-radius: 10px; }
+    .end-overlay.show { display: flex; }
+    .end-overlay.win { color: #ffe08a; }
+    .end-overlay.lose { color: #ff7b7b; }
+    .panel { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: stretch; }
+    .quiz { background: #171b26; border: 1px solid #2b3550; border-radius: 10px; padding: 8px 10px; min-width: 0; }
+    .quiz-head { display: flex; justify-content: space-between; font-size: 0.75rem; color: #9fb3d9; }
+    .quiz-q { font-size: 1.05rem; font-weight: bold; margin: 4px 0 6px; min-height: 1.4em; word-break: break-all; }
+    .quiz-choices { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+    .quiz-choice { background: #263049; color: #fff; border: 1px solid #3a4870; border-radius: 8px; padding: 9px 4px; font-size: 0.95rem; cursor: pointer; word-break: break-all; }
+    .quiz-choice:active { background: #34426a; }
+    .quiz-choice.correct { background: #1f7a3d; border-color: #43d675; }
+    .quiz-choice.wrong { background: #8a2b2b; border-color: #ff6b6b; }
+    .side { display: flex; flex-direction: column; gap: 6px; min-width: 210px; }
+    .energy { position: relative; height: 16px; background: #10131b; border: 1px solid #2b3550; border-radius: 8px; overflow: hidden; }
+    .energy.flash { animation: eflash .3s; }
+    @keyframes eflash { 50% { background: #5a1f1f; } }
+    #energyFill { height: 100%; width: 0; background: linear-gradient(90deg, #2196f3, #64d8ff); transition: width .2s; }
+    #energyText { position: absolute; inset: 0; text-align: center; font-size: 0.7rem; line-height: 16px; }
+    .stamina { position: relative; height: 12px; background: #10131b; border: 1px solid #2b3550; border-radius: 6px; overflow: hidden; }
+    .stamina.flash { animation: eflash .3s; }
+    .stamina.guarding { border-color: #9df0ff; box-shadow: 0 0 6px rgba(157,240,255,.6); }
+    #staminaFill { height: 100%; width: 100%; background: linear-gradient(90deg, #ffb347, #ffe08a); transition: width .15s; }
+    #staminaText { position: absolute; inset: 0; text-align: center; font-size: 0.6rem; line-height: 12px; color: #2a2010; }
+    .skill-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+    .skill-btn { position: relative; background: #1c2233; color: #aab; border: 1px solid #333c58; border-radius: 8px; padding: 4px 2px 3px; font-size: 0.65rem; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; min-height: 62px; }
+    .skill-btn.ready { background: #1d4f73; color: #fff; border-color: #64d8ff; box-shadow: 0 0 8px rgba(100,216,255,.5); }
+    .skill-btn.empty { opacity: .45; cursor: default; }
+    .sk-key { position: absolute; top: 1px; left: 4px; font-size: 0.6rem; color: #9fb3d9; }
+    .sk-icon { font-size: 1.2rem; }
+    .sk-name { font-size: 0.6rem; line-height: 1.1; text-align: center; }
+    .sk-cost { color: #64d8ff; font-weight: bold; }
+    .sk-cd { position: absolute; top: 1px; right: 4px; font-size: 0.6rem; color: #ffd54a; }
+    .hint { font-size: 0.62rem; color: #7f8bab; text-align: center; }
+    /* タッチ操作 */
+    .touch { display: none; }
+    @media (pointer: coarse) {
+        .touch { display: block; }
+        .hint { display: none; }
+    }
+    #stickZone { position: absolute; left: 12px; bottom: 12px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; touch-action: none; }
+    #stickKnob { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.35); }
+    .touch-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,80,80,0.35); color: #fff; font-weight: bold; touch-action: none; display: flex; align-items: center; justify-content: center; }
+    #attackBtn { right: 14px; bottom: 16px; width: 84px; height: 84px; font-size: 1rem; }
+    #dodgeBtn { right: 108px; bottom: 12px; width: 58px; height: 58px; font-size: 0.7rem; background: rgba(80,160,255,0.35); }
+    #guardBtn { right: 108px; bottom: 78px; width: 58px; height: 58px; font-size: 0.7rem; background: rgba(157,240,255,0.3); }
+    .touch-hint { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); font-size: 0.6rem; color: rgba(255,255,255,0.65); text-align: center; width: 92%; pointer-events: none; }
+    @media (max-width: 640px) {
+        .panel { grid-template-columns: 1fr; }
+        .side { min-width: 0; }
+        .quiz-choices { grid-template-columns: repeat(2, 1fr); }
+    }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="stage">
+        <canvas id="game"></canvas>
+        <div id="enemyIntro" class="intro"></div>
+        <div id="endOverlay" class="end-overlay"></div>
+        <div class="touch">
+            <div id="stickZone"><div id="stickKnob"></div></div>
+            <button type="button" id="attackBtn" class="touch-btn">攻撃</button>
+            <button type="button" id="dodgeBtn" class="touch-btn">回避</button>
+            <button type="button" id="guardBtn" class="touch-btn">ガード</button>
+            <div class="touch-hint">攻撃・スキルは押したままドラッグで狙い、離すと発動（タップのみなら自動照準）</div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="quiz">
+            <div class="quiz-head"><span id="quizSubject"></span><span id="quizStreak"></span></div>
+            <div id="quizQuestion" class="quiz-q">読み込み中...</div>
+            <div id="quizChoices" class="quiz-choices"></div>
+        </div>
+        <div class="side">
+            <div class="energy"><div id="energyFill"></div><div id="energyText">0 / 100</div></div>
+            <div class="stamina"><div id="staminaFill"></div><div id="staminaText">0 / 0</div></div>
+            <div id="skillBar" class="skill-bar"></div>
+            <div class="hint">WASD移動 / マウス or Space 攻撃 / Shift or 右クリック 回避 / Ctrl長押し ガード / Z X C V スキル / 1-4 クイズ回答</div>
+        </div>
+    </div>
+</div>
+<script src="js/i18n.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/monsters.js"></script>
+<script src="js/questions.js"></script>
+<script src="js/action-skills.js"></script>
+<script src="js/action-battle.js"></script>
+</body>
+</html>

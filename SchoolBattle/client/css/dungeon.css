@@ -1,0 +1,101 @@
+/* ============================================
+// ダンジョンシステムのスタイル
+// ============================================ */
+
+.dungeon-selection-modal {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.dungeon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.dungeon-item {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #4a4a6a;
+    transition: all 0.2s;
+}
+
+.dungeon-item:hover {
+    border-color: #7a7aaa;
+    background: rgba(50, 50, 70, 0.8);
+}
+
+.dungeon-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.dungeon-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #FFC107;
+}
+
+.dungeon-clear-count {
+    font-size: 12px;
+    color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.dungeon-description {
+    color: #e0e0e0;
+    font-size: 14px;
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+.dungeon-info {
+    display: flex;
+    gap: 15px;
+    margin: 10px 0;
+    font-size: 12px;
+    color: #aaa;
+}
+
+.dungeon-info span {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.dungeon-rewards {
+    margin: 10px 0;
+    font-size: 13px;
+    color: #FFC107;
+}
+
+.dungeon-enter-btn {
+    width: 100%;
+    margin-top: 10px;
+    font-size: 14px;
+    padding: 10px;
+}
+
+/* スクロールバーのカスタマイズ */
+.dungeon-selection-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dungeon-selection-modal::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.dungeon-selection-modal::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 140, 0.6);
+    border-radius: 3px;
+}
+
+.dungeon-selection-modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 160, 0.8);
+}

@@ -1,0 +1,166 @@
+/* ============================================
+// PvP闘技場システムのスタイル
+// ============================================ */
+
+.pvp-ranking-modal {
+    max-width: 700px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.season-info {
+    display: flex;
+    justify-content: space-between;
+    background: rgba(255, 193, 7, 0.2);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border: 1px solid #FFC107;
+}
+
+.season-info span {
+    color: #FFC107;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.my-pvp-stats {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #4a4a6a;
+}
+
+.my-pvp-stats h3 {
+    color: #ffffff;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+
+.stat-item {
+    background: rgba(30, 30, 50, 0.6);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    color: #aaa;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    display: block;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.stat-value.rank-bronze { color: #CD7F32; }
+.stat-value.rank-silver { color: #C0C0C0; }
+.stat-value.rank-gold { color: #FFD700; }
+.stat-value.rank-platinum { color: #E5E4E2; }
+.stat-value.rank-diamond { color: #B9F2FF; }
+.stat-value.rank-legendary { color: #FF6B6B; }
+
+.ranking-list {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #4a4a6a;
+}
+
+.ranking-list h3 {
+    color: #ffffff;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: rgba(30, 30, 50, 0.6);
+    border-radius: 6px;
+    border-left: 3px solid #4a4a6a;
+}
+
+.ranking-item.top-rank {
+    border-left-color: #FFC107;
+    background: rgba(255, 193, 7, 0.1);
+}
+
+.ranking-position {
+    width: 30px;
+    font-weight: bold;
+    color: #FFC107;
+    font-size: 16px;
+}
+
+.ranking-name {
+    flex: 1;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.ranking-level {
+    color: #aaa;
+    font-size: 12px;
+    margin-right: 15px;
+}
+
+.ranking-points {
+    color: #4CAF50;
+    font-weight: bold;
+}
+
+.no-ranking-data {
+    color: #aaa;
+    text-align: center;
+    padding: 20px;
+    font-style: italic;
+}
+
+/* スクロールバーのカスタマイズ */
+.pvp-ranking-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pvp-ranking-modal::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.pvp-ranking-modal::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 140, 0.6);
+    border-radius: 3px;
+}
+
+.pvp-ranking-modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 160, 0.8);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 600px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .ranking-item {
+        flex-wrap: wrap;
+    }
+    
+    .ranking-level {
+        width: 100%;
+        margin: 5px 0 0 0;
+    }
+}

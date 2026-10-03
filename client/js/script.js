@@ -446,6 +446,10 @@ function createCharacter() {
         alert("ステータスを再分配しました！");
     } else {
         alert(I18N.charCreated);
+        // キャラクターを新規作成したら、すぐにフィールド（町）へ送る
+        if (typeof activateSection === "function") {
+            activateSection('town', true);
+        }
     }
 }
 
@@ -1201,78 +1205,115 @@ document.addEventListener('DOMContentLoaded', () => {
         sidebarOverlay.addEventListener('click', closeMobileMenu);
     }
 
+    // フィールド（町）の建物からしか入れないセクション。
+    // サイドバーの直接ボタンは「マップ／ステータス／インベントリ／勉強／オンライン」の
+    // 5つだけに絞ってあるので、それ以外（ミッション・オーブ工房・スキル・ボスバトル・
+    // ダンジョン・ランキング・ヘルプ・問題リスト）は町の建物に触れて入る。
+    const townOnlySections = ['missions', 'workshop', 'skills', 'boss-battle', 'dungeon', 'ranking', 'help', 'questionlists'];
+
+    function activateSection(section, fromTown) {
+        if (townOnlySections.includes(section) && !fromTown) {
+            alert('この機能は町の施設に入って利用してください');
+            section = 'town';
+        }
+
+        menuButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.section === section));
+
+        contentSections.forEach(sec => sec.classList.remove('active'));
+        const activeSection = document.getElementById(`section-${section}`);
+        if (activeSection) {
+            activeSection.classList.add('active');
+            console.log('Activated section:', section);
+        } else {
+            console.error('Section not found:', `section-${section}`);
+        }
+
+        if (section === 'ranking' && window.socket) {
+            window.socket.emit('ranking:get');
+        }
+
+        // ショップ・インベントリタブを開いたときは最新状態を再描画する
+        // （そうしないと、キャラクター作成直後などは何も表示されないままになる）
+        if (section === 'shop' || section === 'inventory') {
+            try {
+                if (typeof renderShop === "function") renderShop();
+                if (typeof renderInventory === "function") renderInventory();
+                if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+                if (typeof renderMaterialsInventory === "function") renderMaterialsInventory();
+                if (typeof renderOrbInventory === "function") renderOrbInventory();
+            } catch (e) {
+                console.error("Error rendering shop/inventory tab:", e);
+            }
+        }
+
+        // オーブ工房タブを開いたときは、結晶の所持数・オーブ一覧を最新状態で再描画する
+        if (section === 'workshop') {
+            try {
+                if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
+            } catch (e) {
+                console.error("Error rendering workshop tab:", e);
+            }
+        }
+
+        // デイリーミッションタブを開いたときは最新状態を再描画する
+        if (section === 'missions') {
+            try {
+                if (typeof renderDailyMissions === "function") renderDailyMissions();
+            } catch (e) {
+                console.error("Error rendering missions tab:", e);
+            }
+        }
+
+        // スキルツリータブを開いたときは最新状態を再描画する
+        if (section === 'skills') {
+            try {
+                if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
+            } catch (e) {
+                console.error("Error rendering skills tab:", e);
+            }
+        }
+
+        // ダンジョンタブを開いたときは初期化する
+        if (section === 'dungeon') {
+            try {
+                if (typeof initializeDungeonUI === "function") initializeDungeonUI();
+            } catch (e) {
+                console.error("Error initializing dungeon tab:", e);
+            }
+        }
+
+        // 町（フィールド）セクションがアクティブになった時はworld.jsのonTownSectionActivatedを呼ぶ
+        if (section === 'town') {
+            console.log('[Script] Activating town section');
+            try {
+                if (typeof window.onTownSectionActivated === "function") {
+                    window.onTownSectionActivated(true);
+                } else {
+                    console.error('[Script] onTownSectionActivated is not available');
+                }
+            } catch (e) {
+                console.error("Error activating town section:", e);
+            }
+        } else {
+            // 町以外のセクションに切り替えた時はworld.jsのループを停止
+            console.log('[Script] Deactivating town section');
+            try {
+                if (typeof window.onTownSectionActivated === "function") {
+                    window.onTownSectionActivated(false);
+                }
+            } catch (e) {
+                console.error("Error deactivating town section:", e);
+            }
+        }
+
+        closeMobileMenu();
+    }
+    window.activateSection = activateSection;
+
     menuButtons.forEach(button => {
         button.addEventListener('click', () => {
             console.log('Menu button clicked:', button.dataset.section);
-            const section = button.dataset.section;
-
-            menuButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-
-            contentSections.forEach(sec => sec.classList.remove('active'));
-            const activeSection = document.getElementById(`section-${section}`);
-            if (activeSection) {
-                activeSection.classList.add('active');
-                console.log('Activated section:', section);
-            } else {
-                console.error('Section not found:', `section-${section}`);
-            }
-
-            if (section === 'ranking' && window.socket) {
-                window.socket.emit('ranking:get');
-            }
-
-            // ショップ・インベントリタブを開いたときは最新状態を再描画する
-            // （そうしないと、キャラクター作成直後などは何も表示されないままになる）
-            if (section === 'shop' || section === 'inventory') {
-                try {
-                    if (typeof renderShop === "function") renderShop();
-                    if (typeof renderInventory === "function") renderInventory();
-                    if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
-                    if (typeof renderMaterialsInventory === "function") renderMaterialsInventory();
-                    if (typeof renderOrbInventory === "function") renderOrbInventory();
-                } catch (e) {
-                    console.error("Error rendering shop/inventory tab:", e);
-                }
-            }
-
-            // オーブ工房タブを開いたときは、結晶の所持数・オーブ一覧を最新状態で再描画する
-            if (section === 'workshop') {
-                try {
-                    if (typeof refreshOrbWorkshopAll === "function") refreshOrbWorkshopAll();
-                } catch (e) {
-                    console.error("Error rendering workshop tab:", e);
-                }
-            }
-
-            // デイリーミッションタブを開いたときは最新状態を再描画する
-            if (section === 'missions') {
-                try {
-                    if (typeof renderDailyMissions === "function") renderDailyMissions();
-                } catch (e) {
-                    console.error("Error rendering missions tab:", e);
-                }
-            }
-
-            // スキルツリータブを開いたときは最新状態を再描画する
-            if (section === 'skills') {
-                try {
-                    if (typeof renderSkillTreeUI === "function") renderSkillTreeUI();
-                } catch (e) {
-                    console.error("Error rendering skills tab:", e);
-                }
-            }
-
-            // ダンジョンタブを開いたときは初期化する
-            if (section === 'dungeon') {
-                try {
-                    if (typeof initializeDungeonUI === "function") initializeDungeonUI();
-                } catch (e) {
-                    console.error("Error initializing dungeon tab:", e);
-                }
-            }
-
-            closeMobileMenu();
+            activateSection(button.dataset.section, false);
         });
     });
 
@@ -1300,6 +1341,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (playerIdEl) playerIdEl.textContent = initialPlayer.id;
             const saveDataBtnEl = document.getElementById("saveDataBtn");
             if (saveDataBtnEl) saveDataBtnEl.disabled = false;
+
+            // 既にキャラクターがいる場合は、ステータス画面ではなく
+            // 直接フィールド（町）から始める
+            // world.jsの初期化が完了するのを待つ
+            const checkWorldInit = setInterval(() => {
+                if (typeof window.onTownSectionActivated === 'function') {
+                    clearInterval(checkWorldInit);
+                    activateSection('town', true);
+                }
+            }, 50);
         } else {
             // 新規作成時の処理
             if (typeof updateRemainingPoints === "function") {

@@ -1,0 +1,467 @@
+/* ============================================
+   Guild System Styles
+   ============================================ */
+
+/* ギルド基本スタイル */
+.guild-info-container {
+    margin-bottom: 20px;
+}
+
+.guild-info-container .setting-box {
+    background: linear-gradient(135deg, rgba(91, 155, 213, 0.1) 0%, rgba(126, 200, 227, 0.05) 100%);
+    border: 1px solid rgba(91, 155, 213, 0.3);
+}
+
+#my-guild-details {
+    padding: 15px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.guild-detail-item {
+    margin-bottom: 10px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.guild-detail-item strong {
+    color: var(--accent-blue);
+    margin-right: 10px;
+}
+
+/* ギルド一覧モーダル */
+.guild-list-modal {
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.guild-list-item {
+    padding: 15px;
+    margin-bottom: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.guild-list-item:hover {
+    background: rgba(91, 155, 213, 0.1);
+    border-color: var(--accent-blue);
+    transform: translateY(-2px);
+}
+
+.guild-list-item h4 {
+    margin: 0 0 5px 0;
+    color: var(--accent-blue);
+}
+
+.guild-list-item p {
+    margin: 5px 0;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.guild-rank-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+.rank-F { background: #6c757d; color: white; }
+.rank-E { background: #28a745; color: white; }
+.rank-D { background: #17a2b8; color: white; }
+.rank-C { background: #007bff; color: white; }
+.rank-B { background: #6610f2; color: white; }
+.rank-A { background: #fd7e14; color: white; }
+.rank-S { background: #dc3545; color: white; }
+
+/* ============================================
+   クエスト掲示板 - 木目調デザイン
+   ============================================ */
+
+.quest-board-container {
+    margin-top: 30px;
+    padding: 20px;
+    background: linear-gradient(135deg, #8B4513 0%, #A0522D 50%, #8B4513 100%);
+    border-radius: 12px;
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.4),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+    border: 4px solid #5D3A1A;
+    position: relative;
+}
+
+/* 木目テクスチャ効果 */
+.quest-board-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 0, 0, 0.05) 2px,
+            rgba(0, 0, 0, 0.05) 4px
+        ),
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 8px,
+            rgba(139, 69, 19, 0.1) 8px,
+            rgba(139, 69, 19, 0.1) 16px
+        );
+    pointer-events: none;
+    border-radius: 8px;
+}
+
+.quest-board-container h3 {
+    color: #FFE4B5;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    margin-top: 0;
+    position: relative;
+    z-index: 1;
+    font-size: 1.5rem;
+    text-align: center;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #5D3A1A;
+}
+
+/* クエストフィルター */
+.quest-filters {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    position: relative;
+    z-index: 1;
+}
+
+.quest-filter-btn {
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid #5D3A1A;
+    border-radius: 6px;
+    color: #FFE4B5;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.quest-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.quest-filter-btn.active {
+    background: #5D3A1A;
+    color: #FFE4B5;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* クエスト掲示板 */
+.quest-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    position: relative;
+    z-index: 1;
+    min-height: 200px;
+}
+
+/* 羊皮紙風クエストカード */
+.quest-card {
+    background: linear-gradient(135deg, #F5DEB3 0%, #DEB887 50%, #D2B48C 100%);
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    border: 2px solid #8B4513;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+/* 羊皮紙の質感 */
+.quest-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(ellipse at center, transparent 0%, rgba(139, 69, 19, 0.1) 100%),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.1'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: 6px;
+}
+
+.quest-card:hover {
+    transform: translateY(-5px) rotate(1deg);
+    box-shadow: 
+        0 8px 16px rgba(0, 0, 0, 0.4),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+/* ピン留め効果 */
+.quest-card::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: radial-gradient(circle at 30% 30%, #DC143C, #8B0000);
+    border-radius: 50%;
+    box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.5),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+}
+
+.quest-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.quest-card-title {
+    font-weight: bold;
+    color: #4A3728;
+    font-size: 1rem;
+    flex: 1;
+}
+
+.quest-card-rank {
+    font-size: 0.875rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #8B4513;
+    color: #FFE4B5;
+}
+
+.quest-card-description {
+    color: #5D4E37;
+    font-size: 0.875rem;
+    margin-bottom: 10px;
+    line-height: 1.4;
+    position: relative;
+    z-index: 1;
+}
+
+.quest-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+}
+
+.quest-card-category {
+    font-size: 0.875rem;
+    color: #8B4513;
+}
+
+.quest-card-reward {
+    font-size: 0.875rem;
+    color: #228B22;
+    font-weight: bold;
+}
+
+/* 受注スタンプ */
+.quest-card.accepted {
+    position: relative;
+}
+
+.quest-card.accepted::before {
+    content: 'ACCEPTED';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg);
+    font-size: 2rem;
+    font-weight: bold;
+    color: #DC143C;
+    text-shadow: 
+        2px 2px 0 #8B0000,
+        -2px -2px 0 #8B0000,
+        2px -2px 0 #8B0000,
+        -2px 2px 0 #8B0000;
+    border: 4px solid #DC143C;
+    padding: 10px 20px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    z-index: 20;
+    opacity: 0;
+    animation: stampIn 0.3s ease-out forwards;
+}
+
+@keyframes stampIn {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) rotate(-15deg) scale(2);
+    }
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-15deg) scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(-15deg) scale(1);
+    }
+}
+
+/* 完了スタンプ */
+.quest-card.completed::before {
+    content: 'COMPLETED';
+    color: #228B22;
+    border-color: #228B22;
+    text-shadow: 
+        2px 2px 0 #006400,
+        -2px -2px 0 #006400,
+        2px -2px 0 #006400,
+        -2px 2px 0 #006400;
+}
+
+/* ============================================
+   アクティブクエスト
+   ============================================ */
+
+.active-quests-container {
+    margin-top: 30px;
+}
+
+.active-quests-container h3 {
+    color: var(--accent-blue);
+    margin-bottom: 15px;
+}
+
+.active-quests {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.active-quest-item {
+    background: rgba(91, 155, 213, 0.1);
+    border: 1px solid var(--accent-blue);
+    border-radius: 8px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.active-quest-info {
+    flex: 1;
+}
+
+.active-quest-title {
+    font-weight: bold;
+    color: var(--accent-blue);
+    margin-bottom: 5px;
+}
+
+.active-quest-progress {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.active-quest-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* ============================================
+   クエスト作成
+   ============================================ */
+
+#quest-creation {
+    margin-top: 30px;
+    background: linear-gradient(135deg, rgba(91, 155, 213, 0.1) 0%, rgba(126, 200, 227, 0.05) 100%);
+    border: 1px solid rgba(91, 155, 213, 0.3);
+}
+
+#quest-creation label {
+    color: var(--accent-blue);
+}
+
+#quest-creation input,
+#quest-creation textarea,
+#quest-creation select {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+/* ============================================
+   レスポンシブデザイン
+   ============================================ */
+
+@media (max-width: 768px) {
+    .quest-board {
+        grid-template-columns: 1fr;
+    }
+    
+    .quest-filters {
+        justify-content: center;
+    }
+    
+    .quest-filter-btn {
+        flex: 1;
+        min-width: 80px;
+    }
+    
+    .active-quest-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .active-quest-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+
+/* ============================================
+   アニメーション
+   ============================================ */
+
+@keyframes questCardAppear {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.quest-card {
+    animation: questCardAppear 0.3s ease-out;
+}
+
+.quest-card:nth-child(1) { animation-delay: 0.1s; }
+.quest-card:nth-child(2) { animation-delay: 0.2s; }
+.quest-card:nth-child(3) { animation-delay: 0.3s; }
+.quest-card:nth-child(4) { animation-delay: 0.4s; }
+.quest-card:nth-child(5) { animation-delay: 0.5s; }

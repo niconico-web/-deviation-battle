@@ -1,0 +1,123 @@
+/* Guild Section Styles */
+#section-guild {
+    padding: 20px;
+}
+
+.guild-info-container, .no-guild-container, .quest-board-container, .active-quests-container {
+    background-color: #2a2d32;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.guild-info-container h3, .no-guild-container h3, .quest-board-container h3, .active-quests-container h3 {
+    color: #00ffe0;
+    border-bottom: 1px solid #00ffe0;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+
+#my-guild-details p {
+    margin-bottom: 5px;
+    color: #e0e0e0;
+}
+
+/* Quest Board */
+.quest-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.quest-filter-btn {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.quest-filter-btn:hover {
+    background-color: #555;
+}
+
+.quest-filter-btn.active {
+    background-color: #00ffe0;
+    color: #212529;
+    border-color: #00ffe0;
+}
+
+.quest-board, .active-quests {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.quest-card {
+    background-color: #1c1e22;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.quest-card h3 {
+    color: #00ffe0;
+    margin-bottom: 10px;
+}
+
+.quest-card p {
+    color: #e0e0e0;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+}
+
+.quest-card .btn {
+    margin-top: 10px;
+    width: 100%;
+}
+
+.active-quest {
+    border-left: 5px solid #ffc107; /* Active quests have a distinct border */
+}
+
+/* Material Management Modal */
+#materialManagementModal .modal-content {
+    max-width: 500px;
+}
+
+.materials-inventory-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.material-item {
+    background-color: #333;
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 10px;
+    text-align: center;
+}
+
+.material-item .material-name {
+    font-weight: bold;
+    color: #00ffe0;
+}
+
+.material-item .material-count {
+    display: block;
+    font-size: 0.9em;
+    color: #e0e0e0;
+}
+
+.material-item .material-description {
+    font-size: 0.8em;
+    color: #bbb;
+    margin-top: 5px;
+}

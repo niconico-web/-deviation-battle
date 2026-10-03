@@ -110,6 +110,9 @@ require("./socket/ranking")(io);
 require("./socket/social")(io);
 require("./socket/dungeon")(io);
 require("./socket/disconnect")(io);
+require("./socket/world")(io);
+require("./socket/chat")(io);
+require("./socket/worldboss")(io);
 
 app.get("/api/unique/claims", (req, res) => {
     res.json(UniqueWeaponManager.getAllClaims());

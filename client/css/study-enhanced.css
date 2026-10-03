@@ -1,0 +1,95 @@
+/* ============================================
+// 勉強連携システム拡張のスタイル
+// ============================================ */
+
+.study-bonus-modal {
+    max-width: 500px;
+}
+
+.bonus-list {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #4a4a6a;
+}
+
+.bonus-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: rgba(30, 30, 50, 0.6);
+    border-radius: 6px;
+    border-left: 3px solid #4a4a6a;
+}
+
+.bonus-item.total {
+    border-left-color: #FFC107;
+    background: rgba(255, 193, 7, 0.1);
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.bonus-label {
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.bonus-value {
+    color: #4CAF50;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.bonus-example {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #4a4a6a;
+}
+
+.bonus-example h3 {
+    color: #ffffff;
+    margin: 0 0 15px 0;
+    font-size: 16px;
+}
+
+.example-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.example-stats span {
+    color: #aaa;
+    font-size: 13px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+}
+
+.example-stats span:last-child {
+    color: #FFC107;
+    font-weight: bold;
+}
+
+/* スクロールバーのカスタマイズ */
+.study-bonus-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.study-bonus-modal::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.study-bonus-modal::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 140, 0.6);
+    border-radius: 3px;
+}
+
+.study-bonus-modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 160, 0.8);
+}

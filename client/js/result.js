@@ -67,6 +67,32 @@ function handleNormalResult() {
         console.log(`[Result] Player data after rewards:`, JSON.stringify(updatedPlayer));
     }
 
+    // フィールドで遭遇したモンスターを倒した場合のクエスト進行更新
+    if (typeof resolveFieldMonsterQuestProgress === 'function') {
+        resolveFieldMonsterQuestProgress(won);
+    }
+
+    // 地域ボスを倒した場合は、通常のオーブ抽選（確率依存）とは別に
+    // tier4オーブを確定で追加する（探索の目玉報酬として保証する）
+    const forceOrbTier = localStorage.getItem("forceOrbTier");
+    localStorage.removeItem("forceOrbTier");
+    if (won && forceOrbTier && typeof createOrb === "function") {
+        const raw = localStorage.getItem("player");
+        if (raw) {
+            const p = JSON.parse(raw);
+            const bonusOrb = createOrb(forceOrbTier);
+            if (bonusOrb) {
+                p.orbs = p.orbs || [];
+                p.orbs.push(bonusOrb);
+                localStorage.setItem("player", JSON.stringify(p));
+                // 既に表示中のオーブが無ければ、こちらを結果画面に表示する
+                if (!localStorage.getItem("droppedOrb")) {
+                    localStorage.setItem("droppedOrb", JSON.stringify(bonusOrb));
+                }
+            }
+        }
+    }
+
     const xpGain = localStorage.getItem("battleXpGain") || "0";
     const coinGain = localStorage.getItem("battleCoinGain") || "0";
     const droppedOrbRaw = localStorage.getItem("droppedOrb");

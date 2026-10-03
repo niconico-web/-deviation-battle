@@ -1,0 +1,158 @@
+/* ============================================
+// ギルドシステム拡張のスタイル
+// ============================================ */
+
+.guild-boss-modal {
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.guild-info {
+    background: rgba(100, 100, 150, 0.2);
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.guild-boss-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.guild-boss-item {
+    background: rgba(40, 40, 60, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #4a4a6a;
+    transition: all 0.2s;
+}
+
+.guild-boss-item:hover {
+    border-color: #7a7aaa;
+    background: rgba(50, 50, 70, 0.8);
+}
+
+.guild-boss-item.locked {
+    opacity: 0.6;
+    border-color: #333;
+}
+
+.boss-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.boss-name {
+    font-size: 18px;
+    font-weight: bold;
+    color: #FF6B6B;
+}
+
+.boss-level {
+    background: rgba(255, 107, 107, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #FF6B6B;
+    font-size: 12px;
+}
+
+.boss-stats {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #aaa;
+}
+
+.boss-stats span {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.boss-rewards {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+}
+
+.boss-rewards span {
+    display: block;
+    color: #FFC107;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.guild-boss-challenge-btn {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px;
+}
+
+.guild-members {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.guild-member {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(30, 30, 50, 0.6);
+    border-radius: 6px;
+    border-left: 3px solid #666;
+}
+
+.guild-member.online {
+    border-left-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.guild-member.offline {
+    border-left-color: #666;
+    opacity: 0.7;
+}
+
+.member-status {
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+.member-name {
+    flex: 1;
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.member-level {
+    color: #aaa;
+    font-size: 12px;
+}
+
+/* スクロールバーのカスタマイズ */
+.guild-boss-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.guild-boss-modal::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.guild-boss-modal::-webkit-scrollbar-thumb {
+    background: rgba(100, 100, 140, 0.6);
+    border-radius: 3px;
+}
+
+.guild-boss-modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(120, 120, 160, 0.8);
+}

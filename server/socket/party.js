@@ -86,6 +86,24 @@ module.exports = function(io) {
             const player = PlayerManager.getPlayer(socket.id);
             if (!player) {
                 return socket.emit('party:error', { message: 'Player not found.' });
+
+        // パーティーメンバーの位置更新
+        socket.on('party:updatePosition', (data) => {
+            const { playerId, x, y, worldId } = data;
+            if (!playerId || !x || !y || !worldId) return;
+
+            const party = PartyManager.getPartyByPlayerId(playerId);
+            if (!party) return;
+
+            // パーティーメンバー全員に位置をブロードキャスト
+            io.to(party.id).emit('party:memberPosition', {
+                playerId,
+                x,
+                y,
+                worldId
+            });
+        });
+
             }
 
             const party = PartyManager.getPartyByPlayerId(player.id);
