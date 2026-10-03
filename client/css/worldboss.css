@@ -1,0 +1,130 @@
+/* ============================================
+// ワールドボスシステムのスタイル
+// ============================================ */
+
+.world-boss-modal {
+    max-width: 500px;
+}
+
+.boss-info {
+    background: rgba(60, 20, 20, 0.6);
+    padding: 20px;
+    border-radius: 10px;
+    border: 2px solid #8B0000;
+}
+
+.boss-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(139, 0, 0, 0.5);
+}
+
+.boss-icon {
+    font-size: 48px;
+}
+
+.boss-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #FF6B6B;
+}
+
+.boss-level {
+    background: rgba(139, 0, 0, 0.5);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 12px;
+}
+
+.boss-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.boss-stat {
+    background: rgba(40, 20, 20, 0.6);
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.boss-stat .stat-label {
+    display: block;
+    color: #aaa;
+    font-size: 11px;
+    margin-bottom: 5px;
+}
+
+.boss-stat .stat-value {
+    display: block;
+    color: #FF6B6B;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.boss-participants {
+    background: rgba(40, 20, 20, 0.6);
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #e0e0e0;
+    font-size: 14px;
+}
+
+.boss-rewards {
+    background: rgba(40, 20, 20, 0.6);
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.boss-rewards h3 {
+    color: #FFC107;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+}
+
+.reward-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.reward-list span {
+    background: rgba(255, 193, 7, 0.2);
+    padding: 6px 10px;
+    border-radius: 4px;
+    color: #FFC107;
+    font-size: 12px;
+}
+
+.world-boss-modal button {
+    width: 100%;
+    font-size: 16px;
+    padding: 12px;
+}
+
+/* スクロールバーのカスタマイズ */
+.world-boss-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.world-boss-modal::-webkit-scrollbar-track {
+    background: rgba(20, 20, 30, 0.5);
+}
+
+.world-boss-modal::-webkit-scrollbar-thumb {
+    background: rgba(139, 0, 0, 0.6);
+    border-radius: 3px;
+}
+
+.world-boss-modal::-webkit-scrollbar-thumb:hover {
+    background: rgba(160, 0, 0, 0.8);
+}

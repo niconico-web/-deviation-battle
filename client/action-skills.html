@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Battle - スキル工房</title>
+<style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0f1115; color: #eee; font-family: "Hiragino Sans", "Meiryo", sans-serif; }
+    .page { max-width: 1000px; margin: 0 auto; padding: 14px; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    h1 { font-size: 1.3rem; margin: 0; }
+    a.back { color: #9df0ff; text-decoration: none; border: 1px solid #2b3550; padding: 6px 12px; border-radius: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1.25fr; gap: 12px; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: #171b26; border: 1px solid #2b3550; border-radius: 10px; padding: 12px; }
+    h2 { font-size: 1rem; margin: 0 0 8px; color: #9fb3d9; }
+    .step { font-size: 0.8rem; color: #ffd54a; margin: 10px 0 4px; }
+    .opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .opt { background: #1f2638; border: 1px solid #333c58; border-radius: 8px; padding: 8px; cursor: pointer; font-size: 0.85rem; }
+    .opt small { display: block; color: #9aa6c4; font-size: 0.7rem; margin-top: 2px; }
+    .opt.sel { border-color: #64d8ff; background: #1d3a55; }
+    .opt.off { opacity: .35; cursor: not-allowed; }
+    .aug { display: flex; align-items: center; justify-content: space-between; gap: 6px; background: #1f2638; border: 1px solid #333c58; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 0.85rem; }
+    .aug.off { opacity: .35; }
+    .aug small { display: block; color: #9aa6c4; font-size: 0.7rem; }
+    .stepper { display: flex; align-items: center; gap: 6px; }
+    .stepper button { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #3a4870; background: #263049; color: #fff; cursor: pointer; }
+    input[type=text], select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #333c58; background: #10131b; color: #fff; font-size: 0.95rem; }
+    .summary { background: #10131b; border: 1px dashed #3a4870; border-radius: 8px; padding: 8px; margin-top: 10px; font-size: 0.85rem; line-height: 1.6; }
+    .summary b { color: #64d8ff; }
+    button.primary { background: #1d6fb3; color: #fff; border: none; padding: 9px 14px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; margin-right: 6px; margin-top: 8px; }
+    button.ghost { background: #263049; color: #fff; border: 1px solid #3a4870; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; }
+    button.danger { background: #6b2a2a; }
+    .skill-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 8px; border: 1px solid #2b3550; border-radius: 8px; margin-bottom: 6px; background: #1a2030; }
+    .skill-item .meta { font-size: 0.72rem; color: #9aa6c4; }
+    .slots { display: grid; gap: 6px; }
+    .slot-row { display: grid; grid-template-columns: 34px 1fr; gap: 6px; align-items: center; }
+    .msg { font-size: 0.8rem; color: #7fe3a0; min-height: 1.2em; margin-top: 6px; }
+    .err { color: #ff8a8a; }
+    .glyph-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid #2b3550; border-radius: 8px; margin-bottom: 6px; background: #1a2030; }
+    .glyph-item.unlocked { border-color: #43d675; background: #16281d; }
+    .glyph-item .glyph-mats { font-size: 0.7rem; color: #9aa6c4; margin-top: 3px; }
+    .glyph-item .glyph-mats span.ok { color: #7fe3a0; }
+    .glyph-item .glyph-mats span.lack { color: #ff8a8a; }
+    .glyph-craft-btn { background: #1d6fb3; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; }
+    .glyph-craft-btn:disabled { background: #333c58; cursor: not-allowed; opacity: .6; }
+</style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <h1>🔮 スキル工房</h1>
+        <a class="back" href="index.html">← マップに戻る</a>
+    </header>
+    <div class="grid">
+        <div>
+            <div class="card">
+                <h2>装備スロット（バトルで Z X C V に対応）</h2>
+                <div id="slots" class="slots"></div>
+            </div>
+            <div class="card" style="margin-top:12px;">
+                <h2>作ったスキル</h2>
+                <div id="skillList"></div>
+            </div>
+            <div class="card" style="margin-top:12px;">
+                <h2>🔮 グリフ工房（素材でグリフを解放）</h2>
+                <p class="meta" style="font-size:0.75rem;color:#9aa6c4;margin:0 0 8px;">ダメージ以外のグリフ（効果）は、必要な素材を集めて作成すると使えるようになります。</p>
+                <div id="glyphWorkshop"></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2 id="builderTitle">スキルを作る</h2>
+            <input type="text" id="skillName" maxlength="16" placeholder="スキル名（例：蒼炎の大斬撃）">
+
+            <div class="step">① 形を選ぶ</div>
+            <div id="forms" class="opts"></div>
+
+            <div class="step">② 効果を選ぶ（最大<span id="maxEff"></span>つ）</div>
+            <div id="effects" class="opts"></div>
+
+            <div class="step">③ 強化を加える（最大<span id="maxAug"></span>つ・同じ強化は重ねがけ可）</div>
+            <div id="augments"></div>
+
+            <div class="summary" id="summary"></div>
+            <div>
+                <button type="button" class="primary" id="saveBtn">新しいスキルとして保存</button>
+                <button type="button" class="ghost" id="resetBtn">入力をリセット</button>
+            </div>
+            <div class="msg" id="msg"></div>
+        </div>
+    </div>
+</div>
+<script src="js/i18n.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/action-skills.js"></script>
+<script>
+(function () {
+    const AS = window.ActionSkills;
+    let skills = AS.loadSkills();
+    let loadoutIds = AS.loadLoadout().map(s => s ? s.id : '');
+    let editingId = null;
+    let draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] };
+
+    document.getElementById('maxEff').textContent = AS.MAX_EFFECTS;
+    document.getElementById('maxAug').textContent = AS.MAX_AUGMENTS;
+
+    function persist() { AS.saveSkills(skills); AS.saveLoadout(loadoutIds); }
+    function say(t, err) { const m = document.getElementById('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+    function renderSlots() {
+        const box = document.getElementById('slots'); box.innerHTML = '';
+        ['Z', 'X', 'C', 'V'].forEach((k, i) => {
+            const row = document.createElement('div'); row.className = 'slot-row';
+            let opts = '<option value="">（なし）</option>';
+            skills.forEach(s => { opts += '<option value="' + s.id + '"' + (loadoutIds[i] === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; });
+            row.innerHTML = '<b>' + k + '</b><select>' + opts + '</select>';
+            row.querySelector('select').addEventListener('change', (e) => { loadoutIds[i] = e.target.value; persist(); say('装備を変更しました'); });
+            box.appendChild(row);
+        });
+    }
+
+    function renderList() {
+        const box = document.getElementById('skillList'); box.innerHTML = '';
+        skills.forEach(s => {
+            const c = AS.compute(s);
+            const el = document.createElement('div'); el.className = 'skill-item';
+            el.innerHTML = '<div><div>' + AS.FORMS[s.form].icon + ' <b>' + esc(s.name) + '</b></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's</div></div>' +
+                '<div><button class="ghost" data-a="edit">編集</button> <button class="ghost danger" data-a="del">削除</button></div>';
+            el.querySelector('[data-a=edit]').addEventListener('click', () => {
+                editingId = s.id; draft = { name: s.name, form: s.form, effects: s.effects.slice(), augments: s.augments.slice() };
+                renderBuilder(); window.scrollTo(0, 0);
+            });
+            el.querySelector('[data-a=del]').addEventListener('click', () => {
+                if (skills.length <= 1) { say('最後の1つは削除できません', true); return; }
+                if (!confirm('「' + s.name + '」を削除しますか？')) return;
+                skills = skills.filter(x => x.id !== s.id);
+                loadoutIds = loadoutIds.map(id => id === s.id ? '' : id);
+                if (editingId === s.id) { editingId = null; }
+                persist(); renderAll();
+            });
+            box.appendChild(el);
+        });
+    }
+
+    function renderBuilder() {
+        document.getElementById('builderTitle').textContent = editingId ? 'スキルを編集' : 'スキルを作る';
+        document.getElementById('saveBtn').textContent = editingId ? '変更を保存' : '新しいスキルとして保存';
+        document.getElementById('skillName').value = draft.name;
+
+        const forms = document.getElementById('forms'); forms.innerHTML = '';
+        Object.keys(AS.FORMS).forEach(k => {
+            const f = AS.FORMS[k];
+            const d = document.createElement('div'); d.className = 'opt' + (draft.form === k ? ' sel' : '');
+            d.innerHTML = f.icon + ' <b>' + f.name + '</b><small>' + f.desc + '（基本消費' + f.cost + '）</small>';
+            d.addEventListener('click', () => { draft.form = k; draft = AS.normalize(draft); renderBuilder(); });
+            forms.appendChild(d);
+        });
+
+        const unlockedGlyphs = AS.loadUnlockedGlyphs();
+        const eff = document.getElementById('effects'); eff.innerHTML = '';
+        Object.keys(AS.EFFECTS).forEach(k => {
+            const e = AS.EFFECTS[k];
+            const on = draft.effects.indexOf(k) !== -1;
+            const locked = unlockedGlyphs.indexOf(k) === -1;
+            const d = document.createElement('div'); d.className = 'opt' + (on ? ' sel' : '') + (locked ? ' off' : '');
+            d.innerHTML = e.icon + ' <b>' + e.name + '</b><small>' + e.desc + '（+' + e.cost + '）' + (locked ? '　🔒工房で作成' : '') + '</small>';
+            d.addEventListener('click', () => {
+                if (locked) { say('「' + e.name + '」はまだ未解放です。下のグリフ工房で素材から作成してください', true); return; }
+                if (on) { if (draft.effects.length > 1) draft.effects = draft.effects.filter(x => x !== k); else say('効果は最低1つ必要です', true); }
+                else if (draft.effects.length < AS.MAX_EFFECTS) draft.effects.push(k);
+                else say('効果は最大' + AS.MAX_EFFECTS + 'つまでです', true);
+                renderBuilder();
+            });
+            eff.appendChild(d);
+        });
+
+        const aug = document.getElementById('augments'); aug.innerHTML = '';
+        Object.keys(AS.AUGMENTS).forEach(k => {
+            const a = AS.AUGMENTS[k];
+            const ok = !a.forms.length || a.forms.indexOf(draft.form) !== -1;
+            const cnt = draft.augments.filter(x => x === k).length;
+            const d = document.createElement('div'); d.className = 'aug' + (ok ? '' : ' off');
+            d.innerHTML = '<div>' + a.icon + ' <b>' + a.name + '</b>（+' + a.cost + '）<small>' + a.desc + (ok ? '' : '　※この形では使えません') + '</small></div>' +
+                '<div class="stepper"><button type="button" data-d="-1">−</button><span>' + cnt + '/' + a.stack + '</span><button type="button" data-d="1">＋</button></div>';
+            d.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+                if (!ok) return;
+                const dir = parseInt(b.dataset.d, 10);
+                if (dir > 0) {
+                    if (cnt >= a.stack) { say('この強化は最大' + a.stack + '個までです', true); return; }
+                    if (draft.augments.length >= AS.MAX_AUGMENTS) { say('強化は最大' + AS.MAX_AUGMENTS + 'つまでです', true); return; }
+                    draft.augments.push(k);
+                } else if (cnt > 0) {
+                    draft.augments.splice(draft.augments.lastIndexOf(k), 1);
+                }
+                renderBuilder();
+            }));
+            aug.appendChild(d);
+        });
+        renderSummary();
+    }
+
+    function renderSummary() {
+        const c = AS.compute(draft), p = c.params;
+        let detail = '';
+        if (p.form === 'projectile') detail = '弾数 ' + p.count + ' ／ 弾速 ' + Math.round(p.speed) + ' ／ 貫通 ' + (p.pierce ? p.pierce + '体' : 'なし');
+        if (p.form === 'laser') detail = '本数 ' + p.count + ' ／ 長さ ' + Math.round(p.length) + ' ／ 幅 ' + Math.round(p.width);
+        if (p.form === 'slash') detail = '連続 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius) + ' ／ 角度 ' + Math.round(p.arc * 180 / Math.PI) + '°';
+        if (p.form === 'nova') detail = '波 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius);
+        document.getElementById('summary').innerHTML =
+            '<b>' + esc(AS.describe(draft)) + '</b><br>' + detail + '<br>' +
+            'エネルギー消費 <b>' + c.cost + '</b> ／ クールタイム <b>' + c.cooldown.toFixed(1) + '秒</b> ／ 威力倍率 <b>×' + (p.baseMult * p.dmgMult).toFixed(2) + '</b>' +
+            (p.effects.indexOf('damage') === -1 ? '<br><span class="err">※「ダメージ」効果が無いので、状態異常だけを与えます</span>' : '');
+    }
+
+    function renderAll() { renderSlots(); renderList(); renderBuilder(); renderGlyphWorkshop(); }
+
+    function renderGlyphWorkshop() {
+        const box = document.getElementById('glyphWorkshop');
+        if (!box) return;
+        box.innerHTML = '';
+        const unlocked = AS.loadUnlockedGlyphs();
+        const playerMats = (typeof getPlayerMaterials === 'function') ? getPlayerMaterials() : {};
+
+        Object.keys(AS.EFFECTS).forEach(key => {
+            const def = AS.EFFECTS[key];
+            const recipe = AS.GLYPH_RECIPES[key];
+            const isUnlocked = unlocked.indexOf(key) !== -1;
+            const el = document.createElement('div');
+            el.className = 'glyph-item' + (isUnlocked ? ' unlocked' : '');
+
+            let matsHtml = '';
+            let canCraft = false;
+            if (!recipe) {
+                matsHtml = '<div class="glyph-mats">最初から使用可能</div>';
+            } else {
+                canCraft = true;
+                const parts = recipe.map(r => {
+                    const have = playerMats[r.id] || 0;
+                    const mat = (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[r.id]) ? MATERIAL_DATA[r.id].name : r.id;
+                    const ok = have >= r.count;
+                    if (!ok) canCraft = false;
+                    return '<span class="' + (ok ? 'ok' : 'lack') + '">' + esc(mat) + ' ' + have + '/' + r.count + '</span>';
+                });
+                matsHtml = '<div class="glyph-mats">必要素材：' + parts.join('　') + '</div>';
+            }
+
+            el.innerHTML =
+                '<div><div>' + (def.icon || '') + ' <b>' + esc(def.name) + '</b>' + (def.self ? ' <small style="color:#9df0ff;">(自己強化)</small>' : '') + '</div>' +
+                '<div class="meta" style="font-size:0.72rem;color:#9aa6c4;">' + esc(def.desc) + '</div>' + matsHtml + '</div>';
+
+            if (recipe && !isUnlocked) {
+                const btn = document.createElement('button');
+                btn.type = 'button'; btn.className = 'glyph-craft-btn';
+                btn.textContent = '作成';
+                btn.disabled = !canCraft;
+                btn.addEventListener('click', () => {
+                    const result = AS.craftGlyph(key, getPlayerMaterials());
+                    if (!result.success) { say('素材が足りません', true); return; }
+                    Object.keys(result.consumed).forEach(mid => removeMaterialFromPlayer(mid, result.consumed[mid]));
+                    say('グリフ「' + def.name + '」を解放しました！');
+                    renderGlyphWorkshop();
+                    renderBuilder();
+                });
+                el.appendChild(btn);
+            } else if (isUnlocked) {
+                const tag = document.createElement('span');
+                tag.textContent = '解放済み';
+                tag.style.cssText = 'color:#43d675;font-size:0.75rem;white-space:nowrap;';
+                el.appendChild(tag);
+            }
+            box.appendChild(el);
+        });
+    }
+
+    document.getElementById('skillName').addEventListener('input', (e) => { draft.name = e.target.value; });
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] }; renderBuilder(); say('');
+    });
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        const name = (draft.name || '').trim();
+        if (!name) { say('スキル名を入力してください', true); return; }
+        const norm = AS.normalize(Object.assign({}, draft, { name: name }), true);
+        if (editingId) {
+            const i = skills.findIndex(s => s.id === editingId);
+            if (i >= 0) skills[i] = Object.assign(norm, { id: editingId });
+            say('「' + name + '」を更新しました');
+        } else {
+            if (skills.length >= 30) { say('スキルは30個までです。不要なものを削除してください', true); return; }
+            skills.push(Object.assign(norm, { id: AS.newId() }));
+            say('「' + name + '」を保存しました。装備スロットに設定するとバトルで使えます');
+        }
+        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] };
+        persist(); renderAll();
+    });
+
+    persist();   // 初回は初期スキルを保存しておく
+    renderAll();
+})();
+</script>
+</body>
+</html>

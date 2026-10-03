@@ -1,0 +1,99 @@
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: linear-gradient(180deg, #0b1f3a, #08111f);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+#resultCard {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 18px 16px;
+    text-align: center;
+    box-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+}
+
+#resultTitle {
+    font-size: clamp(1.5rem, 7vw, 2.25rem);
+    margin-bottom: 12px;
+    line-height: 1.2;
+}
+
+.result-stats p {
+    font-size: clamp(0.9375rem, 3.6vw, 1.125rem);
+    margin: 7px 0;
+}
+
+.buttonArea {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.btn {
+    width: 100%;
+    min-height: 42px;
+    padding: 10px 14px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.15s;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+#retryBtn {
+    background: #1abc9c;
+    color: #fff;
+}
+
+#homeBtn {
+    background: #3498db;
+    color: #fff;
+}
+
+.win {
+    color: #ffe600;
+    text-shadow: 0 0 12px rgba(255, 230, 0, 0.5);
+}
+
+.lose {
+    color: #ff6b6b;
+    text-shadow: 0 0 12px rgba(255, 77, 77, 0.4);
+}
+
+@media (min-width: 480px) {
+    .buttonArea {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #resultCard {
+        padding: 26px 28px;
+    }
+}

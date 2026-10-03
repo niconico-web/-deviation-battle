@@ -1,6 +1,33 @@
 // client/js/guild.js
+// ============================================
+// ギルドシステム（MMO拡張版）
+// ============================================
 
 const GUILD_QUEST_STORAGE_KEY = 'guildWeeklyQuests';
+
+// ギルドボス定義
+const GUILD_BOSSES = [
+    {
+        id: 'guild_boss_1',
+        name: 'ギルド守護者',
+        level: 30,
+        hp: 5000,
+        atk: 150,
+        def: 100,
+        requiredGuildLevel: 5,
+        rewards: {
+            guildExp: 1000,
+            guildCoins: 500,
+            playerRewards: {
+                exp: 200,
+                coins: 100
+            }
+        }
+    }
+];
+
+// ギルド拡張機能
+let guildMemberOnline = {}; // ギルドメンバーのオンライン状態
 
 // ============================================================================
 // ギルドデータ管理
@@ -69,6 +96,213 @@ function getGuildQuests() {
 function saveGuildQuests(data) { // data is { weekId, quests }
     localStorage.setItem(getGuildQuestStorageKey(), JSON.stringify(data));
 }
+
+// ============================================
+// ギルドMMO拡張機能
+// ============================================
+
+// ギルドチャット送信
+function sendGuildChat(message) {
+    const guild = getPlayerGuild();
+    if (!guild) {
+        alert('ギルドに所属していません');
+        return;
+    }
+    
+    const player = getPlayerData();
+    if (!player) return;
+    
+    if (window.socket && window.socket.connected) {
+        window.socket.emit('chat:message', {
+            type: 'guild',
+            playerId: player.id,
+            playerName: player.name,
+            playerLevel: player.level,
+            message: message,
+            guildId: guild.id
+        });
+    }
+}
+
+// ギルドメンバーオンライン状態更新
+function updateGuildMemberOnline(memberId, isOnline) {
+    guildMemberOnline[memberId] = {
+        isOnline,
+        lastSeen: Date.now()
+    };
+    
+    // ギルドUIが開いている場合は更新
+    updateGuildMemberListUI();
+}
+
+// ギルドメンバーリストUI更新
+function updateGuildMemberListUI() {
+    const guild = getPlayerGuild();
+    if (!guild) return;
+    
+    const memberListEl = document.getElementById('guildMemberList');
+    if (!memberListEl) return;
+    
+    let memberListHTML = '<h3>ギルドメンバー</h3>';
+    
+    if (guild.members && guild.members.length > 0) {
+        memberListHTML += '<ul class="guild-members">';
+        guild.members.forEach(member => {
+            const onlineStatus = guildMemberOnline[member.id];
+            const isOnline = onlineStatus && onlineStatus.isOnline;
+            
+            memberListHTML += `
+                <li class="guild-member ${isOnline ? 'online' : 'offline'}">
+                    <span class="member-status">${isOnline ? '🟢' : '⚫'}</span>
+                    <span class="member-name">${member.name}</span>
+                    <span class="member-level">Lv.${member.level || 1}</span>
+                </li>
+            `;
+        });
+        memberListHTML += '</ul>';
+    } else {
+        memberListHTML += '<p>メンバーがいません</p>';
+    }
+    
+    memberListEl.innerHTML = memberListHTML;
+}
+
+// ギルドボス戦UIを表示
+function showGuildBossUI() {
+    const guild = getPlayerGuild();
+    if (!guild) {
+        alert('ギルドに所属していません');
+        return;
+    }
+    
+    if (guild.level < 5) {
+        alert('ギルドLv.5以上でギルドボスに挑戦できます');
+        return;
+    }
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'guildBossModal';
+    
+    let bossList = '';
+    GUILD_BOSSES.forEach(boss => {
+        const canChallenge = guild.level >= boss.requiredGuildLevel;
+        
+        bossList += `
+            <div class="guild-boss-item ${!canChallenge ? 'locked' : ''}">
+                <div class="boss-header">
+                    <span class="boss-name">${boss.name}</span>
+                    <span class="boss-level">Lv.${boss.level}</span>
+                </div>
+                <div class="boss-stats">
+                    <span>HP: ${boss.hp}</span>
+                    <span>攻撃: ${boss.atk}</span>
+                    <span>防御: ${boss.def}</span>
+                </div>
+                <div class="boss-rewards">
+                    <span>ギルドEXP: +${boss.rewards.guildExp}</span>
+                    <span>個人報酬: EXP+${boss.rewards.playerRewards.exp} コイン+${boss.rewards.playerRewards.coins}</span>
+                </div>
+                <button class="btn btn-primary guild-boss-challenge-btn" 
+                        data-boss-id="${boss.id}" 
+                        ${!canChallenge ? 'disabled' : ''}>
+                    ${canChallenge ? '挑戦する' : `Lv.${boss.requiredGuildLevel}で解放`}
+                </button>
+            </div>
+        `;
+    });
+    
+    modal.innerHTML = `
+        <div class="modal-content guild-boss-modal">
+            <button type="button" class="close btn btn-secondary">閉じる</button>
+            <h2>🏰 ギルドボス</h2>
+            <p class="guild-info">現在のギルドレベル: ${guild.level}</p>
+            <div class="guild-boss-list">
+                ${bossList}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // イベントリスナー
+    modal.querySelector('.close').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+    
+    // ボス挑戦ボタン
+    modal.querySelectorAll('.guild-boss-challenge-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const bossId = btn.dataset.bossId;
+            challengeGuildBoss(bossId);
+            modal.remove();
+        });
+    });
+}
+
+// ギルドボスに挑戦
+function challengeGuildBoss(bossId) {
+    const boss = GUILD_BOSSES.find(b => b.id === bossId);
+    if (!boss) return;
+    
+    const guild = getPlayerGuild();
+    if (!guild) return;
+    
+    // パーティーで挑戦するか確認
+    const confirmed = confirm(`${boss.name} に挑戦します。\nパーティーを組んで挑戦することをお勧めします。`);
+    if (!confirmed) return;
+    
+    // 既存のボス戦システムへ遷移
+    if (window.socket && window.socket.connected) {
+        // ギルドボス用のルームを作成
+        const roomId = `GUILD_BOSS_${guild.id}_${bossId}_${Date.now()}`;
+        
+        // パーティーがあればパーティーメンバーを招待
+        // 簡易実装：単独で挑戦
+        window.socket.emit('party:startBossBattle', {
+            bossId: bossId,
+            difficulty: 'normal'
+        });
+    }
+}
+
+// ギルド拡張ソケットリスナー
+function setupGuildSocketListeners() {
+    if (!window.socket) return;
+    
+    // ギルドメンバーオンライン状態更新
+    window.socket.on('guild:memberOnline', (data) => {
+        const { memberId, isOnline } = data;
+        updateGuildMemberOnline(memberId, isOnline);
+    });
+    
+    // ギルドボス出現通知
+    window.socket.on('guild:bossSpawn', (data) => {
+        const { bossId } = data;
+        addChatMessage({
+            type: 'guild',
+            playerName: 'ギルド',
+            playerLevel: 0,
+            message: `ギルドボスが出現しました！`,
+            timestamp: Date.now()
+        });
+    });
+}
+
+// グローバル関数として公開
+window.GUILD_BOSSES = GUILD_BOSSES;
+window.sendGuildChat = sendGuildChat;
+window.showGuildBossUI = showGuildBossUI;
+window.challengeGuildBoss = challengeGuildBoss;
+window.setupGuildSocketListeners = setupGuildSocketListeners;
+
+// DOMContentLoaded時に初期化
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        setupGuildSocketListeners();
+    }, 100);
+});
 
 /**
  * クエストを受注する
@@ -188,10 +422,6 @@ function updateGuildQuestProgress(type, value) {
                     
                     // 報酬メッセージを表示
                     let rewardMessage = `クエスト「${quest.title}」を達成しました！\n報酬: ${coinReward}コイン, ${xpReward}XP`;
-                    rewardMessage += `\n冒険者経験値: +${adventurerExpReward}`;
-                    if (playerGuild) {
-                        rewardMessage += `\nギルド貢献度: +${quest.reward || 0}`;
-                    }
                     if (orbReward) {
                         rewardMessage += `\n特別報酬: ${getOrbDisplayName(orbReward)}`;
                     }

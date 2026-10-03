@@ -1,0 +1,1430 @@
+/* style.css */
+
+/* 基本スタイル */
+:root {
+    --bg-dark: #0f1115;
+    --bg-medium: #1a1d24;
+    --bg-light: #252932;
+    --border-color: #3d4452;
+    --text-primary: #f0f2f5;
+    --text-secondary: #9aa5b6;
+    --accent-blue: #5b9bd5;
+    --accent-blue-hover: #6ba8e0;
+    --accent-blue-dark: #4a7fb8;
+    --accent-red: #e85a7a;
+    --accent-red-hover: #f06b8b;
+    --accent-red-dark: #c94a66;
+    --accent-green: #3ddc84;
+    --accent-green-hover: #4ee895;
+    --accent-yellow: #ffc107;
+    --accent-purple: #9b59b6;
+    --accent-orange: #ff9800;
+    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
+    --gradient-primary: linear-gradient(135deg, #5b9bd5 0%, #7ec8e3 100%);
+    --gradient-danger: linear-gradient(135deg, #e85a7a 0%, #ff8fa3 100%);
+    --gradient-success: linear-gradient(135deg, #3ddc84 0%, #6ee8b5 100%);
+}
+
+/* 魔術メニュー */
+.active-magic-effects {
+    background: var(--bg-light);
+    border: 1px solid var(--accent-purple);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.magic-effect-active {
+    background: rgba(155, 89, 182, 0.2);
+    border-left: 3px solid var(--accent-purple);
+    padding: 10px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.magic-effect-pending {
+    background: rgba(255, 193, 7, 0.2);
+    border-left: 3px solid var(--accent-yellow);
+    padding: 10px;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.magic-list {
+    background: var(--bg-light);
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.magic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.magic-info {
+    flex: 1;
+}
+
+.magic-name {
+    font-weight: bold;
+    color: var(--accent-purple);
+}
+
+.magic-count {
+    color: var(--accent-green);
+    margin-left: 10px;
+    font-size: 0.9em;
+}
+
+.magic-description {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin: 5px 0 0 0;
+}
+
+/* 素材選択 */
+.material-select-container {
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.material-select-note {
+    color: var(--text-secondary);
+    font-size: 0.85em;
+    margin-bottom: 10px;
+}
+
+.material-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.material-checkbox:last-child {
+    border-bottom: none;
+}
+
+.material-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.card-pack-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.card-pack-item {
+    background: linear-gradient(160deg, rgba(91, 155, 213, 0.15), rgba(0, 0, 0, 0.2));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: 10px;
+    padding: 12px;
+    text-align: center;
+}
+
+.card-pack-item h4 {
+    margin: 0 0 6px;
+    color: var(--accent-blue, #5b9bd5);
+}
+
+.card-pack-item .pack-cost {
+    font-weight: bold;
+    color: #ffd700;
+    margin: 2px 0;
+}
+
+.card-pack-item .pack-odds {
+    font-size: 0.75em;
+    color: var(--text-secondary);
+    margin: 4px 0 8px;
+}
+
+.card-select-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+.card-select-item {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+}
+
+.card-select-item label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.card-select-item .card-name {
+    font-weight: bold;
+}
+
+.card-select-item .card-desc {
+    font-size: 0.8em;
+    color: var(--text-secondary);
+}
+
+.material-checkbox label {
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+body {
+    font-family: var(--font-family);
+    margin: 0;
+    background-color: var(--bg-dark);
+    color: var(--text-primary);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* サイドバー */
+.sidebar {
+    width: 200px;
+    background-color: var(--bg-medium);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease-in-out;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-md);
+    z-index: 100;
+    position: relative;
+}
+
+.main-menu {
+    list-style: none;
+    padding: 12px 0;
+    margin: 0;
+    position: relative;
+    z-index: 10;
+}
+
+.menu-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9375rem;
+    border-left: 3px solid transparent;
+    transition: background-color 0.2s, color 0.2s, border-left-color 0.2s;
+    pointer-events: auto;
+    position: relative;
+    z-index: 10;
+}
+
+.menu-btn span {
+    margin-right: 10px;
+    font-size: 1.05rem;
+    width: 20px;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.menu-btn:hover {
+    background-color: rgba(91, 155, 213, 0.1);
+    color: var(--text-primary);
+    padding-left: 22px;
+}
+
+.menu-btn:hover span {
+    transform: scale(1.1);
+}
+
+.menu-btn.active {
+    background: linear-gradient(90deg, rgba(91, 155, 213, 0.2) 0%, transparent 100%);
+    color: var(--accent-blue);
+    border-left-color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.menu-btn.active span {
+    color: var(--accent-blue);
+}
+
+/* メインコンテンツ */
+.main-content {
+    flex-grow: 1;
+    padding: 14px 16px;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.content-section {
+    display: none;
+}
+
+.content-section.active {
+    display: block;
+    animation: fadeIn 0.4s ease-in-out;
+}
+
+/* サブタブ（スキルツリー/装備中スキル/カスタムスキルなど）の切り替え */
+.sub-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+/* 攻撃タイプセレクター */
+.attack-type-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.attack-type-btn {
+    flex: 1;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-medium);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.attack-type-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+}
+
+.attack-type-btn.active {
+    border-color: var(--accent-blue);
+    background: rgba(91, 155, 213, 0.2);
+    color: var(--accent-blue);
+}
+
+.sub-tab-btn, .skill-create-mode-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    background: transparent;
+    color: var(--text-secondary, #ccc);
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.sub-tab-btn.active, .skill-create-mode-btn.active {
+    background: linear-gradient(90deg, rgba(91, 155, 213, 0.2) 0%, transparent 100%);
+    color: var(--accent-blue);
+    border-color: var(--accent-blue);
+    font-weight: 600;
+}
+
+.sub-tab-content, .skill-create-mode-content {
+    display: none;
+}
+
+.sub-tab-content.active, .skill-create-mode-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h2 {
+    color: var(--accent-blue);
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 6px;
+    margin-top: 0;
+    margin-bottom: 14px;
+    font-size: 1.375rem;
+}
+
+h3 {
+    color: var(--text-primary);
+    margin-top: 14px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 5px;
+    font-size: 1.0625rem;
+}
+
+/* カード/ボックススタイル */
+.setting-box, .status-box {
+    background-color: var(--bg-medium);
+    padding: 12px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.setting-box:hover, .status-box:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.status-box p {
+    margin: 5px 0;
+}
+
+.status-box strong {
+    color: var(--text-secondary);
+    margin-right: 6px;
+}
+
+/* フォーム要素 */
+.field-label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-secondary);
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="number"],
+select,
+textarea {
+    width: 100%;
+    padding: 9px 10px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+textarea {
+    min-height: 60px;
+    resize: vertical;
+}
+
+.stat-inputs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 10px;
+    margin: 10px 0;
+}
+
+.stat-inputs label {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-inputs input {
+    margin-bottom: 0;
+}
+
+.remaining-points {
+    font-weight: bold;
+    margin-top: 8px;
+}
+.points-ok { color: var(--accent-green); }
+.points-over { color: var(--accent-red); }
+.points-under { color: var(--accent-yellow); }
+.points-trained { color: var(--accent-blue); }
+
+/* プレステージ */
+.prestige-box {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--accent-yellow, #e0b93d);
+    border-radius: 8px;
+}
+
+.prestige-box h3 {
+    margin: 0 0 6px 0;
+    color: var(--accent-yellow, #e0b93d);
+}
+
+.prestige-box p {
+    margin: 4px 0;
+}
+
+.prestige-locked {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* 武器・ボスのアイコンイラスト */
+.icon-badge {
+    display: block;
+    flex-shrink: 0;
+}
+
+.weapon-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.weapon-icon-wrap-sm {
+    margin-right: 6px;
+}
+
+.item-text-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.shop-item-info, .inventory-item-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.weapon-type-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weapon-display-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+/* ボス選択プレビュー */
+.boss-preview {
+    margin-top: 8px;
+}
+
+.boss-preview-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.boss-icon-wrap {
+    flex-shrink: 0;
+    display: inline-flex;
+}
+
+.boss-preview-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.boss-preview-desc {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+/* バトル画面の相手アイコン */
+.battle-avatar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 6px;
+    min-height: 0;
+}
+
+.battle-avatar:empty {
+    margin-bottom: 0;
+}
+
+/* ボタン */
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.875rem;
+    transition: background-color 0.2s, transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: var(--gradient-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--accent-blue-hover) 0%, #8fd3ef 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background: linear-gradient(135deg, #5a6375 0%, #6b7588 100%);
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #6b7588 0%, #7c879a 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background: var(--gradient-danger);
+    color: white;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, var(--accent-red-hover) 0%, #ffa0b3 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #1ab6cf 100%);
+    color: white;
+}
+.btn-info:hover {
+    background: linear-gradient(135deg, #1ab6cf 0%, #2ec8e0 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-success {
+    background: var(--gradient-success);
+    color: white;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, var(--accent-green-hover) 0%, #7ef0c5 100%);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.btn-danger-outline {
+    background-color: transparent;
+    color: var(--accent-red);
+    border: 2px solid var(--accent-red);
+    box-shadow: none;
+}
+.btn-danger-outline:hover {
+    background-color: rgba(232, 90, 122, 0.15);
+    border-color: var(--accent-red-hover);
+    color: var(--accent-red-hover);
+}
+
+.btn:disabled {
+    background: linear-gradient(135deg, var(--border-color) 0%, #4a5160 100%);
+    color: #777;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    opacity: 0.6;
+}
+
+.btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+}
+
+/* ランキング */
+.ranking-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 6px;
+}
+
+.ranking-table thead th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ranking-table thead th:first-child {
+    text-align: center;
+    width: 3.5em;
+}
+
+.ranking-table tbody tr {
+    background-color: var(--bg-light);
+    box-shadow: var(--shadow-sm);
+}
+
+.ranking-table tbody td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.ranking-table tbody td:first-child {
+    text-align: center;
+    font-weight: bold;
+    color: var(--accent-yellow);
+    border-left: 1px solid var(--border-color);
+    border-radius: 6px 0 0 6px;
+}
+
+.ranking-table tbody td:last-child {
+    border-right: 1px solid var(--border-color);
+    border-radius: 0 6px 6px 0;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.ranking-table tbody tr:nth-child(1) td:first-child {
+    color: #ffd54f;
+    font-size: 1.1rem;
+}
+
+.ranking-table tbody tr:nth-child(2) td:first-child {
+    color: #d7d7d7;
+    font-size: 1.05rem;
+}
+
+.ranking-table tbody tr:nth-child(3) td:first-child {
+    color: #d8935a;
+    font-size: 1.02rem;
+}
+
+.ranking-table tbody tr:nth-child(1) {
+    box-shadow: 0 0 0 1px #ffd54f inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr:nth-child(2) {
+    box-shadow: 0 0 0 1px #d7d7d7 inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr:nth-child(3) {
+    box-shadow: 0 0 0 1px #d8935a inset, var(--shadow-sm);
+}
+
+.ranking-table tbody tr.current-user-rank {
+    background-color: rgba(91, 155, 213, 0.18);
+}
+
+.ranking-table tbody tr.current-user-rank td:first-child,
+.ranking-table tbody tr.current-user-rank td:last-child {
+    border-left-color: var(--accent-blue);
+    border-right-color: var(--accent-blue);
+}
+
+.ranking-table tbody tr.current-user-rank td {
+    border-top-color: var(--accent-blue);
+    border-bottom-color: var(--accent-blue);
+    font-weight: bold;
+}
+
+@media (max-width: 600px) {
+    .ranking-table {
+        font-size: 0.8rem;
+    }
+    .ranking-table thead th,
+    .ranking-table tbody td {
+        padding: 6px 6px;
+    }
+    .ranking-table thead th:nth-child(5),
+    .ranking-table tbody td:nth-child(5) {
+        display: none;
+    }
+}
+
+/* スキルツリー */
+.skill-tree-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.skill-tree-canvas {
+    position: relative;
+    width: 100%;
+    min-height: 360px; /* 必要に応じて調整 */
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: auto; /* ツリーが大きい場合にスクロール可能にする */
+}
+
+.skill-description-area {
+    background-color: var(--bg-light);
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.skill-description-area h3 {
+    margin-top: 0;
+    color: var(--accent-blue);
+}
+
+#skillNodeName {
+    font-size: 1.0625rem;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+#skillNodeDescription, #skillNodeCost {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+/* skillTree.jsによって追加されるノードと線のスタイル */
+.skill-node {
+    position: absolute;
+    width: 48px;
+    height: 48px;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    background-color: var(--bg-medium);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 0.6875rem;
+    padding: 3px;
+    transition: all 0.2s ease;
+    z-index: 2;
+}
+
+.skill-node:hover {
+    transform: scale(1.1);
+    border-color: var(--accent-yellow);
+}
+
+.skill-node.unlocked {
+    background-color: var(--accent-blue);
+    border-color: var(--accent-blue-hover);
+    color: white;
+}
+
+.skill-node.can-unlock {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px var(--accent-green);
+}
+
+.skill-node.selected {
+    border-color: var(--accent-yellow);
+    box-shadow: 0 0 15px var(--accent-yellow);
+}
+
+.skill-line {
+    position: absolute;
+    background-color: var(--border-color);
+    height: 2px;
+    transform-origin: 0 0;
+    z-index: 1;
+}
+
+.skill-line.unlocked {
+    background-color: var(--accent-blue);
+}
+
+/* スキルスロット */
+.skill-slots-container {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 12px;
+    padding: 10px;
+    background-color: var(--bg-dark);
+    border-radius: 8px;
+}
+
+.skill-slot {
+    width: 60px;
+    height: 60px;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.6875rem;
+    background-color: var(--bg-medium);
+    transition: background-color 0.2s;
+}
+
+.skill-slot.has-skill {
+    border-style: solid;
+    border-color: var(--accent-blue);
+    background-color: var(--bg-light);
+    cursor: pointer;
+}
+
+.skill-slot.has-skill:hover {
+    background-color: var(--border-color);
+}
+
+/* リストスタイル */
+.shop-list, .inventory-list, .original-weapon-list, .orb-inventory-list, .custom-skill-list, .available-skills-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+}
+
+.shop-item, .inventory-item, .quest-item, .custom-skill-item, .available-skill-item {
+    background-color: var(--bg-light);
+    padding: 10px 12px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.shop-item:hover, .inventory-item:hover, .quest-item:hover, .custom-skill-item:hover, .available-skill-item:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    border-color: var(--accent-blue);
+}
+
+.inventory-item.equipped {
+    border-left: 4px solid var(--accent-green);
+    background: linear-gradient(145deg, rgba(61, 220, 132, 0.15) 0%, var(--bg-light) 100%);
+}
+
+.shop-item.owned .buy-btn {
+    display: none;
+}
+
+.shop-item.owned .owned-label {
+    color: var(--accent-green);
+    font-weight: bold;
+    text-shadow: 0 0 10px rgba(61, 220, 132, 0.3);
+}
+
+/* モーダル */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+}
+
+.modal.show {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+    background: linear-gradient(145deg, var(--bg-medium) 0%, var(--bg-dark) 100%);
+    margin: auto;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    width: 90%;
+    max-width: 520px;
+    max-height: 90vh;
+    border-radius: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+}
+
+/* PWAインストールポップアップ */
+.install-popup {
+    position: fixed;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-medium) 100%);
+    color: var(--text-primary);
+    padding: 10px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* パーティUI (既存のスタイルを維持) */
+#party-info ul {
+    list-style: none;
+    padding: 0;
+}
+
+#party-info li {
+    padding: 4px 0;
+}
+
+/* モバイルメニュー */
+.mobile-menu-toggle {
+    display: none; /* デスクトップでは非表示 */
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1003;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    font-size: 20px;
+    line-height: 38px;
+    text-align: center;
+    cursor: pointer;
+    padding: 0;
+    transition: background-color 0.2s, transform 0.3s;
+    pointer-events: auto;
+}
+
+/* 強制的にモバイルメニューボタンを表示（デバッグ用） */
+.mobile-menu-toggle.force-show {
+    display: block !important;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--border-color);
+}
+
+/* サイドバーオーバーレイ */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* モバイル表示 */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 1001;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+        pointer-events: auto;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .mobile-menu-toggle {
+        display: block; /* スマホで表示 */
+        pointer-events: auto;
+    }
+
+    .main-content {
+        padding: 10px;
+        padding-top: 56px;
+    }
+}
+
+/* さらに小さい画面向け */
+@media (max-width: 480px) {
+    .mobile-menu-toggle {
+        display: block !important; /* 強制的に表示 */
+    }
+}
+
+/* タブレット向け */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .mobile-menu-toggle {
+        display: block !important;
+    }
+    
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        z-index: 1000;
+        transform: translateX(-100%);
+        box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        padding: 10px;
+        padding-top: 56px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .skill-tree-container {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    .skill-tree-canvas {
+        flex: 3;
+    }
+    .skill-description-area {
+        flex: 1;
+        position: sticky;
+        top: 12px;
+    }
+}
+
+/* デイリーミッション */
+.missions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.mission-item {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mission-item.completed {
+    border-color: var(--accent-green);
+}
+
+.mission-item.claimed {
+    opacity: 0.6;
+}
+
+.mission-description {
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+.mission-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.progress-bar-container {
+    flex-grow: 1;
+    height: 10px;
+    background-color: var(--bg-dark);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--accent-blue);
+    transition: width 0.3s ease;
+}
+
+.mission-item.completed .progress-bar {
+    background-color: var(--accent-green);
+}
+
+.progress-text {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.mission-reward {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.final-reward-container {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--accent-yellow);
+    border-radius: 8px;
+    padding: 14px;
+    text-align: center;
+}
+
+.final-reward-container h4 {
+    margin: 0 0 8px;
+    color: var(--accent-yellow);
+}
+
+.final-reward-icon {
+    font-size: 2.5rem;
+    margin: 8px 0;
+}
+
+/* 素材インベントリ */
+.materials-inventory-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 5px;
+}
+
+.material-item {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.material-item .material-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.material-item .material-name {
+    font-weight: bold;
+    color: var(--accent-yellow);
+}
+
+.material-item .material-count {
+    color: var(--text-secondary);
+}
+
+.material-item .material-description {
+    margin: 4px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+/* 素材選択UI */
+.material-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 40vh;
+    overflow-y: auto;
+    margin: 10px 0;
+}
+
+.material-select-item {
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.material-select-item:hover {
+    background-color: var(--bg-light);
+}
+
+.material-select-item .material-rarity {
+    font-size: 0.8rem;
+    color: var(--accent-cyan);
+}
+
+.selected-materials {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 40px;
+    padding: 10px;
+    background-color: var(--bg-medium);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 10px 0;
+}
+
+.selected-material-item {
+    background-color: var(--accent-blue);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.selected-material-item .material-rarity {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+/* ============================================================
+   フィールド全画面表示化：サイドバーを常時表示の小さなフローティング
+   ツールバー（マップ／ステータス／インベントリ／勉強／オンラインの
+   5つのみ）に置き換え、町フィールドを画面いっぱいに表示する。
+   他のセクション（ショップ・スキル・ボスバトル等）は建物経由でのみ
+   開き、開いている間もこのツールバーは常に上に浮いているので、
+   「マップ」ボタンでいつでもフィールドへ戻れる。
+   ============================================================ */
+.sidebar.sidebar-minimal {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: auto !important;
+    height: auto !important;
+    flex-direction: row !important;
+    border-right: none;
+    border-bottom-right-radius: 12px;
+    background: rgba(15, 17, 21, 0.88) !important;
+    box-shadow: var(--shadow-md);
+    z-index: 1002;
+    transform: none !important;
+    pointer-events: auto;
+}
+
+.sidebar.sidebar-minimal .main-menu {
+    display: flex;
+    flex-direction: row;
+    padding: 6px;
+    gap: 4px;
+    z-index: auto;
+}
+
+.sidebar.sidebar-minimal .menu-btn {
+    flex-direction: column;
+    width: auto;
+    padding: 6px 12px;
+    border-left: none;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.sidebar.sidebar-minimal .menu-btn span {
+    margin-right: 0;
+    font-size: 1.3rem;
+    width: auto;
+}
+
+.sidebar.sidebar-minimal .menu-btn.active {
+    background: var(--accent-blue-dark, #2b5876);
+    color: #fff;
+    border-left: none;
+}
+
+/* 常時表示のミニツールバーに置き換えたため、ハンバーガー開閉は不要 */
+.mobile-menu-toggle,
+.sidebar-overlay {
+    display: none !important;
+}
+
+.main-content {
+    padding: 0 !important;
+    overflow: hidden;
+}
+
+/* 表示中のセクションは常に画面いっぱいに表示する（町フィールドは
+   最背面、他のセクションはツールバーの下・町より前面に重ねる） */
+.content-section.active {
+    position: fixed;
+    inset: 0;
+    margin: 0;
+    z-index: 10;
+    overflow-y: auto;
+    background: var(--bg-dark, #16181d);
+}
+
+#section-town.active {
+    z-index: 1;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+}
+
+#section-town .town-container {
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+}
+
+#section-town #townCanvas {
+    width: 100%;
+    height: 100%;
+}
+
+.content-section:not(#section-town).active {
+    padding: 70px 16px 24px;
+}

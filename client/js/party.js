@@ -1,4 +1,16 @@
 // client/js/party.js
+// ============================================
+// パーティーシステム（MMO拡張版）
+// ============================================
+
+// パーティーメンバーの位置情報
+let partyMemberPositions = {};
+
+// パーティーシステムの初期化
+function initializePartySystem() {
+    setupPartyEventListeners();
+    setupPartySocketListeners();
+}
 
 function setupPartyEventListeners() {
     const createPartyBtn = document.getElementById('createPartyBtn');
@@ -120,7 +132,73 @@ function resetPartyUI() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    if (typeof setupPartyEventListeners === 'function') {
-        setupPartyEventListeners();
+    if (typeof initializePartySystem === 'function') {
+        initializePartySystem();
     }
 });
+
+// パーティーソケットリスナーの設定
+function setupPartySocketListeners() {
+    if (!window.socket) return;
+
+    // パーティーメンバーの位置更新
+    window.socket.on('party:memberPosition', (data) => {
+        const { playerId, x, y, worldId } = data;
+        partyMemberPositions[playerId] = { x, y, worldId, timestamp: Date.now() };
+        
+        // 町画面でパーティーメンバーの位置を表示
+        if (typeof updatePartyMemberIndicators === 'function') {
+            updatePartyMemberIndicators();
+        }
+    });
+
+    // パーティーメンバーがワールドに入った
+    window.socket.on('party:memberJoinedWorld', (data) => {
+        const { playerId, worldId } = data;
+        if (partyMemberPositions[playerId]) {
+            partyMemberPositions[playerId].worldId = worldId;
+        }
+        
+        addChatMessage({
+            type: 'party',
+            playerName: 'システム',
+            playerLevel: 0,
+            message: `パーティーメンバーが ${worldId} に入りました`,
+            timestamp: Date.now()
+        });
+    });
+
+    // パーティーメンバーがワールドから出た
+    window.socket.on('party:memberLeftWorld', (data) => {
+        const { playerId } = data;
+        if (partyMemberPositions[playerId]) {
+            delete partyMemberPositions[playerId];
+        }
+    });
+}
+
+// パーティーメンバーの位置情報を取得
+function getPartyMemberPositions() {
+    return partyMemberPositions;
+}
+
+// パーティーメンバーの位置情報をクリア
+function clearPartyMemberPositions() {
+    partyMemberPositions = {};
+}
+
+// 現在のワールドにいるパーティーメンバーを取得
+function getPartyMembersInCurrentWorld(currentWorldId) {
+    const members = [];
+    for (const [playerId, pos] of Object.entries(partyMemberPositions)) {
+        if (pos.worldId === currentWorldId) {
+            members.push({ playerId, ...pos });
+        }
+    }
+    return members;
+}
+
+// グローバル関数として公開
+window.getPartyMemberPositions = getPartyMemberPositions;
+window.clearPartyMemberPositions = clearPartyMemberPositions;
+window.getPartyMembersInCurrentWorld = getPartyMembersInCurrentWorld;

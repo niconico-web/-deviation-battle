@@ -24,6 +24,14 @@
     <link rel="stylesheet" href="css/style-dungeon.css">
     <link rel="stylesheet" href="css/ability-popup.css">
     <link rel="stylesheet" href="css/tutorial.css">
+    <link rel="stylesheet" href="css/town.css">
+    <link rel="stylesheet" href="css/chat.css">
+    <link rel="stylesheet" href="css/dungeon.css">
+    <link rel="stylesheet" href="css/worldboss.css">
+    <link rel="stylesheet" href="css/pvp.css">
+    <link rel="stylesheet" href="css/quest.css">
+    <link rel="stylesheet" href="css/avatar.css">
+    <link rel="stylesheet" href="css/study-enhanced.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -42,26 +50,40 @@
         <!-- モバイルメニューボタン（サイドバーの外に配置） -->
         <button id="mobileMenuToggle" class="mobile-menu-toggle">☰</button>
         
-        <aside class="sidebar">
+        <aside class="sidebar sidebar-minimal">
             <nav class="main-menu">
+                <button class="menu-btn" data-section="town"><span>🗺️</span> マップ</button>
                 <button class="menu-btn active" data-section="stats"><span>📝</span> ステータス</button>
+                <button class="menu-btn" data-section="shop"><span>🎒</span> インベントリ</button>
                 <button class="menu-btn" data-section="study"><span>📖</span> 勉強</button>
-                <button class="menu-btn" data-section="questionlists"><span>📚</span> 問題リスト</button>
-                <button class="menu-btn" data-section="missions"><span>🎯</span> ミッション</button>
-                <button class="menu-btn" data-section="shop"><span>🛒</span> ショップ</button>
-                <button class="menu-btn" data-section="workshop"><span>💎</span> オーブ工房</button>
-                <button class="menu-btn" data-section="skills"><span>⚔️</span> スキル</button>
                 <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
-                <button class="menu-btn" data-section="boss-battle"><span>👹</span> ボスバトル</button>
-                <button class="menu-btn" data-section="dungeon"><span>🏰</span> ダンジョン</button>
-                <button class="menu-btn" data-section="ranking"><span>🏆</span> ランキング</button>
-                <button class="menu-btn" data-section="help"><span>❓</span> ヘルプ</button>
-                <button type="button" id="shareInviteBtn" class="share-menu-btn"><span>📣</span> 友達に紹介</button>
+                <button type="button" id="shareInviteBtn" class="share-menu-btn"><span>📣</span></button>
             </nav>
         </aside>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
         <main class="main-content">
+            <section id="section-town" class="content-section">
+                <h2>町</h2>
+                <div id="townContainer" class="town-container">
+                    <canvas id="townCanvas" width="1600" height="900"></canvas>
+                    <div id="townPrompt" class="town-prompt" style="display:none;"></div>
+                    <div id="townPlayerList" class="town-player-list"></div>
+                    <div id="townControls" class="town-controls">
+                        <div class="town-dpad">
+                            <button type="button" class="town-dpad-btn" data-dir="up">▲</button>
+                            <div class="town-dpad-row">
+                                <button type="button" class="town-dpad-btn" data-dir="left">◀</button>
+                                <button type="button" class="town-dpad-btn" data-dir="down">▼</button>
+                                <button type="button" class="town-dpad-btn" data-dir="right">▶</button>
+                            </div>
+                        </div>
+                        <button type="button" id="townInteractBtn" class="btn btn-primary town-interact-btn" style="display:none;">入る</button>
+                    </div>
+                </div>
+                <p class="town-help-text">矢印キー / WASDで移動、建物に近づいてEnterキー（またはタップ）で施設に入れます。他のプレイヤーもリアルタイムで表示されます。</p>
+            </section>
+
             <section id="section-stats" class="content-section active">
                 <h2>ステータス</h2>
                 <div class="setting-box">
@@ -381,43 +403,9 @@
                 </div>
             </section>
 
-            <section id="section-workshop" class="content-section">
-                <h2>オーブ工房</h2>
-                <div class="setting-box">
-                    <h3>勉強でたまる「結晶」</h3>
-                    <p class="study-desc">勉強タイマーや模擬戦闘で勉強すると、勉強時間に応じて結晶が貯まります（累計の勉強時間が10分・30分・60分を超えるたびに、それぞれ1個ずつ）。結晶を使うと、持っているオーブの数値やステータスの種類、固有能力を引き直して「厳選」できます。</p>
-                    <div id="workshopCurrency" class="workshop-currency">
-                        <!-- renderWorkshopCurrency() によってここに結晶の所持数が描画される -->
-                    </div>
-                </div>
-
-                <div class="setting-box">
-                    <h3>厳選するオーブを選ぶ</h3>
-                    <p class="study-desc">リロールの結果は「この結果にする」か「元のままにする」を選べます（結晶はどちらを選んでも消費されます）。工房で厳選できるのは所持オーブだけで、武器にセット済みのオーブは対象外です。混沌の結晶はティアが高いオーブほど多く消費します。</p>
-                    <label class="field-label" for="workshopTierFilter">表示するティア</label>
-                    <select id="workshopTierFilter">
-                        <option value="all">すべて</option>
-                        <option value="tier5">Tier5</option>
-                        <option value="tier4">Tier4</option>
-                        <option value="tier3">Tier3</option>
-                        <option value="tier2">Tier2</option>
-                        <option value="tier1">Tier1</option>
-                    </select>
-                    <div id="workshopOrbList" class="workshop-orb-list">
-                        <!-- renderOrbWorkshop() によってここにオーブ一覧が描画される -->
-                    </div>
-                </div>
-
-                <!-- リロール結果モーダル（「この結果にする／元のままにする」を選ぶまで閉じられない） -->
-                <div id="workshopResultModal" class="modal">
-                    <div class="modal-content">
-                        <div id="workshopResultBody"></div>
-                    </div>
-                </div>
-            </section>
-
             <section id="section-skills" class="content-section">
                 <h2>スキル <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="スキルの遊び方">?</button></h2>
+                <p><a href="action-skills.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;">🔮 アクションバトル用スキル工房を開く（形・効果・グリフを組み合わせて作成）</a></p>
                 <div class="sub-tabs">
                     <button class="sub-tab-btn active" data-subtab="skill-tree-content">スキルツリー</button>
                     <button class="sub-tab-btn" data-subtab="equipped-skills-content">装備中スキル</button>
@@ -692,6 +680,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/i18n.js"></script>
     <script src="js/icons.js"></script>
+    <script src="js/avatar.js"></script>
     <script src="js/stats.js"></script>
     <script src="js/materials.js"></script>
     <script src="js/weapons.js"></script>
@@ -705,14 +694,22 @@
     <script src="js/social.js"></script>
     <script src="js/ranking.js"></script>
     <script src="js/monster-stats.js"></script>
+    <script src="js/monsters.js"></script>
     <script src="js/online.js"></script>
     <script src="js/summons.js"></script>
     <script src="js/help.js"></script>
     <script src="js/dungeon.js"></script>
+    <script src="js/dungeons.js"></script>
     <script src="js/tutorial-topics.js"></script>
     <script src="js/questionLists.js"></script>
     <script src="js/share.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/quests.js"></script>
+    <script src="js/pvp.js"></script>
+    <script src="js/worldboss.js"></script>
+    <script src="js/study-enhanced.js"></script>
     <script src="js/script.js"></script>
+    <script src="js/world.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

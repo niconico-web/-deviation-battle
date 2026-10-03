@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>偏差値でバトる - ゲームヘルプ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 12px;
+        }
+
+        header {
+            background: white;
+            padding: 19px;
+            border-radius: 10px;
+            margin-bottom: 19px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        header h1 {
+            color: #667eea;
+            margin-bottom: 6px;
+            font-size: 1.9em;
+        }
+
+        header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .toc {
+            background: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 19px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .toc h2 {
+            color: #667eea;
+            margin-bottom: 9px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .toc ul {
+            list-style: none;
+        }
+
+        .toc li {
+            margin: 5px 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .section {
+            background: white;
+            padding: 19px;
+            border-radius: 10px;
+            margin-bottom: 19px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 12px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            font-size: 1.4em;
+        }
+
+        .section h3 {
+            color: #764ba2;
+            margin-top: 12px;
+            margin-bottom: 9px;
+            font-size: 1.1em;
+        }
+
+        .subsection {
+            margin: 12px 0;
+            padding: 9px;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+
+        .subsection h4 {
+            color: #667eea;
+            margin-bottom: 6px;
+        }
+
+        .ability-box {
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 9px;
+            margin: 7px 0;
+            display: flex;
+            gap: 9px;
+        }
+
+        .ability-icon {
+            min-width: 60px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .ability-content h4 {
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .ability-content p {
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .stat-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 9px;
+            margin: 12px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border: 1px solid #667eea;
+            border-radius: 8px;
+            padding: 9px;
+            text-align: center;
+        }
+
+        .stat-card h4 {
+            color: #667eea;
+            margin-bottom: 5px;
+            font-size: 1.1em;
+        }
+
+        .stat-card .description {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .tier-info {
+            background: linear-gradient(to right, #667eea15, #764ba215);
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 9px 0;
+        }
+
+        .tier-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 9px;
+            margin: 12px 0;
+        }
+
+        .tier-item {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 9px;
+        }
+
+        .tier-name {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 6px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .tier-stats {
+            font-size: 0.9em;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .example-battle {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+
+        .example-battle h4 {
+            color: #856404;
+            margin-bottom: 7px;
+        }
+
+        .example-battle p {
+            color: #856404;
+            margin: 5px 0;
+        }
+
+        .turn-item {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 7px;
+            margin: 6px 0;
+            border-radius: 4px;
+        }
+
+        .important {
+            background: #f8d7da;
+            border: 2px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 9px;
+            margin: 12px 0;
+        }
+
+        .important h4 {
+            color: #721c24;
+            margin-bottom: 6px;
+        }
+
+        .important p {
+            color: #721c24;
+        }
+
+        .tip {
+            background: #d1ecf1;
+            border: 2px solid #bee5eb;
+            border-radius: 8px;
+            padding: 9px;
+            margin: 12px 0;
+        }
+
+        .tip h4 {
+            color: #0c5460;
+            margin-bottom: 6px;
+        }
+
+        .tip p {
+            color: #0c5460;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            padding: 12px;
+            margin-top: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 7px;
+            text-align: left;
+        }
+
+        table td {
+            padding: 6px 7px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .back-to-top {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 12px;
+        }
+
+        .back-to-top:hover {
+            background: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 偏差値でバトる</h1>
+            <p>ゲームヘルプ - ゲームシステム完全ガイド</p>
+        </header>
+
+        <div class="toc">
+            <h2>📑 目次</h2>
+            <ul>
+                <li><a href="#game-overview">ゲーム概要</a></li>
+                <li><a href="#orb-system">オーブシステム</a></li>
+                <li><a href="#material-system">素材システム</a></li>
+                <li><a href="#weapon-system">武器システム</a></li>
+                <li><a href="#skill-system">スキルシステム</a></li>
+                <li><a href="#custom-skills">オリジナルスキル</a></li>
+                <li><a href="#battle-system">バトルシステム</a></li>
+                <li><a href="#tier4-abilities">Tier4オーブの固有能力一覧</a></li>
+                <li><a href="#boss-battle">ボスバトル</a></li>
+                <li><a href="#monster-battle">モンスター討伐と素材</a></li>
+                <li><a href="#guild-system">ギルドとギルドクエスト</a></li>
+                <li><a href="#tips">ゲームのコツ</a></li>
+            </ul>
+        </div>
+
+        <!-- ゲーム概要 -->
+        <div class="section">
+            <h2 id="game-overview">🎯 ゲーム概要</h2>
+            <p>「偏差値でバトる」は、学力をテーマにしたバトルゲームです。勉強して自分のステータスを強化し、他のプレイヤーとの戦いに勝利することで、様々な武器やオーブを集めることができます。</p>
+            
+            <div class="subsection">
+                <h4>主な要素</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li><strong>勉強タイマー</strong>：30分勉強すると、攻撃力・防御力・速さ・HPなどのステータスが上昇します</li>
+                    <li><strong>バトルシステム</strong>：クイズを早く正解して相手にダメージを与え、勝利を目指します</li>
+                    <li><strong>武器システム</strong>：様々な武器を入手し、装備して戦闘力を強化できます</li>
+                    <li><strong>オーブシステム</strong>：バトルで入手したオーブをカスタマイズして、自分好みの武器を作成できます</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- オーブシステム -->
+        <div class="section">
+            <h2 id="orb-system">💎 オーブシステム</h2>
+            <p>オーブは、バトルで勝利した際に確率で入手できるアイテムです。オーブはステータスアップ効果を持ち、複数のオーブを組み合わせることで、自分だけのオリジナル武器を作成できます。</p>
+
+            <h3>オーブの入手方法</h3>
+            <div class="subsection">
+                <h4>ドロップ条件</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>バトルに勝利することが必要です</li>
+                    <li>勝利後に<strong>50%の確率</strong>でオーブがドロップされます</li>
+                    <li>一度に複数のオーブを入手することもあります</li>
+                </ul>
+            </div>
+
+            <h3>オーブのティア（レア度）</h3>
+            <div class="tier-list">
+                <div class="tier-item">
+                    <div class="tier-name">⭐ Tier1</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 50%</p>
+                        <p><strong>ステータス上昇：</strong> +5%～+10%</p>
+                        <p>最も一般的なオーブです。初心者向けです。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐ Tier2</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 30%</p>
+                        <p><strong>ステータス上昇：</strong> +10%～+15%</p>
+                        <p>より強力な効果を持つオーブです。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐⭐ Tier3</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 15%</p>
+                        <p><strong>ステータス上昇：</strong> +15%～+20%</p>
+                        <p>レアなオーブです。戦力を大きく強化できます。</p>
+                    </div>
+                </div>
+                <div class="tier-item">
+                    <div class="tier-name">⭐⭐⭐⭐ Tier4</div>
+                    <div class="tier-stats">
+                        <p><strong>ドロップ率：</strong> 5%</p>
+                        <p><strong>ステータス上昇：</strong> +15%～+20%</p>
+                        <p><strong>固有能力付き！</strong></p>
+                        <p>最高レアリティ。強力な特殊能力が付属します。</p>
+                    </div>
+                </div>
+            </div>
+
+            <h3>オーブのステータスタイプ</h3>
+            <p>各オーブは以下の4つのステータスのいずれかにボーナスを与えます。ランダムに決定されます。</p>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>⚔️ 攻撃 (ATK)</h4>
+                    <div class="description">与えるダメージが増加します。相手を素早く倒せます。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🛡️ 防御 (DEF)</h4>
+                    <div class="description">受けるダメージが減少します。耐久力が上がります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡ 速さ (SPEED)</h4>
+                    <div class="description">行動順序が前後します。先制攻撃がしやすくなります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>❤️ HP (MAXHP)</h4>
+                    <div class="description">最大HPが増加します。より多くのダメージに耐えられます。</div>
+                </div>
+            </div>
+
+            <h3>オーブの使い方</h3>
+            <div class="subsection">
+                <h4>オリジナル武器の作成</h4>
+                <p>オーブを1～3個選択し、オリジナル武器を作成できます。</p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>作成コスト：30コイン</li>
+                    <li>使用できるオーブ：1～3個</li>
+                    <li>選んだオーブの効果が武器に付与されます</li>
+                    <li>Tier4のオーブを使用した場合、<strong>固有能力も付与されます</strong></li>
+                </ul>
+            </div>
+
+            <h3>オーブ合成</h3>
+            <div class="subsection">
+                <h4>低ティアのオーブをまとめて上位に</h4>
+                <p>「ショップ」タブの「オーブ合成」から、同じティアのオーブを複数消費して、より上位のティアのオーブを1個合成できます。余ったオーブの活用に便利です。</p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>Tier1オーブ 5個 → Tier2オーブ 1個</li>
+                    <li>Tier2オーブ 5個 → Tier3オーブ 1個</li>
+                    <li>Tier3オーブ 10個 → Tier4オーブ 1個</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 素材システム -->
+        <div class="section">
+            <h2 id="material-system">🧪 素材システム</h2>
+            <p>素材は、モンスターとのバトルに勝利した際に一定確率で入手できるアイテムです。それぞれの素材には1～4の<strong>レア度</strong>が設定されており、レア度が高い素材ほど貴重で、使い道でも強力な効果を発揮します。入手した素材は「ショップ」タブの「素材管理」からいつでも確認できます。</p>
+
+            <h3>素材の使い道</h3>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>🔮 オーブ作成</h4>
+                    <div class="description">素材を最大5つ選んでオーブに変換できます。選んだ素材の平均レア度が高いほど、高ティアのオーブができやすくなります。詳しくは<a href="#orb-system">オーブシステム</a>を参照してください。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🗡️ 武器のボーナス素材</h4>
+                    <div class="description">「武器の素材」として使える素材は、オリジナル武器の作成時にボーナス素材として組み込め、武器にステータスボーナスを追加できます。詳しくは<a href="#weapon-system">武器システム</a>を参照してください。</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 武器システム -->
+        <div class="section">
+            <h2 id="weapon-system">⚔️ 武器システム</h2>
+            <p>武器はバトルでの戦闘力を大きく左右するアイテムです。ショップで購入する標準武器と、オーブを使用して作成するオリジナル武器があります。</p>
+
+            <h3>武器の種類</h3>
+            <div class="subsection">
+                <h4>標準武器とステータス補正</h4>
+                <p>各武器種類は特定のステータスに補正を与えます。多くの武器は「特殊」にも補正を持っており、中でも魔法の杖・鎌は特殊を中心とした武器です：</p>
+                <table>
+                    <tr>
+                        <th>武器種</th>
+                        <th>主なステータス</th>
+                        <th>特徴</th>
+                    </tr>
+                    <tr>
+                        <td>片手剣＋盾</td>
+                        <td>防御、攻撃（特殊にも少し補正）</td>
+                        <td>バランス型。堅牢です</td>
+                    </tr>
+                    <tr>
+                        <td>長槍</td>
+                        <td>攻撃、速さ（特殊にも少し補正）</td>
+                        <td>攻撃重視型</td>
+                    </tr>
+                    <tr>
+                        <td>大剣</td>
+                        <td>攻撃（防御と速さは低下、特殊にも少し補正）</td>
+                        <td>高火力。防御と速さが低下</td>
+                    </tr>
+                    <tr>
+                        <td>双剣</td>
+                        <td>速さ、攻撃（特殊にも少し補正）</td>
+                        <td>速攻型</td>
+                    </tr>
+                    <tr>
+                        <td>鎌</td>
+                        <td>全ステータス（特殊を含む）</td>
+                        <td>万能型。特殊を含む全てがバランスよく上昇します</td>
+                    </tr>
+                    <tr>
+                        <td>ピストル</td>
+                        <td>速さ、HP、特殊（攻撃にも少し補正）</td>
+                        <td>技巧型。速さ・HP・特殊重視</td>
+                    </tr>
+                    <tr>
+                        <td>刀</td>
+                        <td>防御、速さ（特殊にも少し補正）</td>
+                        <td>防御と速さを両立</td>
+                    </tr>
+                    <tr>
+                        <td>魔法の杖</td>
+                        <td>特殊、HP（攻撃・防御にも補正、速さは少し低下）</td>
+                        <td>特殊攻撃と体力の両立型。特殊ステータスの代表的な武器</td>
+                    </tr>
+                    <tr>
+                        <td>グローブ</td>
+                        <td>攻撃、速さ（防御は少し低下、特殊にも少し補正）</td>
+                        <td>接近戦特化型</td>
+                    </tr>
+                    <tr>
+                        <td>シューズ</td>
+                        <td>速さ、防御（攻撃は少し低下、特殊にも少し補正）</td>
+                        <td>俊足型。素早く動き回る</td>
+                    </tr>
+                    <tr>
+                        <td>弓</td>
+                        <td>速さ、攻撃（防御は少し低下、特殊にも少し補正）</td>
+                        <td>遠距離攻撃型。素早く的確に狙う</td>
+                    </tr>
+                    <tr>
+                        <td>超能力</td>
+                        <td>特殊、防御（攻撃は少し低下、HPにも少し補正）</td>
+                        <td>精神力型。特殊攻撃と防御を両立</td>
+                    </tr>
+                </table>
+            </div>
+
+            <h3>武器のティア</h3>
+            <div class="tier-info">
+                <h4>購入可能な標準武器</h4>
+                <ul style="margin-left: 14px;">
+                    <li><strong>Tier1</strong>：30コイン（倍率1.05倍）</li>
+                    <li><strong>Tier2</strong>：50コイン（倍率1.12倍）</li>
+                    <li><strong>Tier3</strong>：100コイン（倍率1.20倍）</li>
+                    <li><strong>ユニーク</strong>：クエスト報酬（倍率1.65倍）- 高い勝利数が必要</li>
+                </ul>
+            </div>
+
+            <h3>オリジナル武器</h3>
+            <div class="subsection">
+                <h4>特徴</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>自分好みにカスタマイズ可能</li>
+                    <li>武器名と必殺技名を自由に設定できます</li>
+                    <li>Tier4のオーブで強力な固有能力を付与できます</li>
+                    <li>コインで強化することで、倍率を最大2.0倍まで上げられます</li>
+                </ul>
+
+                <h4 style="margin-top: 12px;">強化システム</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>強化コスト：3コイン/回</li>
+                    <li>倍率増加量：0.2%/回</li>
+                    <li>最大倍率：2.0倍</li>
+                    <li>基礎倍率：1.05倍（Tier1相当）</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h4>ボーナス素材によるステータス強化</h4>
+                <p>オリジナル武器の作成時には、オーブとは別に「武器の素材」として使える素材を<strong>最大3つ</strong>までボーナス素材として組み込めます。組み込んだ素材は消費され、武器にステータスボーナスが追加されます。</p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>上がるステータス（攻撃・防御・速さ・HP・特殊）は<strong>素材の種類によって異なります</strong>。同じ素材でも複数のステータスに補正が付くものもあります。</li>
+                    <li>ボーナスの倍率は<strong>素材のレア度</strong>によって変化します（レア度1で1倍、レア度2で2倍、レア度3で3倍、レア度4で4倍）。レア度の高い素材ほど、同じ素材でも大きなボーナスになります。</li>
+                    <li>ボーナス素材の効果は、オーブによるステータスボーナスとは別枠で加算されるため、両方を組み合わせてさらに強力な武器を作成できます。</li>
+                    <li>武器作成画面では、選択できる各素材の横に、実際に付与されるボーナス％が表示されます。</li>
+                </ul>
+            </div>
+
+            <div class="subsection">
+                <h4>武器の限界突破</h4>
+                <p>ボスからドロップする特別な素材を使用することで、ボスドロップ武器の性能をさらに引き上げることができます。</p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li><strong>限界突破の方法:</strong> ボスを倒して得られる専用素材を使用します。</li>
+                    <li><strong>最大回数:</strong> 各武器、最大4回まで限界突破が可能です。</li>
+                    <li><strong>効果:</strong> 1回限界突破するごとに、武器の強化可能な倍率の上限が<strong>0.5</strong>上昇します。</li>
+                    <li><strong>例:</strong> 元の最大倍率が2.0倍の武器は、4回限界突破すると最大4.0倍まで強化可能になります。</li>
+                </ul>
+            </div>
+
+            <div class="tip">
+                <h4>💡 武器選択のコツ</h4>
+                <p>自分のプレイスタイルに合わせて武器を選びましょう。攻撃重視なら「大剣」「長槍」、防御重視なら「片手剣＋盾」「刀」、そしてオーブを組み合わせてオリジナル武器を作れば、自分だけの最強武器が完成します！</p>
+            </div>
+        </div>
+
+        <!-- スキルシステム -->
+        <div class="section">
+            <h2 id="skill-system">🌳 スキルシステム</h2>
+            <p>スキルシステムは、レベルアップで獲得したスキルポイントを使って、様々なスキルを解放できるシステムです。</p>
+
+            <h3>スキルポイントの獲得</h3>
+            <div class="subsection">
+                <h4>獲得方法</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>レベルアップするたびにスキルポイントを獲得できます</li>
+                    <li>獲得できるポイントはレベルによって異なります</li>
+                    <li>レベルが上がるほど、多くのポイントが獲得できます</li>
+                </ul>
+            </div>
+
+            <h3>スキルの種類</h3>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>🛡️ パッシブスキル</h4>
+                    <div class="description">常に効果が発動するスキル。ステータスを永続的に強化します。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>⚡ アクティブスキル</h4>
+                    <div class="description">バトル中に手動で発動するスキル。ダメージ倍率アップ、回復、デバフ付与などの効果があります。</div>
+                </div>
+            </div>
+
+            <h3>スキルスロット</h3>
+            <div class="subsection">
+                <h4>装備システム</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>解放したアクティブスキルは、スキルスロットに装備してバトルで使用できます</li>
+                    <li>最大3つのスキルを装備可能です</li>
+                    <li>ドラッグ＆ドロップでスキルをスロットに装備できます</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- オリジナルスキル -->
+        <div class="section">
+            <h2 id="custom-skills">✨ オリジナルスキル</h2>
+            <p>オリジナルスキルは、100コインを消費してAIがあなた専用のカスタムスキルを作成する機能です。</p>
+
+            <h3>スキルの作成</h3>
+            <div class="subsection">
+                <h4>作成方法</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>スキル名と効果を説明すると、AIがその説明を解析してゲーム内効果を自動生成します</li>
+                    <li>効果が強いほど、より高いステータスが必要になります</li>
+                    <li>コスト：100コイン</li>
+                </ul>
+            </div>
+
+            <h3>効果の例</h3>
+            <div class="subsection">
+                <h4>指定できる効果</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li><strong>ダメージ倍率</strong>：「次の攻撃のダメージを1.2倍にする」</li>
+                    <li><strong>回復</strong>：「HPを30回復する」「HPの30%回復」</li>
+                    <li><strong>敵へのデバフ</strong>：「敵の攻撃力を20%低下させる」「敵の防御力を低下させる」「敵の命中率を下げる」</li>
+                    <li><strong>特殊効果</strong>：「必中」「防御無視」「クリティカル率アップ」</li>
+                </ul>
+            </div>
+
+            <h3>AIの解釈範囲</h3>
+            <div class="subsection">
+                <h4>対応言語と表現</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>AIは日本語と英語の両方に対応しています</li>
+                    <li>様々な表現パターンを理解できます</li>
+                    <li>具体的な数値（1.2倍、30%など）を含めることで、より正確な効果が得られます</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- バトルシステム -->
+        <div class="section">
+            <h2 id="battle-system">⚔️ バトルシステム</h2>
+            <p>バトルは2人のプレイヤーが早答えクイズで競い合うシステムです。正解してダメージを相手に与え、相手のHPを0にすれば勝利です。</p>
+
+            <h3>バトルの流れ</h3>
+            <div class="example-battle">
+                <h4>バトルの進行例</h4>
+                <div class="turn-item">
+                    <strong>ターン1</strong><br>
+                    AさんとBさんにクイズが出題されます。どちらが早く正解するかで攻撃順が決まります。
+                </div>
+                <div class="turn-item">
+                    <strong>ターン2</strong><br>
+                    正解者（例：Aさん）が攻撃を選択。ダメージ計算が行われます。
+                </div>
+                <div class="turn-item">
+                    <strong>ターン3</strong><br>
+                    次のクイズが出題されます。ターンは交互に進みます。
+                </div>
+                <div class="turn-item">
+                    <strong>バトル終了</strong><br>
+                    どちらかのHPが0になった時点で、相手が勝利します。
+                </div>
+            </div>
+
+            <h3>ダメージ計算</h3>
+            <div class="subsection">
+                <h4>基本的なダメージ計算式</h4>
+                <p>ダメージ = <strong>攻撃力</strong> + <strong>速さボーナス</strong> - <strong>相手の防御力</strong></p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>速さボーナス = 速さ × 0.5</li>
+                    <li>相手の防御力が高いほど、ダメージが減少します</li>
+                </ul>
+            </div>
+
+            <h3>特殊ステータス</h3>
+            <div class="subsection">
+                <p>「特殊」は攻撃力とは別に持つ、いわば"二つ目の攻撃力"です。武器の補正やスキルツリーによって成長し、コマンド選択時に「特殊」を選ぶことで、攻撃力の代わりにこのステータスを使った一撃を放てます。物理型の武器を装備しつつ、スキルツリーで特殊を鍛えるといった組み合わせ戦略も可能です。</p>
+            </div>
+
+            <h3>コマンド選択制バトル</h3>
+            <div class="subsection">
+                <p>問題に正解すると、そのターンにどう行動するかを以下の4つから選ぶコマンドメニューが表示されます。</p>
+            </div>
+            <div class="stat-info">
+                <div class="stat-card">
+                    <h4>⚔️ 攻撃</h4>
+                    <div class="description">攻撃力をベースにダメージを与える、基本の行動です。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🌟 特殊</h4>
+                    <div class="description">攻撃力の代わりに「特殊」ステータスを使ってダメージを与えます。特殊を鍛えたキャラクターはこちらの方が高火力になります。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🛡️ 防御</h4>
+                    <div class="description">この行動を選ぶと自分からは攻撃しませんが、次に相手から受けるダメージを軽減できます。</div>
+                </div>
+                <div class="stat-card">
+                    <h4>💥 必殺技</h4>
+                    <div class="description">必殺技ゲージが満タンの時だけ選択できます。ダメージが1.5倍になる強力な一撃です。</div>
+                </div>
+            </div>
+            <div class="subsection">
+                <p>コマンドを選ぶのと同じタイミングで、アクティブスキルも選択・使用できます（正解前の待機中に選んでおくこともできます）。</p>
+            </div>
+
+            <h3>必殺技ゲージシステム</h3>
+            <div class="subsection">
+                <h4>仕組み</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>ゲージ最大値：100</li>
+                    <li>正解1回につき：+20増加</li>
+                    <li>満タンになるとコマンドメニューで「必殺技」が選択できるようになります（ダメージ1.5倍）</li>
+                    <li>必殺技を使用するとゲージは0にリセットされます</li>
+                </ul>
+            </div>
+
+            <h3>バトル報酬</h3>
+            <div class="subsection">
+                <h4>勝利時の報酬</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>コイン：15枚</li>
+                    <li>オーブ：50%の確率でドロップ</li>
+                    <li>相手の武器を奪える場合があります（デバッグ武器は除外）</li>
+                </ul>
+
+                <h4 style="margin-top: 12px;">負け時</h4>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li>自分が装備中の武器を奪われます（デバッグ武器は除外）</li>
+                    <li>コインやオーブは失われません</li>
+                </ul>
+            </div>
+
+            <div class="important">
+                <h4>⚠️ 重要：バトルのポイント</h4>
+                <p>バトルでは<strong>正解速度</strong>が非常に重要です。遅い正解より、早い間違いの方が有利な場合もあります。また、相手のステータスに応じた戦術を心がけましょう。攻撃力が高い相手には防御を心がけ、防御力が高い相手には速攻を仕掛けるなど、柔軟な対応が勝利への鍵です。</p>
+            </div>
+        </div>
+
+        <!-- Tier4オーブの固有能力 -->
+        <div class="section">
+            <h2 id="tier4-abilities">🌟 Tier4オーブの固有能力一覧</h2>
+            <p>Tier4のオーブにのみ付与される強力な固有能力です。これらの能力はオリジナル武器に付与され、バトルで大きなアドバンテージを得られます。</p>
+
+            <div class="ability-box">
+                <div class="ability-icon">💉</div>
+                <div class="ability-content">
+                    <h4>ライフドレイン</h4>
+                    <p><strong>効果：</strong> 相手に攻撃したとき、その時与えたダメージの20%分自分のHPを回復できます。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：持久戦に強くなります。長期戦で有利です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">📈</div>
+                <div class="ability-content">
+                    <h4>圧倒的成長性</h4>
+                    <p><strong>効果：</strong> 勉強タイマー使用時のステータスの上り幅が2倍になります。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：勉強することで急速に強くなれます。長期的な成長を望むなら最高のオーブです。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">⬇️</div>
+                <div class="ability-content">
+                    <h4>リ・ミゼラブル</h4>
+                    <p><strong>効果：</strong> 戦闘時相手の全ステータスを0.8倍にします。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：相手の能力を大幅に低下させます。強い相手との対戦時に活躍します。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🎯</div>
+                <div class="ability-content">
+                    <h4>貫通</h4>
+                    <p><strong>効果：</strong> 相手の防御ステータスを50%減らします。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：防御が高い相手に非常に有効。盾武器を使う相手に対して強力です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🛡️</div>
+                <div class="ability-content">
+                    <h4>鉄壁</h4>
+                    <p><strong>効果：</strong> 相手からの攻撃のダメージ50%カットします。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：受けるダメージが半減します。防御運用で最強です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">🎲</div>
+                <div class="ability-content">
+                    <h4>必中</h4>
+                    <p><strong>効果：</strong> 相手の回避率を無視して相手に絶対攻撃をあてられます。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：確実に相手にダメージを与えられます。安定した火力を求めるなら最適です。</p>
+                </div>
+            </div>
+
+            <div class="ability-box">
+                <div class="ability-icon">⚡</div>
+                <div class="ability-content">
+                    <h4>必殺</h4>
+                    <p><strong>効果：</strong> 20%の確率で相手への攻撃のダメージが1.5倍になります。</p>
+                    <p style="margin-top: 5px; color: #667eea; font-weight: bold;">💡 戦術：運次第で大ダメージ。一発逆転の可能性があります。ハイリスク・ハイリターン型。</p>
+                </div>
+            </div>
+
+            <div class="tip">
+                <h4>💡 Tier4オーブの組み合わせ</h4>
+                <p>複数のTier4オーブを組み合わせることで、複数の固有能力を同時に保有できます。例えば、「ライフドレイン」と「鉄壁」を組み合わせれば、攻撃で回復しながら防御が堅牢な最強の武器になります！</p>
+            </div>
+        </div>
+
+        <!-- ボスバトル -->
+        <div class="section">
+            <h2 id="boss-battle">👹 ボスバトル</h2>
+            <p>パーティメンバーと協力、またはソロで強力なボスに挑戦するモードです。ボスを倒すと、特別な報酬が手に入ります。</p>
+
+            <h3>ボスバトルの報酬</h3>
+            <div class="subsection">
+                <h4>ボスドロップ武器</h4>
+                <p>難易度<strong>ノーマル</strong>を初めてクリアすると、そのボスをモチーフにした強力なユニーク武器が必ずドロップします。</p>
+            </div>
+            <div class="subsection">
+                <h4>ボス固有スキル</h4>
+                <p>難易度<strong>ハード</strong>を初めてクリアすると、そのボスが使用する強力なスキルを「秘技」として習得できます。</p>
+            </div>
+            <div class="subsection">
+                <h4>限界突破素材</h4>
+                <p>ボスドロップ武器をさらに強化するための「限界突破素材」が手に入ります。素材名はボスごとに異なります。</p>
+                <ul style="margin-left: 14px; margin-top: 6px;">
+                    <li><strong>難易度ノーマル:</strong> 1個ドロップ</li>
+                    <li><strong>難易度ハード:</strong> 2個ドロップ</li>
+                </ul>
+            </div>
+            <div class="tip">
+                <h4>💡 ボス攻略のコツ</h4>
+                <p>ボスは非常に強力です。まずはノーマルで武器を手に入れ、その後ノーマルやハードを周回して限界突破素材を集め、武器を最大限まで強化して最強のボスに挑みましょう！</p>
+            </div>
+            <div class="subsection">
+                <h4>ボスの一覧</h4>
+                <p>現在15体のボスが登場します。強さの目安は以下の通りで、後半になるほど強力です。</p>
+                <p>ゴブリンキング → 森の魔女 → オークの戦将 → 岩石トロール → ヨルムンガンド → サンドワーム → アイスゴーレム → 雷神ガルーダ → フレイムドラゴン → 深海クラーケン → アビサルナイト → 血の伯爵 → セレスティアルガーディアン → 堕天使ルシフェル → <strong>深淵ヲ廻ルモノ（最強）</strong></p>
+            </div>
+        </div>
+
+        <!-- モンスター討伐と素材 -->
+        <div class="section">
+            <h2 id="monster-battle">👹 モンスター討伐と素材</h2>
+            <p>「オンライン」タブの「ボットバトル」から、ボスではない通常のモンスターと戦うことができます。</p>
+            <div class="subsection">
+                <h4>対戦するモンスターの選択</h4>
+                <p>「対戦するモンスター」の欄で、挑みたいモンスターを個別に選ぶことができます。「おまかせ（ランダム）」を選ぶと、登場するモンスターがランダムに決まります。</p>
+            </div>
+            <div class="subsection">
+                <h4>モンスター素材のドロップ</h4>
+                <p>モンスターに勝利すると、一定確率でそのモンスター特有の素材がドロップすることがあります。入手した素材は結果画面に表示され、「ショップ」タブの素材インベントリで確認できます。ドロップした素材は、オーブ合成などに利用できます。</p>
+            </div>
+        </div>
+
+        <!-- ギルドとギルドクエスト -->
+        <div class="section">
+            <h2 id="guild-system">🏰 ギルドとギルドクエスト</h2>
+            <p>「ギルド」タブから、ギルドの作成・参加・脱退ができます。ギルドに加入すると、ギルド専用の「クエスト掲示板」からクエストを受注できるようになります。</p>
+            <div class="subsection">
+                <h4>冒険者ランク</h4>
+                <p>ギルドクエストを受注するには、冒険者ランクが必要です。ランクは「冒険者経験値」（ギルドに加入した状態で勉強したり戦ったりすることで上昇）に応じて、F・E・D・C・B・A・Sの順に上がっていきます。クエストごとに設定された必要ランク以上でないと受注できません。</p>
+            </div>
+            <div class="subsection">
+                <h4>クエストの種類</h4>
+                <p>クエストには「討伐」（ボス討伐・対人戦勝利）「納品」（モンスター素材の収集）「特殊」（勉強時間）などがあり、Fランクの入門クエストから、Sランクの高難度クエストまで幅広く用意されています。</p>
+            </div>
+            <div class="subsection">
+                <h4>クエストの入れ替わり</h4>
+                <p>クエスト掲示板の内容は、週替わりで自動的に入れ替わります。</p>
+            </div>
+            <div class="subsection">
+                <h4>ギルドリーダーについて</h4>
+                <p>ギルドリーダーも脱退できます。他にメンバーが残っている場合は、最も古参のメンバーに自動でリーダー権限が引き継がれます。あなたが最後の1人だった場合は、ギルドごと解散されます。</p>
+            </div>
+        </div>
+
+        <!-- ゲームのコツ -->
+        <div class="section">
+            <h2 id="tips">💡 ゲームのコツ</h2>
+
+            <div class="subsection">
+                <h4>1. 勉強を効率よく進める</h4>
+                <p>勉強タイマーで30分以上勉強すると、ステータスがアップします。特に「圧倒的成長性」のオーブを手に入れたら、積極的に勉強してステータスを伸ばしましょう。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>2. オーブの効果を理解する</h4>
+                <p>オーブの種類とステータスタイプを理解することで、より効果的な武器を作成できます。攻撃特化にしたい時は「攻撃」ボーナスのオーブを集め、防御特化なら「防御」オーブを集めましょう。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>3. 武器の使い分け</h4>
+                <p>相手のプレイスタイルに応じて武器を変えましょう。強い攻撃力の相手には防御力の高い武器、防御力の高い相手には攻撃力重視の武器を選ぶことで、勝率が上がります。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>4. 必殺技ゲージを管理する</h4>
+                <p>正解を重ねてゲージを溜めて、ここぞという時に必殺技を発動させましょう。序盤の無駄な必殺技発動は避け、勝負の決め手として使うと効果的です。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>5. コイン管理を大切に</h4>
+                <p>コインは武器購入や強化に必要です。不要な武器は早めに整理し、コインを効率よく使いましょう。バトル勝利で15枚のコインが入手できます。</p>
+            </div>
+
+            <div class="subsection">
+                <h4>6. Tier4オーブを狙う</h4>
+                <p>ドロップ率は5%と低いですが、Tier4オーブは最高の価値があります。長期的に見て、Tier4オーブを複数集めることで、最強のオリジナル武器を作成できます。</p>
+            </div>
+
+            <div class="tip">
+                <h4>🎯 最終的な目標</h4>
+                <p>勉強でステータスを上げ、オーブを集めて最強のオリジナル武器を作成し、バトルで無敗のプレイヤーを目指しましょう！偏差値でバトるは、学力とゲーム戦略の両方が試されるユニークなゲームです。</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2024 偏差値でバトる - ゲームヘルプ</p>
+            <p>最終更新：2024年</p>
+        </footer>
+    </div>
+</body>
+</html>
