@@ -42,7 +42,7 @@
     // 地域別モンスターを定義済みなので、そのまま利用する。
     const REGIONS = {
         town_main: {
-            name: "はじまりの町", w: 1600, h: 1000, spawn: { x: 800, y: 500 },
+            name: "はじまりの町", w: 1600, h: 1000, spawn: { x: 900, y: 500 },
             bg: "#2f5233", buildings: TOWN_BUILDINGS, npcs: TOWN_NPCS
         },
         grassland: {
@@ -458,6 +458,7 @@
         const r = 16; // プレイヤーの当たり判定半径
         for (const b of BUILDINGS) {
             if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) {
+                console.log('[World] Collision with building:', b.label, 'at', x, y);
                 return true;
             }
         }
@@ -500,8 +501,12 @@
             const clampedY = Math.max(margin, Math.min(currentWorldH - margin, ny));
 
             // X軸・Y軸を別々に判定して、壁沿いに滑れるようにする
-            if (!collidesWithBuilding(clampedX, local.y)) local.x = clampedX;
-            if (!collidesWithBuilding(local.x, clampedY)) local.y = clampedY;
+            const xCollision = collidesWithBuilding(clampedX, local.y);
+            const yCollision = collidesWithBuilding(local.x, clampedY);
+            console.log('[World] Collision check - X:', xCollision, 'Y:', yCollision, 'target:', clampedX, clampedY);
+
+            if (!xCollision) local.x = clampedX;
+            if (!yCollision) local.y = clampedY;
         }
     }
 
