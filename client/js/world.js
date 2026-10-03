@@ -270,6 +270,49 @@
         return true;
     }
 
+    function setupDpadListeners() {
+        // dpadのイベントリスナーを再設定（町セクションがアクティブになった時用）
+        console.log('[World] Setting up dpad listeners');
+        const dpadBtns = document.querySelectorAll(".town-dpad-btn");
+        console.log('[World] Found dpad buttons:', dpadBtns.length);
+        dpadBtns.forEach(btn => {
+            const dir = btn.dataset.dir;
+            console.log('[World] Setting up dpad button for direction:', dir);
+            const setState = (v) => {
+                console.log('[World] Dpad state changed:', dir, v);
+                dpadKeys[dir] = v;
+            };
+            // イベントリスナーを追加する前に、既存のリスナーを削除して重複を防ぐ
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            newBtn.addEventListener("touchstart", (e) => {
+                console.log('[World] Touchstart on dpad:', dir);
+                e.preventDefault();
+                setState(true);
+            }, { passive: false });
+            newBtn.addEventListener("touchend", (e) => {
+                console.log('[World] Touchend on dpad:', dir);
+                e.preventDefault();
+                setState(false);
+            }, { passive: false });
+            newBtn.addEventListener("mousedown", () => {
+                console.log('[World] Mousedown on dpad:', dir);
+                setState(true);
+            });
+            newBtn.addEventListener("mouseup", () => {
+                console.log('[World] Mouseup on dpad:', dir);
+                setState(false);
+            });
+            newBtn.addEventListener("mouseleave", () => {
+                console.log('[World] Mouseleave on dpad:', dir);
+                setState(false);
+            });
+        });
+    }
+
+        return true;
+    }
+
     function onKeyDown(e) {
         if (!sectionActive) return;
         console.log('[World] Key down:', e.key);
@@ -928,6 +971,8 @@
         console.log('[World] onTownSectionActivated called:', isActive);
         sectionActive = isActive;
         if (isActive) {
+            // dpadのイベントリスナーを再設定
+            setupDpadListeners();
             tryJoinWorld();
             startLoop();
         } else {
