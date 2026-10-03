@@ -8,11 +8,29 @@
     "def": 50,
     "speed": 50,
     "id": "QIBHS2",
-    "xp": 0,
+    "xp": 18,
     "level": 1,
-    "coins": 50,
-    "weapons": [],
-    "equippedWeapon": null,
+    "coins": 0,
+    "weapons": [
+      {
+        "id": "pistol_tier2",
+        "type": "pistol",
+        "tier": "tier2",
+        "name": "連射ピストル",
+        "isUnique": false,
+        "isDebug": false,
+        "isDebugWeapon": false
+      }
+    ],
+    "equippedWeapon": {
+      "id": "pistol_tier2",
+      "type": "pistol",
+      "tier": "tier2",
+      "name": "連射ピストル",
+      "isUnique": false,
+      "isDebug": false,
+      "isDebugWeapon": false
+    },
     "weaponWins": {},
     "orbs": [],
     "skillTree": {
@@ -74,6 +92,9 @@
         }
       ],
       "finalRewardClaimed": false
-    }
+    },
+    "special": 50,
+    "dungeonItems": [],
+    "dungeonCheckpoint": 0
   }
 }
