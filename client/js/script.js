@@ -1306,6 +1306,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // 問題リストセクションを開いたときはパネルを描画
+        if (section === 'questionlists') {
+            try {
+                if (typeof renderQuestionListPanel === "function") {
+                    renderQuestionListPanel();
+                }
+            } catch (e) {
+                console.error("Error rendering question lists panel:", e);
+            }
+        }
+
         closeMobileMenu();
     }
     window.activateSection = activateSection;

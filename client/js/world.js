@@ -272,6 +272,7 @@
 
     function onKeyDown(e) {
         if (!sectionActive) return;
+        console.log('[World] Key down:', e.key);
         switch (e.key) {
             case "w": case "W": case "ArrowUp": keys.up = true; break;
             case "s": case "S": case "ArrowDown": keys.down = true; break;
@@ -476,6 +477,10 @@
         if (right) dx += 1;
 
         local.moving = dx !== 0 || dy !== 0;
+
+        if (local.moving) {
+            console.log('[World] Moving:', dx, dy, 'position:', local.x, local.y);
+        }
 
         if (local.moving) {
             const len = Math.hypot(dx, dy) || 1;
@@ -810,13 +815,18 @@
     }
 
     function startLoop() {
-        if (rafId != null) return;
+        if (rafId != null) {
+            console.log('[World] Loop already running');
+            return;
+        }
+        console.log('[World] Starting loop');
         lastFrameTime = null;
         rafId = requestAnimationFrame(loop);
     }
 
     function stopLoop() {
         if (rafId != null) {
+            console.log('[World] Stopping loop');
             cancelAnimationFrame(rafId);
             rafId = null;
         }
