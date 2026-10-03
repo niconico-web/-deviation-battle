@@ -49,8 +49,8 @@ const DUNGEONS = [
 // ダンジョンの進行状況
 let dungeonProgress = {};
 
-// 現在のダンジョン
-let currentDungeon = null;
+// 現在のダンジョン（クラシックダンジョンシステム用）
+let currentClassicDungeon = null;
 
 // ダンジョンに入る
 function enterDungeon(dungeonId) {
@@ -84,7 +84,7 @@ function enterDungeon(dungeonId) {
         if (!confirmed) return;
     }
     
-    currentDungeon = dungeon;
+    currentClassicDungeon = dungeon;
     
     // ワールドシステムにダンジョン設定を通知
     if (typeof setDungeonWorld === 'function') {
@@ -120,7 +120,7 @@ function enterDungeon(dungeonId) {
 
 // ダンジョンから出る
 function exitDungeon() {
-    if (!currentDungeon) return;
+    if (!currentClassicDungeon) return;
     
     const player = getPlayerData();
     if (!player) return;
@@ -132,9 +132,9 @@ function exitDungeon() {
     
     // ダンジョン用ワールドから退出
     if (window.socket && window.socket.connected) {
-        window.socket.emit('world:leave', { 
-            worldId: currentDungeon.worldId, 
-            playerId: player.id 
+        window.socket.emit('world:leave', {
+            worldId: currentClassicDungeon.worldId,
+            playerId: player.id
         });
         
         setTimeout(() => {
@@ -151,7 +151,7 @@ function exitDungeon() {
         }, 100);
     }
     
-    currentDungeon = null;
+    currentClassicDungeon = null;
     
     addChatMessage({
         type: 'system',
@@ -164,26 +164,26 @@ function exitDungeon() {
 
 // ダンジョンクリア
 function clearDungeon() {
-    if (!currentDungeon) return;
+    if (!currentClassicDungeon) return;
     
     const player = getPlayerData();
     if (!player) return;
     
     // 報酬を付与
-    if (currentDungeon.rewards) {
+    if (currentClassicDungeon.rewards) {
         // EXP
-        if (currentDungeon.rewards.exp) {
-            player.xp = (player.xp || 0) + currentDungeon.rewards.exp;
+        if (currentClassicDungeon.rewards.exp) {
+            player.xp = (player.xp || 0) + currentClassicDungeon.rewards.exp;
         }
-        
+
         // コイン
-        if (currentDungeon.rewards.coins) {
-            player.coins = (player.coins || 0) + currentDungeon.rewards.coins;
+        if (currentClassicDungeon.rewards.coins) {
+            player.coins = (player.coins || 0) + currentClassicDungeon.rewards.coins;
         }
-        
+
         // アイテム
-        if (currentDungeon.rewards.items && currentDungeon.rewards.items.length > 0) {
-            currentDungeon.rewards.items.forEach(item => {
+        if (currentClassicDungeon.rewards.items && currentClassicDungeon.rewards.items.length > 0) {
+            currentClassicDungeon.rewards.items.forEach(item => {
                 if (item.type === 'orb') {
                     if (!player.orbs) player.orbs = [];
                     if (typeof createOrb === 'function') {
@@ -199,14 +199,14 @@ function clearDungeon() {
     }
     
     // クリア記録を保存
-    if (!dungeonProgress[currentDungeon.id]) {
-        dungeonProgress[currentDungeon.id] = {
+    if (!dungeonProgress[currentClassicDungeon.id]) {
+        dungeonProgress[currentClassicDungeon.id] = {
             firstClearAt: Date.now(),
             clearCount: 0
         };
     }
-    dungeonProgress[currentDungeon.id].clearCount++;
-    dungeonProgress[currentDungeon.id].lastClearAt = Date.now();
+    dungeonProgress[currentClassicDungeon.id].clearCount++;
+    dungeonProgress[currentClassicDungeon.id].lastClearAt = Date.now();
     
     // プレイヤーデータに保存
     player.dungeonProgress = dungeonProgress;
@@ -216,11 +216,11 @@ function clearDungeon() {
         type: 'system',
         playerName: 'ダンジョン',
         playerLevel: 0,
-        message: `${currentDungeon.name}をクリアしました！EXP+${currentDungeon.rewards.exp} コイン+${currentDungeon.rewards.coins}`,
+        message: `${currentClassicDungeon.name}をクリアしました！EXP+${currentClassicDungeon.rewards.exp} コイン+${currentClassicDungeon.rewards.coins}`,
         timestamp: Date.now()
     });
-    
-    alert(`🎉 ${currentDungeon.name}クリア！\nEXP+${currentDungeon.rewards.exp} コイン+${currentDungeon.rewards.coins}`);
+
+    alert(`🎉 ${currentClassicDungeon.name}クリア！\nEXP+${currentClassicDungeon.rewards.exp} コイン+${currentClassicDungeon.rewards.coins}`);
     
     // 自動的に町に戻る
     exitDungeon();
@@ -286,7 +286,7 @@ function showDungeonSelectionUI() {
 
 // 現在のダンジョンを取得
 function getCurrentDungeon() {
-    return currentDungeon;
+    return currentClassicDungeon;
 }
 
 // グローバル関数として公開

@@ -1,0 +1,79 @@
+{
+  "QIBHS2": {
+    "name": "池水蒼大",
+    "hp": 100,
+    "maxHp": 100,
+    "atk": 50,
+    "sp": 50,
+    "def": 50,
+    "speed": 50,
+    "id": "QIBHS2",
+    "xp": 0,
+    "level": 1,
+    "coins": 50,
+    "weapons": [],
+    "equippedWeapon": null,
+    "weaponWins": {},
+    "orbs": [],
+    "skillTree": {
+      "unlockedNodes": [],
+      "availablePoints": 0
+    },
+    "skillSlots": [
+      null,
+      null,
+      null
+    ],
+    "customSkills": [],
+    "bossDefeats": {},
+    "dungeonClears": {},
+    "materials": {},
+    "pvpWins": 0,
+    "bossRunCount": 0,
+    "totalStudySeconds": 0,
+    "grade": 1,
+    "prestigeCount": 0,
+    "prestigeBonusPercent": 0,
+    "lastLoginDate": "2026-10-03",
+    "loginStreak": 1,
+    "questionLists": [],
+    "craftCurrency": {
+      "chaos": 0,
+      "divine": 0,
+      "imprint": 0
+    },
+    "dailyMissions": {
+      "date": "2026-10-03",
+      "missions": [
+        {
+          "id": "win_online_2",
+          "type": "win_online",
+          "target": 2,
+          "description": "オンライン対戦で2回勝利する",
+          "progress": 0,
+          "completed": false,
+          "claimed": false
+        },
+        {
+          "id": "level_up_1",
+          "type": "level_up",
+          "target": 1,
+          "description": "レベルを1上げる",
+          "progress": 0,
+          "completed": false,
+          "claimed": false
+        },
+        {
+          "id": "win_bot_3",
+          "type": "win_bot",
+          "target": 3,
+          "description": "ボット戦で3回勝利する",
+          "progress": 0,
+          "completed": false,
+          "claimed": false
+        }
+      ],
+      "finalRewardClaimed": false
+    }
+  }
+}
