@@ -353,18 +353,11 @@
     });
 
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
-<<<<<<< HEAD
     // キャプチャ段階で受ける：他のクリック処理が伝播を止めても、⚙️ボタンが必ず反応するようにする
     document.addEventListener('click', (e) => {
         const t = e.target.closest && e.target.closest('[data-open-ui-settings]');
         if (t) { e.preventDefault(); e.stopPropagation(); openPanel(); }
     }, true);
-=======
-    document.addEventListener('click', (e) => {
-        const t = e.target.closest && e.target.closest('[data-open-ui-settings]');
-        if (t) { e.preventDefault(); openPanel(); }
-    });
->>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
 
     // 歯車ボタンを画面の隅に常設する（ツールバーの無い画面用）
     function addGearButton(pos) {
