@@ -101,11 +101,24 @@
         /* スティック・ボタンはクイズより前面にならないよう、操作エリア内にだけ置く */
         html.touch-ui .skill-bar { width: min(232px, 56vw); gap: 4px; }
         html.touch-ui .skill-btn { min-height: 52px; }
+    /* 縦向き：上に戦闘画面（拡大して自キャラを追従）、その下にクイズ、一番下に操作ボタン。
+       クイズは操作ボタンの上（親指が届く位置）に置き、スティックの反応エリアは画面下側だけにしてある */
+    @media (orientation: portrait) {
+        html.touch-ui .wrap { max-width: none; padding: max(0px, env(safe-area-inset-top, 0px)) 0 0; gap: 6px; }
+        html.touch-ui .stage { flex: 0 0 auto; display: block; }
+        html.touch-ui #game { border-radius: 0; border-left: none; border-right: none; }
+        html.touch-ui .panel { grid-template-columns: 1fr; gap: 6px; padding: 0 6px; position: relative; z-index: 12; }
+        html.touch-ui .side { min-width: 0; }
+        html.touch-ui .quiz { position: relative; z-index: 12; }
+        html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        html.touch-ui .quiz-choice { min-height: 56px; padding: 10px 4px; font-size: 1.05rem; touch-action: manipulation; }
+        html.touch-ui #gauges { display: flex; flex-direction: column; gap: 4px; margin-bottom: 2px; }
     }
     @media (max-width: 640px) {
         .panel { grid-template-columns: 1fr; }
         .side { min-width: 0; }
         .quiz-choices { grid-template-columns: repeat(2, 1fr); }
+    }
     }
 </style>
 </head>
