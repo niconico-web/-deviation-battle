@@ -1151,8 +1151,22 @@
         // 仮想ジョイスティック（タッチ用・共通部品）。画面左側を触った所に出る（設定で固定位置にも変更可）
         if (window.Joystick) {
             Joystick.mount({
+<<<<<<< HEAD
                 // 縦向きはクイズの下（画面の下半分）だけをスティックの反応エリアにして、クイズのタップと干渉しないようにする
                 region: () => (window.innerHeight > window.innerWidth) ? { left: 0, top: 0.62, width: 0.5, height: 0.38 } : { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+=======
+<<<<<<< HEAD
+                // 縦向きはクイズの下（画面の下半分）だけをスティックの反応エリアにして、クイズのタップと干渉しないようにする
+                region: () => (window.innerHeight > window.innerWidth) ? { left: 0, top: 0.62, width: 0.5, height: 0.38 } : { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+=======
+<<<<<<< HEAD
+                // 縦向きはクイズの下（画面の下半分）だけをスティックの反応エリアにして、クイズのタップと干渉しないようにする
+                region: () => (window.innerHeight > window.innerWidth) ? { left: 0, top: 0.62, width: 0.5, height: 0.38 } : { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+=======
+                region: { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
                 onChange: (x, y, mag) => {
                     input.stickX = x; input.stickY = y;
                     if (mag > 0) input.mouseActive = false;
@@ -1168,18 +1182,35 @@
         const sw = st.clientWidth, sh = st.clientHeight;
         if (sw < 10) return;
         const portraitTouch = document.documentElement.classList.contains('touch-ui') && window.innerHeight > window.innerWidth;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
         if (portraitTouch) {
             // スマホ縦向き：16:9で全体を映すと小さすぎるので、拡大して自キャラ付近を追従表示する
             const dpr = Math.min(2, window.devicePixelRatio || 1);
             const user = (window.UISettings && Number(UISettings.getGlobal('abZoom'))) || 1.3;
             const z = Math.max(sw / W, (sw / 680) * user);       // 少なくともフィールド幅が収まる倍率より大きく
             const cssW = Math.floor(sw);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
             // 下の操作エリア(172px)とクイズ欄を引いた残りが、戦闘画面に使える高さ
             const panel = document.querySelector('.panel');
             const panelH = panel ? panel.offsetHeight : 190;
             const ctrl = 172 + 12;
             const room = window.innerHeight - ctrl - panelH - 14;
             const cssH = Math.floor(Math.max(170, Math.min(H * z, room)));
+<<<<<<< HEAD
+=======
+=======
+            const cssH = Math.floor(Math.min(H * z, window.innerHeight * 0.5));
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
             canvas.style.width = cssW + 'px';
             canvas.style.height = cssH + 'px';
             const pw = Math.round(cssW * dpr), ph = Math.round(cssH * dpr);
@@ -1193,13 +1224,33 @@
             canvas.width = W; canvas.height = H;
         }
         const w = Math.min(sw, sh * 16 / 9);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        const w = portraitTouch ? sw : Math.min(sw, sh * 16 / 9);
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
         canvas.style.width = Math.floor(w) + 'px';
         canvas.style.height = Math.floor(w * 9 / 16) + 'px';
     }
 
     function setupUISettings() {
         if (!window.UISettings) return;
+<<<<<<< HEAD
         UISettings.registerGlobal({ key: 'abZoom', label: '戦闘画面の拡大率（スマホ縦向き）', type: 'range', def: 1.3, min: 0.8, max: 2, step: 0.05, note: '大きくすると自キャラ付近が大きく映り、小さくするとフィールド全体が見えます。' });
+=======
+<<<<<<< HEAD
+        UISettings.registerGlobal({ key: 'abZoom', label: '戦闘画面の拡大率（スマホ縦向き）', type: 'range', def: 1.3, min: 0.8, max: 2, step: 0.05, note: '大きくすると自キャラ付近が大きく映り、小さくするとフィールド全体が見えます。' });
+=======
+<<<<<<< HEAD
+        UISettings.registerGlobal({ key: 'abZoom', label: '戦闘画面の拡大率（スマホ縦向き）', type: 'range', def: 1.3, min: 0.8, max: 2, step: 0.05, note: '大きくすると自キャラ付近が大きく映り、小さくするとフィールド全体が見えます。' });
+=======
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
         const touch = UISettings.isTouchUI();
         if (touch) {
             const hint = document.querySelector('.hint');
@@ -1213,7 +1264,19 @@
         UISettings.register({ id: 'ab-guard', label: 'ガードボタン', selector: '#guardBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
         UISettings.register({ id: 'ab-hint', label: '操作ヒント', selector: '.hint', anchor: 'c', canHide: true, canScale: false });
         UISettings.addGearButton({ top: 'max(8px, env(safe-area-inset-top, 0px))', right: 'max(8px, env(safe-area-inset-right, 0px))' });
+<<<<<<< HEAD
         UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
+=======
+<<<<<<< HEAD
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
+=======
+<<<<<<< HEAD
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
+=======
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '*') fitCanvas(); });
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
     }
 
     // ---------- 終了処理 ----------
@@ -1257,6 +1320,7 @@
     }
 
     // ---------- 起動 ----------
+<<<<<<< HEAD
     // 起動：どこか1つ（UI設定・ジョイスティック・画面フィットなど）で例外が出ても、
     // クイズとゲームループは必ず始まるようにする（以前は途中で止まって「読み込み中...」のままになった）
     const safe = (name, fn) => { try { fn(); } catch (e) { console.error('[ActionBattle] ' + name + ' failed:', e); } };
@@ -1279,6 +1343,28 @@
     safe('nextQuiz', nextQuiz);
     const introEl = document.getElementById('enemyIntro');
     if (introEl) introEl.textContent =
+=======
+    buildSkillBar();
+    updateEnergyUI();
+    updateStaminaUI();
+    bindInput();
+    setupUISettings();
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 250));
+<<<<<<< HEAD
+    if (typeof ResizeObserver !== 'undefined') {
+        const ro = new ResizeObserver(fitCanvas);
+        ro.observe(canvas.parentElement);
+        const pn = document.querySelector('.panel');
+        if (pn) ro.observe(pn);
+    }
+=======
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitCanvas).observe(canvas.parentElement);
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+    nextQuiz();
+    document.getElementById('enemyIntro').textContent =
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
         (tier === 'boss' ? '⚠️ ボス「' : (tier === 'elite' ? '✨ レア個体「' : '「')) + enemy.name + '」との戦闘！';
     setTimeout(() => { const el = document.getElementById('enemyIntro'); if (el) el.classList.add('hide'); }, 2200);
     requestAnimationFrame((t) => { last = t; loop(t); });
