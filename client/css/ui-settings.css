@@ -1,0 +1,153 @@
+/* ============================================================
+   UI設定（表示/非表示・サイズ・不透明度）とジョイスティックの共通スタイル
+   js/ui-settings.js / js/joystick.js から使われる
+   ============================================================ */
+
+.ui-hidden { display: none !important; }
+
+/* ---------- UI設定パネル（ボトムシート） ---------- */
+.uis-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100000;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    -webkit-tap-highlight-color: transparent;
+}
+.uis-overlay.open { display: flex; }
+
+.uis-sheet {
+    width: 100%;
+    max-width: 560px;
+    max-height: 86vh;
+    max-height: 86dvh;
+    display: flex;
+    flex-direction: column;
+    background: #1b1f2a;
+    color: #e8ecf5;
+    border: 1px solid #3a4560;
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.5);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    font-family: "Hiragino Sans", "Meiryo", sans-serif;
+}
+@media (min-width: 700px) {
+    .uis-overlay { align-items: center; }
+    .uis-sheet { border-radius: 16px; border-bottom: 1px solid #3a4560; }
+}
+
+.uis-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #2c3550;
+}
+.uis-head h2 { margin: 0; padding: 0; border: none; font-size: 1.05rem; color: #e8ecf5; }
+.uis-close {
+    background: #2a3350; color: #fff; border: none; border-radius: 8px;
+    width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer;
+}
+
+.uis-body { overflow-y: auto; padding: 8px 16px 12px; -webkit-overflow-scrolling: touch; }
+
+.uis-section-title {
+    margin: 14px 0 4px; font-size: 0.78rem; letter-spacing: .05em; color: #8fa3d4; font-weight: bold;
+}
+
+.uis-row { padding: 10px 0; border-bottom: 1px solid #262e45; }
+.uis-row:last-child { border-bottom: none; }
+.uis-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 36px; }
+.uis-label { font-weight: bold; font-size: 0.95rem; }
+.uis-sub { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 0.82rem; color: #b6c2e0; }
+.uis-sub > span:first-child { width: 78px; flex: 0 0 auto; }
+.uis-sub input[type="range"] { flex: 1 1 auto; min-width: 0; height: 28px; accent-color: #64d8ff; }
+.uis-sub .uis-val { width: 52px; text-align: right; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.uis-sub select { flex: 1; background: #10131b; color: #fff; border: 1px solid #3a4560; border-radius: 8px; padding: 8px; font-size: 0.9rem; }
+
+/* スイッチ */
+.uis-switch { position: relative; width: 52px; height: 30px; flex: 0 0 auto; }
+.uis-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; width: 100%; height: 100%; cursor: pointer; z-index: 1; }
+.uis-switch-track { position: absolute; inset: 0; background: #3a4258; border-radius: 15px; transition: background .15s; }
+.uis-switch-track::after {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px;
+    background: #fff; border-radius: 50%; transition: transform .15s;
+}
+.uis-switch input:checked + .uis-switch-track { background: #2e9e6b; }
+.uis-switch input:checked + .uis-switch-track::after { transform: translateX(22px); }
+
+.uis-foot { display: flex; gap: 8px; padding: 10px 16px 14px; border-top: 1px solid #2c3550; }
+.uis-btn {
+    flex: 1; padding: 11px 8px; border-radius: 10px; border: 1px solid #3a4560;
+    background: #26304a; color: #fff; font-size: 0.9rem; cursor: pointer;
+}
+.uis-btn.primary { background: #1d6fb8; border-color: #4aa3ee; }
+.uis-note { font-size: 0.75rem; color: #8995b5; margin: 6px 0 0; line-height: 1.5; }
+
+/* 歯車ボタン（ツールバーが無い画面用の小さな常設ボタン） */
+.uis-gear {
+    position: fixed;
+    z-index: 1500;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(15, 17, 21, 0.7);
+    color: #fff; font-size: 1.1rem; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- ジョイスティック ---------- */
+.joy-zone {
+    position: fixed;
+    z-index: 6;
+    touch-action: none;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    display: none;
+}
+html.touch-ui .joy-zone { display: block; }
+
+.joy-base {
+    position: fixed;
+    left: 0; top: 0;
+    z-index: 7;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.10), rgba(255,255,255,0.04) 70%);
+    border: 2px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 0 14px rgba(0, 0, 0, 0.35) inset;
+    pointer-events: none;
+    opacity: calc(0.45 * var(--joy-o, 1));
+    transition: opacity .15s;
+    display: none;
+    will-change: transform;
+}
+html.touch-ui .joy-base { display: block; }
+.joy-base.active { opacity: calc(0.95 * var(--joy-o, 1)); }
+.joy-base::before {
+    content: ""; position: absolute; inset: 22%;
+    border-radius: 50%; border: 1px dashed rgba(255,255,255,0.18);
+}
+.joy-knob {
+    position: absolute; left: 50%; top: 50%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.75), rgba(190,210,255,0.5));
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    will-change: transform;
+}
+
+/* 横向きスマホ：縦が狭いので、パネルの余白を詰めて設定項目を多く見せる */
+@media (max-height: 520px) {
+    .uis-sheet { max-height: 96vh; max-height: 96dvh; }
+    .uis-head { padding: 6px 12px; }
+    .uis-close { width: 34px; height: 34px; }
+    .uis-body { padding: 4px 14px 8px; }
+    .uis-row { padding: 6px 0; }
+    .uis-foot { padding: 6px 12px 8px; }
+    .uis-btn { padding: 8px; }
+}
