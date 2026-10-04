@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 const CACHE_NAME = 'school-battle-cache-v52';
+=======
+const CACHE_NAME = 'school-battle-cache-v50';
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
