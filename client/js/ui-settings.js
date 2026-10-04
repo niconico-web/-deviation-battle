@@ -185,6 +185,7 @@
         document.documentElement.classList.toggle('touch-ui', isTouchUI());
     }
     applyGlobals();
+<<<<<<< HEAD
     // 「自動」のとき、端末がタッチ対応と報告しなくても（PC表示モード・ウィンドウを狭めた表示など）、
     // 実際に指で触れた時点でタッチ操作UI（ジョイスティック等）を有効にする
     window.addEventListener('pointerdown', (e) => {
@@ -194,6 +195,8 @@
             emit('_g:touchUI');
         }
     }, { passive: true, capture: true });
+=======
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
     try {
         const mq = window.matchMedia('(pointer: coarse)');
         if (mq.addEventListener) mq.addEventListener('change', applyGlobals);
