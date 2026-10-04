@@ -1087,29 +1087,46 @@
             }, () => false);
         });
 
-        // 仮想スティック（タッチ用）
-        const stick = document.getElementById('stickZone');
-        const knob = document.getElementById('stickKnob');
-        let stickId = null, cx = 0, cy = 0;
-        stick.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture(e.pointerId);
-            const r = stick.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2;
-            input.mouseActive = false;
-        });
-        stick.addEventListener('pointermove', (e) => {
-            if (e.pointerId !== stickId) return;
-            let dx = e.clientX - cx, dy = e.clientY - cy;
-            const max = 50, l = Math.hypot(dx, dy);
-            if (l > max) { dx = dx / l * max; dy = dy / l * max; }
-            input.stickX = dx / max; input.stickY = dy / max;
-            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-        });
-        const endStick = (e) => {
-            if (e.pointerId !== stickId) return;
-            stickId = null; input.stickX = 0; input.stickY = 0; knob.style.transform = 'translate(0,0)';
-        };
-        stick.addEventListener('pointerup', endStick);
-        stick.addEventListener('pointercancel', endStick);
+        // 仮想ジョイスティック（タッチ用・共通部品）。画面左側を触った所に出る（設定で固定位置にも変更可）
+        if (window.Joystick) {
+            Joystick.mount({
+                region: { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+                onChange: (x, y, mag) => {
+                    input.stickX = x; input.stickY = y;
+                    if (mag > 0) input.mouseActive = false;
+                }
+            });
+        }
+    }
+
+    // ---------- 画面フィット＆UI設定 ----------
+    // 戦闘フィールド(canvas)は16:9のまま、画面に収まる最大サイズで表示する
+    function fitCanvas() {
+        const st = canvas.parentElement;
+        const sw = st.clientWidth, sh = st.clientHeight;
+        if (sw < 10) return;
+        const portraitTouch = document.documentElement.classList.contains('touch-ui') && window.innerHeight > window.innerWidth;
+        const w = portraitTouch ? sw : Math.min(sw, sh * 16 / 9);
+        canvas.style.width = Math.floor(w) + 'px';
+        canvas.style.height = Math.floor(w * 9 / 16) + 'px';
+    }
+
+    function setupUISettings() {
+        if (!window.UISettings) return;
+        const touch = UISettings.isTouchUI();
+        if (touch) {
+            const hint = document.querySelector('.hint');
+            if (hint) hint.textContent = '左側をドラッグで移動 / 攻撃・スキルは押したままドラッグで狙って、離すと発動（タップだけなら自動照準）';
+        }
+        UISettings.register({ id: 'ab-gauges', label: 'ゲージ（気力・スタミナ）', selector: '#gauges', anchor: 'bc', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-quiz', label: 'クイズ欄', selector: '.quiz', anchor: 'bc', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.5, note: 'バトルに必須なので、非表示にはできません（小さく・薄くはできます）。' });
+        UISettings.register({ id: 'ab-skills', label: 'スキルボタン', selector: '.skill-bar', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-attack', label: '攻撃ボタン', selector: '#attackBtn', anchor: 'br', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-dodge', label: '回避ボタン', selector: '#dodgeBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-guard', label: 'ガードボタン', selector: '#guardBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-hint', label: '操作ヒント', selector: '.hint', anchor: 'c', canHide: true, canScale: false });
+        UISettings.addGearButton({ top: 'max(8px, env(safe-area-inset-top, 0px))', right: 'max(8px, env(safe-area-inset-right, 0px))' });
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '*') fitCanvas(); });
     }
 
     // ---------- 終了処理 ----------
@@ -1157,6 +1174,11 @@
     updateEnergyUI();
     updateStaminaUI();
     bindInput();
+    setupUISettings();
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 250));
+    if (typeof ResizeObserver !== 'undefined') new ResizeObserver(fitCanvas).observe(canvas.parentElement);
     nextQuiz();
     document.getElementById('enemyIntro').textContent =
         (tier === 'boss' ? '⚠️ ボス「' : (tier === 'elite' ? '✨ レア個体「' : '「')) + enemy.name + '」との戦闘！';

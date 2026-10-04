@@ -2,14 +2,15 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>School Battle - アクションバトル</title>
+<link rel="stylesheet" href="css/ui-settings.css">
 <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; height: 100%; background: #0f1115; color: #eee; font-family: "Hiragino Sans", "Meiryo", sans-serif; overflow: hidden; touch-action: none; user-select: none; }
     .wrap { display: flex; flex-direction: column; height: 100%; max-width: 1100px; margin: 0 auto; padding: 6px; gap: 6px; }
     .stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
-    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; background: #1b2233; border-radius: 10px; border: 2px solid #2b3550; touch-action: none; }
+    #game { width: 100%; max-height: 100%; aspect-ratio: 16 / 9; flex: 0 0 auto; background: #1b2233; border-radius: 10px; border: 2px solid #2b3550; touch-action: none; }
     .intro { position: absolute; top: 44%; left: 50%; transform: translate(-50%, -50%); font-size: 1.4rem; font-weight: bold; background: rgba(0,0,0,0.6); padding: 10px 22px; border-radius: 10px; transition: opacity .6s; pointer-events: none; text-align: center; }
     .intro.hide { opacity: 0; }
     .end-overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; font-size: 3rem; font-weight: bold; background: rgba(0,0,0,0.55); border-radius: 10px; }
@@ -46,19 +47,51 @@
     .sk-cost { color: #64d8ff; font-weight: bold; }
     .sk-cd { position: absolute; top: 1px; right: 4px; font-size: 0.6rem; color: #ffd54a; }
     .hint { font-size: 0.62rem; color: #7f8bab; text-align: center; }
-    /* タッチ操作 */
+    /* ---------- タッチ操作（スマホ・タブレット） ----------
+       操作ボタン・スキル・クイズは画面に固定表示（position: fixed）にし、
+       表示/非表示・サイズ・濃さは ⚙️ UI設定 から変えられる */
     .touch { display: none; }
-    @media (pointer: coarse) {
-        .touch { display: block; }
-        .hint { display: none; }
+    html.touch-ui .touch { display: block; }
+    .touch-btn { position: fixed; z-index: 12; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,80,80,0.38); color: #fff; font-weight: bold; touch-action: none; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    #attackBtn { right: max(16px, env(safe-area-inset-right, 0px)); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: 84px; height: 84px; font-size: 1rem; }
+    #dodgeBtn { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 94px); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; font-size: 0.7rem; background: rgba(80,160,255,0.38); }
+    #guardBtn { right: calc(max(16px, env(safe-area-inset-right, 0px)) + 160px); bottom: max(16px, env(safe-area-inset-bottom, 0px)); width: 58px; height: 58px; font-size: 0.7rem; background: rgba(157,240,255,0.32); }
+
+    html.touch-ui .hint { display: none; }
+    html.touch-ui .skill-bar { position: fixed; z-index: 12; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 94px); width: 232px; }
+    html.touch-ui .skill-btn { min-height: 54px; background: rgba(28,34,51,0.85); }
+
+    /* 横向き：画面全体をバトル画面にして、ゲージとクイズは下の中央に重ねる
+       （上部は戦闘画面のHPバーがあるので空けておく。左はジョイスティック、右は操作ボタンの場所） */
+    @media (orientation: landscape) {
+        html.touch-ui .wrap { max-width: none; padding: 0; gap: 0; }
+        html.touch-ui .stage { position: fixed; inset: 0; z-index: 1; }
+        html.touch-ui #game { border-radius: 0; border: none; }
+        html.touch-ui .panel { position: fixed; z-index: 12; display: flex; flex-direction: column-reverse; gap: 4px; left: calc(max(10px, env(safe-area-inset-left, 0px)) + 150px); right: calc(max(16px, env(safe-area-inset-right, 0px)) + 240px); bottom: max(8px, env(safe-area-inset-bottom, 0px)); margin: 0 auto; max-width: 520px; pointer-events: none; }
+        html.touch-ui .panel > * { pointer-events: auto; }
+        html.touch-ui .side { position: static; min-width: 0; }
+        html.touch-ui #gauges { display: flex; flex-direction: column; gap: 3px; opacity: 0.92; }
+        html.touch-ui .energy { height: 13px; } html.touch-ui #energyText { line-height: 13px; font-size: 0.62rem; }
+        html.touch-ui .stamina { height: 10px; } html.touch-ui #staminaText { line-height: 10px; font-size: 0.55rem; }
+        html.touch-ui .quiz { background: rgba(23,27,38,0.88); padding: 5px 8px 6px; }
+        html.touch-ui .quiz-q { font-size: 0.9rem; margin: 1px 0 4px; min-height: 0; }
+        html.touch-ui .quiz-choice { padding: 7px 3px; font-size: 0.85rem; }
+        .intro { top: 40%; }
     }
-    #stickZone { position: absolute; left: 12px; bottom: 12px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; touch-action: none; }
-    #stickKnob { width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.35); }
-    .touch-btn { position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); background: rgba(255,80,80,0.35); color: #fff; font-weight: bold; touch-action: none; display: flex; align-items: center; justify-content: center; }
-    #attackBtn { right: 14px; bottom: 16px; width: 84px; height: 84px; font-size: 1rem; }
-    #dodgeBtn { right: 108px; bottom: 12px; width: 58px; height: 58px; font-size: 0.7rem; background: rgba(80,160,255,0.35); }
-    #guardBtn { right: 108px; bottom: 78px; width: 58px; height: 58px; font-size: 0.7rem; background: rgba(157,240,255,0.3); }
-    .touch-hint { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); font-size: 0.6rem; color: rgba(255,255,255,0.65); text-align: center; width: 92%; pointer-events: none; }
+    @media (orientation: landscape) and (max-width: 740px) {
+        html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); }
+    }
+    /* 縦向き：上にバトル画面、その下にクイズ、一番下に操作ボタン */
+    @media (orientation: portrait) {
+        html.touch-ui .stage { flex: 0 0 auto; display: block; }
+        html.touch-ui .hint { display: block; }
+        html.touch-ui .panel { grid-template-columns: 1fr; padding-bottom: 6px; }
+        html.touch-ui .side { min-width: 0; }
+        html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); }
+        html.touch-ui .quiz-choice { padding: 12px 4px; }
+        html.touch-ui #gauges { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+        html.touch-ui .wrap { padding-top: max(6px, env(safe-area-inset-top, 0px)); }
+    }
     @media (max-width: 640px) {
         .panel { grid-template-columns: 1fr; }
         .side { min-width: 0; }
@@ -73,11 +106,9 @@
         <div id="enemyIntro" class="intro"></div>
         <div id="endOverlay" class="end-overlay"></div>
         <div class="touch">
-            <div id="stickZone"><div id="stickKnob"></div></div>
             <button type="button" id="attackBtn" class="touch-btn">攻撃</button>
             <button type="button" id="dodgeBtn" class="touch-btn">回避</button>
             <button type="button" id="guardBtn" class="touch-btn">ガード</button>
-            <div class="touch-hint">攻撃・スキルは押したままドラッグで狙い、離すと発動（タップのみなら自動照準）</div>
         </div>
     </div>
     <div class="panel">
@@ -87,8 +118,10 @@
             <div id="quizChoices" class="quiz-choices"></div>
         </div>
         <div class="side">
-            <div class="energy"><div id="energyFill"></div><div id="energyText">0 / 100</div></div>
-            <div class="stamina"><div id="staminaFill"></div><div id="staminaText">0 / 0</div></div>
+            <div id="gauges">
+                <div class="energy"><div id="energyFill"></div><div id="energyText">0 / 100</div></div>
+                <div class="stamina"><div id="staminaFill"></div><div id="staminaText">0 / 0</div></div>
+            </div>
             <div id="skillBar" class="skill-bar"></div>
             <div class="hint">WASD移動 / マウス or Space 攻撃 / Shift or 右クリック 回避 / Ctrl長押し ガード / Z X C V スキル / 1-4 クイズ回答</div>
         </div>
@@ -101,6 +134,8 @@
 <script src="js/monsters.js"></script>
 <script src="js/questions.js"></script>
 <script src="js/action-skills.js"></script>
+<script src="js/ui-settings.js"></script>
+<script src="js/joystick.js"></script>
 <script src="js/action-battle.js"></script>
 </body>
 </html>

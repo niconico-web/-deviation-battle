@@ -212,7 +212,6 @@
     const partyIndicators = {};
 
     const keys = { up: false, down: false, left: false, right: false };
-    const dpadKeys = { up: false, down: false, left: false, right: false };
 
     function colorForId(id) {
         let hash = 0;
@@ -229,93 +228,104 @@
         }
     }
 
+    // ---------- 画面サイズに合わせたキャンバス ----------
+    // canvasの内部解像度は「画面の実ピクセル数」に合わせる。以前は1600x900固定で
+    // 縦横比の違う端末では黒い帯が出たり、極端に小さく表示されていた。
+    // 論理サイズ(viewportW/H)は「マップ上で見える範囲」で、端末の高さに応じた
+    // 拡大率(zoom)と、UI設定の「マップの拡大率」で決まる。
+    let zoom = 1, dpr = 1;
+    let joy = null;
+    const joyVec = { x: 0, y: 0, mag: 0 };
+
+    function computeZoom(cssH) {
+        const base = Math.max(0.75, Math.min(1.15, cssH / 520));
+        const user = (window.UISettings && typeof UISettings.getGlobal === "function")
+            ? Number(UISettings.getGlobal("mapZoom")) || 1 : 1;
+        return base * user;
+    }
+
+    function resizeCanvas() {
+        if (!canvas) return;
+        const box = canvas.parentElement;
+        const cssW = box ? box.clientWidth : window.innerWidth;
+        const cssH = box ? box.clientHeight : window.innerHeight;
+        if (cssW < 10 || cssH < 10) return; // セクション非表示中は何もしない
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        zoom = computeZoom(cssH);
+        const pw = Math.round(cssW * dpr), ph = Math.round(cssH * dpr);
+        if (canvas.width !== pw || canvas.height !== ph) {
+            canvas.width = pw;
+            canvas.height = ph;
+        }
+        viewportW = cssW / zoom;
+        viewportH = cssH / zoom;
+    }
+
+    function setupUISettings() {
+        if (!window.UISettings) return;
+        UISettings.registerGlobal({
+            key: "mapZoom", label: "マップの拡大率", type: "range", def: 1, min: 0.6, max: 1.8, step: 0.05,
+            note: "大きくすると近くが大きく、小さくすると遠くまで見えます。"
+        });
+        UISettings.register({ id: "toolbar", label: "上部メニュー（マップ・ステータス等）", selector: ".sidebar.sidebar-minimal", anchor: "tl", canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.5 });
+        UISettings.register({ id: "townInfo", label: "現在地・人数の表示", selector: "#townPlayerList", anchor: "tr", canHide: true, canScale: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: "townPrompt", label: "建物の案内メッセージ", selector: "#townPrompt", anchor: "tc", canHide: true, canScale: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: "townAction", label: "「入る」ボタン", selector: "#townInteractBtn", anchor: "br", canHide: false, canScale: true, canOpacity: true, scaleMin: 0.7, scaleMax: 2 });
+        UISettings.onChange((id) => {
+            if (id === "_g:mapZoom") resizeCanvas();
+        });
+    }
+
     function initDom() {
-        console.log('[World] initDom() called');
         canvas = document.getElementById("townCanvas");
         if (!canvas) {
-            console.error('[World] townCanvas element not found');
+            console.error("[World] townCanvas element not found");
             return false;
         }
-        console.log('[World] townCanvas found:', canvas);
         ctx = canvas.getContext("2d");
         prompt = document.getElementById("townPrompt");
         playerListEl = document.getElementById("townPlayerList");
         interactBtn = document.getElementById("townInteractBtn");
-        viewportW = canvas.width;
-        viewportH = canvas.height;
-        console.log('[World] Canvas dimensions:', viewportW, viewportH);
+
+        setupUISettings();
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+        window.addEventListener("orientationchange", () => setTimeout(resizeCanvas, 250));
+        if (typeof ResizeObserver !== "undefined" && canvas.parentElement) {
+            new ResizeObserver(resizeCanvas).observe(canvas.parentElement);
+        }
 
         window.addEventListener("keydown", onKeyDown);
         window.addEventListener("keyup", onKeyUp);
 
-        canvas.addEventListener("click", onCanvasClick);
+        canvas.addEventListener("click", (e) => handleTapAt(e.clientX, e.clientY));
 
         if (interactBtn) {
             interactBtn.addEventListener("click", () => {
                 const b = findNearbyBuilding();
-                if (b) enterBuilding(b);
+                if (b) { enterBuilding(b); return; }
+                const npc = findNearbyNPC();
+                if (npc) talkToNPC(npc);
             });
         }
 
-        document.querySelectorAll(".town-dpad-btn").forEach(btn => {
-            const dir = btn.dataset.dir;
-            const setState = (v) => { dpadKeys[dir] = v; };
-            btn.addEventListener("touchstart", (e) => { e.preventDefault(); setState(true); }, { passive: false });
-            btn.addEventListener("touchend", (e) => { e.preventDefault(); setState(false); }, { passive: false });
-            btn.addEventListener("mousedown", () => setState(true));
-            btn.addEventListener("mouseup", () => setState(false));
-            btn.addEventListener("mouseleave", () => setState(false));
-        });
-
-        return true;
-    }
-
-    function setupDpadListeners() {
-        // dpadのイベントリスナーを再設定（町セクションがアクティブになった時用）
-        console.log('[World] Setting up dpad listeners');
-        const dpadBtns = document.querySelectorAll(".town-dpad-btn");
-        console.log('[World] Found dpad buttons:', dpadBtns.length);
-        dpadBtns.forEach(btn => {
-            const dir = btn.dataset.dir;
-            console.log('[World] Setting up dpad button for direction:', dir);
-            const setState = (v) => {
-                console.log('[World] Dpad state changed:', dir, v);
-                dpadKeys[dir] = v;
-            };
-            // イベントリスナーを追加する前に、既存のリスナーを削除して重複を防ぐ
-            const newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-            newBtn.addEventListener("touchstart", (e) => {
-                console.log('[World] Touchstart on dpad:', dir);
-                e.preventDefault();
-                setState(true);
-            }, { passive: false });
-            newBtn.addEventListener("touchend", (e) => {
-                console.log('[World] Touchend on dpad:', dir);
-                e.preventDefault();
-                setState(false);
-            }, { passive: false });
-            newBtn.addEventListener("mousedown", () => {
-                console.log('[World] Mousedown on dpad:', dir);
-                setState(true);
+        // ジョイスティック（タッチ端末）。軽いタップはそのままマップのタップ（建物に入る等）として扱う
+        if (window.Joystick) {
+            joy = Joystick.mount({
+                parent: canvas.parentElement,
+                region: { left: 0, top: 0.2, width: 0.5, height: 0.8 },
+                onChange: (x, y, mag) => { joyVec.x = x; joyVec.y = y; joyVec.mag = mag; },
+                onTap: (x, y) => handleTapAt(x, y)
             });
-            newBtn.addEventListener("mouseup", () => {
-                console.log('[World] Mouseup on dpad:', dir);
-                setState(false);
-            });
-            newBtn.addEventListener("mouseleave", () => {
-                console.log('[World] Mouseleave on dpad:', dir);
-                setState(false);
-            });
-        });
-    }
+        }
 
         return true;
     }
 
     function onKeyDown(e) {
         if (!sectionActive) return;
-        console.log('[World] Key down:', e.key);
+        const tag = (e.target && e.target.tagName) || "";
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return; // チャット入力中などは移動しない
         switch (e.key) {
             case "w": case "W": case "ArrowUp": keys.up = true; break;
             case "s": case "S": case "ArrowDown": keys.down = true; break;
@@ -343,25 +353,27 @@
         }
     }
 
-    function onCanvasClick(e) {
+    // 画面上の座標(clientX/Y)をタップしたときの処理：建物なら入る、NPCなら話しかける
+    function handleTapAt(clientX, clientY) {
+        if (!canvas) return;
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        const clickX = (e.clientX - rect.left) * scaleX + camera().x;
-        const clickY = (e.clientY - rect.top) * scaleY + camera().y;
+        const cam = camera();
+        const tapX = (clientX - rect.left) / zoom + cam.x;
+        const tapY = (clientY - rect.top) / zoom + cam.y;
 
-        // 建物のクリック判定
+        // 建物のタップ判定（指で触れやすいように少し余白を持たせる）
+        const pad = 10;
         for (const b of BUILDINGS) {
-            if (clickX >= b.x && clickX <= b.x + b.w && clickY >= b.y && clickY <= b.y + b.h) {
+            if (tapX >= b.x - pad && tapX <= b.x + b.w + pad && tapY >= b.y - pad && tapY <= b.y + b.h + pad) {
                 enterBuilding(b);
                 return;
             }
         }
-        
-        // NPCのクリック判定
+
+        // NPCのタップ判定
         for (const npc of NPCS) {
-            const dist = Math.hypot(clickX - npc.x, clickY - npc.y);
-            if (dist < 30) {
+            const dist = Math.hypot(tapX - npc.x, tapY - npc.y);
+            if (dist < 36) {
                 talkToNPC(npc);
                 return;
             }
@@ -490,10 +502,11 @@
     }
 
     function camera() {
-        let cx = local.x - viewportW / 2;
-        let cy = local.y - viewportH / 2;
-        cx = Math.max(0, Math.min(currentWorldW - viewportW, cx));
-        cy = Math.max(0, Math.min(currentWorldH - viewportH, cy));
+        // マップが画面より小さい場合は中央に寄せる（片側に寄って見えるのを防ぐ）
+        let cx = currentWorldW <= viewportW ? -(viewportW - currentWorldW) / 2
+            : Math.max(0, Math.min(currentWorldW - viewportW, local.x - viewportW / 2));
+        let cy = currentWorldH <= viewportH ? -(viewportH - currentWorldH) / 2
+            : Math.max(0, Math.min(currentWorldH - viewportH, local.y - viewportH / 2));
         return { x: cx, y: cy };
     }
 
@@ -501,7 +514,6 @@
         const r = 16; // プレイヤーの当たり判定半径
         for (const b of BUILDINGS) {
             if (x + r > b.x && x - r < b.x + b.w && y + r > b.y && y - r < b.y + b.h) {
-                console.log('[World] Collision with building:', b.label, 'at', x, y);
                 return true;
             }
         }
@@ -509,47 +521,40 @@
     }
 
     function updateLocalMovement(dt) {
-        const up = keys.up || dpadKeys.up;
-        const down = keys.down || dpadKeys.down;
-        const left = keys.left || dpadKeys.left;
-        const right = keys.right || dpadKeys.right;
-
-        let dx = 0, dy = 0;
-        if (up) dy -= 1;
-        if (down) dy += 1;
-        if (left) dx -= 1;
-        if (right) dx += 1;
+        // キーボード(8方向)とジョイスティック(アナログ)を合成する
+        let dx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+        let dy = (keys.down ? 1 : 0) - (keys.up ? 1 : 0);
+        let power = 1;
+        if (dx !== 0 || dy !== 0) {
+            const l = Math.hypot(dx, dy);
+            dx /= l; dy /= l;
+        } else if (joyVec.mag > 0) {
+            // スティックを倒した量で歩く速さが変わる
+            dx = joyVec.x / joyVec.mag;
+            dy = joyVec.y / joyVec.mag;
+            power = 0.35 + 0.65 * joyVec.mag;
+        }
 
         local.moving = dx !== 0 || dy !== 0;
 
         if (local.moving) {
-            console.log('[World] Moving:', dx, dy, 'position:', local.x, local.y);
-        }
-
-        if (local.moving) {
-            const len = Math.hypot(dx, dy) || 1;
-            dx /= len; dy /= len;
-
             if (Math.abs(dx) > Math.abs(dy)) {
                 local.dir = dx > 0 ? "right" : "left";
             } else {
                 local.dir = dy > 0 ? "down" : "up";
             }
 
-            const nx = local.x + dx * MOVE_SPEED * dt;
-            const ny = local.y + dy * MOVE_SPEED * dt;
+            const step = MOVE_SPEED * power * dt;
+            const nx = local.x + dx * step;
+            const ny = local.y + dy * step;
 
             const margin = 16;
             const clampedX = Math.max(margin, Math.min(currentWorldW - margin, nx));
             const clampedY = Math.max(margin, Math.min(currentWorldH - margin, ny));
 
             // X軸・Y軸を別々に判定して、壁沿いに滑れるようにする
-            const xCollision = collidesWithBuilding(clampedX, local.y);
-            const yCollision = collidesWithBuilding(local.x, clampedY);
-            console.log('[World] Collision check - X:', xCollision, 'Y:', yCollision, 'target:', clampedX, clampedY);
-
-            if (!xCollision) local.x = clampedX;
-            if (!yCollision) local.y = clampedY;
+            if (!collidesWithBuilding(clampedX, local.y)) local.x = clampedX;
+            if (!collidesWithBuilding(local.x, clampedY)) local.y = clampedY;
         }
     }
 
@@ -592,15 +597,21 @@
     }
 
     function drawBackground(cam) {
-        ctx.fillStyle = (REGIONS[currentRegionId] && REGIONS[currentRegionId].bg) || "#2f5233";
+        // マップの外側（画面がマップより広いとき）は暗くして、マップ内だけ地域の色で塗る
+        ctx.fillStyle = "#05070a";
         ctx.fillRect(0, 0, viewportW, viewportH);
+        ctx.fillStyle = (REGIONS[currentRegionId] && REGIONS[currentRegionId].bg) || "#2f5233";
+        const gx = Math.max(0, -cam.x), gy = Math.max(0, -cam.y);
+        const gw = Math.min(viewportW, currentWorldW - cam.x) - gx;
+        const gh = Math.min(viewportH, currentWorldH - cam.y) - gy;
+        if (gw > 0 && gh > 0) ctx.fillRect(gx, gy, gw, gh);
 
         // 簡易的な地面のタイル模様
         const tile = 40;
         ctx.strokeStyle = "rgba(255,255,255,0.03)";
         ctx.lineWidth = 1;
-        const offsetX = -cam.x % tile;
-        const offsetY = -cam.y % tile;
+        const offsetX = ((-cam.x % tile) + tile) % tile;
+        const offsetY = ((-cam.y % tile) + tile) % tile;
         for (let x = offsetX; x < viewportW; x += tile) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, viewportH); ctx.stroke();
         }
@@ -781,16 +792,32 @@
         ctx.restore();
     }
 
+    let lastPromptKey = null;
     function updatePromptUI() {
         const b = findNearbyBuilding();
+        const npc = b ? null : findNearbyNPC();
+        const key = b ? "b:" + b.id : (npc ? "n:" + npc.id : "");
+        if (key === lastPromptKey) return; // 変化したときだけDOMを更新（毎フレームの書き換えを避ける）
+        lastPromptKey = key;
+        const touch = document.documentElement.classList.contains("touch-ui");
         if (b) {
             if (prompt) {
                 prompt.style.display = "block";
-                prompt.textContent = `Enterキーで「${b.label}」に入る`;
+                prompt.textContent = touch ? `「${b.label}」の前です` : `Enterキーで「${b.label}」に入る`;
             }
             if (interactBtn) {
                 interactBtn.style.display = "inline-flex";
-                interactBtn.textContent = `入る（${b.label}）`;
+                interactBtn.textContent = b.isExit ? "移動" : "入る";
+                interactBtn.setAttribute("aria-label", `${b.label}に入る`);
+            }
+        } else if (npc) {
+            if (prompt) {
+                prompt.style.display = "block";
+                prompt.textContent = touch ? `${npc.name}の前です` : `Enterキーで${npc.name}に話しかける`;
+            }
+            if (interactBtn) {
+                interactBtn.style.display = "inline-flex";
+                interactBtn.textContent = "話す";
             }
         } else {
             if (prompt) prompt.style.display = "none";
@@ -798,16 +825,21 @@
         }
     }
 
+    let lastInfoText = "";
     function updatePlayerListUI() {
         if (!playerListEl) return;
         const count = Object.keys(remotePlayers).length + 1;
         const regionName = (REGIONS[currentRegionId] && REGIONS[currentRegionId].name) || "町";
-        let html = `<strong>現在地：${regionName}（人数: ${count}）</strong>`;
-        playerListEl.innerHTML = html;
+        const text = `📍 ${regionName}　👥 ${count}人`;
+        if (text === lastInfoText) return;
+        lastInfoText = text;
+        playerListEl.textContent = text;
     }
 
     function render() {
         if (!ctx) return;
+        // 以降の描画は「マップ上の座標」で行う（実ピクセルへの変換はここで一括）
+        ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
         const cam = camera();
         drawBackground(cam);
         drawBuildings(cam);
@@ -824,24 +856,6 @@
         const myAvatar = player && player.avatar ? player.avatar : null;
         drawPlayer(local.x - cam.x, local.y - cam.y, "#3ddc84", (player && player.name) || "あなた", player && player.level, local.dir, true, myAvatar);
 
-        drawRegionLabel();
-    }
-
-    function drawRegionLabel() {
-        const name = (REGIONS[currentRegionId] && REGIONS[currentRegionId].name) || "";
-        if (!name) return;
-        ctx.save();
-        ctx.font = "bold 14px sans-serif";
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        const label = `📍 ${name}`;
-        const w = ctx.measureText(label).width;
-        ctx.fillStyle = "rgba(15,17,21,0.6)";
-        roundRect(10, 10, w + 16, 26, 6);
-        ctx.fill();
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(label, 18, 16);
-        ctx.restore();
     }
 
     function loop(timestamp) {
@@ -864,22 +878,20 @@
 
     function startLoop() {
         if (rafId != null) {
-            console.log('[World] Loop already running');
             return;
         }
-        console.log('[World] Starting loop');
         lastFrameTime = null;
         rafId = requestAnimationFrame(loop);
     }
 
     function stopLoop() {
         if (rafId != null) {
-            console.log('[World] Stopping loop');
             cancelAnimationFrame(rafId);
             rafId = null;
         }
         keys.up = keys.down = keys.left = keys.right = false;
-        dpadKeys.up = dpadKeys.down = dpadKeys.left = dpadKeys.right = false;
+        joyVec.x = joyVec.y = joyVec.mag = 0;
+        if (joy) joy.reset();
     }
 
     function setupSocketListeners() {
@@ -968,11 +980,10 @@
 
     // script.jsのメニュー切り替えから呼ばれる：町タブがアクティブになったか
     window.onTownSectionActivated = function (isActive) {
-        console.log('[World] onTownSectionActivated called:', isActive);
         sectionActive = isActive;
         if (isActive) {
-            // dpadのイベントリスナーを再設定
-            setupDpadListeners();
+            resizeCanvas(); // 非表示中にサイズが変わっていた場合に備えて再計算
+            lastPromptKey = null;
             tryJoinWorld();
             startLoop();
         } else {
@@ -981,12 +992,10 @@
     };
 
     function init() {
-        console.log('[World] init() called');
         if (!initDom()) {
             console.error('[World] initDom() failed');
             return;
         }
-        console.log('[World] initDom() succeeded');
         setupSocketListeners();
 
         // モンスターを初期化
