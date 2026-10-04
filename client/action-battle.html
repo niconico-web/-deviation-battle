@@ -81,6 +81,7 @@
     @media (orientation: landscape) and (max-width: 740px) {
         html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); }
     }
+<<<<<<< HEAD
     /* 縦向き：上に戦闘画面（拡大して自キャラを追従）、その下にクイズ、一番下に操作ボタン。
        クイズは操作ボタンの上（親指が届く位置）に置き、スティックの反応エリアは画面下側だけにしてある */
     @media (orientation: portrait) {
@@ -93,6 +94,18 @@
         html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         html.touch-ui .quiz-choice { min-height: 56px; padding: 10px 4px; font-size: 1.05rem; touch-action: manipulation; }
         html.touch-ui #gauges { display: flex; flex-direction: column; gap: 4px; margin-bottom: 2px; }
+=======
+    /* 縦向き：上にバトル画面、その下にクイズ、一番下に操作ボタン */
+    @media (orientation: portrait) {
+        html.touch-ui .stage { flex: 0 0 auto; display: block; }
+        html.touch-ui .hint { display: block; }
+        html.touch-ui .panel { grid-template-columns: 1fr; padding-bottom: 6px; }
+        html.touch-ui .side { min-width: 0; }
+        html.touch-ui .quiz-choices { grid-template-columns: repeat(2, 1fr); }
+        html.touch-ui .quiz-choice { padding: 12px 4px; }
+        html.touch-ui #gauges { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+        html.touch-ui .wrap { padding-top: max(6px, env(safe-area-inset-top, 0px)); }
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
     }
     @media (max-width: 640px) {
         .panel { grid-template-columns: 1fr; }
