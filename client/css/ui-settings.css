@@ -117,11 +117,31 @@ html.touch-ui .joy-zone { display: block; }
     left: 0; top: 0;
     z-index: 7;
     border-radius: 50%;
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
+>>>>>>> f774ba390c32f3e1953b5d68ca70b35a7a19c043
     background: radial-gradient(circle at 50% 50%, rgba(0,0,0,0.38), rgba(0,0,0,0.22) 70%);
     border: 3px solid rgba(255, 255, 255, 0.7);
     box-shadow: 0 0 14px rgba(0, 0, 0, 0.35) inset;
     pointer-events: none;
     opacity: calc(0.7 * var(--joy-o, 1));
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.10), rgba(255,255,255,0.04) 70%);
+    border: 2px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 0 14px rgba(0, 0, 0, 0.35) inset;
+    pointer-events: none;
+    opacity: calc(0.45 * var(--joy-o, 1));
+>>>>>>> f4909ef059c5fbcaec02d52727915eb1c61f74c9
+>>>>>>> 65276591196138db2da4ca50f649b29e4c65f880
+>>>>>>> f774ba390c32f3e1953b5d68ca70b35a7a19c043
     transition: opacity .15s;
     display: none;
     will-change: transform;
