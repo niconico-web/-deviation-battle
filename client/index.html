@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+<script>
+// タッチ端末なら、部品ファイル(js/ui-settings.js)の読み込み前でも操作ボタンが出るよう先にクラスを付けておく
+try { if (window.matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('touch-ui'); } catch (e) {}
+</script>
+
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, orientation=landscape">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>School Battle - 勉強するほど強くなるクイズ×RPGバトル</title>
     <meta name="description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
     <link rel="canonical" href="%%SITE_URL%%/">
@@ -32,6 +37,7 @@
     <link rel="stylesheet" href="css/quest.css">
     <link rel="stylesheet" href="css/avatar.css">
     <link rel="stylesheet" href="css/study-enhanced.css">
+    <link rel="stylesheet" href="css/ui-settings.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -52,12 +58,13 @@
         
         <aside class="sidebar sidebar-minimal">
             <nav class="main-menu">
-                <button class="menu-btn" data-section="town"><span>🗺️</span> マップ</button>
-                <button class="menu-btn active" data-section="stats"><span>📝</span> ステータス</button>
-                <button class="menu-btn" data-section="shop"><span>🎒</span> インベントリ</button>
-                <button class="menu-btn" data-section="study"><span>📖</span> 勉強</button>
-                <button class="menu-btn" data-section="online"><span>🌐</span> オンライン</button>
-                <button type="button" id="shareInviteBtn" class="share-menu-btn"><span>📣</span></button>
+                <button class="menu-btn" data-section="town"><span class="menu-icon">🗺️</span><span class="menu-label">マップ</span></button>
+                <button class="menu-btn active" data-section="stats"><span class="menu-icon">📝</span><span class="menu-label">ステータス</span></button>
+                <button class="menu-btn" data-section="shop"><span class="menu-icon">🎒</span><span class="menu-label">インベントリ</span></button>
+                <button class="menu-btn" data-section="study"><span class="menu-icon">📖</span><span class="menu-label">勉強</span></button>
+                <button class="menu-btn" data-section="online"><span class="menu-icon">🌐</span><span class="menu-label">オンライン</span></button>
+                <button type="button" id="uiSettingsBtn" class="share-menu-btn" data-open-ui-settings aria-label="UI設定"><span>⚙️</span></button>
+                <button type="button" id="shareInviteBtn" class="share-menu-btn" aria-label="友達に紹介"><span>📣</span></button>
             </nav>
         </aside>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
@@ -70,18 +77,10 @@
                     <div id="townPrompt" class="town-prompt" style="display:none;"></div>
                     <div id="townPlayerList" class="town-player-list"></div>
                     <div id="townControls" class="town-controls">
-                        <div class="town-dpad">
-                            <button type="button" class="town-dpad-btn" data-dir="up">▲</button>
-                            <div class="town-dpad-row">
-                                <button type="button" class="town-dpad-btn" data-dir="left">◀</button>
-                                <button type="button" class="town-dpad-btn" data-dir="down">▼</button>
-                                <button type="button" class="town-dpad-btn" data-dir="right">▶</button>
-                            </div>
-                        </div>
                         <button type="button" id="townInteractBtn" class="btn btn-primary town-interact-btn" style="display:none;">入る</button>
                     </div>
                 </div>
-                <p class="town-help-text">矢印キー / WASDで移動、建物に近づいてEnterキー（またはタップ）で施設に入れます。他のプレイヤーもリアルタイムで表示されます。</p>
+                <p class="town-help-text">スマホは画面左側をドラッグして移動、建物に近づいて「入る」ボタン（または建物をタップ）。PCは矢印キー / WASDで移動しEnterキー。UIの表示・サイズは⚙️から変更できます。</p>
             </section>
 
             <section id="section-stats" class="content-section active">
@@ -703,6 +702,8 @@
     <script src="js/tutorial-topics.js"></script>
     <script src="js/questionLists.js"></script>
     <script src="js/share.js"></script>
+    <script src="js/ui-settings.js"></script>
+    <script src="js/joystick.js"></script>
     <script src="js/chat.js"></script>
     <script src="js/quests.js"></script>
     <script src="js/pvp.js"></script>
@@ -721,5 +722,28 @@
             });
         }
     </script>
+<script>
+// 部品ファイルの読み込み確認：新しく追加した3ファイルがサーバーに無いと、ジョイスティックや⚙️設定が使えない。
+// その場合は原因が分かるように画面に知らせる。
+window.addEventListener('load', function () {
+    var missing = [];
+    if (!window.UISettings) missing.push('js/ui-settings.js');
+    if (!window.Joystick) missing.push('js/joystick.js');
+    try {
+        var ok = false;
+        for (var i = 0; i < document.styleSheets.length; i++) {
+            var h = document.styleSheets[i].href || '';
+            if (h.indexOf('ui-settings.css') !== -1) { try { ok = document.styleSheets[i].cssRules.length > 0; } catch (e) { ok = true; } }
+        }
+        if (!ok) missing.push('css/ui-settings.css');
+    } catch (e) { /* noop */ }
+    if (!missing.length) return;
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#7a1f1f;color:#fff;border:1px solid #ff8a8a;border-radius:10px;padding:10px 12px;font:13px/1.5 sans-serif;';
+    d.textContent = '⚠️ 次のファイルが読み込めていません（サーバーにアップロード／コミットされていない可能性があります）: ' + missing.join(', ');
+    d.addEventListener('click', function () { d.remove(); });
+    document.body.appendChild(d);
+});
+</script>
 </body>
 </html>
