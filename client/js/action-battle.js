@@ -55,6 +55,9 @@
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     canvas.width = W; canvas.height = H;
+    // 描画の「見える範囲」。通常(full)は戦闘フィールド全体(960x540)をそのまま表示する。
+    // スマホ縦向き(cam)では画面が小さくなりすぎるため、拡大して自キャラ付近を追従表示する。
+    const view = { mode: 'full', z: 1, dpr: 1, cssW: W, cssH: H, lw: W, lh: H, camX: 0, camY: 0, camInit: false };
 
     // ---------- ユニット ----------
     const weapon = me.equippedWeapon || null;
@@ -692,20 +695,47 @@
 
     function drawHUD() {
         ctx.save();
+        const cam = view.mode === 'cam';
+        if (cam) ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+        const hw = cam ? view.cssW : W;                 // HUDを描く幅
+        const barW = cam ? Math.min(150, hw * 0.4) : 260;
+        const rm = cam ? 58 : 14;                         // 右端の余白（⚙️ボタンを避ける）
+        const ex = cam ? hw - rm - barW : W / 2 + 20;    // 敵HPバーの左端
         ctx.textBaseline = 'top'; ctx.textAlign = 'left';
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 13px sans-serif';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (cam ? 12 : 13) + 'px sans-serif';
         ctx.fillText(player.name + '  HP ' + Math.ceil(player.hp) + '/' + player.maxHp, 14, 10);
-        bar(14, 28, 260, 14, player.hp / player.maxHp, '#4cd964');
+        bar(14, 28, barW, 14, player.hp / player.maxHp, '#4cd964');
         ctx.fillStyle = '#9df0ff'; ctx.fillText('ENERGY ' + Math.floor(player.energy) + '/' + ENERGY_MAX, 14, 48);
-        bar(14, 65, 260, 9, player.energy / ENERGY_MAX, '#39b7ff');
-        ctx.fillStyle = '#ddd'; ctx.font = '12px sans-serif';
-        ctx.fillText('武器: ' + (weapon ? (weapon.name || '') : '素手') + '（' + atkDef.label + '）', 14, 80);
+        bar(14, 65, barW, 9, player.energy / ENERGY_MAX, '#39b7ff');
+        if (!cam) {
+            ctx.fillStyle = '#ddd'; ctx.font = '12px sans-serif';
+            ctx.fillText('武器: ' + (weapon ? (weapon.name || '') : '素手') + '（' + atkDef.label + '）', 14, 80);
+        }
 
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = cam ? 'right' : 'center';
+        ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (cam ? 12 : 14) + 'px sans-serif';
         const badge = enemy.tier === 'boss' ? '⚠️ BOSS ' : (enemy.tier === 'elite' ? '✨ ' : '');
-        ctx.fillText(badge + enemy.name + '  HP ' + Math.ceil(enemy.hp) + '/' + enemy.maxHp, W / 2 + 150, 10);
-        bar(W / 2 + 20, 30, 260, 14, enemy.hp / enemy.maxHp, enemy.tier === 'boss' ? '#e0483e' : '#ff7a59');
+        ctx.fillText(badge + enemy.name + '  HP ' + Math.ceil(enemy.hp) + '/' + enemy.maxHp, cam ? hw - rm : W / 2 + 150, 10);
+        bar(ex, 30, barW, 14, enemy.hp / enemy.maxHp, enemy.tier === 'boss' ? '#e0483e' : '#ff7a59');
+
+        if (cam) {
+            // 敵が画面の外にいるときは、方向を示す矢印を画面の端に出す
+            const sx = (enemy.x - view.camX) * view.z, sy = (enemy.y - view.camY) * view.z;
+            const m = 18;
+            if (sx < 0 || sx > view.cssW || sy < 0 || sy > view.cssH) {
+                const cx = view.cssW / 2, cy = view.cssH / 2;
+                const ang = Math.atan2(sy - cy, sx - cx);
+                const k = Math.min((view.cssW / 2 - m) / Math.max(1e-6, Math.abs(Math.cos(ang))), (view.cssH / 2 - m) / Math.max(1e-6, Math.abs(Math.sin(ang))));
+                ctx.translate(cx + Math.cos(ang) * k, cy + Math.sin(ang) * k);
+                ctx.rotate(ang);
+                ctx.fillStyle = 'rgba(255,90,90,0.9)';
+                ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-8, -9); ctx.lineTo(-8, 9); ctx.closePath(); ctx.fill();
+                ctx.rotate(-ang);
+                ctx.translate(-(cx + Math.cos(ang) * k), -(cy + Math.sin(ang) * k));
+            }
+            const sc = view.dpr * view.z;
+            ctx.setTransform(sc, 0, 0, sc, -view.camX * sc, -view.camY * sc);
+        }
         if (charging) {
             ctx.fillStyle = '#ffe08a'; ctx.fillRect(player.x - 20, player.y + player.r + 8, 40 * (chargeT / 0.9), 5);
         }
@@ -728,8 +758,30 @@
         ctx.globalAlpha = 1;
     }
 
+    function updateCamera() {
+        if (view.mode !== 'cam') return;
+        // 自キャラを中心にしつつ、敵が見えるように敵の方向へ少し寄せる
+        const bx = clamp(enemy.x - player.x, -0.4 * view.lw, 0.4 * view.lw);
+        const by = clamp(enemy.y - player.y, -0.3 * view.lh, 0.3 * view.lh);
+        let tx = view.lw >= W ? (W - view.lw) / 2 : clamp(player.x + bx - view.lw / 2, 0, W - view.lw);
+        let ty = view.lh >= H ? (H - view.lh) / 2 : clamp(player.y + by - view.lh / 2, 0, H - view.lh);
+        if (!view.camInit) { view.camX = tx; view.camY = ty; view.camInit = true; return; }
+        view.camX += (tx - view.camX) * 0.2;
+        view.camY += (ty - view.camY) * 0.2;
+    }
+
     function render() {
+        updateCamera();
+        if (view.mode === 'cam') {
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.fillStyle = '#0b0e14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
         ctx.save();
+        if (view.mode === 'cam') {
+            const sc = view.dpr * view.z;
+            ctx.setTransform(sc, 0, 0, sc, -view.camX * sc, -view.camY * sc);
+        }
         if (shake > 0) ctx.translate((Math.random() - 0.5) * shake * 30, (Math.random() - 0.5) * shake * 30);
         drawGround();
         drawTelegraph();
@@ -860,7 +912,15 @@
             const b = document.createElement('button');
             b.type = 'button'; b.className = 'quiz-choice'; b.dataset.value = opt;
             b.textContent = (i + 1) + '. ' + opt;
-            b.addEventListener('click', () => answerQuiz(opt, b));
+            // タッチは指を置いた瞬間に回答（スティックを押しながら別の指で素早く答えられる）。clickとの二重実行は防ぐ
+            let handledAt = 0;
+            b.addEventListener('pointerdown', (e) => {
+                if (e.pointerType === 'mouse') return;
+                e.preventDefault();
+                handledAt = performance.now();
+                answerQuiz(opt, b);
+            });
+            b.addEventListener('click', () => { if (performance.now() - handledAt < 700) return; answerQuiz(opt, b); });
             quizEls.choices.appendChild(b);
         });
         quizEls.streak.textContent = streak >= 2 ? streak + '連続正解！' : '';
@@ -1032,7 +1092,7 @@
 
     function canvasPos(e) {
         const r = canvas.getBoundingClientRect();
-        return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
+        return { x: (e.clientX - r.left) * (view.lw / r.width) + view.camX, y: (e.clientY - r.top) * (view.lh / r.height) + view.camY };
     }
 
     function bindInput() {
@@ -1060,6 +1120,7 @@
         const dodgeBtn = document.getElementById('dodgeBtn');
         const guardBtn = document.getElementById('guardBtn');
         const press = (el, down, up) => {
+            if (!el) return;
             el.addEventListener('pointerdown', (e) => { e.preventDefault(); input.mouseActive = false; down(); });
             ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, up));
         };
@@ -1087,29 +1148,72 @@
             }, () => false);
         });
 
-        // 仮想スティック（タッチ用）
-        const stick = document.getElementById('stickZone');
-        const knob = document.getElementById('stickKnob');
-        let stickId = null, cx = 0, cy = 0;
-        stick.addEventListener('pointerdown', (e) => {
-            e.preventDefault(); stickId = e.pointerId; stick.setPointerCapture(e.pointerId);
-            const r = stick.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2;
-            input.mouseActive = false;
-        });
-        stick.addEventListener('pointermove', (e) => {
-            if (e.pointerId !== stickId) return;
-            let dx = e.clientX - cx, dy = e.clientY - cy;
-            const max = 50, l = Math.hypot(dx, dy);
-            if (l > max) { dx = dx / l * max; dy = dy / l * max; }
-            input.stickX = dx / max; input.stickY = dy / max;
-            knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-        });
-        const endStick = (e) => {
-            if (e.pointerId !== stickId) return;
-            stickId = null; input.stickX = 0; input.stickY = 0; knob.style.transform = 'translate(0,0)';
-        };
-        stick.addEventListener('pointerup', endStick);
-        stick.addEventListener('pointercancel', endStick);
+        // 仮想ジョイスティック（タッチ用・共通部品）。画面左側を触った所に出る（設定で固定位置にも変更可）
+        if (window.Joystick) {
+            Joystick.mount({
+                // 縦向きはクイズの下（画面の下半分）だけをスティックの反応エリアにして、クイズのタップと干渉しないようにする
+                region: () => (window.innerHeight > window.innerWidth) ? { left: 0, top: 0.62, width: 0.5, height: 0.38 } : { left: 0, top: 0.2, width: 0.45, height: 0.8 },
+                onChange: (x, y, mag) => {
+                    input.stickX = x; input.stickY = y;
+                    if (mag > 0) input.mouseActive = false;
+                }
+            });
+        }
+    }
+
+    // ---------- 画面フィット＆UI設定 ----------
+    // 戦闘フィールド(canvas)は16:9のまま、画面に収まる最大サイズで表示する
+    function fitCanvas() {
+        const st = canvas.parentElement;
+        const sw = st.clientWidth, sh = st.clientHeight;
+        if (sw < 10) return;
+        const portraitTouch = document.documentElement.classList.contains('touch-ui') && window.innerHeight > window.innerWidth;
+        if (portraitTouch) {
+            // スマホ縦向き：16:9で全体を映すと小さすぎるので、拡大して自キャラ付近を追従表示する
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const user = (window.UISettings && Number(UISettings.getGlobal('abZoom'))) || 1.3;
+            const z = Math.max(sw / W, (sw / 680) * user);       // 少なくともフィールド幅が収まる倍率より大きく
+            const cssW = Math.floor(sw);
+            // 下の操作エリア(172px)とクイズ欄を引いた残りが、戦闘画面に使える高さ
+            const panel = document.querySelector('.panel');
+            const panelH = panel ? panel.offsetHeight : 190;
+            const ctrl = 172 + 12;
+            const room = window.innerHeight - ctrl - panelH - 14;
+            const cssH = Math.floor(Math.max(170, Math.min(H * z, room)));
+            canvas.style.width = cssW + 'px';
+            canvas.style.height = cssH + 'px';
+            const pw = Math.round(cssW * dpr), ph = Math.round(cssH * dpr);
+            if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
+            view.mode = 'cam'; view.z = z; view.dpr = dpr; view.cssW = cssW; view.cssH = cssH;
+            view.lw = cssW / z; view.lh = cssH / z;
+            return;
+        }
+        if (view.mode !== 'full') {
+            view.mode = 'full'; view.z = 1; view.dpr = 1; view.cssW = W; view.cssH = H; view.lw = W; view.lh = H; view.camX = 0; view.camY = 0; view.camInit = false;
+            canvas.width = W; canvas.height = H;
+        }
+        const w = Math.min(sw, sh * 16 / 9);
+        canvas.style.width = Math.floor(w) + 'px';
+        canvas.style.height = Math.floor(w * 9 / 16) + 'px';
+    }
+
+    function setupUISettings() {
+        if (!window.UISettings) return;
+        UISettings.registerGlobal({ key: 'abZoom', label: '戦闘画面の拡大率（スマホ縦向き）', type: 'range', def: 1.3, min: 0.8, max: 2, step: 0.05, note: '大きくすると自キャラ付近が大きく映り、小さくするとフィールド全体が見えます。' });
+        const touch = UISettings.isTouchUI();
+        if (touch) {
+            const hint = document.querySelector('.hint');
+            if (hint) hint.textContent = '左側をドラッグで移動 / 攻撃・スキルは押したままドラッグで狙って、離すと発動（タップだけなら自動照準）';
+        }
+        UISettings.register({ id: 'ab-gauges', label: 'ゲージ（気力・スタミナ）', selector: '#gauges', anchor: 'bc', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-quiz', label: 'クイズ欄', selector: '.quiz', anchor: 'bc', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.5, note: 'バトルに必須なので、非表示にはできません（小さく・薄くはできます）。' });
+        UISettings.register({ id: 'ab-skills', label: 'スキルボタン', selector: '.skill-bar', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-attack', label: '攻撃ボタン', selector: '#attackBtn', anchor: 'br', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-dodge', label: '回避ボタン', selector: '#dodgeBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-guard', label: 'ガードボタン', selector: '#guardBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-hint', label: '操作ヒント', selector: '.hint', anchor: 'c', canHide: true, canScale: false });
+        UISettings.addGearButton({ top: 'max(8px, env(safe-area-inset-top, 0px))', right: 'max(8px, env(safe-area-inset-right, 0px))' });
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
     }
 
     // ---------- 終了処理 ----------
@@ -1153,12 +1257,28 @@
     }
 
     // ---------- 起動 ----------
-    buildSkillBar();
-    updateEnergyUI();
-    updateStaminaUI();
-    bindInput();
-    nextQuiz();
-    document.getElementById('enemyIntro').textContent =
+    // 起動：どこか1つ（UI設定・ジョイスティック・画面フィットなど）で例外が出ても、
+    // クイズとゲームループは必ず始まるようにする（以前は途中で止まって「読み込み中...」のままになった）
+    const safe = (name, fn) => { try { fn(); } catch (e) { console.error('[ActionBattle] ' + name + ' failed:', e); } };
+    safe('buildSkillBar', buildSkillBar);
+    safe('updateEnergyUI', updateEnergyUI);
+    safe('updateStaminaUI', updateStaminaUI);
+    safe('bindInput', bindInput);
+    safe('setupUISettings', setupUISettings);
+    safe('fitCanvas', fitCanvas);
+    window.addEventListener('resize', () => safe('fitCanvas', fitCanvas));
+    window.addEventListener('orientationchange', () => setTimeout(() => safe('fitCanvas', fitCanvas), 250));
+    if (typeof ResizeObserver !== 'undefined') {
+        safe('ResizeObserver', () => {
+            const ro = new ResizeObserver(() => safe('fitCanvas', fitCanvas));
+            ro.observe(canvas.parentElement);
+            const pn = document.querySelector('.panel');
+            if (pn) ro.observe(pn);
+        });
+    }
+    safe('nextQuiz', nextQuiz);
+    const introEl = document.getElementById('enemyIntro');
+    if (introEl) introEl.textContent =
         (tier === 'boss' ? '⚠️ ボス「' : (tier === 'elite' ? '✨ レア個体「' : '「')) + enemy.name + '」との戦闘！';
     setTimeout(() => { const el = document.getElementById('enemyIntro'); if (el) el.classList.add('hide'); }, 2200);
     requestAnimationFrame((t) => { last = t; loop(t); });

@@ -41,74 +41,45 @@
     z-index: 5;
 }
 
+/* 現在地・人数（右上の小さなピル。UI設定で非表示・サイズ変更できる） */
 .town-player-list {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: max(10px, env(safe-area-inset-top, 0px));
+    right: max(10px, env(safe-area-inset-right, 0px));
     background: rgba(15, 17, 21, 0.7);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 6px 10px;
+    border-radius: 16px;
+    padding: 6px 12px;
     font-size: 12px;
-    color: var(--text-secondary);
-    max-width: 140px;
-    max-height: 120px;
-    overflow-y: auto;
-    z-index: 5;
-}
-
-.town-player-list strong {
+    font-weight: 600;
     color: var(--accent-green);
-}
-
-.town-controls {
-    position: absolute;
-    bottom: 12px;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    padding: 0 12px;
+    white-space: nowrap;
     pointer-events: none;
     z-index: 5;
 }
 
-.town-dpad {
+/* 操作ボタン置き場：画面右下に「入る」ボタンだけを置く（移動はジョイスティック） */
+.town-controls {
+    position: absolute;
+    right: max(18px, env(safe-area-inset-right, 0px));
+    bottom: max(22px, env(safe-area-inset-bottom, 0px));
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    pointer-events: auto;
-}
-
-.town-dpad-row {
-    display: flex;
-    gap: 4px;
-}
-
-.town-dpad-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background: rgba(37, 41, 50, 0.85);
-    color: var(--text-primary);
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-    touch-action: none;
-}
-
-.town-dpad-btn:active {
-    background: var(--accent-blue-dark);
+    justify-content: flex-end;
+    align-items: flex-end;
+    pointer-events: none;
+    z-index: 8;
 }
 
 .town-interact-btn {
     pointer-events: auto;
-    margin-bottom: 6px;
+    min-width: 84px;
+    min-height: 84px;
+    border-radius: 50%;
+    font-size: 1rem;
+    font-weight: bold;
+    padding: 0 10px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    touch-action: manipulation;
 }
 
 .town-help-text {
@@ -119,8 +90,13 @@
     text-align: center;
 }
 
-@media (min-width: 900px) {
-    .town-controls {
-        display: none;
-    }
+/* PC（マウス操作）では「入る」ボタンを小さめにし、案内メッセージ＋Enterキーで入れるようにする */
+@media (hover: hover) and (pointer: fine) {
+    .town-interact-btn { min-width: 0; min-height: 0; border-radius: 10px; padding: 8px 16px; }
+}
+
+/* 案内メッセージはツールバーと重ならないよう、少し下に出す */
+.town-prompt { top: 56px; }
+@media (max-width: 700px), (max-height: 520px) {
+    .town-prompt { top: 50px; font-size: 12px; padding: 6px 12px; }
 }
