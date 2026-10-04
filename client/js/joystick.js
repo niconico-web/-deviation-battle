@@ -41,9 +41,13 @@
     function mount(opts) {
         opts = opts || {};
         const parent = opts.parent || document.body;
+<<<<<<< HEAD
         // region は固定値でも、画面の向きに応じて返す関数でもよい
         const regionOf = () => Object.assign({ left: 0, top: 0.25, width: 0.45, height: 0.75 },
             (typeof opts.region === 'function' ? opts.region() : opts.region) || {});
+=======
+        const region = Object.assign({ left: 0, top: 0.25, width: 0.45, height: 0.75 }, opts.region || {});
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
 
         const zone = document.createElement('div');
         zone.className = 'joy-zone';
@@ -72,7 +76,10 @@
             knob.style.width = knob.style.height = kd + 'px';
             knob.style.marginLeft = knob.style.marginTop = (-kd / 2) + 'px';
             base.style.setProperty('--joy-o', String(s.opacity));
+<<<<<<< HEAD
             const region = regionOf();
+=======
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
             zone.style.left = (region.left * 100) + '%';
             zone.style.top = (region.top * 100) + '%';
             zone.style.width = (region.width * 100) + '%';
@@ -188,8 +195,13 @@
             if (e.pointerId === tapPointer) end({ pointerId: e.pointerId, type: 'pointercancel', clientX: 0, clientY: 0 });
         });
 
+<<<<<<< HEAD
         window.addEventListener('resize', () => { if (pid === null) applyLayout(); });
         window.addEventListener('orientationchange', () => setTimeout(() => { if (pid === null) applyLayout(); }, 250));
+=======
+        window.addEventListener('resize', () => { if (pid === null) goHome(); });
+        window.addEventListener('orientationchange', () => setTimeout(() => { if (pid === null) goHome(); }, 250));
+>>>>>>> a227062fb81068983b4e2b1ed17ada89fd162371
         window.addEventListener('blur', reset);
         if (window.UISettings) window.UISettings.onChange((id) => {
             if (id === 'joystick' || id === '_g:joyMode' || id === '*') applyLayout();
