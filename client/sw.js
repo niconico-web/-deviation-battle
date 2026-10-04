@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v47';
+const CACHE_NAME = 'school-battle-cache-v52';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -14,6 +14,7 @@ const urlsToCache = [
   '/css/avatar.css',
   '/css/battle.css',
   '/css/chat.css',
+  '/css/ui-settings.css',
   '/css/dungeon.css',
   '/css/practice-coach.css',
   '/css/pvp.css',
@@ -31,6 +32,8 @@ const urlsToCache = [
   '/js/boss.js',
   '/js/boss_questions.js',
   '/js/chat.js',
+  '/js/ui-settings.js',
+  '/js/joystick.js',
   '/js/dungeon.js',
   '/js/dungeons.js',
   '/js/help.js',
@@ -77,7 +80,11 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('ServiceWorker: Caching files');
-        return cache.addAll(urlsToCache);
+        // addAll は1つでも失敗（404など）すると全体が失敗し、新しいService Workerに更新されなくなる。
+        // 1つずつ追加して、取得できなかったファイルだけ飛ばす。
+        return Promise.all(urlsToCache.map((url) =>
+          cache.add(url).catch((err) => console.warn('[SW] cache skip:', url, err && err.message))
+        ));
       })
       .then(() => self.skipWaiting()) // 新しいService Workerを即座に有効化
   );
@@ -139,6 +146,23 @@ self.addEventListener('fetch', (event) => {
           });
         });
       })
+    );
+    return;
+  }
+
+  // HTML / JS / CSS はネットワーク優先（オフライン時だけキャッシュ）。
+  // 以前の「キャッシュを先に返す」方式だと、更新の直後に新旧のファイルが混ざって
+  // （新しいHTMLに古いJS等）、画面が「読み込み中」のまま止まることがあった。
+  const reqUrl = new URL(event.request.url);
+  if (event.request.method === 'GET' && (/\.(html|js|css)$/.test(reqUrl.pathname) || event.request.mode === 'navigate')) {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+        }
+        return networkResponse;
+      }).catch(() => caches.match(event.request).then((cached) => cached || (event.request.mode === 'navigate' ? caches.match('/index.html') : Response.error())))
     );
     return;
   }
