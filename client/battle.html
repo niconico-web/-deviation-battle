@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="css/battle.css?v=1783932440567">
 <link rel="stylesheet" href="css/tutorial.css?v=1788086431048">
 <link rel="stylesheet" href="css/practice-coach.css?v=1788086431048">
+<link rel="stylesheet" href="css/ui-settings.css">
 <style>
 .modal-overlay {
     position: fixed;
@@ -214,5 +215,56 @@ if ('serviceWorker' in navigator) {
 <script src="js/practice-coach.js?v=1788086431048"></script>
 <script src="js/questionLists.js?v=1788086431048"></script>
 <script src="js/battle.js?v=1788086431048"></script>
+<script src="js/ui-settings.js"></script>
+<script>
+// 通常バトル画面：⚙️ から、画面の各パーツの表示/非表示や大きさを変えられる
+(function () {
+    if (!window.UISettings) return;
+    var U = window.UISettings;
+    U.register({ id: 'bt-gauges', label: '必殺技・行動ゲージ', selector: '.ultimate-gauge, .atb-gauge', canHide: true, canScale: false });
+    U.register({ id: 'bt-stats', label: 'ステータス数値（攻撃・防御など）', selector: '.stats', canHide: true, canScale: false });
+    U.register({ id: 'bt-skills', label: 'スキルボタン', selector: '#skillSlotsContainer', canHide: true, canScale: false });
+    U.register({
+        id: 'bt-log', label: '戦闘ログ', selector: '#log', canHide: true, canScale: false,
+        controls: [
+            { key: 'fs', label: '文字の大きさ', min: 9, max: 20, step: 1, def: 13, unit: 'px' },
+            { key: 'h', label: '高さ', min: 40, max: 320, step: 10, def: 140, unit: 'px' }
+        ]
+    });
+    function applyLog() {
+        var el = document.getElementById('log');
+        if (!el) return;
+        var st = U.get('bt-log');
+        el.style.fontSize = st.fs + 'px';
+        el.style.maxHeight = st.h + 'px';
+    }
+    U.onChange(function (id) { if (id === 'bt-log' || id === '*') applyLog(); });
+    applyLog();
+    U.addGearButton({ top: 'max(8px, env(safe-area-inset-top, 0px))', right: 'calc(max(8px, env(safe-area-inset-right, 0px)) + 44px)' });
+})();
+</script>
+<script>
+// 部品ファイルの読み込み確認：新しく追加した3ファイルがサーバーに無いと、ジョイスティックや⚙️設定が使えない。
+// その場合は原因が分かるように画面に知らせる。
+window.addEventListener('load', function () {
+    var missing = [];
+    if (!window.UISettings) missing.push('js/ui-settings.js');
+    if (!window.Joystick) missing.push('js/joystick.js');
+    try {
+        var ok = false;
+        for (var i = 0; i < document.styleSheets.length; i++) {
+            var h = document.styleSheets[i].href || '';
+            if (h.indexOf('ui-settings.css') !== -1) { try { ok = document.styleSheets[i].cssRules.length > 0; } catch (e) { ok = true; } }
+        }
+        if (!ok) missing.push('css/ui-settings.css');
+    } catch (e) { /* noop */ }
+    if (!missing.length) return;
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#7a1f1f;color:#fff;border:1px solid #ff8a8a;border-radius:10px;padding:10px 12px;font:13px/1.5 sans-serif;';
+    d.textContent = '⚠️ 次のファイルが読み込めていません（サーバーにアップロード／コミットされていない可能性があります）: ' + missing.join(', ');
+    d.addEventListener('click', function () { d.remove(); });
+    document.body.appendChild(d);
+});
+</script>
 </body>
 </html>

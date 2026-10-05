@@ -1812,6 +1812,46 @@ textarea {
     width: auto;
 }
 
+.sidebar.sidebar-minimal .menu-btn .menu-label {
+    font-size: 0.7rem;
+    line-height: 1.1;
+    width: auto;
+    margin: 0;
+}
+
+/* 「⚙️ UI設定」「📣 紹介」：.menu-btnとは別クラスなので、ミニツールバー用に整える */
+.sidebar.sidebar-minimal .share-menu-btn {
+    width: auto;
+    margin: 0;
+    padding: 6px 10px;
+    border-top: none;
+    border-left: none;
+    border-radius: 8px;
+    justify-content: center;
+}
+.sidebar.sidebar-minimal .share-menu-btn span {
+    margin-right: 0;
+    width: auto;
+    font-size: 1.25rem;
+}
+
+/* ステータス画面などを開いている間も、ツールバーの下にコンテンツが隠れないよう
+   セーフエリア（ノッチ）を考慮して余白を取る */
+.sidebar.sidebar-minimal {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* スマホ：アイコンだけのコンパクト表示にして、フィールドを広く使う */
+@media (max-width: 700px), (max-height: 520px) {
+    .sidebar.sidebar-minimal .main-menu { padding: 4px; gap: 2px; }
+    .sidebar.sidebar-minimal .menu-btn { padding: 5px 9px; }
+    .sidebar.sidebar-minimal .menu-btn span { font-size: 1.15rem; }
+    .sidebar.sidebar-minimal .menu-btn .menu-label { display: none; }
+    .sidebar.sidebar-minimal .share-menu-btn { padding: 5px 9px; }
+}
+
+
 .sidebar.sidebar-minimal .menu-btn.active {
     background: var(--accent-blue-dark, #2b5876);
     color: #fff;
@@ -1860,19 +1900,22 @@ textarea {
     background: #05070a;
 }
 
-/* canvasの内部解像度（1600x900=16:9）のアスペクト比を保ったまま、
-   画面に収まる最大サイズで中央表示する。width/height:100%で無理に
-   引き伸ばすと、画面比率が違う端末ごとに見た目の位置やタップ判定の
-   基準がずれてしまうため、aspect-ratio指定でレターボックス表示にする */
+/* canvasの内部解像度はworld.jsが画面サイズに合わせて設定する。
+   以前は16:9固定のレターボックス表示で、縦長のスマホでは黒い帯が出て
+   フィールドが極端に小さくなっていた。今は画面いっぱいに表示する */
 #section-town #townCanvas {
     width: 100%;
     height: 100%;
-    max-width: 100%;
-    max-height: 100%;
-    aspect-ratio: 16 / 9;
-    object-fit: contain;
+    display: block;
+}
+#section-town > h2,
+#section-town > .town-help-text {
+    display: none;
 }
 
 .content-section:not(#section-town).active {
     padding: 70px 16px 24px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
 }
