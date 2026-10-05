@@ -44,6 +44,11 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <meta name="apple-mobile-web-app-title" content="School Battle">
     <link rel="apple-touch-icon" href="images/icons/icon-192x192.png">
     <meta name="theme-color" content="#212529">
+<style id="retiredOriginalWeapon">
+/* オリジナル武器は廃止（武器はステージのドロップ＋オーブのはめ込みに一本化） */
+#showCreateWeaponModalBtn, #createWeaponModal, #originalWeaponList,
+.setting-box:has(#showCreateWeaponModalBtn), h3:has(#tutorialOpenBtn-weapon), h4:has(+ #originalWeaponList) { display: none !important; }
+</style>
 </head>
 <body>
     <div id="install-popup" class="install-popup" style="display: none;">
@@ -720,7 +725,10 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/worldboss.js"></script>
     <script src="js/study-enhanced.js"></script>
     <script src="js/script.js"></script>
+<<<<<<< HEAD
     <script src="js/orientation.js"></script>
+=======
+>>>>>>> 61c8f23702fdab5d0dde74fb5b6a141c3f3948b1
     <script src="js/hw-weapons.js"></script>
     <script src="js/stage-data.js"></script>
     <script src="js/stage-lobby.js"></script>
