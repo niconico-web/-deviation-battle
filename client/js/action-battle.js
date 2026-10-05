@@ -7,7 +7,7 @@
 //  ・敵（ボス含む）も同じスキル定義・同じ実行処理でスキルを使う
 //  ・終了時は既存のバトルと同じlocalStorageキーを書いて result.html へ
 // ============================================================
-(function () {
+function action () {
     'use strict';
 
     // ---------- バランス調整用の定数 ----------
@@ -1216,6 +1216,72 @@
         UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
     }
 
+    // ---------- 画面フィット＆UI設定 ----------
+    // 戦闘フィールド(canvas)は16:9のまま、画面に収まる最大サイズで表示する
+    function fitCanvas() {
+        const st = canvas.parentElement;
+        const sw = st.clientWidth, sh = st.clientHeight;
+        if (sw < 10) return;
+        const portraitTouch = document.documentElement.classList.contains('touch-ui') && window.innerHeight > window.innerWidth;
+
+        if (portraitTouch) {
+            // スマホ縦向き：16:9で全体を映すと小さすぎるので、拡大して自キャラ付近を追従表示する
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const user = (window.UISettings && Number(UISettings.getGlobal('abZoom'))) || 1.3;
+            const z = Math.max(sw / W, (sw / 680) * user);       // 少なくともフィールド幅が収まる倍率より大きく
+            const cssW = Math.floor(sw);
+
+            // 下の操作エリア(172px)とクイズ欄を引いた残りが、戦闘画面に使える高さ
+            const panel = document.querySelector('.panel');
+            const panelH = panel ? panel.offsetHeight : 190;
+            const ctrl = 172 + 12;
+            const room = window.innerHeight - ctrl - panelH - 14;
+
+
+            const cssH = Math.floor(Math.min(H * z, window.innerHeight * 0.5));
+
+            canvas.style.width = cssW + 'px';
+            canvas.style.height = cssH + 'px';
+            const pw = Math.round(cssW * dpr), ph = Math.round(cssH * dpr);
+            if (canvas.width !== pw || canvas.height !== ph) { canvas.width = pw; canvas.height = ph; }
+            view.mode = 'cam'; view.z = z; view.dpr = dpr; view.cssW = cssW; view.cssH = cssH;
+            view.lw = cssW / z; view.lh = cssH / z;
+            return;
+        }
+        if (view.mode !== 'full') {
+            view.mode = 'full'; view.z = 1; view.dpr = 1; view.cssW = W; view.cssH = H; view.lw = W; view.lh = H; view.camX = 0; view.camY = 0; view.camInit = false;
+            canvas.width = W; canvas.height = H;
+        }
+
+        const w = portraitTouch ? sw : Math.min(sw, sh * 16 / 9);
+
+        canvas.style.width = Math.floor(w) + 'px';
+        canvas.style.height = Math.floor(w * 9 / 16) + 'px';
+    }
+
+    function setupUISettings() {
+        if (!window.UISettings) return;
+
+        UISettings.registerGlobal({ key: 'abZoom', label: '戦闘画面の拡大率（スマホ縦向き）', type: 'range', def: 1.3, min: 0.8, max: 2, step: 0.05, note: '大きくすると自キャラ付近が大きく映り、小さくするとフィールド全体が見えます。' });
+
+        const touch = UISettings.isTouchUI();
+        if (touch) {
+            const hint = document.querySelector('.hint');
+            if (hint) hint.textContent = '左側をドラッグで移動 / 攻撃・スキルは押したままドラッグで狙って、離すと発動（タップだけなら自動照準）';
+        }
+        UISettings.register({ id: 'ab-gauges', label: 'ゲージ（気力・スタミナ）', selector: '#gauges', anchor: 'bc', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-quiz', label: 'クイズ欄', selector: '.quiz', anchor: 'bc', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.5, note: 'バトルに必須なので、非表示にはできません（小さく・薄くはできます）。' });
+        UISettings.register({ id: 'ab-skills', label: 'スキルボタン', selector: '.skill-bar', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-attack', label: '攻撃ボタン', selector: '#attackBtn', anchor: 'br', canHide: false, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-dodge', label: '回避ボタン', selector: '#dodgeBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-guard', label: 'ガードボタン', selector: '#guardBtn', anchor: 'br', canHide: true, canScale: true, canOpacity: true, scaleMin: 0.6, scaleMax: 1.8 });
+        UISettings.register({ id: 'ab-hint', label: '操作ヒント', selector: '.hint', anchor: 'c', canHide: true, canScale: false });
+        UISettings.addGearButton({ top: 'max(8px, env(safe-area-inset-top, 0px))', right: 'max(8px, env(safe-area-inset-right, 0px))' });
+
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '_g:abZoom' || id === '*') fitCanvas(); });
+
+        UISettings.onChange((id) => { if (id === '_g:touchUI' || id === '*') fitCanvas(); });
+
     // ---------- 終了処理 ----------
     function checkEnd() {
         if (ended) return;
@@ -1282,4 +1348,5 @@
         (tier === 'boss' ? '⚠️ ボス「' : (tier === 'elite' ? '✨ レア個体「' : '「')) + enemy.name + '」との戦闘！';
     setTimeout(() => { const el = document.getElementById('enemyIntro'); if (el) el.classList.add('hide'); }, 2200);
     requestAnimationFrame((t) => { last = t; loop(t); });
-})();
+    }
+}

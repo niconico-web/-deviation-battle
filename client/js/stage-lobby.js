@@ -41,7 +41,11 @@
         .sbl-orb:hover { background: #2f3a58; }
         /* スマホ：2列を縦に積む。各列は中身の高さぶん確保し、全体を縦スクロールにする
            （以前は列の高さが0基準で縮み、はみ出した中身が隣の列に重なっていた） */
+<<<<<<< HEAD
         @media (max-aspect-ratio: 1/1) {
+=======
+        @media (max-width: 720px), (max-aspect-ratio: 1/1) {
+>>>>>>> 61c8f23702fdab5d0dde74fb5b6a141c3f3948b1
             .sbl-ov { align-items: flex-start; padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
             .sbl-box { max-height: 100%; }
             .sbl-body { flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; display: block; }
@@ -50,6 +54,7 @@
             .sbl-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
             .sbl-btn { padding: 11px 14px; }
         }
+<<<<<<< HEAD
         @media (min-aspect-ratio: 1/1) { .sbl-col { touch-action: pan-y; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; } }
         /* スマホ横向き（高さが低い）：余白と文字を詰める */
         @media (max-height: 480px) and (min-aspect-ratio: 1/1) {
@@ -64,6 +69,9 @@
             .sbl-wl, .sbl-orb, .sbl-fx { font-size: .78rem; }
             .sbl-slot { width: 42px; height: 42px; line-height: 36px; }
         }
+=======
+        @media (min-width: 721px) and (min-aspect-ratio: 1/1) { .sbl-col { touch-action: pan-y; -webkit-overflow-scrolling: touch; } }
+>>>>>>> 61c8f23702fdab5d0dde74fb5b6a141c3f3948b1
         `;
         document.head.appendChild(st);
     }
