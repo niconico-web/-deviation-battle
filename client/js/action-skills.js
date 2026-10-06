@@ -3,7 +3,7 @@
 //
 //   スキル = 「形(form)」 + 「効果(effects)」 + 「強化(augments)」
 //
-//   形    : 投射 / レーザー / 斬撃 / 衝撃波 のどれか1つ
+//   形    : 投射 / レーザー / 斬撃 / 衝撃波 / 流星 / 旋回 のどれか1つ
 //   効果  : ヒット時に起きること（ダメージ・燃焼・凍結…）。最大3つ
 //   強化  : 形の性能を伸ばす。同じ強化は重ねがけ可（例：レーザーを+2本）。最大4つ
 //
@@ -15,7 +15,9 @@
         projectile: { name: "投射", icon: "🔮", cost: 20, desc: "弾を撃ち出す。遠距離向き", cd: 1.2 },
         laser:      { name: "レーザー", icon: "🔆", cost: 35, desc: "直線状の光線が敵を貫く", cd: 1.8 },
         slash:      { name: "斬撃", icon: "🌙", cost: 25, desc: "前方に超広い斬撃を放つ", cd: 1.4 },
-        nova:       { name: "衝撃波", icon: "💥", cost: 30, desc: "自分を中心に周囲を吹き飛ばす", cd: 1.6 }
+        nova:       { name: "衝撃波", icon: "💥", cost: 30, desc: "自分を中心に周囲を吹き飛ばす", cd: 1.6 },
+        meteor:     { name: "流星", icon: "☄️", cost: 38, desc: "狙った場所に隕石を降らせる。着弾まで少し遅れる範囲攻撃（増殖で落下数が増える）", cd: 2.2 },
+        orbit:      { name: "旋回", icon: "🌀", cost: 32, desc: "光球が自分の周りを約3秒回り、触れた敵を連続で斬る（増殖で光球が増える）", cd: 2.0 }
     };
 
     // グリフ（効果）。damage以外は基本的にグリフ工房（action-skills.html）で
@@ -168,6 +170,17 @@
         } else if (s.form === "nova") {
             Object.assign(p, {
                 radius: 150 * (1 + 0.3 * extend), baseMult: 2.0, delay: 0.28, range: 150 * (1 + 0.3 * extend)
+            });
+        } else if (s.form === "meteor") {
+            // count = 隕石の数。1発目は狙った場所、2発目以降はその周りにばらけて落ちる
+            Object.assign(p, {
+                radius: 85 * (1 + 0.25 * extend), baseMult: 2.4, delay: 0.55, stagger: 0.25, range: 560
+            });
+        } else if (s.form === "orbit") {
+            // 光球が orbs 個、半径 orbitR で duration 秒まわる。同じ敵には tick 秒に1回ヒット
+            Object.assign(p, {
+                orbs: 2 + multi, orbitR: 95 * (1 + 0.25 * extend), duration: 3.0, tick: 0.4, spin: 4.2,
+                baseMult: 0.85, range: 95 * (1 + 0.25 * extend) + 20
             });
         }
         return { skill: s, cost: Math.round(cost), cooldown: cooldown, params: p };

@@ -88,15 +88,19 @@ module.exports = function(io) {
                 return socket.emit('party:error', { message: 'Player not found.' });
 
         // パーティーメンバーの位置更新
+        let lastPartyPosAt = 0;   // パーティー位置は100msに1回まで（町の移動同期と同じ頻度で届く必要はない）
         socket.on('party:updatePosition', (data) => {
-            const { playerId, x, y, worldId } = data;
+            const now = Date.now();
+            if (now - lastPartyPosAt < 100) return;
+            lastPartyPosAt = now;
+            const { playerId, x, y, worldId } = data || {};
             if (!playerId || !x || !y || !worldId) return;
 
             const party = PartyManager.getPartyByPlayerId(playerId);
             if (!party) return;
 
             // パーティーメンバー全員に位置をブロードキャスト
-            io.to(party.id).emit('party:memberPosition', {
+            io.to(party.id).volatile.emit('party:memberPosition', {
                 playerId,
                 x,
                 y,

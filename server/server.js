@@ -4,6 +4,9 @@ const { Server } = require("socket.io");
 const UniqueWeaponManager = require("./managers/UniqueWeaponManager");
 
 const app = express();
+// 配信の圧縮（HTML/JS/CSS/JSONをgzip）。questions.js などの大きなファイルを毎回そのまま送っていたぶんの帯域とCPU待ちを減らす。
+// パッケージが入っていない環境でもサーバーが落ちないよう、読み込みに失敗したら圧縮なしで動く。
+try { app.use(require("compression")()); } catch (e) { console.warn("[server] compression が入っていないため圧縮なしで起動します（npm install で有効化）"); }
 app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -69,7 +72,9 @@ app.use(express.static(path.join(__dirname, "../client"), {
         if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
             res.setHeader("Content-Type", `${getContentType(filePath)}; charset=utf-8`);
             // Avoid stale CDN/browser assets after redeploys.
-            res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+            // no-store だと毎回ファイル全体を再ダウンロードさせてしまう。no-cache は「毎回サーバーに確認するが、
+            // 変わっていなければ(ETagが同じなら) 304 で中身は送らない」ので、更新の即時反映を保ったまま転送量だけ減らせる。
+            res.setHeader("Cache-Control", "no-cache, must-revalidate");
         }
     }
 }));
@@ -108,6 +113,7 @@ require("./socket/party")(io);
 require("./socket/boss")(io);
 require("./socket/ranking")(io);
 require("./socket/social")(io);
+require("./socket/stage")(io);
 require("./socket/dungeon")(io);
 require("./socket/disconnect")(io);
 require("./socket/world")(io);

@@ -30,7 +30,18 @@ function calculatePowerScore(player) {
  * 全プレイヤーの戦力ランキングを、戦力スコアの高い順に並べて返す。
  * @returns {Array<object>}
  */
+// 全員分の集計＋並べ替えは重いので、15秒以内の要求には同じ結果を使い回す（ランキングは多少遅れても支障がない）
+const RANKING_TTL_MS = 15000;
+let rankingCache = null, rankingCacheAt = 0;
+
 function getPowerRanking() {
+    if (rankingCache && Date.now() - rankingCacheAt < RANKING_TTL_MS) return rankingCache;
+    rankingCache = computePowerRanking();
+    rankingCacheAt = Date.now();
+    return rankingCache;
+}
+
+function computePowerRanking() {
     const players = PlayerDataManager.getAllPlayers();
 
     return players
