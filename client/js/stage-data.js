@@ -29,10 +29,7 @@
     const S = []; // ステージ配列
 
     function add(def) {
-<<<<<<< HEAD
         if (!def.world) def.world = 1;
-=======
->>>>>>> 9b24f125e71a6801ceb4e8ad9b835b75d2eeca58
         def.index = S.length;
         S.push(def);
     }
