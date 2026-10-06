@@ -41,7 +41,7 @@
         .sbl-orb:hover { background: #2f3a58; }
         /* スマホ：2列を縦に積む。各列は中身の高さぶん確保し、全体を縦スクロールにする
            （以前は列の高さが0基準で縮み、はみ出した中身が隣の列に重なっていた） */
-        @media (max-aspect-ratio: 1/1) {
+        @media (max-width: 720px), (max-aspect-ratio: 1/1) {
             .sbl-ov { align-items: flex-start; padding: max(6px, env(safe-area-inset-top)) 6px max(6px, env(safe-area-inset-bottom)); }
             .sbl-box { max-height: 100%; }
             .sbl-body { flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; display: block; }
@@ -64,6 +64,7 @@
             .sbl-wl, .sbl-orb, .sbl-fx { font-size: .78rem; }
             .sbl-slot { width: 42px; height: 42px; line-height: 36px; }
         }
+        @media (min-width: 721px) and (min-aspect-ratio: 1/1) { .sbl-col { touch-action: pan-y; -webkit-overflow-scrolling: touch; } }
         `;
         document.head.appendChild(st);
     }
@@ -92,6 +93,7 @@
     function openStageGate() {
         if (!window.STAGE_DATA || !window.HW) { alert('ステージデータの読み込みに失敗しました'); return; }
         const hack = HW.load();
+
         const allStages = window.STAGE_DATA.STAGES;
         const WORLDS = window.STAGE_DATA.WORLDS || [];
         let world = 1;                                   // 表示中の世界。第二世界は解放後だけタブが現れる
@@ -100,6 +102,9 @@
         const worldOpen = w => w.id === 1 || !!(w.unlock && hack[w.unlock.flag]);
         const worldStages = () => allStages.filter(s => (s.world || 1) === world && gateOpen(s));
         let selId = worldStages()[0].id;
+
+
+
         const DIFFS = window.STAGE_DATA.DIFFS;
         let selDiff = Math.min(DIFFS.length - 1, parseInt(hack.lastDiff, 10) || 0);
         const m = modal('🚪 ステージゲート', () => { const sk = getSock(); if (sk) sk.off('stage:rooms', onRooms); });
@@ -112,15 +117,20 @@
         function refreshRooms() { if (sock && sock.connected) sock.emit('stage:list', { stageId: selId }); }
 
         function renderList() {
+
             const wdef = WORLDS.find(w => w.id === world) || {};
             const openWorlds = WORLDS.filter(worldOpen);
             const tabs = openWorlds.length > 1 ? '<div style="margin-bottom:6px">' + openWorlds.map(w => '<button class="sbl-btn' + (w.id === world ? '' : ' gray') + '" data-world="' + w.id + '" style="' + (w.id === world ? 'background:' + w.color : '') + '">' + w.icon + ' ' + esc(w.name) + '</button>').join('') + '</div>' : '';
             listEl.innerHTML = tabs + (world > 1 ? '<div style="font-size:.8rem;color:#d8b8ff;margin-bottom:4px">' + esc(wdef.note || '') + '</div>' : '') + '<div class="sbl-sec">ダンジョン＋ボス（約5分／最大4人で協力）</div><div class="sbl-grid">' + worldStages().map(s => {
+
                 const c = hack.cleared[s.id] || 0;
                 return '<div class="sbl-card' + (s.id === selId ? ' sel' : '') + '" data-id="' + s.id + '"><div style="font-size:1.5rem">' + s.icon + '</div><b>' + esc(s.name) + '</b><small>推奨Lv ' + s.ilvl + (s.mini ? '・ミニ' : '') + '</small><small>ボス：' + esc(s.boss.name) + '</small><small>' + (c ? '✔ クリア ' + c + '回' : '未クリア') + '</small></div>';
             }).join('') + '</div>';
             listEl.querySelectorAll('.sbl-card').forEach(c => c.addEventListener('click', () => { selId = c.dataset.id; renderList(); renderDetail(); refreshRooms(); }));
+
             listEl.querySelectorAll('[data-world]').forEach(b => b.addEventListener('click', () => { world = parseInt(b.dataset.world, 10); selId = worldStages()[0].id; renderList(); renderDetail(); refreshRooms(); }));
+
+
         }
         function matLine(s) {
             const seen = {}, out = [];
@@ -269,7 +279,9 @@
         const sec = document.getElementById('section-shop');
         if (sec && window.MutationObserver) new MutationObserver(refreshInvInfo).observe(sec, { attributes: true, attributeFilter: ['class'] });
         refreshInvInfo();
+
         checkWorldNotice();
+
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindInventory); else bindInventory();
 
