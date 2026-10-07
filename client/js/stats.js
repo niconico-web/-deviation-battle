@@ -233,7 +233,11 @@ function getPrestigeBonusFlatAmount(player) {
     return Math.floor((bonusPercent / 100) * (TOTAL_STAT_POINTS / STAT_KEYS.length));
 }
 
-function calcStudyXp(s) { return Math.floor(s / 4); }
+// シーズンキャラは勉強効率+10%（SeasonSys.studyMultiplier()。スタンダードキャラや季節外は1）
+function getStudyEfficiency() {
+    try { return (window.SeasonSys && window.SeasonSys.studyMultiplier()) || 1; } catch (e) { return 1; }
+}
+function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficiency()); }
 
 // 勉強で得られるステータス成長量。
 // 以前は時間だけで決まる固定値だったため、転生ボーナス（永続・乗算）や
@@ -243,11 +247,13 @@ function calcStudyXp(s) { return Math.floor(s / 4); }
 // 育成が進んでも勉強し続ける意味が残るようにする。
 function calcStatGain(s, player) {
     const base = Math.max(1, Math.floor(s / 60));
-    if (!player) return base;
+    const eff = getStudyEfficiency();
+    if (!player) return Math.max(base, Math.round(base * eff));
     const level = player.level || calcLevel(player.xp || 0);
     const prestigeCount = player.prestigeCount || 0;
     const growthMultiplier = 1 + Math.floor(level / 10) * 0.1 + prestigeCount * 0.15;
-    return Math.max(base, Math.floor(base * growthMultiplier));
+    const gain = Math.max(base, Math.floor(base * growthMultiplier));
+    return Math.max(gain, Math.round(gain * eff));
 }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
 

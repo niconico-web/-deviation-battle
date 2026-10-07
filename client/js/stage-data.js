@@ -319,6 +319,168 @@
 
 
     // ============================================================
+    // 第四世界「機神の都」（ゲートキーパー・終焉II を倒すと解放）
+    //  歯車と蒸気と電脳の都。機械の神々が、侵入者を部品に変える。新しい武器種：電磁砲・歯車刃
+    // ============================================================
+    const E = (name, icon, arch, color) => ({ name: name, icon: icon, arch: arch, color: color });
+    const W4_POWER = { hp: 2.7, dmg: 1.9, spd: 1.14 };
+    add({
+        id: 'gate_world4', world: 3, gateTo: 4, bossOnly: true, power: { hp: 2.9, dmg: 1.9, spd: 1.0 },
+        name: '機神の門', icon: '⚙️', ilvl: 31, bg: '#1d2430', bg2: '#121822',
+        desc: '神域の果てに現れた、鋼鉄の巨大な門。門を守るゲートキーパーを倒さなければ、機神の都へは進めない。',
+        enemies: [E('門の影', '👤', 'chaser', '#9ac0ff')],
+        boss: { name: 'ゲートキーパー・機構', icon: '⚙️', color: '#ffd9a0', patterns: ['radial'], stand: true, gate: true },
+        drops: ['god_edge', 'titan_bow', 'seraph_wand', 'genesis_gunblade', 'divine_rapier'],
+        bossDrops: ['gate_gearblade', 'creation_scepter']
+    });
+    add({
+        id: 'steam_bridge', world: 4, power: W4_POWER, name: '蒸気の大橋', icon: '🌉', ilvl: 32, bg: '#5a4a3a', bg2: '#463a2d',
+        desc: '蒸気を噴き上げる巨大な鉄橋。蒸気竜機が橋の上を支配している。',
+        enemies: [E('蒸気兵', '🤖', 'chaser', '#c8b090'), E('ボイラー虫', '🪲', 'bomber', '#ff9a4a'), E('鉄砲台', '🔫', 'ranged', '#9aa4b8')],
+        boss: { name: '蒸気竜機スチームドレイク', icon: '🐲', color: '#e0a060', patterns: ['radial', 'charge', 'slam'] },
+        drops: ['rail_mk1', 'gear_saw', 'clock_blade', 'steam_pistol', 'god_edge', 'chaos_axe'],
+        bossDrops: ['rail_mk1', 'gear_saw']
+    });
+    add({
+        id: 'gear_cathedral', world: 4, power: W4_POWER, name: '歯車の大聖堂', icon: '⛪', ilvl: 33, bg: '#3a3a4a', bg2: '#2b2b3a',
+        desc: '無数の歯車が祈りを刻む大聖堂。大司教機が、止まらない讃美歌を奏でる。',
+        enemies: [E('歯車の信徒', '⚙️', 'swarm', '#d0c090'), E('機械僧兵', '🛡️', 'tank', '#8a94a8'), E('鐘守', '🔔', 'ranged', '#ffe080')],
+        boss: { name: '大司教機ギアビショップ', icon: '🔔', color: '#d8c070', patterns: ['volley', 'summon', 'spiral'] },
+        drops: ['gear_twin', 'clock_blade', 'mech_halberd', 'rail_mk1', 'seraph_wand', 'aeon_bit'],
+        bossDrops: ['gear_twin', 'mech_halberd']
+    });
+    add({
+        id: 'cyber_corridor', world: 4, power: W4_POWER, name: '電脳回廊', icon: '💾', ilvl: 34, bg: '#0f2a3a', bg2: '#0a1f2c',
+        desc: '光の回路が走る電脳の回廊。守護プログラムが、侵入者を削除しようとする。',
+        enemies: [E('ウイルス', '🦠', 'swarm', '#7aff9a'), E('ファイアウォール', '🧱', 'tank', '#4ac8ff'), E('スナイパーAI', '🎯', 'ranged', '#ff6aa0')],
+        boss: { name: '電脳の守護者サイバーウォーデン', icon: '🧿', color: '#4adfff', patterns: ['volley', 'slam', 'radial'] },
+        drops: ['rail_mk1', 'steam_pistol', 'tesla_whip', 'gear_twin', 'aeon_bit', 'titan_bow'],
+        bossDrops: ['tesla_whip', 'rail_mk2']
+    });
+    add({
+        id: 'steel_arena', world: 4, power: W4_POWER, name: '鋼鉄の闘技場', icon: '🏟️', ilvl: 35, bg: '#4a3a3a', bg2: '#392b2b',
+        desc: '歓声のない鋼鉄の闘技場。剣闘機が、挑戦者を待ち構える。',
+        enemies: [E('剣闘機', '🗡️', 'charger', '#c0a0a0'), E('盾兵機', '🛡️', 'tank', '#a0a8b8'), E('投槍機', '🔱', 'ranged', '#e0c080')],
+        boss: { name: '剣闘機グラディエーター・ゼロ', icon: '⚔️', color: '#ff7a5a', patterns: ['charge', 'slam', 'summon'] },
+        drops: ['rail_mk2', 'gear_twin', 'mech_halberd', 'clock_blade', 'tesla_whip', 'chaos_axe'],
+        bossDrops: ['rail_mk2', 'mech_halberd']
+    });
+    add({
+        id: 'zero_foundry', world: 4, power: W4_POWER, name: '零式工廠', icon: '🏭', ilvl: 36, bg: '#4a2a1a', bg2: '#381e12',
+        desc: '止まらない溶鉱炉と組立ライン。母機が、無限に兵を生み出し続ける。',
+        enemies: [E('組立ドローン', '🛸', 'swarm', '#ffb060'), E('溶鉱炉兵', '🔥', 'chaser', '#ff7a3a'), E('クレーン腕', '🦾', 'charger', '#b0b8c8')],
+        boss: { name: '工廠長オートマ・マザー', icon: '🏭', color: '#ff9a3a', patterns: ['summon', 'radial', 'spiral', 'slam'] },
+        drops: ['gear_omega', 'rail_mk2', 'steam_pistol', 'tesla_whip', 'god_edge', 'dragon_breath'],
+        bossDrops: ['gear_omega', 'rail_zero']
+    });
+    add({
+        id: 'mech_throne', world: 4, power: { hp: 3.3, dmg: 2.2, spd: 1.16 }, name: '機神の玉座', icon: '🤴', ilvl: 38, bg: '#1a2a4a', bg2: '#111c36',
+        desc: '機神の都の最奥。すべての機械を統べる機神王が、歯車の玉座に座している。',
+        enemies: [E('機神の近衛', '🦾', 'chaser', '#80b0ff'), E('王の砲台', '💠', 'ranged', '#a0e0ff'), E('重装機兵', '🗿', 'tank', '#8a98c0')],
+        boss: { name: '機神王ゴッドマキナ', icon: '🤴', color: '#6aa8ff', patterns: ['radial', 'volley', 'slam', 'summon'] },
+        drops: ['rail_zero', 'gear_omega', 'rail_mk2', 'tesla_whip', 'creation_scepter', 'genesis_gunblade', 'divine_rapier'],
+        bossDrops: ['rail_zero', 'gear_omega', 'mech_blade_god']
+    });
+
+    // ============================================================
+    // 第五世界「虚空の彼方」（ゲートキーパー・無限 を倒すと解放）
+    //  星々が死に絶えた宇宙の果て。最強の敵と虚空の王が待つ。新しい武器種：衛星砲・特異点
+    // ============================================================
+    const W5_POWER = { hp: 3.1, dmg: 2.1, spd: 1.16 };
+    add({
+        id: 'gate_world5', world: 4, gateTo: 5, bossOnly: true, power: { hp: 3.3, dmg: 2.2, spd: 1.0 },
+        name: '虚空の門', icon: '🕳️', ilvl: 39, bg: '#0a0618', bg2: '#05030f',
+        desc: '機神の玉座の背後に口を開けた、虚空の門。門を守るゲートキーパーを倒さなければ、世界の果てへは進めない。',
+        enemies: [E('門の影', '👤', 'chaser', '#9a7aff')],
+        boss: { name: 'ゲートキーパー・無限', icon: '🕳️', color: '#e0d0ff', patterns: ['radial'], stand: true, gate: true },
+        drops: ['rail_zero', 'gear_omega', 'creation_scepter', 'genesis_gunblade', 'mech_blade_god'],
+        bossDrops: ['gate_voidblade', 'rail_zero']
+    });
+    add({
+        id: 'stardust_graveyard', world: 5, power: W5_POWER, name: '星屑の墓場', icon: '💫', ilvl: 40, bg: '#1a1a2e', bg2: '#10101f',
+        desc: '死んだ星々が漂う墓場。星喰らいの屍竜が、残った光を貪っている。',
+        enemies: [E('星屑の亡霊', '👻', 'ranged', '#c0c8ff'), E('隕石蟲', '☄️', 'charger', '#ff9a6a'), E('墓守の骸', '💀', 'tank', '#c8c0b0')],
+        boss: { name: '星喰らいの屍竜スターイーター', icon: '🐉', color: '#8a7aff', patterns: ['charge', 'radial', 'spiral'] },
+        drops: ['orb_sat', 'sing_core', 'void_katana', 'god_edge', 'mech_blade_god', 'rail_zero'],
+        bossDrops: ['orb_sat', 'void_katana']
+    });
+    add({
+        id: 'galaxy_vortex', world: 5, power: W5_POWER, name: '銀河の渦', icon: '🌀', ilvl: 41, bg: '#241a4a', bg2: '#1a1236',
+        desc: '星々が渦を巻いて落ちていく銀河の中心。渦の巫女が、運命を回している。',
+        enemies: [E('渦の使い', '🌀', 'chaser', '#b09aff'), E('星の群れ', '⭐', 'swarm', '#ffe08a'), E('重力球', '🔮', 'ranged', '#8a6aff')],
+        boss: { name: '渦の巫女ギャラクシア', icon: '🔮', color: '#c09aff', patterns: ['spiral', 'volley', 'summon'] },
+        drops: ['orb_sat', 'sing_core', 'nova_greatsword', 'void_katana', 'seraph_wand', 'aeon_bit'],
+        bossDrops: ['sing_core', 'orb_array']
+    });
+    add({
+        id: 'event_horizon', world: 5, power: W5_POWER, name: '事象の地平', icon: '⚫', ilvl: 42, bg: '#0a0a14', bg2: '#05050c',
+        desc: '光さえ逃げられない境界。地平の番人が、一度入った者を二度と返さない。',
+        enemies: [E('影の使徒', '🌑', 'chaser', '#6a6a9a'), E('引力の獣', '🐺', 'charger', '#8a8ac0'), E('虚無の眼', '👁️', 'ranged', '#c0a0ff')],
+        boss: { name: '地平の番人ホライゾン', icon: '⚫', color: '#a090ff', patterns: ['slam', 'radial', 'charge', 'spiral'] },
+        drops: ['orb_array', 'sing_maw', 'nova_greatsword', 'eclipse_dagger', 'void_katana', 'world_edge'],
+        bossDrops: ['sing_maw', 'eclipse_dagger']
+    });
+    add({
+        id: 'dying_star', world: 5, power: W5_POWER, name: '終焉の星', icon: '🌟', ilvl: 43, bg: '#4a1a1a', bg2: '#380f0f',
+        desc: '最期の輝きを放ちながら膨らむ赤い星。滅星の巨人が、星の欠片を投げつける。',
+        enemies: [E('炎の残滓', '🔥', 'swarm', '#ff8a4a'), E('星核兵', '💥', 'bomber', '#ffb04a'), E('溶けた巨兵', '🗿', 'tank', '#d07a5a')],
+        boss: { name: '滅星の巨人ノヴァ・タイタン', icon: '🌟', color: '#ff6a3a', patterns: ['slam', 'volley', 'radial'] },
+        drops: ['orb_array', 'nova_greatsword', 'eclipse_dagger', 'star_bow', 'dragon_breath', 'chaos_axe'],
+        bossDrops: ['nova_greatsword', 'star_bow']
+    });
+    add({
+        id: 'void_sea', world: 5, power: W5_POWER, name: '虚空の海', icon: '🌌', ilvl: 44, bg: '#0a1030', bg2: '#060a22',
+        desc: '何もないはずの海に、巨大な影が泳ぐ。虚空鯨が、世界の残骸を呑み込んでいく。',
+        enemies: [E('虚空の稚魚', '🐟', 'swarm', '#7aa0ff'), E('深淵の捕食者', '🦈', 'charger', '#4a6ad0'), E('星屑クラゲ', '🪼', 'ranged', '#a0d0ff')],
+        boss: { name: '虚空鯨ヴォイドリヴァイアサン', icon: '🐋', color: '#5a7aff', patterns: ['spiral', 'charge', 'radial', 'summon'] },
+        drops: ['orb_omega', 'sing_maw', 'star_bow', 'eclipse_dagger', 'void_katana', 'aeon_bit'],
+        bossDrops: ['orb_omega', 'sing_omega']
+    });
+    add({
+        id: 'void_throne', world: 5, power: { hp: 3.8, dmg: 2.4, spd: 1.18 }, name: '虚空の玉座', icon: '👑', ilvl: 46, bg: '#14041f', bg2: '#0c0214',
+        desc: '世界の果てに据えられた玉座。すべての終わりを見届ける虚空の王が、最後の挑戦者を待っている。',
+        enemies: [E('虚空の近衛', '🛡️', 'chaser', '#c090ff'), E('終焉の使い', '☠️', 'charger', '#8a4aff'), E('王の眼', '👁️', 'ranged', '#ff80d0'), E('玉座の巨兵', '🗿', 'tank', '#6a4a9a')],
+        boss: { name: '虚空の王アビス・オブ・ゼロ', icon: '👑', color: '#e0a0ff', patterns: ['radial', 'volley', 'slam', 'spiral', 'summon'] },
+        drops: ['sing_omega', 'orb_omega', 'star_bow', 'nova_greatsword', 'eclipse_dagger', 'void_katana', 'creation_scepter'],
+        bossDrops: ['sing_omega', 'orb_omega', 'void_king_blade']
+    });
+
+    // ============================================================
+    // スタンダードワールド（スタンダードキャラ専用）
+    //  ・シーズンで持ち帰ったステータスを試す、永遠の世界。最初のボスから HP が1億を超える（ノーマル）
+    //  ・bossHp : ノーマル・ソロのボスHP / req : 敵の攻撃力の基準にするステータス合計
+    //  ・制限時間は25分。ハード×2.2・ナイトメア×4.5。協力プレイ推奨
+    // ============================================================
+    const WS_POWER = { hp: 1, dmg: 1.0, spd: 1.12 };
+    const stdEnemies = [E('永劫の従者', '🗡️', 'chaser', '#e0d0ff'), E('終局の砲手', '🔮', 'ranged', '#a08aff'), E('時の番人', '⌛', 'tank', '#ffe0a0')];
+    const stdDrops = ['creation_scepter', 'genesis_gunblade', 'divine_rapier', 'sing_omega', 'orb_omega', 'void_king_blade', 'mech_blade_god', 'star_bow'];
+    add({ id: 'std_gate', world: 9, standardOnly: true, bossHp: 1.2e8, reqOverride: 1000000, power: WS_POWER, name: '永劫の入口', icon: '♾️', ilvl: 47, bg: '#1a1424', bg2: '#100a1a',
+        desc: 'スタンダードワールドの入口。最初のボスから、HPが1億を超える。',
+        enemies: stdEnemies, boss: { name: '永劫の番人ガーディアン・ゼロ', icon: '🗿', color: '#e0d0ff', patterns: ['radial', 'slam', 'summon'] }, drops: stdDrops, bossDrops: stdDrops.slice(0, 3) });
+    add({ id: 'std_time', world: 9, standardOnly: true, bossHp: 3.6e8, reqOverride: 1500000, power: WS_POWER, name: '時の終端', icon: '⌛', ilvl: 48, bg: '#2a2410', bg2: '#1c180a',
+        desc: '時間が止まり、砕けた砂時計が宙に浮かぶ終端。',
+        enemies: stdEnemies, boss: { name: '終端の時計守クロノ・オメガ', icon: '⌛', color: '#ffe080', patterns: ['spiral', 'volley', 'charge'] }, drops: stdDrops, bossDrops: stdDrops.slice(1, 4) });
+    add({ id: 'std_cause', world: 9, standardOnly: true, bossHp: 1.1e9, reqOverride: 2500000, power: WS_POWER, name: '因果の断崖', icon: '🧭', ilvl: 49, bg: '#102a2a', bg2: '#0a1c1c',
+        desc: '原因と結果が断ち切られた断崖。裁定者が、あらゆる因果を書き換える。',
+        enemies: stdEnemies, boss: { name: '因果の裁定者コーザ・ジャッジ', icon: '⚖️', color: '#80ffe0', patterns: ['volley', 'slam', 'radial', 'summon'] }, drops: stdDrops, bossDrops: stdDrops.slice(2, 5) });
+    add({ id: 'std_loop', world: 9, standardOnly: true, bossHp: 3.3e9, reqOverride: 4000000, power: WS_POWER, name: '無限回廊', icon: '🔁', ilvl: 50, bg: '#2a1040', bg2: '#1c0a2c',
+        desc: '出口のない無限の回廊。回廊主が、挑戦者を何度でも迷わせる。',
+        enemies: stdEnemies, boss: { name: '無限の回廊主ループ・マスター', icon: '🔁', color: '#d080ff', patterns: ['charge', 'spiral', 'slam', 'volley'] }, drops: stdDrops, bossDrops: stdDrops.slice(3, 6) });
+    add({ id: 'eternal_throne', world: 9, standardOnly: true, bossHp: 1e10, reqOverride: 6000000, power: WS_POWER, name: '永劫の玉座', icon: '♾️', ilvl: 51, bg: '#14101e', bg2: '#0c0814',
+        desc: 'スタンダードワールドの最奥。すべての努力を積み上げた者だけが、永劫の裁定者に挑める。',
+        enemies: stdEnemies, boss: { name: '永劫の裁定者', icon: '♾️', color: '#f0e0ff', patterns: ['radial', 'spiral', 'slam', 'summon'] }, drops: stdDrops, bossDrops: stdDrops.slice(4, 8) });
+
+    // ============================================================
+    // オンラインマッチ（アクション対戦）の闘技場。ステージゲートには出ない（world: 0）
+    //  ・2〜4人の乱戦。敵はいない。ダメージはステータスに関係なく「最大HPの割合」で決まる（武器・スキル・特殊効果の勝負）
+    //  ・1人で入ると、スパーリングボットとの練習になる
+    // ============================================================
+    add({ id: 'pvp_arena', world: 0, pvp: true, bossOnly: true, name: 'アリーナ', icon: '⚔️', ilvl: 1, bg: '#2a2a3a', bg2: '#1c1c2a',
+        desc: 'オンラインマッチ会場。2〜4人の乱戦、最後まで立っていた人の勝ち。',
+        enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
+        drops: [], bossDrops: [] });
+
+    // ============================================================
     // モンスター素材のドロップ表（グリフ工房の素材になる。ids は materials.js の MATERIAL_DATA と同じ）
     //   mob   : 雑魚を倒すたびに、各行を独立して抽選（確率は控えめ）
     //   elite : 精鋭を倒したとき
@@ -359,7 +521,45 @@
         god_throne:        { mob: [['sun_crystal', .2], ['void_essence', .2], ['divine_crystal', .08], ['abyss_gem', .1]], elite: [['divine_crystal', .5], ['sun_crystal', .5], ['chaos_orb', .4], ['abyss_gem', .45]], boss: [['divine_crystal', 1], ['void_essence', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6], ['eternal_flame', .5]] },
         clockwork_factory: { mob: [['iron_ore', .30], ['rock_fragment', .30], ['magic_powder', .20], ['silver_ore', .15]], elite: [['iron_ore', .7], ['silver_ore', .5], ['gold_ore', .3], ['crystal_shard', .25]], boss: [['gold_ore', .8], ['mithril_ore', .45], ['crystal_shard', .6], ['elemental_core', .5], ['titan_stone', .4]] }
     };
+
+    // 第四・第五世界・スタンダードワールドの素材表（既存の素材IDを使う）
+    const M = (mob, elite, boss) => ({ mob: mob, elite: elite, boss: boss });
+    const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
+    const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
+    ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'void_throne'].forEach(id => { MATS[id] = W5M; });
+    MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
+    MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
+    ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });
     S.forEach(st => { st.mats = MATS[st.id] || { mob: [], elite: [], boss: [] }; });
+
+
+    // ============================================================
+    // 推奨ステータス合計（ステージの強さの基準）
+    //  ・敵のHPとダメージは「そのステージを遊ぶ人のステータス合計がこのくらい」という想定で決まる。
+    //  ・第一世界の最初のステージは従来のまま（250 = 初期の持ち点）。第一世界の最終ステージで約1500、
+    //    いちばん後ろの通常ステージ（最終世界のラスボス）で 100000 になるよう、ステージが進むごとに指数的に上がる。
+    //  ・数字を変えたいときは STAT_REQ だけ触ればよい。世界を増やしても、いちばん後ろのステージが自動的に final になる。
+    //  ・weapon の攻撃力上昇は「％」なので、ステータス合計の差がそのまま強さの差になる。
+    // ============================================================
+    const STAT_REQ = { start: 250, w1End: 1500, w1EndIlvl: 15, final: 100000 };
+    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly).map(x => x.ilvl));
+    function reqTotal(ilvl) {
+        if (ilvl <= 1) return STAT_REQ.start;
+        if (ilvl <= STAT_REQ.w1EndIlvl) return STAT_REQ.start * Math.pow(STAT_REQ.w1End / STAT_REQ.start, (ilvl - 1) / (STAT_REQ.w1EndIlvl - 1));
+        const span = Math.max(1, ILVL_MAX - STAT_REQ.w1EndIlvl);
+        return STAT_REQ.w1End * Math.pow(STAT_REQ.final / STAT_REQ.w1End, Math.min(1.5, (ilvl - STAT_REQ.w1EndIlvl) / span));
+    }
+    // 戦闘ステータスの換算式（stage.js の P.atkMul / P.maxHp と同じ形。合計を5ステータスに均等に振った人を想定）
+    const atkMulRef = T => 0.6 + (T / 5) / 150;
+    const maxHpRef = T => 100 + (T / 5) * 2;
+    S.forEach(st => {
+        st.req = Math.round(st.reqOverride || reqTotal(st.ilvl));
+        const gStat = atkMulRef(st.req) / atkMulRef(STAT_REQ.start);
+        st.gMob = gStat;                                                       // 雑魚のHP倍率（その合計の人の火力に合わせる）
+        st.gDmg = st.bossHp ? st.bossHp / (70 * 1.7 * 24) : gStat;             // ボスのHP倍率。bossHp があれば「ボスHP＝その値」になる
+        st.gHp = maxHpRef(st.req) / maxHpRef(STAT_REQ.start);                  // 敵の攻撃力の基準HP倍率（プレイヤーのHPの伸びに合わせる）
+    });
 
     // 難易度：敵のHP・攻撃・速さ・精鋭の出現率と、ドロップのレア度補正
     const DIFFS = [
@@ -380,9 +580,19 @@
         { id: 3, name: '第三世界「神域」', icon: '⛩️', color: '#ffc84a', note: '神々の住まう領域。最強の敵と創世神が待つ。',
           unlock: { stageId: 'rift_throne', diff: 2, gateId: 'gate_world3', gateFlag: 'gateOpen3', flag: 'world3',
                     openText: '次元の最奥で、巨大な門が軋む音がした...', openSub: '「神域の門」が現れた。終焉の門番を倒せば、第三世界へ進める。',
-                    clearText: '神域の門が開かれた...', clearSub: 'ステージゲートに「第三世界」が追加されました。' } }
+                    clearText: '神域の門が開かれた...', clearSub: 'ステージゲートに「第三世界」が追加されました。' } },
+        { id: 4, name: '第四世界「機神の都」', icon: '⚙️', color: '#6aa8ff', note: '歯車と蒸気と電脳の都。機械の神々が待つ。新武器種：電磁砲・歯車刃',
+          unlock: { stageId: 'god_throne', diff: 2, gateId: 'gate_world4', gateFlag: 'gateOpen4', flag: 'world4',
+                    openText: '神域の果てで、鋼鉄の門が動き出した...', openSub: '「機神の門」が現れた。ゲートキーパー・機構を倒せば、第四世界へ進める。',
+                    clearText: '機神の門が開かれた...', clearSub: 'ステージゲートに「第四世界」が追加されました。' } },
+        { id: 5, name: '第五世界「虚空の彼方」', icon: '🕳️', color: '#c090ff', note: '星々が死に絶えた世界の果て。最強の敵と虚空の王が待つ。新武器種：衛星砲・特異点',
+          unlock: { stageId: 'mech_throne', diff: 2, gateId: 'gate_world5', gateFlag: 'gateOpen5', flag: 'world5',
+                    openText: '機神の玉座の背後で、虚空が口を開けた...', openSub: '「虚空の門」が現れた。ゲートキーパー・無限を倒せば、第五世界へ進める。',
+                    clearText: '虚空の門が開かれた...', clearSub: 'ステージゲートに「第五世界」が追加されました。' } },
+        // スタンダードワールド（スタンダードキャラ専用。最初から入れる。最初のボスからHPが1億超え）
+        { id: 9, name: 'スタンダードワールド', icon: '♾️', color: '#c0a0ff', standardOnly: true, alwaysOpen: true, note: 'シーズンで持ち帰ったステータスを試す、永遠の世界。ボスのHPは1億超えから。制限時間25分・協力プレイ推奨。' }
     ];
 
-    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, WORLDS: WORLDS };
+    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
     window.getStageById = function (id) { return S.find(s => s.id === id) || null; };
 })();

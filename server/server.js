@@ -8,6 +8,8 @@ const app = express();
 // パッケージが入っていない環境でもサーバーが落ちないよう、読み込みに失敗したら圧縮なしで動く。
 try { app.use(require("compression")()); } catch (e) { console.warn("[server] compression が入っていないため圧縮なしで起動します（npm install で有効化）"); }
 app.use(express.json());
+// シーズンの週・解放の判定に使うサーバー時刻（端末の時計をいじっても早まらないように）
+app.get("/api/time", (req, res) => { res.set("Cache-Control", "no-store"); res.json({ now: Date.now() }); });
 const server = http.createServer(app);
 const io = new Server(server, {
     pingInterval: 25000,

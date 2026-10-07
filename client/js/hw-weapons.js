@@ -11,18 +11,27 @@
 
     // ---------- レア度 ----------
     const RARITIES = {
-        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, sockets: [0, 1], fx: [0, 1], weight: 52,
+        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, pctMul: 1.00, orig: 0.05, forge: 100,    sockets: [0, 1], fx: [0, 1], weight: 52,
                      prefixes: ['弱小な', 'ボロい', 'ふつうの', '錆びた', '古びた', '粗末な'] },
-        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, sockets: [1, 2], fx: [1, 2], weight: 28,
+        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, pctMul: 1.12, orig: 0.08, forge: 1000,   sockets: [1, 2], fx: [1, 2], weight: 28,
                      prefixes: ['するどい', '頑丈な', '素早い', '軽やかな', '澄んだ', '堅牢な'] },
-        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, sockets: [2, 3], fx: [2, 3], weight: 13,
+        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, pctMul: 1.30, orig: 0.12, forge: 5000,   sockets: [2, 3], fx: [2, 3], weight: 13,
                      prefixes: ['猛き', '疾き', '烈火の', '氷雪の', '雷鳴の', '血濡れの', '凶悪な'] },
-        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, sockets: [3, 4], fx: [3, 4], weight: 5.5,
+        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, pctMul: 1.55, orig: 0.18, forge: 25000,  sockets: [3, 4], fx: [3, 4], weight: 1.6,
                      prefixes: ['英雄の', '竜殺しの', '破砕の', '深淵の', '星屑の', '覇者の'] },
-        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, sockets: [4, 6], fx: [4, 5], weight: 1.5,
+        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, pctMul: 2.00, orig: 0.25, forge: 100000, sockets: [4, 6], fx: [4, 5], weight: 0.012,
                      prefixes: ['神々の', '終焉の', '星砕きの', '世界喰らいの', '永劫の', '天啓の'] }
     };
     const RARITY_ORDER = ['normal', 'magic', 'rare', 'epic', 'legendary'];
+
+    // ---------- 武器の攻撃力は「％」で伸びる ----------
+    //  ・武器そのものの攻撃力は固定値ではなく「プレイヤーの攻撃力に対する＋○％」。
+    //  ・弱い武器で＋3％前後、最終ボスのレジェンドでも＋30％（PCT_CAP）。強さの主役はステータス合計。
+    //  ・w.dmg は戦闘計算用（HIT_BASE × (1＋pct)）。stage.js は今までどおり w.dmg を使うので手を入れなくてよい。
+    const HIT_BASE = 11;
+    const PCT_CAP = 0.30;
+    const LEGENDARY_MIN_ILVL = 24;     // レジェンドは、第三世界以降（ステージLv24以上）からしか出ない
+    function dmgFromPct(pct) { return Math.round(HIT_BASE * (1 + pct) * 100) / 100; }
 
     // ---------- 武器種（攻撃パターン）----------
     // kind: cone(近接扇) / line(突き) / proj(弾) / ring(全周) / smash(叩きつけ範囲) / chain(鞭)
@@ -56,7 +65,13 @@
         rapier:     { label: '細剣',       kind: 'line',  range: 150, width: 22, cd: 0.26, mult: 0.85, knock: 15, crit: 0.15, world: 3 },
         scepter:    { label: '神杖',       kind: 'ring',  radius: 135, cd: 0.85, mult: 1.7,  knock: 170, world: 3 },
         gunblade:   { label: '銃剣',       kind: 'cone',  range: 82,  arc: 1.5, cd: 0.45, mult: 1.0, knock: 50, multi: 2, lunge: 30, world: 3 },
-        bit:        { label: '浮遊砲',     kind: 'proj',  speed: 380, radius: 8,  cd: 0.55, mult: 0.5,  range: 640, homing: true, spread: 4, pierce: 1, world: 3 }
+        bit:        { label: '浮遊砲',     kind: 'proj',  speed: 380, radius: 8,  cd: 0.55, mult: 0.5,  range: 640, homing: true, spread: 4, pierce: 1, world: 3 },
+        // ---- 第四世界「機神の都」で手に入る武器種（world:4）----
+        railgun:    { label: '電磁砲',     kind: 'proj',  speed: 1100, radius: 7,  cd: 1.05, mult: 2.6, range: 1000, pierce: 5, world: 4 },
+        gearblade:  { label: '歯車刃',     kind: 'cone',  range: 88,  arc: 2.2, cd: 0.28, mult: 0.62, knock: 30, multi: 3, world: 4 },
+        // ---- 第五世界「虚空の彼方」で手に入る武器種（world:5）----
+        orbital:    { label: '衛星砲',     kind: 'proj',  speed: 300, radius: 16, cd: 0.9,  mult: 1.2,  range: 700, homing: true, spread: 5, aoe: 60, world: 5 },
+        singularity:{ label: '特異点',     kind: 'ring',  radius: 170, cd: 0.8,  mult: 1.9,  knock: 140, world: 5 }
         // 第三世界を作るときは、ここに world: 3 の武器種を足して、第三世界のステージの drops に対応する武器ベースを入れるだけでよい
     };
     // 世界ごとの武器種の一覧（武器庫・図鑑などで「どの世界で解禁される武器種か」を出すのに使う）
@@ -166,7 +181,33 @@
         { id: 'god_edge',        name: '神剣',         type: 'sword',    dmg: 82, tier: 27 },
         { id: 'titan_bow',       name: '巨神の大弓',   type: 'bow',      dmg: 76, tier: 26 },
         { id: 'chaos_axe',       name: '混沌の戦斧',   type: 'axe',      dmg: 80, tier: 27 },
-        { id: 'seraph_wand',     name: '熾天使の杖',   type: 'wand',     dmg: 72, tier: 28 }
+        { id: 'seraph_wand',     name: '熾天使の杖',   type: 'wand',     dmg: 72, tier: 28 },
+        // ---- 第四世界「機神の都」 ----
+        { id: 'gate_gearblade', name: '機構の歯車刃',   type: 'gearblade', dmg: 100, tier: 31 },
+        { id: 'rail_mk1',       name: '試作電磁砲',     type: 'railgun',   dmg: 100, tier: 32 },
+        { id: 'gear_saw',       name: '歯車の鋸刃',     type: 'gearblade', dmg: 100, tier: 32 },
+        { id: 'clock_blade',    name: '時計仕掛けの剣', type: 'sword',     dmg: 100, tier: 33 },
+        { id: 'steam_pistol',   name: '蒸気拳銃',       type: 'pistol',    dmg: 100, tier: 33 },
+        { id: 'mech_halberd',   name: '機甲薙刀',       type: 'halberd',   dmg: 100, tier: 34 },
+        { id: 'rail_mk2',       name: '重電磁砲',       type: 'railgun',   dmg: 100, tier: 35 },
+        { id: 'gear_twin',      name: '連結歯車刃',     type: 'gearblade', dmg: 100, tier: 35 },
+        { id: 'tesla_whip',     name: 'テスラの鞭',     type: 'whip',      dmg: 100, tier: 36 },
+        { id: 'rail_zero',      name: '零式電磁砲',     type: 'railgun',   dmg: 100, tier: 38 },
+        { id: 'gear_omega',     name: '機神の歯車刃',   type: 'gearblade', dmg: 100, tier: 38 },
+        { id: 'mech_blade_god', name: '機神の大剣',     type: 'greatsword', dmg: 100, tier: 38 },
+        // ---- 第五世界「虚空の彼方」 ----
+        { id: 'gate_voidblade', name: '虚空門の特異点', type: 'singularity', dmg: 100, tier: 39 },
+        { id: 'orb_sat',        name: '小型衛星砲',     type: 'orbital',   dmg: 100, tier: 40 },
+        { id: 'sing_core',      name: '特異点コア',     type: 'singularity', dmg: 100, tier: 40 },
+        { id: 'void_katana',    name: '虚空の刀',       type: 'katana',    dmg: 100, tier: 41 },
+        { id: 'nova_greatsword', name: '新星の大剣',    type: 'greatsword', dmg: 100, tier: 42 },
+        { id: 'orb_array',      name: '衛星砲陣',       type: 'orbital',   dmg: 100, tier: 43 },
+        { id: 'sing_maw',       name: '重力の顎',       type: 'singularity', dmg: 100, tier: 43 },
+        { id: 'eclipse_dagger', name: '蝕の短剣',       type: 'dagger',    dmg: 100, tier: 44 },
+        { id: 'star_bow',       name: '星弓',           type: 'bow',       dmg: 100, tier: 45 },
+        { id: 'orb_omega',      name: '終焉の衛星砲',   type: 'orbital',   dmg: 100, tier: 46 },
+        { id: 'sing_omega',     name: '虚空の特異点',   type: 'singularity', dmg: 100, tier: 46 },
+        { id: 'void_king_blade', name: '虚空王の剣',    type: 'sword',     dmg: 100, tier: 46 },
     ];
     const BASE_BY_ID = {};
     BASES.forEach(b => { BASE_BY_ID[b.id] = b; });
@@ -237,19 +278,30 @@
     const pick = arr => arr[Math.floor(Math.random() * arr.length)];
     const uid = () => 'hw_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 
-    function pickRarity(luckBonus, minRarity) {
+    function pickRarity(luckBonus, minRarity, ilvl) {
         const minIdx = Math.max(0, RARITY_ORDER.indexOf(minRarity || 'normal'));
         const lb = 1 + (luckBonus || 0);
         let total = 0;
         const ws = RARITY_ORDER.map((k, i) => {
             if (i < minIdx) return 0;
+            if (k === 'legendary' && (ilvl || 1) < LEGENDARY_MIN_ILVL) return 0;   // 序盤のステージではレジェンドは出ない
             // luckBonus はレア側の重みだけを伸ばす
-            const w = RARITIES[k].weight * (i >= 2 ? lb : 1);
+            const w = RARITIES[k].weight * (i >= 2 ? (k === 'legendary' ? Math.sqrt(lb) : lb) : 1);   // レジェンドは運の補正も半分だけ
             total += w; return w;
         });
         let r = Math.random() * total;
         for (let i = 0; i < ws.length; i++) { r -= ws[i]; if (r <= 0) return RARITY_ORDER[i]; }
         return RARITY_ORDER[minIdx];
+    }
+
+    // 武器ベースの階級(tier)から、％の基礎値（3〜15％）を決める。レア度の倍率をかけると最大30％になる
+    const MAX_TIER = BASES.reduce((m, b) => Math.max(m, b.tier || 1), 1);
+    function basePct(base) {
+        const t = Math.max(0, Math.min(1, ((base.tier || 1) - 1) / Math.max(1, MAX_TIER - 1)));
+        return 0.03 + 0.12 * t;
+    }
+    function pctFor(base, rarityKey) {
+        return Math.min(PCT_CAP, basePct(base) * RARITIES[rarityKey].pctMul);
     }
 
     // ---------- 武器生成 ----------
@@ -259,9 +311,10 @@
         const ilvl = Math.max(1, opts.ilvl || 1);
         const pool = (opts.baseIds && opts.baseIds.length ? opts.baseIds.map(id => BASE_BY_ID[id]).filter(Boolean) : BASES);
         const base = pick(pool);
-        const rarityKey = opts.forceRarity || pickRarity(opts.luck, opts.minRarity);
+        const rarityKey = opts.forceRarity || pickRarity(opts.luck, opts.minRarity, ilvl);
         const rar = RARITIES[rarityKey];
-        const dmg = Math.round(base.dmg * (1 + ilvl * 0.07) * rar.mult * rnd(0.92, 1.08) * 10) / 10;
+        const pct = Math.round(Math.min(PCT_CAP, pctFor(base, rarityKey) * rnd(0.95, 1.05)) * 10000) / 10000;
+        const dmg = dmgFromPct(pct);
         const sockets = rint(rar.sockets[0], rar.sockets[1]);
         const nFx = rint(rar.fx[0], rar.fx[1]);
 
@@ -279,6 +332,7 @@
             prefix: pick(rar.prefixes),
             baseName: base.name,
             ilvl: ilvl,
+            pct: pct,
             dmg: dmg,
             effects: effects,
             sockets: sockets,
@@ -406,15 +460,40 @@
         if (!Array.isArray(d.weapons)) d.weapons = [];
         if (!('equipped' in d)) d.equipped = null;
         if (!d.cleared) d.cleared = {};
+        migratePct(d);
         if (!d.starter) {
-            // 初回だけ町の人から「ふつうの＋鉄の剣」を貰う
-            const w = roll({ ilvl: 1, baseIds: ['iron_sword'], forceRarity: 'normal', source: 'starter' });
-            w.prefix = 'ふつうの'; w.name = displayName(w); w.effects = []; w.sockets = 1; w.orbs = [null];
+            let w;
+            if (isSeasonChar()) {
+                // シーズンキャラはレベル1・素手スタート（武器はステージで集める）
+                w = { id: uid(), baseId: 'bare_hands', type: 'fist', rarity: 'normal', prefix: '', baseName: '素手', name: '素手', ilvl: 1,
+                    pct: 0, dmg: dmgFromPct(0), effects: [], sockets: 0, orbs: [], source: 'starter', createdAt: Date.now() };
+            } else {
+                // 初回だけ町の人から「ふつうの＋鉄の剣」を貰う
+                w = roll({ ilvl: 1, baseIds: ['iron_sword'], forceRarity: 'normal', source: 'starter' });
+                w.prefix = 'ふつうの'; w.name = displayName(w); w.effects = []; w.sockets = 1; w.orbs = [null];
+            }
             d.weapons.push(w); d.equipped = w.id; d.starter = true;
             save(d);
         }
         return d;
     }
+    // 旧データ（攻撃力が固定値だった頃の武器）を「％」方式へ変換する。1度だけ実行される
+    function migratePct(d) {
+        let changed = false;
+        d.weapons.forEach(w => {
+            if (typeof w.pct === 'number') return;
+            const base = BASE_BY_ID[w.baseId];
+            const rk = RARITIES[w.rarity] ? w.rarity : 'normal';
+            let pct = base ? pctFor(base, rk) : Math.min(PCT_CAP, 0.03 * RARITIES[rk].pctMul);
+            w.pct = Math.round(pct * 10000) / 10000;
+            w.dmg = dmgFromPct(w.pct);
+            changed = true;
+        });
+        if (changed) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
+    }
+    // いま操作しているのがシーズンキャラか（season.js の保存データを直接見る。読み込み順に依存しない）
+    function isSeasonChar() { try { const s = JSON.parse(localStorage.getItem('sbSeason') || 'null'); return !!(s && s.active === 'season'); } catch (e) { return false; } }
+    function pctLabel(w) { return '＋' + Math.round((w && w.pct || 0) * 1000) / 10 + '%'; }
     function save(d) {
         try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { console.warn('[HW] save failed', e); }
         try { syncLegacy(d); } catch (e) { console.warn('[HW] legacy sync failed', e); }
@@ -428,7 +507,8 @@
         scythe: 'scythe', axe: 'greatsword', hammer: 'greatsword', whip: 'spear', fist: 'gloves', boots: 'shoes', pistol: 'pistol', bow: 'bow',
         crossbow: 'bow', wand: 'magic_wand', shotgun: 'pistol', esper: 'esper',
         twinblade: 'dual_swords', chakram: 'bow', cannon: 'pistol', tome: 'magic_wand', kusarigama: 'scythe',
-        rapier: 'spear', scepter: 'esper', gunblade: 'sword_shield', bit: 'magic_wand' };
+        rapier: 'spear', scepter: 'esper', gunblade: 'sword_shield', bit: 'magic_wand',
+        railgun: 'bow', gearblade: 'dual_swords', orbital: 'magic_wand', singularity: 'esper' };
     function toLegacy(w) {
         let lw = { id: 'hw_' + w.id, name: w.name, type: LEGACY_TYPE[w.type] || 'sword_shield', isOriginal: true, isHW: true,
             multiplier: (typeof ORIGINAL_WEAPON_BASE_MULTIPLIER === 'number') ? ORIGINAL_WEAPON_BASE_MULTIPLIER : 1,
@@ -457,8 +537,63 @@
     const STORAGE_LIMIT = 120;
 
     function sellValue(w) {
+        if (w.forgeCost) return Math.max(1, Math.round(w.forgeCost * 0.2));    // オリジナル武器は作成コストの2割
         const idx = RARITY_ORDER.indexOf(w.rarity);
         return Math.max(1, Math.round((3 + w.ilvl * 1.5) * (1 + idx * 1.4)));
+    }
+
+    // 一括売却：レア度で対象を選ぶ。装備中・ロック中は売らない。オリジナル武器・オーブをはめた武器は、明示的に許可したときだけ対象にする
+    //  opts: { rarities:['normal','magic',...], includeSocketed:false, includeCustom:false }
+    function bulkTargets(d, opts) {
+        opts = opts || {};
+        const set = {}; (opts.rarities || []).forEach(r => { set[r] = true; });
+        return d.weapons.filter(w => w.id !== d.equipped && !w.locked && set[w.rarity] &&
+            (opts.includeCustom || !w.custom) && (opts.includeSocketed || !(w.orbs || []).some(Boolean)));
+    }
+    function bulkSell(d, opts) {
+        const targets = bulkTargets(d, opts);
+        let coins = 0;
+        targets.forEach(w => { coins += sellWeapon(d, w.id); });
+        return { count: targets.length, coins: coins };
+    }
+
+    // ---------- オリジナル武器（コイン鍛冶）----------
+    //  ・コインを多く使うほどレア度が上がる。レジェンドはコイン100000が必要。名前は自分で決められる。
+    //  ・％は作るレア度で決まる（レジェンドでも25％。ボスのレジェンド最大30％の少し下）。特殊効果とソケットはランダム。
+    const FORGE_NAME_MAX = 14;
+    function forgeCost(rarityKey) { return (RARITIES[rarityKey] || RARITIES.normal).forge; }
+    function forgeRarityForCoins(coins) {
+        let best = null;
+        RARITY_ORDER.forEach(k => { if (coins >= RARITIES[k].forge) best = k; });
+        return best;    // 100コイン未満なら null（作れない）
+    }
+    function cleanName(raw) { return String(raw == null ? '' : raw).replace(/[\u0000-\u001f\u007f<>&"'`]/g, '').replace(/\s+/g, ' ').trim().slice(0, FORGE_NAME_MAX); }
+    // 解放済みの世界の武器種だけを選べる（第二世界・第三世界の武器種は、その世界を解放してから）
+    function availableTypes(d) {
+        d = d || load();
+        const maxWorld = d.world5 ? 5 : (d.world4 ? 4 : (d.world3 ? 3 : (d.world2 ? 2 : 1)));
+        return Object.keys(TYPES).filter(k => (TYPES[k].world || 1) <= maxWorld);
+    }
+    function forgeIlvl(d) {
+        let best = 1;
+        const L = (window.STAGE_DATA && window.STAGE_DATA.STAGES) || [];
+        L.forEach(st => { if (d.cleared && d.cleared[st.id] && !st.standardOnly) best = Math.max(best, st.ilvl); });
+        return best;
+    }
+    // 作成。コインの引き落としは呼び出し側（UI）でやる。戻り値：武器 / null
+    function forgeOriginal(d, o) {
+        const rk = o && RARITIES[o.rarity] ? o.rarity : null;
+        if (!rk || availableTypes(d).indexOf(o.type) < 0) return null;
+        const type = o.type, ilvl = forgeIlvl(d), rar = RARITIES[rk];
+        const name = cleanName(o.name) || ('オリジナル' + TYPES[type].label);
+        const pct = Math.round(Math.min(PCT_CAP, rar.orig * rnd(0.94, 1.06)) * 10000) / 10000;
+        const sockets = rint(rar.sockets[0], rar.sockets[1]);
+        const nFx = rint(rar.fx[0], rar.fx[1]);
+        const fxPool = EFFECTS.slice(), effects = [];
+        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], ilvl, rk));
+        return { id: uid(), baseId: 'orig_' + type, type: type, rarity: rk, prefix: '', baseName: name, name: name, ilvl: ilvl,
+            pct: pct, dmg: dmgFromPct(pct), effects: effects, sockets: sockets, orbs: new Array(sockets).fill(null),
+            source: 'forge', custom: true, forgeCost: rar.forge, createdAt: Date.now() };
     }
 
     // 売却 / ソケット操作
@@ -508,6 +643,8 @@
         RARITIES, RARITY_ORDER, TYPES, BASES, BASE_BY_ID, EFFECTS, EFFECT_BY_ID,
         roll, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
         load, save, syncLegacy, getEquipped, sellValue, sellWeapon, socketOrb, unsocketOrb, returnOrbs,
-        STORAGE_LIMIT, typesOfWorld
+        STORAGE_LIMIT, typesOfWorld,
+        HIT_BASE, PCT_CAP, pctLabel, bulkTargets, bulkSell,
+        FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal
     };
 })();
