@@ -29,9 +29,10 @@
     const T = HW.TYPES[weapon.type] || HW.TYPES.sword;
 
     // ---------- 定数 ----------
-    const WORLD_W = 2400, WORLD_H = 1600;
+    const PVP = !!stage.pvp;                                  // オンラインマッチ（アクション対戦）
+    const WORLD_W = PVP ? 1500 : 2400, WORLD_H = PVP ? 1000 : 1600;
     const MAX_PARTY = 4;
-    const TIME_LIMIT = 9 * 60;           // 時間切れ
+    const TIME_LIMIT = PVP ? 180 : (stage.standardOnly ? 25 * 60 : 9 * 60);   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
     const ENEMY_CAP_BASE = 30;
     const ENERGY_MAX = 100;
@@ -74,8 +75,12 @@
     //  ・FIX_HP  : 敵の攻撃力の基準にする体力（敵のダメージ = 攻撃割合 × この値。防御・軽減は従来どおりプレイヤー側で効く）
     //  ・FIX_DPS : 敵のHPの基準にする火力（ステージの想定火力ぶんの秒数でHPが決まる）
     // 数字を変えたいときはこの2行だけ触ればよい。
-    const FIX_HP = 250 + 40 * stage.ilvl;
-    const FIX_DPS = 28 * (1 + stage.ilvl * 0.18);
+    //  ステージごとの「推奨ステータス合計」(stage.req) に合わせて敵が強くなる（stage-data.js の STAT_REQ）。
+    //  G_DMG: 敵HPの倍率（その合計の人の火力に合わせる） / G_HP: 敵の攻撃力の基準HPの倍率（その合計の人のHPに合わせる）
+    //  最初のステージは従来どおり（倍率1）。最終ステージは推奨ステータス合計10万。武器は＋％なので、強さの主役はステータス合計。
+    const G_DMG = stage.gDmg || 1, G_HP = stage.gHp || 1, G_MOB = stage.gMob || G_DMG;
+    const FIX_HP = (250 + 40) * G_HP;
+    const FIX_DPS = 28 * 1.18 * G_DMG;
     const REF_HP = FIX_HP;
     const myId = String(pdata.id || ('p' + Math.random().toString(36).slice(2, 8)));
     const myName = pdata.name || 'あなた';
@@ -194,7 +199,10 @@
                 if (isHost) eBullets = eBullets.filter(b => b.id !== d.id);
                 break;
             case 'snap':
-                if (!isHost) applySnap(d);
+                if (!isHost && !PVP) applySnap(d);
+                break;
+            case 'pvph':
+                if (PVP && d.to === myId) hurtPvp(d.f, d.kx, d.ky, d.st);
                 break;
             case 'kill':
                 if (!isHost) onKillEvent(d);
@@ -206,7 +214,7 @@
                 if (!isHost) announce(d.text, d.ms);
                 break;
             case 'end':
-                if (!isHost) finish(d.win, d);
+                if (!isHost) finish(PVP && d.winner !== undefined ? d.winner === myId : d.win, d);
                 break;
             case 'sk':
                 if (a) skillFx(d, a);
@@ -260,16 +268,16 @@
     function ed(e) { return (e.dmg || 0) * (e.dmgMul || 1); }
     function foeDmg(arch, isBoss, elite) {
         const a = window.STAGE_DATA.ARCH[arch] || window.STAGE_DATA.ARCH.chaser;
-        return (0.075 + 0.0045 * stage.ilvl) * DIFF.dmg * a.atk * (isBoss ? 0.9 : 1) * (elite ? 1.4 : 1) * PW.dmg;
+        return Math.min(0.22, 0.075 + 0.0045 * stage.ilvl) * DIFF.dmg * a.atk * (isBoss ? 0.9 : 1) * (elite ? 1.4 : 1) * PW.dmg;
     }
     function enemyStats(def, isBoss, elite) {
         const ilvl = stage.ilvl;
         const a = window.STAGE_DATA.ARCH[def.arch] || window.STAGE_DATA.ARCH.chaser;
         const ps = partyScale();
-        const stageHp = 70 * (1 + ilvl * 0.7);
+        const stageHp = 70 * 1.7 * G_DMG, mobHp = 70 * 1.7 * G_MOB;
         let hp;
-        if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
-        else hp = Math.max(stageHp, FIX_DPS * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp; // 雑魚も最低約2秒ぶん（固定）
+        if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * (stage.hpMul || 1) * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
+        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp; // 雑魚も最低約2秒ぶん（固定）
         return {
             maxHp: Math.round(hp),
             dmg: foeDmg(def.arch, isBoss, elite),
@@ -575,8 +583,63 @@
 
     // ---------- ダメージ処理 ----------
     // 自分の攻撃が敵に当たったとき：ホストなら直接、そうでなければホストへ送る
+    // ---------- オンラインマッチ（アクション対戦）----------
+    //  ・相手は自分の画面では「敵」として扱う（pvp ダミー）ので、武器・スキル・特殊効果は今までの攻撃がそのまま使える
+    //  ・ダメージはステータスに関係なく「相手の最大HPの割合」。基準の一撃（自分の素のステータスでの武器1振り）= 4.5%
+    //    → 武器の％・種類・クリティカル・スキル・特殊効果の勝負になる（ステータス差で圧倒されない）
+    const PVP_BASE = 0.045, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
+    const pvpDummies = {};
+    function syncPvpDummies() {
+        const list = [];
+        Object.keys(allies).forEach(id => {
+            const a = allies[id]; if (a.dead) return;
+            let d = pvpDummies[id];
+            if (!d) d = pvpDummies[id] = { id: 'pv:' + id, pvp: true, pid: id, def: { name: a.name, icon: '🧑', color: '#fff' }, arch: 'chaser', boss: false, elite: false, r: 16, maxHp: 100, hp: 100, flash: 0, kx: 0, ky: 0, state: 0, air: 0,
+                st: { burn: 0, burnT: 0, poison: 0, poisonT: 0, slowT: 0, stunT: 0, bleed: 0, bleedT: 0, curseT: 0, weakenT: 0, blindT: 0 } };
+            d.x = a.x; d.y = a.y; d.hp = Math.max(1, (a.maxHp ? a.hp / a.maxHp : 1) * 100);
+            list.push(d);
+        });
+        enemies = list;
+    }
+    function dealPvp(e, dmg, o) {
+        const f = Math.min(0.35, PVP_BASE * dmg / PVP_REF);
+        popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
+        run.stats.dmg += f * 100; e.flash = 0.1;
+        const st = o.st && o.st.stun ? { stun: Math.min(1.2, typeof o.st.stun === 'number' ? o.st.stun : 1) } : null;
+        netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st });
+    }
+    // 相手の攻撃を受けたとき（ダメージは自分の最大HPの割合）
+    function hurtPvp(f, kx, ky, st) {
+        if (me.dead || me.invHard > 0 || run.phase !== 'run' || me.inv > 0) return;
+        if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.1; return; }
+        if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.4; return; }
+        let dmg = Math.max(1, Math.round(f * me.maxHp * (1 - Math.min(0.6, A('dr'))) * (me.stunT > 0 ? 0.6 : 1)));
+        if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); if (dmg <= 0) { me.inv = 0.1; return; } }
+        me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
+        popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
+        if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
+        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.stunT = 0; me.orb = null; announce('倒れた…　決着を見届けよう', 2400); }
+        else if (st && st.stun) stunMe(st.stun);
+    }
+    function pvpHostCheck() {
+        if (run.ended || run.phase !== 'run') return;
+        const alive = [];
+        if (!me.dead) alive.push({ id: myId, f: me.hp / me.maxHp });
+        Object.keys(allies).forEach(id => { const a = allies[id]; if (!a.dead) alive.push({ id: id, f: a.maxHp ? a.hp / a.maxHp : 1 }); });
+        if (run.time > 4 && alive.length <= 1) endPvp(alive[0] ? alive[0].id : null, 'last');
+        else if (run.time > TIME_LIMIT) { alive.sort((x, y) => y.f - x.f); endPvp(alive[0] ? alive[0].id : null, 'time'); }
+    }
+    function endPvp(winnerId, reason) {
+        if (run.ended) return;
+        run.ended = true;
+        const d = { winner: winnerId, reason: reason };
+        netSend('end', d);
+        finish(winnerId === myId, d);
+    }
+
     function dealHit(e, dmg, o) {
         o = o || {};
+        if (e.pvp) { dealPvp(e, dmg, o); return; }
         const d = { eid: e.id, dmg: dmg, st: o.st || null, kx: o.kx || 0, ky: o.ky || 0, by: myId, crit: !!o.crit };
         if (dmg > 0) {
             run.stats.dmg += dmg;
@@ -619,13 +682,14 @@
     // 第一世界の最終ステージ「深淵の裂け目」をナイトメアで攻略すると、第二世界への道が開く
     // 世界をまたぐ流れ：①前の世界の最終ステージをナイトメアで攻略 → ②「門」が現れる → ③ゲートキーパーを倒す → ④次の世界が解放
     function worldOpenedByThisStage() {      // このステージの攻略で「門」が現れる世界（gateFlag）
-        return (window.STAGE_DATA.WORLDS || []).find(w => w.unlock && stage.id === w.unlock.stageId && DIFFS.indexOf(DIFF) >= w.unlock.diff) || null;
+        return (window.STAGE_DATA.WORLDS || []).find(w => w.unlock && stage.id === w.unlock.stageId && DIFFS.indexOf(DIFF) >= ((window.SeasonSys && w.unlock.diff != null) ? window.SeasonSys.gateDiffReq(w.unlock.diff) : w.unlock.diff)) || null;
     }
     function worldOpenedByGate() {           // このステージ（ゲート）のゲートキーパーを倒すと解放される世界（flag）
         return (window.STAGE_DATA.WORLDS || []).find(w => w.unlock && stage.id === w.unlock.gateId) || null;
     }
     function onKillEvent(ev) {
         fx.push({ k: 'puff', x: ev.x, y: ev.y, t: 0.4, life: 0.4, c: '#fff' });
+        if (stage.pvp) return;   // アリーナのボットは戦利品なし
         if (ev.boss) {
             const wo = worldOpenedByThisStage(), wg = worldOpenedByGate(), hh = HW.load();
             if (wo && !hh[wo.unlock.gateFlag]) setTimeout(() => announce(wo.unlock.openText, 5200), 700);
@@ -787,7 +851,7 @@
 
     function calcHit(e, mult) {
         let dmg = weapon.dmg * (T.mult || 1) * P.atkMul * (mult || 1) * rnd(0.93, 1.07);
-        if (e.boss) dmg *= 1 + A('dmgBoss'); else dmg *= 1 + A('dmgMob');
+        if (e.pvp) { /* 対人戦ではボス・雑魚用の補正は無し */ } else if (e.boss) dmg *= 1 + A('dmgBoss'); else dmg *= 1 + A('dmgMob');
         if (e.hp / e.maxHp < 0.3) dmg *= 1 + A('dmgLow');
         if (e.hp >= e.maxHp) dmg *= 1 + A('dmgFull');
         if (me.hp / me.maxHp < 0.5) dmg *= 1 + A('rageAtk');
@@ -925,7 +989,7 @@
     // 命中した敵1体への処理（ダメージ＋効果）
     function skillHit(e, base, hasDmg, eff, ang) {
         let dmg = hasDmg ? base * rnd(0.95, 1.05) : 0;
-        dmg *= e.boss ? 1 + A('dmgBoss') : 1 + A('dmgMob');
+        dmg *= e.pvp ? 1 : (e.boss ? 1 + A('dmgBoss') : 1 + A('dmgMob'));
         if (eff.indexOf('shatter') >= 0) dmg *= 1.3;
         if (eff.indexOf('explosion') >= 0) dmg += Math.max(2, dmg * 0.4);
         dmg = Math.round(dmg);
@@ -1075,7 +1139,7 @@
         me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
         if (me.dead) {
             // 仲間が近くにいると復活する
-            const near = Object.keys(allies).some(id => { const a = allies[id]; return !a.dead && dist(a.x, a.y, me.x, me.y) < 90; });
+            const near = !PVP && Object.keys(allies).some(id => { const a = allies[id]; return !a.dead && dist(a.x, a.y, me.x, me.y) < 90; });
             if (near) { me.reviveT += dt; if (me.reviveT > 2.5) { me.dead = false; me.hp = Math.round(me.maxHp * 0.4); me.inv = 1.5; me.invHard = 1.5; announce('復活！', 900); } } else me.reviveT = Math.max(0, me.reviveT - dt);
             return;
         }
@@ -1106,7 +1170,7 @@
         if (me.empowerT > 0) me.empowerT -= dt;
         // 接触ダメージ
         for (const e of enemies) {
-            if (e.hp <= 0 || e.st.stunT > 0 || e.air > 20) continue;
+            if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20) continue;
             if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber') continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0))); }
         }
         // 敵弾
@@ -1219,8 +1283,14 @@
     function beginRun() {
         if (run.phase !== 'wait') return;
         run.phase = 'run'; run.time = 0;
+        run.pvpMode = PVP && partyCount() > 1;
         document.getElementById('waitRoom').style.display = 'none';
-        announce(stage.icon + ' ' + stage.name + '　敵を倒してボスを呼び出せ！', 2600);
+        if (run.pvpMode) {
+            // 参加者を円周上に等間隔で配置（全員が同じ並びで計算するので一致する）
+            const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId), a = i / ids.length * Math.PI * 2;
+            me.x = WORLD_W / 2 + Math.cos(a) * 380; me.y = WORLD_H / 2 + Math.sin(a) * 300; pushOutOfRocks(me, me.r);
+            announce('⚔ 最後まで立っていた人の勝ち！（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 2600);
+        } else announce(stage.icon + ' ' + stage.name + (PVP ? '　スパーリングボットを倒せ！' : '　敵を倒してボスを呼び出せ！'), 2600);
         refreshLootLog();
     }
 
@@ -1229,7 +1299,12 @@
         run.phase = 'end'; run.ended = true;
         // 報酬の反映
         const p = getPlayerData();
-        if (p) { p.coins = (p.coins || 0) + run.stats.coins; try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {} }
+        if (PVP && run.pvpMode) run.stats.coins += win ? 400 : 120;      // 対人戦：勝てば400、負けても120
+        if (p) {
+            p.coins = (p.coins || 0) + run.stats.coins;
+            if (PVP && run.pvpMode && win) p.pvpWins = (p.pvpWins || 0) + 1;
+            try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
+        }
         const h = HW.load();
         if (win) {
             h.cleared[stage.id] = (h.cleared[stage.id] || 0) + 1;
@@ -1340,6 +1415,7 @@
         ctx.restore();
     }
     function drawEnemy(e) {
+        if (e.pvp) return;   // 対人戦の相手は drawPlayer で描く
         const fl = e.flash > 0;
         if (e.boss && stage.boss.gate) drawGateRing(e);
         ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.8, e.r * 0.9, e.r * 0.4, 0, 0, 7); ctx.fill();
@@ -1404,7 +1480,7 @@
         const mw = VH < 520 ? 92 : 140, mh = Math.round(mw * WORLD_H / WORLD_W), mx = VW - mw - 10, my = VH < 520 ? 34 : 56;
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx, my, mw, mh);
         const sx = mw / WORLD_W, sy = mh / WORLD_H;
-        enemies.forEach(e => { ctx.fillStyle = e.boss ? '#ffd84a' : '#ff6a5a'; ctx.fillRect(mx + e.x * sx - 1, my + e.y * sy - 1, e.boss ? 5 : 2, e.boss ? 5 : 2); });
+        enemies.forEach(e => { if (e.pvp) return; ctx.fillStyle = e.boss ? '#ffd84a' : '#ff6a5a'; ctx.fillRect(mx + e.x * sx - 1, my + e.y * sy - 1, e.boss ? 5 : 2, e.boss ? 5 : 2); });
         Object.keys(allies).forEach(id => { ctx.fillStyle = '#4adb9a'; ctx.fillRect(mx + allies[id].x * sx - 2, my + allies[id].y * sy - 2, 4, 4); });
         ctx.fillStyle = '#4a9eff'; ctx.fillRect(mx + me.x * sx - 2, my + me.y * sy - 2, 4, 4);
         // タッチスティック
@@ -1454,14 +1530,14 @@
         el('waitMembers').innerHTML = room ? room.members.map(m => '<div class="mem">' + (m.id === room.hostId ? '👑 ' : '') + escapeHtml(m.name) + '<small> ' + escapeHtml(m.wname || '') + '</small></div>').join('') : '';
         const startBtn = el('waitStart');
         startBtn.style.display = isHost ? 'inline-block' : 'none';
-        showWaitMsg(isHost ? '準備ができたら「出発」を押してください（途中参加はできません）' : 'ホストの出発を待っています…');
+        showWaitMsg(isHost ? (PVP ? '2〜4人の乱戦です。1人で「出発」するとボット練習になります（途中参加はできません）' : '準備ができたら「出発」を押してください（途中参加はできません）') : 'ホストの出発を待っています…');
     }
 
     // ---------- 結果 ----------
     function showResult(win, d) {
         const o = el('result'); o.style.display = 'flex';
         const loot = run.stats.loot.slice().sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity));
-        el('resTitle').textContent = win ? '🏆 ステージクリア！' : (d.reason === 'time' ? '⌛ 時間切れ…' : '💀 全滅…');
+        el('resTitle').textContent = (PVP && run.pvpMode) ? (win ? '🏆 勝利！最後の1人' : (d.reason === 'time' ? '⌛ 時間切れ…（HP割合で判定）' : '💀 敗北…')) : (win ? '🏆 ステージクリア！' : (d.reason === 'time' ? '⌛ 時間切れ…' : '💀 全滅…'));
         el('resTitle').style.color = win ? '#ffe08a' : '#ff8a8a';
         el('resBody').innerHTML =
             (run.worldBanner ? '<div style="margin:0 0 10px;padding:10px;border:2px solid #ffc84a;border-radius:10px;background:rgba(120,80,220,.28);color:#fff0c8;font-weight:bold;text-align:center">' + run.worldBanner.t + '<br><span style="font-size:.85em;font-weight:normal">' + run.worldBanner.s + '</span></div>' : '') +
@@ -1470,7 +1546,7 @@
             '<h4>獲得した素材（' + Object.keys(run.stats.mats).reduce((n, k) => n + run.stats.mats[k], 0) + '）</h4>' +
             (Object.keys(run.stats.mats).length ? '<div style="font-size:.85rem;color:#c8f7a0">' + Object.keys(run.stats.mats).map(id => escapeHtml(matName(id)) + '×' + run.stats.mats[id]).join('　') + '</div>' : '<div style="opacity:.7">なし</div>') +
             '<h4>獲得した武器（' + loot.length + '）</h4>' +
-            (loot.length ? loot.map(w => '<div class="lw" style="color:' + HW.rarityOf(w).color + '">' + escapeHtml(w.name) + ' <small>[' + HW.rarityOf(w).label + ' / 攻撃' + w.dmg + ' / 穴' + w.sockets + ']</small></div>').join('') : '<div style="opacity:.7">なし</div>');
+            (loot.length ? loot.map(w => '<div class="lw" style="color:' + HW.rarityOf(w).color + '">' + escapeHtml(w.name) + ' <small>[' + HW.rarityOf(w).label + ' / 攻撃' + HW.pctLabel(w) + ' / 穴' + w.sockets + ']</small></div>').join('') : '<div style="opacity:.7">なし</div>');
     }
 
     // ---------- クイズ（正解でエネルギー）----------
@@ -1519,10 +1595,11 @@
             skillSlots.forEach(sk => { if (sk && sk.cdLeft > 0) sk.cdLeft = Math.max(0, sk.cdLeft - dt); });
             if ((skillT -= dt) <= 0) { skillT = 0.1; updateSkillBar(); }
             updateMe(dt); updateShots(dt);
-            if (isHost) { updateHost(dt); } else lerpRemote(dt);
+            if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
+            else if (isHost) { updateHost(dt); } else lerpRemote(dt);
             // 位置の送信
             posT -= dt; if (posT <= 0) { posT = 1 / 15; netSend('pos', { x: Math.round(me.x), y: Math.round(me.y), a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0 }); }
-            snapT -= dt; if (isHost && room && snapT <= 0) { snapT = 1 / SNAP_HZ; netSend('snap', makeSnap()); }
+            snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { snapT = 1 / SNAP_HZ; netSend('snap', makeSnap()); }
         } else if (run.phase === 'end') { updateShots(dt); }
         Object.keys(allies).forEach(id => { const a = allies[id]; a.x += (a.tx - a.x) * Math.min(1, dt * 14); a.y += (a.ty - a.y) * Math.min(1, dt * 14); if (a.orb) { a.orb.t -= dt; if (a.orb.t <= 0) a.orb = null; } });
         fx.forEach(f => { f.t -= dt; }); fx = fx.filter(f => f.t > 0);
