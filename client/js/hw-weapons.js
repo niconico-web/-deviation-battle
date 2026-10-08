@@ -65,13 +65,35 @@
         rapier:     { label: '細剣',       kind: 'line',  range: 150, width: 22, cd: 0.26, mult: 0.85, knock: 15, crit: 0.15, world: 3 },
         scepter:    { label: '神杖',       kind: 'ring',  radius: 135, cd: 0.85, mult: 1.7,  knock: 170, world: 3 },
         gunblade:   { label: '銃剣',       kind: 'cone',  range: 82,  arc: 1.5, cd: 0.45, mult: 1.0, knock: 50, multi: 2, lunge: 30, world: 3 },
-        bit:        { label: '浮遊砲',     kind: 'proj',  speed: 380, radius: 8,  cd: 0.55, mult: 0.5,  range: 640, homing: true, spread: 4, pierce: 1, world: 3 },
+        // 浮遊砲：誘導3発×0.34（以前は4発×0.5＋貫通）。1回の斉射の合計は以前の約半分、貫通は無し
+        bit:        { label: '浮遊砲',     kind: 'proj',  speed: 380, radius: 8,  cd: 0.62, mult: 0.34, range: 600, homing: true, spread: 3, world: 3 },
         // ---- 第四世界「機神の都」で手に入る武器種（world:4）----
         railgun:    { label: '電磁砲',     kind: 'proj',  speed: 1100, radius: 7,  cd: 1.05, mult: 2.6, range: 1000, pierce: 5, world: 4 },
         gearblade:  { label: '歯車刃',     kind: 'cone',  range: 88,  arc: 2.2, cd: 0.28, mult: 0.62, knock: 30, multi: 3, world: 4 },
         // ---- 第五世界「虚空の彼方」で手に入る武器種（world:5）----
-        orbital:    { label: '衛星砲',     kind: 'proj',  speed: 300, radius: 16, cd: 0.9,  mult: 1.2,  range: 700, homing: true, spread: 5, aoe: 60, world: 5 },
-        singularity:{ label: '特異点',     kind: 'ring',  radius: 170, cd: 0.8,  mult: 1.9,  knock: 140, world: 5 }
+        orbital:    { label: '衛星砲',     kind: 'proj',  speed: 300, radius: 16, cd: 1.0,  mult: 0.8,  range: 680, homing: true, spread: 3, aoe: 60, world: 5 },
+        singularity:{ label: '特異点',     kind: 'ring',  radius: 170, cd: 0.8,  mult: 1.9,  knock: 140, world: 5 },
+        // ---- 追加の武器種（各世界で3種ずつ）----
+        //  第一世界
+        rod:        { label: '棍',         kind: 'line',  range: 132, width: 36, cd: 0.40, mult: 0.9,  knock: 95 },
+        sling:      { label: '投石器',     kind: 'proj',  speed: 520, radius: 9,  cd: 0.65, mult: 1.05, range: 600, aoe: 42 },
+        claws:      { label: '爪',         kind: 'cone',  range: 58,  arc: 1.6, cd: 0.22, mult: 0.5,  knock: 12, multi: 2, crit: 0.1 },
+        //  第二世界
+        flail:      { label: 'フレイル',   kind: 'smash', radius: 82,  cd: 0.75, mult: 1.6,  knock: 150, reach: 80, world: 2 },
+        fan:        { label: '鉄扇',       kind: 'cone',  range: 74,  arc: 3.0, cd: 0.35, mult: 0.7,  knock: 110, world: 2 },
+        boomerang:  { label: 'ブーメラン', kind: 'proj',  speed: 520, radius: 16, cd: 0.7,  mult: 0.9,  range: 520, pierce: 3, world: 2 },
+        //  第三世界
+        trident:    { label: '三叉槍',     kind: 'line',  range: 178, width: 48, cd: 0.6,  mult: 1.5,  knock: 80, world: 3 },
+        chime:      { label: '鈴杖',       kind: 'ring',  radius: 118, cd: 0.45, mult: 0.8,  knock: 60, world: 3 },
+        lance:      { label: 'ランス',     kind: 'line',  range: 205, width: 30, cd: 0.9,  mult: 2.2,  knock: 160, world: 3 },
+        //  第四世界
+        chainsaw:   { label: 'チェーンソー', kind: 'cone', range: 60, arc: 1.4, cd: 0.12, mult: 0.32, knock: 5, world: 4 },
+        flamethrower:{ label: '火炎放射器', kind: 'proj', speed: 520, radius: 20, cd: 0.14, mult: 0.22, range: 260, pierce: 3, world: 4 },
+        mortar:     { label: '迫撃砲',     kind: 'proj',  speed: 360, radius: 14, cd: 1.3,  mult: 2.4,  range: 780, aoe: 110, world: 4 },
+        //  第五世界
+        prism:      { label: '稜鏡',       kind: 'line',  range: 262, width: 52, cd: 0.5,  mult: 1.1,  knock: 30, world: 5 },
+        comet:      { label: '彗星弓',     kind: 'proj',  speed: 760, radius: 10, cd: 0.5,  mult: 1.3,  range: 900, pierce: 4, world: 5 },
+        voidblade:  { label: '虚空刃',     kind: 'cone',  range: 130, arc: 3.6, cd: 0.9,  mult: 2.6,  knock: 180, world: 5 }
         // 第三世界を作るときは、ここに world: 3 の武器種を足して、第三世界のステージの drops に対応する武器ベースを入れるだけでよい
     };
     // 世界ごとの武器種の一覧（武器庫・図鑑などで「どの世界で解禁される武器種か」を出すのに使う）
@@ -208,6 +230,52 @@
         { id: 'orb_omega',      name: '終焉の衛星砲',   type: 'orbital',   dmg: 100, tier: 46 },
         { id: 'sing_omega',     name: '虚空の特異点',   type: 'singularity', dmg: 100, tier: 46 },
         { id: 'void_king_blade', name: '虚空王の剣',    type: 'sword',     dmg: 100, tier: 46 },
+        // ---- 追加の武器種のベース ----
+        { id: 'rod_1', name: '樫の棍', type: 'rod', dmg: 100, tier: 3 },
+        { id: 'rod_2', name: '鋼鉄の棍', type: 'rod', dmg: 100, tier: 7 },
+        { id: 'rod_3', name: '竜骨の棍', type: 'rod', dmg: 100, tier: 11 },
+        { id: 'sling_1', name: '革の投石器', type: 'sling', dmg: 100, tier: 3 },
+        { id: 'sling_2', name: '鉛玉の投石器', type: 'sling', dmg: 100, tier: 7 },
+        { id: 'sling_3', name: '魔石の投石器', type: 'sling', dmg: 100, tier: 11 },
+        { id: 'claws_1', name: '獣の爪', type: 'claws', dmg: 100, tier: 4 },
+        { id: 'claws_2', name: '鋼の鉤爪', type: 'claws', dmg: 100, tier: 8 },
+        { id: 'claws_3', name: '竜爪', type: 'claws', dmg: 100, tier: 12 },
+        { id: 'flail_1', name: '鉄球フレイル', type: 'flail', dmg: 100, tier: 17 },
+        { id: 'flail_2', name: '星球フレイル', type: 'flail', dmg: 100, tier: 20 },
+        { id: 'flail_3', name: '破城フレイル', type: 'flail', dmg: 100, tier: 23 },
+        { id: 'fan_1', name: '紙の扇', type: 'fan', dmg: 100, tier: 17 },
+        { id: 'fan_2', name: '鉄扇', type: 'fan', dmg: 100, tier: 20 },
+        { id: 'fan_3', name: '風神の扇', type: 'fan', dmg: 100, tier: 23 },
+        { id: 'boomerang_1', name: '木のブーメラン', type: 'boomerang', dmg: 100, tier: 17 },
+        { id: 'boomerang_2', name: '刃のブーメラン', type: 'boomerang', dmg: 100, tier: 20 },
+        { id: 'boomerang_3', name: '次元ブーメラン', type: 'boomerang', dmg: 100, tier: 23 },
+        { id: 'trident_1', name: '漁師の三叉槍', type: 'trident', dmg: 100, tier: 24 },
+        { id: 'trident_2', name: '海神の三叉槍', type: 'trident', dmg: 100, tier: 27 },
+        { id: 'trident_3', name: '雷神の三叉槍', type: 'trident', dmg: 100, tier: 30 },
+        { id: 'chime_1', name: '銅の鈴杖', type: 'chime', dmg: 100, tier: 24 },
+        { id: 'chime_2', name: '銀の鈴杖', type: 'chime', dmg: 100, tier: 27 },
+        { id: 'chime_3', name: '天界の鈴杖', type: 'chime', dmg: 100, tier: 30 },
+        { id: 'lance_1', name: '騎士のランス', type: 'lance', dmg: 100, tier: 25 },
+        { id: 'lance_2', name: '聖騎士のランス', type: 'lance', dmg: 100, tier: 28 },
+        { id: 'lance_3', name: '神槍ランス', type: 'lance', dmg: 100, tier: 30 },
+        { id: 'chainsaw_1', name: '工事用チェーンソー', type: 'chainsaw', dmg: 100, tier: 32 },
+        { id: 'chainsaw_2', name: '高出力チェーンソー', type: 'chainsaw', dmg: 100, tier: 35 },
+        { id: 'chainsaw_3', name: '機神の電鋸', type: 'chainsaw', dmg: 100, tier: 38 },
+        { id: 'flamethrower_1', name: '火炎放射器', type: 'flamethrower', dmg: 100, tier: 32 },
+        { id: 'flamethrower_2', name: '高圧火炎放射器', type: 'flamethrower', dmg: 100, tier: 35 },
+        { id: 'flamethrower_3', name: '業火炉', type: 'flamethrower', dmg: 100, tier: 38 },
+        { id: 'mortar_1', name: '迫撃砲', type: 'mortar', dmg: 100, tier: 33 },
+        { id: 'mortar_2', name: '重迫撃砲', type: 'mortar', dmg: 100, tier: 36 },
+        { id: 'mortar_3', name: '終末の臼砲', type: 'mortar', dmg: 100, tier: 38 },
+        { id: 'prism_1', name: '光の稜鏡', type: 'prism', dmg: 100, tier: 40 },
+        { id: 'prism_2', name: '七色の稜鏡', type: 'prism', dmg: 100, tier: 43 },
+        { id: 'prism_3', name: '虚空の稜鏡', type: 'prism', dmg: 100, tier: 46 },
+        { id: 'comet_1', name: '流星弓', type: 'comet', dmg: 100, tier: 40 },
+        { id: 'comet_2', name: '彗星弓', type: 'comet', dmg: 100, tier: 43 },
+        { id: 'comet_3', name: '超新星弓', type: 'comet', dmg: 100, tier: 46 },
+        { id: 'voidblade_1', name: '虚の刃', type: 'voidblade', dmg: 100, tier: 41 },
+        { id: 'voidblade_2', name: '虚空の大刃', type: 'voidblade', dmg: 100, tier: 44 },
+        { id: 'voidblade_3', name: '無の刃', type: 'voidblade', dmg: 100, tier: 46 },
     ];
     const BASE_BY_ID = {};
     BASES.forEach(b => { BASE_BY_ID[b.id] = b; });
@@ -522,7 +590,9 @@
         crossbow: 'bow', wand: 'magic_wand', shotgun: 'pistol', esper: 'esper',
         twinblade: 'dual_swords', chakram: 'bow', cannon: 'pistol', tome: 'magic_wand', kusarigama: 'scythe',
         rapier: 'spear', scepter: 'esper', gunblade: 'sword_shield', bit: 'magic_wand',
-        railgun: 'bow', gearblade: 'dual_swords', orbital: 'magic_wand', singularity: 'esper' };
+        railgun: 'bow', gearblade: 'dual_swords', orbital: 'magic_wand', singularity: 'esper',
+        rod: 'spear', sling: 'bow', claws: 'dual_swords', flail: 'hammer', fan: 'dual_swords', boomerang: 'bow', trident: 'spear', chime: 'esper', lance: 'spear',
+        chainsaw: 'dual_swords', flamethrower: 'magic_wand', mortar: 'magic_wand', prism: 'esper', comet: 'bow', voidblade: 'sword_shield' };
     function toLegacy(w) {
         let lw = { id: 'hw_' + w.id, name: w.name, type: LEGACY_TYPE[w.type] || 'sword_shield', isOriginal: true, isHW: true,
             multiplier: (typeof ORIGINAL_WEAPON_BASE_MULTIPLIER === 'number') ? ORIGINAL_WEAPON_BASE_MULTIPLIER : 1,
