@@ -480,6 +480,19 @@
         enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
         drops: [], bossDrops: [] });
 
+    // 追加の武器種のベースを、近いレベルのステージのドロップに加える（各ベース：tier±3のステージの通常ドロップ、最上位は最も近いボスのドロップにも）
+    (function addNewWeaponDrops() {
+        const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade'];
+        const tiers = { rod: [3, 7, 11], sling: [3, 7, 11], claws: [4, 8, 12], flail: [17, 20, 23], fan: [17, 20, 23], boomerang: [17, 20, 23], trident: [24, 27, 30], chime: [24, 27, 30], lance: [25, 28, 30],
+            chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46] };
+        types.forEach(ty => tiers[ty].forEach((tr, i) => {
+            const id = ty + '_' + (i + 1);
+            const pool = S.filter(st => !st.pvp && !st.standardOnly && !st.gateTo && !st.mini && st.drops && Math.abs(st.ilvl - tr) <= 3);
+            pool.forEach(st => { if (st.drops.indexOf(id) < 0) st.drops.push(id); });
+            if (i === 2 && pool.length) { const bs = pool.reduce((a, b) => (Math.abs(b.ilvl - tr) < Math.abs(a.ilvl - tr) ? b : a)); if (bs.bossDrops && bs.bossDrops.indexOf(id) < 0) bs.bossDrops.push(id); }
+        }));
+    })();
+
     // ============================================================
     // モンスター素材のドロップ表（グリフ工房の素材になる。ids は materials.js の MATERIAL_DATA と同じ）
     //   mob   : 雑魚を倒すたびに、各行を独立して抽選（確率は控えめ）
