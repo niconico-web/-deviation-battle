@@ -536,6 +536,11 @@
         if (!('equipped' in d)) d.equipped = null;
         if (!d.cleared) d.cleared = {};
         migratePct(d);
+        // 門の条件が「ナイトメア攻略」から「クリア（どの難易度でも）」に変わった。すでに最終ステージをクリア済みの人は、門を自動で出す
+        try {
+            const WS = (window.STAGE_DATA && window.STAGE_DATA.WORLDS) || [];
+            WS.forEach(w => { const u = w.unlock; if (u && u.stageId && u.gateFlag && d.cleared && d.cleared[u.stageId] && !d[u.gateFlag] && !d[u.flag]) d[u.gateFlag] = true; });
+        } catch (e) { /* stage-data が無いページでは何もしない */ }
         if (!d.starter) {
             let w;
             if (isSeasonChar()) {

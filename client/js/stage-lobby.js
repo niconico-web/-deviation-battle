@@ -97,13 +97,15 @@
         if (!window.sbStageSocket && typeof io === 'function') { try { window.sbStageSocket = io(); } catch (e) { window.sbStageSocket = null; } }
         return window.sbStageSocket || null;
     }
+    const bmEvent = n => { try { window.SbBeginner && window.SbBeginner.event(n); } catch (e) {} };   // ビギナーミッションに「行動した」と知らせる
     function openStageGate() {
+        bmEvent('gate');
         if (!window.STAGE_DATA || !window.HW) { alert('ステージデータの読み込みに失敗しました'); return; }
         const hack = HW.load();
         const allStages = window.STAGE_DATA.STAGES;
         const WORLDS = window.STAGE_DATA.WORLDS || [];
         let world = 1;                                   // 表示中の世界。第二世界は解放後だけタブが現れる
-        // 世界をまたぐ「門」のステージは、門が現れる条件（前の世界の最終ステージをナイトメア攻略）を満たしてから表示する
+        // 世界をまたぐ「門」のステージは、門が現れる条件（前の世界の最終ステージをクリア）を満たしてから表示する
         const gateOpen = s => { if (!s.gateTo) return true; const w = WORLDS.find(x => x.id === s.gateTo); return !!(w && w.unlock && hack[w.unlock.gateFlag]); };
         const SS = window.SeasonSys || null;
         const progressOpen = w => w.id === 1 || !!w.alwaysOpen || !!(w.unlock && hack[w.unlock.flag]);
@@ -187,6 +189,7 @@
         location.href = 'stage.html';
     }
     function openPvpArena() {
+        bmEvent('pvp');
         if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
         let rooms = [];
         const sock = getSock();
@@ -238,6 +241,7 @@
         return String(name);
     }
     function openArmory() {
+        bmEvent('armory');
         if (!window.HW) return;
         let hack = HW.load();
         try { HW.syncLegacy(hack, true); } catch (e) {}

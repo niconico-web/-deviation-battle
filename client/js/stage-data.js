@@ -185,7 +185,7 @@
 
     // ============================================================
     // 第二世界「次元の裏側」
-    //  ・第一世界の最終ステージ「深淵の裂け目」をナイトメアでクリアすると解放される
+    //  ・第一世界の最終ステージ「深淵の裂け目」をクリア（どの難易度でもよい）すると解放される
     //  ・world:2 のステージは敵が強い（power：HP／攻撃／速さの倍率）。ボスは専用の技セット(boss-moves.js)を持つ
     // ============================================================
     const W2_POWER = { hp: 1.6, dmg: 1.4, spd: 1.08 };
@@ -241,7 +241,7 @@
 
     // ============================================================
     // ゲートキーパー（世界をまたぐ門番）
-    //  ・前の世界の最終ステージをナイトメアで攻略すると「門」が現れ、このステージが挑めるようになる
+    //  ・前の世界の最終ステージをクリア（どの難易度でもよい）すると「門」が現れ、このステージが挑めるようになる
     //  ・倒すと次の世界が解放される。雑魚はおらず最初からボス戦（bossOnly）。ボスは門の前から動かない（stand）
     //  ・技は boss-moves.js の「ゲート」系（ゲートから無数の剣とビームを撃つ）
     // ============================================================
@@ -582,24 +582,24 @@
     ];
 
     // 世界(ワールド)の定義
-    //  unlock.stageId/diff : このステージを diff 以上の難易度でクリアすると「門」が現れる（gateFlag）
+    //  unlock.stageId/diff : このステージを diff 以上の難易度（0=ノーマルでもよい）でクリアすると「門」が現れる（gateFlag）
     //  unlock.gateId       : 門のステージ。ゲートキーパーを倒すと世界が解放される（flag）
     const WORLDS = [
         { id: 1, name: '第一世界', icon: '🌍', color: '#3a6ee8', note: 'はじまりの世界。' },
         { id: 2, name: '第二世界「次元の裏側」', icon: '🌌', color: '#9a4aff', note: '次元の割れ目の向こう。さらに強い敵とボスが待ち受ける。',
-          unlock: { stageId: 'abyssal_rift', diff: 2, gateId: 'gate_world2', gateFlag: 'gateOpen2', flag: 'world2',
+          unlock: { stageId: 'abyssal_rift', diff: 0, gateId: 'gate_world2', gateFlag: 'gateOpen2', flag: 'world2',
                     openText: 'どこかに次元の割れ目ができたようだ...', openSub: '「次元の門」が現れた。門を守るゲートキーパーを倒せば、第二世界へ進める。',
                     clearText: '次元の門が開かれた...', clearSub: 'ステージゲートに「第二世界」が追加されました。' } },
         { id: 3, name: '第三世界「神域」', icon: '⛩️', color: '#ffc84a', note: '神々の住まう領域。最強の敵と創世神が待つ。',
-          unlock: { stageId: 'rift_throne', diff: 2, gateId: 'gate_world3', gateFlag: 'gateOpen3', flag: 'world3',
+          unlock: { stageId: 'rift_throne', diff: 0, gateId: 'gate_world3', gateFlag: 'gateOpen3', flag: 'world3',
                     openText: '次元の最奥で、巨大な門が軋む音がした...', openSub: '「神域の門」が現れた。終焉の門番を倒せば、第三世界へ進める。',
                     clearText: '神域の門が開かれた...', clearSub: 'ステージゲートに「第三世界」が追加されました。' } },
         { id: 4, name: '第四世界「機神の都」', icon: '⚙️', color: '#6aa8ff', note: '歯車と蒸気と電脳の都。機械の神々が待つ。新武器種：電磁砲・歯車刃',
-          unlock: { stageId: 'god_throne', diff: 2, gateId: 'gate_world4', gateFlag: 'gateOpen4', flag: 'world4',
+          unlock: { stageId: 'god_throne', diff: 0, gateId: 'gate_world4', gateFlag: 'gateOpen4', flag: 'world4',
                     openText: '神域の果てで、鋼鉄の門が動き出した...', openSub: '「機神の門」が現れた。ゲートキーパー・機構を倒せば、第四世界へ進める。',
                     clearText: '機神の門が開かれた...', clearSub: 'ステージゲートに「第四世界」が追加されました。' } },
         { id: 5, name: '第五世界「虚空の彼方」', icon: '🕳️', color: '#c090ff', note: '星々が死に絶えた世界の果て。最強の敵と虚空の王が待つ。新武器種：衛星砲・特異点',
-          unlock: { stageId: 'mech_throne', diff: 2, gateId: 'gate_world5', gateFlag: 'gateOpen5', flag: 'world5',
+          unlock: { stageId: 'mech_throne', diff: 0, gateId: 'gate_world5', gateFlag: 'gateOpen5', flag: 'world5',
                     openText: '機神の玉座の背後で、虚空が口を開けた...', openSub: '「虚空の門」が現れた。ゲートキーパー・無限を倒せば、第五世界へ進める。',
                     clearText: '虚空の門が開かれた...', clearSub: 'ステージゲートに「第五世界」が追加されました。' } },
         // スタンダードワールド（スタンダードキャラ専用。最初から入れる。最初のボスからHPが1億超え）

@@ -572,7 +572,7 @@ function updateStatus(player) {
 
     document.getElementById("status").innerHTML =
         "<h2>" + I18N.status + "</h2>" +
-        "<p><strong>" + I18N.playerNameLabel + "</strong>" + player.name + "</p>" +
+        "<p><strong>" + I18N.playerNameLabel + "</strong><span id='playerNameText'></span> <button type='button' id='renameBtn' class='btn btn-secondary' style='padding:2px 8px;font-size:.8rem'>✏️ 名前を変更</button></p>" +
         "<p><strong>プレイヤーID" + I18N.colon + "</strong>" + player.id + "</p>" +
         "<p><strong>" + I18N.level + I18N.colon + "</strong>" + (player.level || 1) + " <strong>" + I18N.xp + I18N.colon + "</strong>" + (player.xp || 0) + "</p>" +
         "<p><strong>コイン" + I18N.colon + "</strong>" + (player.coins || 0) + "</p>" +
@@ -586,10 +586,32 @@ function updateStatus(player) {
         "<p>" + I18N.totalStudy + formatTime(player.totalStudySeconds || 0) + "</p>" +
         "<hr>" + legacyPrestigeHtml + statReallocationHtml;
 
+    const nameSpan = document.getElementById("playerNameText"); if (nameSpan) nameSpan.textContent = player.name;   // 名前は textContent で入れる（HTMLとして解釈されないように）
+    const renameBtn = document.getElementById("renameBtn"); if (renameBtn) renameBtn.addEventListener("click", renamePlayer);
     const statReallocationBtn = document.getElementById("statReallocationBtn");
     if (statReallocationBtn) {
         statReallocationBtn.addEventListener("click", startStatReallocation);
     }
+}
+
+// 名前の変更：禁止ワード・長さのチェックをして保存し、サーバーにも反映する（IDや進行状況はそのまま）
+function renamePlayer() {
+    const p = getPlayerData();
+    if (!p) return;
+    const input = prompt("新しい名前を入力してください（20文字まで）", p.name || "");
+    if (input === null) return;
+    const name = String(input).replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim();
+    if (!name) { alert("名前を入力してください"); return; }
+    if (name === p.name) return;
+    if (typeof validateName === "function") {
+        const v = validateName(name);
+        if (!v.valid) { alert(v.reason); return; }
+    }
+    p.name = name;
+    localStorage.setItem("player", JSON.stringify(p));
+    try { syncPlayerToServer(true); } catch (e) {}
+    alert("名前を「" + name + "」に変更しました");
+    location.reload();
 }
 
 function updateXpDisplay(player) {

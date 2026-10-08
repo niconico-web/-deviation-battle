@@ -103,7 +103,14 @@
     let editingId = null;
     let draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] };
 
-    document.getElementById('maxEff').textContent = AS.MAX_EFFECTS;
+    document.getElementById('maxEff').textContent = AS.maxEffects();
+    (function showSpecial() {
+        const sp = AS.playerSpecial(), box = document.createElement('div');
+        box.style.cssText = 'margin:6px 0;padding:6px 10px;border-radius:8px;background:#1c2542;color:#cfe0ff;font-size:.85rem';
+        box.textContent = '🔮 特殊ステータス ' + Math.round(sp).toLocaleString() + '：エネルギー上限 ' + AS.energyMaxFor(sp) + '・スキル火力 ×' + AS.skillPowerFor(sp).toFixed(1) + '・グリフ枠 ' + AS.maxEffectsFor(sp) + 'つ（特殊を上げると全部増える）';
+        const anchor = document.getElementById('maxEff'); const step = anchor && anchor.closest('.step');
+        if (step && step.parentNode) step.parentNode.insertBefore(box, step);
+    })();
     document.getElementById('maxAug').textContent = AS.MAX_AUGMENTS;
 
     function persist() { AS.saveSkills(skills); AS.saveLoadout(loadoutIds); }
@@ -170,8 +177,8 @@
             d.addEventListener('click', () => {
                 if (locked) { say('「' + e.name + '」はまだ未解放です。下のグリフ工房で素材から作成してください', true); return; }
                 if (on) { if (draft.effects.length > 1) draft.effects = draft.effects.filter(x => x !== k); else say('効果は最低1つ必要です', true); }
-                else if (draft.effects.length < AS.MAX_EFFECTS) draft.effects.push(k);
-                else say('効果は最大' + AS.MAX_EFFECTS + 'つまでです', true);
+                else if (draft.effects.length < AS.maxEffects()) draft.effects.push(k);
+                else say('効果は最大' + AS.maxEffects() + 'つまでです（特殊ステータスを上げると増えます）', true);
                 renderBuilder();
             });
             eff.appendChild(d);
