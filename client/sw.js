@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v62';
+const CACHE_NAME = 'school-battle-cache-v64';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -11,6 +11,7 @@ const urlsToCache = [
   '/stage.html',
   '/js/hw-weapons.js',
   '/js/season.js',
+  '/js/beginner.js',
   '/js/stage-data.js',
   '/js/boss-moves.js',
   '/js/stage.js',

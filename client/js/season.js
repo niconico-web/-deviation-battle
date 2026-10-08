@@ -22,7 +22,7 @@
     //  worldWeek     : 世界ID → 何週目から入れるか（第四・第五世界を足したら、ここに書く）
     //  diffWeek      : 難易度(0=ノーマル,1=ハード,2=ナイトメア) → 何週目から選べるか
     //  pvpWeek       : PvPイベント期間の開始週
-    //  ※ ゲートキーパー（世界をまたぐ門）の条件はナイトメア攻略だが、ナイトメア解放前はハード攻略で代用できる
+    //  ※ ゲートキーパー（世界をまたぐ門）の条件は、前の世界の最終ステージをクリアすること（どの難易度でもよい）
     const SCHEDULE = {
         worldWeek: { 1: 1, 2: 1, 3: 1, 4: 2, 5: 2 },
         diffWeek: [1, 1, 3],
@@ -390,7 +390,7 @@
         const seasonDisabled = !cur && !seaSm;
         box.innerHTML = '<h2 style="text-align:center">どちらのワールドで遊ぶ？</h2>' +
             '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
-            '<div class="ss-card' + (d.active === 'season' ? ' on' : '') + '" style="flex:1 1 280px"><div style="font-size:1.25rem"><b>🌟 シーズンワールド</b>' + (d.active === 'season' ? '　【前回】' : '') + '</div>' +
+            '<div class="ss-card' + (d.active === 'season' ? ' on' : '') + '" style="flex:1 1 280px"><div style="font-size:1.25rem"><b>🌟 シーズンワールド</b>' + (d.active === 'season' ? '　【前回】' : '') + (!stdSm && !seaSm ? '　<span style="color:#ffd36a">★はじめての人におすすめ</span>' : '') + '</div>' +
               '<div class="ss-note" style="margin:4px 0">第一〜第五世界。レベル1・素手スタートで、勉強効率+10%。週ごとにステージと難易度が解放される短期決戦。' +
               (cur ? '<br>' + esc(cur.name) + '：第' + week + '週 / 全' + cur.weeks + '週' : '<br>いま開催中のシーズンはありません') + '</div>' +
               '<div style="font-size:.85rem">🌟 ' + line(seaSm) + '</div>' +

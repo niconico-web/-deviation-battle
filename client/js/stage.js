@@ -36,7 +36,7 @@
     const TIME_LIMIT = PVP ? 180 : (stage.standardOnly ? 25 * 60 : 9 * 60);   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
     const ENEMY_CAP_BASE = 30;
-    const ENERGY_MAX = 100;
+    let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
     const SNAP_HZ = 12;
     // ボスの技（boss-moves.js）とスタン
     const BM = window.BOSS_MOVES || null;
@@ -72,6 +72,9 @@
         dashCd: 1.6 * (1 - Math.min(0.6, A('dashCdr'))),
         energyMul: 1 + A('energyUp')
     };
+    // 特殊ステータスが高いほど、エネルギーの上限が増える（特殊50で100、倍になるごとに+30）。上限が大きいぶん溜まる量も少し増やす
+    ENERGY_MAX = Math.round(100 + 30 * Math.log2(Math.max(1, base.special / 50)));
+    P.energyMul *= Math.sqrt(ENERGY_MAX / 100);
     // 敵の強さの基準は「ステージのレベルだけ」で決まる固定値。プレイヤーの今のステータス・装備には合わせない。
     //  ・FIX_HP  : 敵の攻撃力の基準にする体力（敵のダメージ = 攻撃割合 × この値。防御・軽減は従来どおりプレイヤー側で効く）
     //  ・FIX_DPS : 敵のHPの基準にする火力（ステージの想定火力ぶんの秒数でHPが決まる）
@@ -124,6 +127,7 @@
     let eBullets = [];
     let telegraphs = [];
     let myShots = [];            // 自分の弾（命中判定は自分側でやる）
+    let ghostShots = [];         // 他のプレイヤーが撃った弾（見た目だけ。命中判定は撃った本人の画面でやる）
     let fx = [];                 // 見た目の演出
     let popups = [];
     let nextId = 1;
@@ -192,6 +196,13 @@
                 break;
             case 'atk':
                 if (a) spawnAtkFx(d);
+                break;
+            case 'shot':   // 他のプレイヤーの弾：見た目だけを出す（ダメージは撃った人の画面で計算される）
+                if (a && d && Array.isArray(d.s)) d.s.slice(0, 12).forEach(q => {
+                    const num = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
+                    ghostShots.push({ x: num(q.x), y: num(q.y), vx: clamp(num(q.vx), -1500, 1500), vy: clamp(num(q.vy), -1500, 1500), r: clamp(num(q.r) || 8, 2, 40),
+                        life: clamp(num(q.life) || 0.8, 0.05, 3), c: typeof q.c === 'string' && q.c.length <= 9 ? q.c : '#ffffff', pierce: clamp(Math.round(num(q.pierce)), 0, 9), aoe: clamp(num(q.aoe), 0, 200) });
+                });
                 break;
             case 'hit':
                 if (isHost) applyHit(d);
@@ -681,8 +692,8 @@
     }
 
     // 全員が受け取る撃破イベント：各自が自分用のドロップを抽選する（ハクスラ式の個人ドロップ）
-    // 第一世界の最終ステージ「深淵の裂け目」をナイトメアで攻略すると、第二世界への道が開く
-    // 世界をまたぐ流れ：①前の世界の最終ステージをナイトメアで攻略 → ②「門」が現れる → ③ゲートキーパーを倒す → ④次の世界が解放
+    // 第一世界の最終ステージ「深淵の裂け目」を攻略（どの難易度でもよい）すると、第二世界への道が開く
+    // 世界をまたぐ流れ：①前の世界の最終ステージを攻略（ノーマルでもよい） → ②「門」が現れる → ③ゲートキーパーを倒す → ④次の世界が解放
     function worldOpenedByThisStage() {      // このステージの攻略で「門」が現れる世界（gateFlag）
         return (window.STAGE_DATA.WORLDS || []).find(w => w.unlock && stage.id === w.unlock.stageId && DIFFS.indexOf(DIFF) >= ((window.SeasonSys && w.unlock.diff != null) ? window.SeasonSys.gateDiffReq(w.unlock.diff) : w.unlock.diff)) || null;
     }
@@ -796,6 +807,7 @@
     function boomMine(x, y, r) {
         r *= (1 + A('aoePct'));
         fx.push({ k: 'ring', x: x, y: y, r: 0, max: r, t: 0.3, life: 0.3, c: '#ffb04a', fill: true });
+        netSend('sk', { f: 'nova', x: Math.round(x), y: Math.round(y), r: Math.round(r) });
         const dm = weapon.dmg * P.atkMul * 0.9;
         enemies.forEach(e => { if (e.hp > 0 && dist(e.x, e.y, x, y) < r + e.r) dealHit(e, dm, {}); });
     }
@@ -960,8 +972,11 @@
         } else if (T.kind === 'proj') {
             const n = (T.spread || 1) + Math.round(A('projExtra'));
             const spread = T.spread ? 0.16 : 0.12;
+            const sentShots = [];
+            setTimeout(() => { if (sentShots.length) netSend('shot', { s: sentShots }); }, 0);   // 全部の弾が出来てからまとめて送る
             for (let i = 0; i < n; i++) {
                 const a = ang + (n > 1 ? (i - (n - 1) / 2) * spread : 0);
+                sentShots.push({ x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(Math.cos(a) * T.speed), vy: Math.round(Math.sin(a) * T.speed), r: T.radius, life: +(T.range / T.speed).toFixed(2), pierce: (T.pierce || 0) + Math.round(A('pierce')), aoe: T.aoe || 0, c: HW.rarityOf(weapon).color });
                 myShots.push({ x: me.x, y: me.y, vx: Math.cos(a) * T.speed, vy: Math.sin(a) * T.speed, r: T.radius, life: T.range / T.speed, pierce: (T.pierce || 0) + Math.round(A('pierce')), hit: {}, homing: !!T.homing, aoe: T.aoe || 0, c: HW.rarityOf(weapon).color });
             }
         }
@@ -1071,6 +1086,8 @@
                 myShots.push({ x: me.x, y: me.y, vx: Math.cos(a) * p.speed, vy: Math.sin(a) * p.speed, r: p.radius, life: p.range / p.speed, pierce: p.pierce, hit: {}, homing: false, c: '#8fd3ff', skill: { base: base, hasDmg: hasDmg, eff: eff } });
             }
             const d = { f: 'projectile', x: me.x, y: me.y, a: ang }; skillFx(d); netSend('sk', d);
+            const sk = []; for (let i = 0; i < p.count; i++) { const a = ang + (i - (p.count - 1) / 2) * p.spread; sk.push({ x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(Math.cos(a) * p.speed), vy: Math.round(Math.sin(a) * p.speed), r: p.radius, life: +(p.range / p.speed).toFixed(2), pierce: p.pierce, c: '#8fd3ff' }); }
+            netSend('shot', { s: sk });
         } else if (p.form === 'laser') {
             for (let i = 0; i < p.count; i++) {
                 const a = ang + (i - (p.count - 1) / 2) * p.spread;
@@ -1204,7 +1221,24 @@
         }
     }
 
+    // 他のプレイヤーの弾：動かして、岩・自分・敵に当たったら消すだけ（ダメージ判定はしない）
+    function updateGhostShots(dt) {
+        for (let i = ghostShots.length - 1; i >= 0; i--) {
+            const g = ghostShots[i];
+            g.x += g.vx * dt; g.y += g.vy * dt; g.life -= dt;
+            let dead = g.life <= 0 || g.x < 0 || g.y < 0 || g.x > WORLD_W || g.y > WORLD_H;
+            if (!dead) for (const k of rocks) if (dist(g.x, g.y, k.x, k.y) < k.r) { dead = true; break; }
+            if (!dead && PVP && !me.dead && dist(g.x, g.y, me.x, me.y) < g.r + me.r) dead = true;     // 対人戦：自分に当たった弾は消える
+            if (!dead && !PVP) for (const e of enemies) { if (e.hp > 0 && !g.hit && dist(g.x, g.y, e.x, e.y) < g.r + e.r) { if (g.pierce-- <= 0) { dead = true; break; } } }
+            if (dead) {
+                if (g.aoe && g.life > 0) fx.push({ k: 'ring', x: g.x, y: g.y, r: 0, max: g.aoe, t: 0.3, life: 0.3, c: '#ffb04a', fill: true });
+                ghostShots.splice(i, 1);
+            }
+        }
+        if (ghostShots.length > 300) ghostShots.splice(0, ghostShots.length - 300);
+    }
     function updateShots(dt) {
+        updateGhostShots(dt);
         for (let i = myShots.length - 1; i >= 0; i--) {
             const s = myShots[i];
             if (s.homing) { const n = nearestEnemy(s.x, s.y, 360); if (n) { const sp = Math.hypot(s.vx, s.vy); const a = Math.atan2(s.vy, s.vx), ta = Math.atan2(n.y - s.y, n.x - s.x); let da = ta - a; da = Math.atan2(Math.sin(da), Math.cos(da)); const na = a + clamp(da, -4 * dt, 4 * dt); s.vx = Math.cos(na) * sp; s.vy = Math.sin(na) * sp; } }
@@ -1330,6 +1364,7 @@
             try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
         }
         const h = HW.load();
+        if (PVP) h.pvpPlayed = true;      // ビギナーミッション「オンラインマッチに参加しよう」用
         if (win) {
             h.cleared[stage.id] = (h.cleared[stage.id] || 0) + 1;
             const wo = worldOpenedByThisStage(), wg = worldOpenedByGate();
@@ -1364,6 +1399,7 @@
         eBullets.forEach(b => { if (b.kd === 1) { drawSword(b); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
         // 自分の弾
         myShots.forEach(s => { ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); });
+        ghostShots.forEach(s => { ctx.fillStyle = s.c; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
         // 味方
         Object.keys(allies).forEach(id => drawPlayer(allies[id], false));
         drawPlayer(me, true);

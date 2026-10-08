@@ -57,8 +57,29 @@
         swift:   { name: "迅速", icon: "≫", cost: 5,  stack: 2, forms: [], desc: "弾速上昇＆クールタイム短縮" }
     };
 
-    const MAX_EFFECTS = 3;
+    const MAX_EFFECTS = 3;      // 特殊ステータスが低いとき（初期）のグリフ枠
     const MAX_AUGMENTS = 4;
+
+    // 特殊ステータスが高いほど、1つのスキルに入れられるグリフ（効果）の数が増える：3 → 最大6
+    //   特殊 150 以上で4つ / 1,000 以上で5つ / 5,000 以上で6つ
+    const GLYPH_SLOT_STEPS = [[5000, 6], [1000, 5], [150, 4]];
+    function playerSpecial() {
+        try {
+            const p = (typeof getPlayerData === "function") ? getPlayerData() : null;
+            if (!p) return 0;
+            const s = (typeof getStatsFromPlayer === "function") ? getStatsFromPlayer(p, true) : null;
+            return Number((s && s.special) != null ? s.special : p.special) || 0;
+        } catch (e) { return 0; }
+    }
+    function maxEffectsFor(special) {
+        for (const st of GLYPH_SLOT_STEPS) if (special >= st[0]) return st[1];
+        return MAX_EFFECTS;
+    }
+    function maxEffects() { return maxEffectsFor(playerSpecial()); }
+    // 特殊ステータスによるスキル火力の倍率（特殊300で2倍。特殊を上げるほどスキルが強くなる）
+    function skillPowerFor(special) { return 1 + special / 300; }
+    // エネルギーの上限（stage.js と同じ式）：特殊50で100、倍になるごとに+30
+    function energyMaxFor(special) { return Math.round(100 + 30 * Math.log2(Math.max(1, special / 50))); }
 
     // グリフ工房のレシピ：このグリフ（効果）を作成・解放するのに必要な素材。
     // 素材IDはclient/js/materials.jsのMATERIAL_DATAに実在するものを使用。
@@ -120,7 +141,7 @@
         const s = Object.assign({ id: "", name: "スキル", form: "projectile", effects: ["damage"], augments: [] }, skill || {});
         if (!FORMS[s.form]) s.form = "projectile";
         const unlocked = restrictToUnlocked ? loadUnlockedGlyphs() : null;
-        s.effects = (s.effects || []).filter((e, i, a) => EFFECTS[e] && a.indexOf(e) === i && (!unlocked || unlocked.indexOf(e) !== -1)).slice(0, MAX_EFFECTS);
+        s.effects = (s.effects || []).filter((e, i, a) => EFFECTS[e] && a.indexOf(e) === i && (!unlocked || unlocked.indexOf(e) !== -1)).slice(0, maxEffects());
         if (!s.effects.length) s.effects = ["damage"];
         const aug = [];
         (s.augments || []).forEach(a => {
@@ -341,7 +362,7 @@
     }
 
     global.ActionSkills = {
-        FORMS, EFFECTS, AUGMENTS, MAX_EFFECTS, MAX_AUGMENTS,
+        FORMS, EFFECTS, AUGMENTS, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
         normalize, compute, describe,
         loadSkills, saveSkills, loadLoadout, saveLoadout, newId,
         enemySkillsFor,
