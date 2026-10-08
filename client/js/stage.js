@@ -26,6 +26,7 @@
     const weapon = HW.getEquipped(hack);
     const agg = HW.aggregate(weapon);
     const A = k => agg.stats[k] || 0;
+    const AB = k => !!(agg.flags && agg.flags[k]);     // Tier4オーブの固有能力のうち、特別な処理が要るもの（hw-weapons.js の ORB_ABILITY_MAP）
     const T = HW.TYPES[weapon.type] || HW.TYPES.sword;
 
     // ---------- 定数 ----------
@@ -618,6 +619,7 @@
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
+        if (me.hp <= 0 && AB('guts') && !(me.gutsT > 0)) { me.hp = 1; me.gutsT = 45; me.inv = Math.max(me.inv, 1.0); popups.push({ x: me.x, y: me.y - 40, t: 1.3, text: '根性！ HP1で耐えた', c: '#ffd84a', big: true }); }
         if (me.hp <= 0) { me.hp = 0; me.dead = true; me.stunT = 0; me.orb = null; announce('倒れた…　決着を見届けよう', 2400); }
         else if (st && st.stun) stunMe(st.stun);
     }
@@ -809,12 +811,18 @@
         const defNow = P.def * (me.fortifyT > 0 ? 1.4 : 1);
         const red = Math.min(0.55, defNow / (defNow + 250));
         let dmg = raw * REF_HP * (1 - red) * (1 - Math.min(0.6, A('dr')));
+        if (AB('re_miserable')) dmg *= 0.8;                                    // リ・ミゼラブル：敵の攻撃0.8倍
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         // 被弾時効果
         if (A('thorns') > 0) { const n = nearestEnemy(me.x, me.y, 140); if (n) dealHit(n, weapon.dmg * P.atkMul * A('thorns'), {}); }
+        if (AB('thorn_armor')) { const n = nearestEnemy(me.x, me.y, 170); if (n) dealHit(n, weapon.dmg * P.atkMul * Math.min(6, 0.15 * 40 * (dmg / me.maxHp)), {}); }   // 棘の鎧：受けたダメージの15%ぶんを反射
+        if (me.hp <= 0 && AB('guts') && !(me.gutsT > 0)) {                       // 根性：致死ダメージをHP1で耐える（45秒に1回）
+            me.hp = 1; me.gutsT = 45; me.inv = Math.max(me.inv, 1.0);
+            popups.push({ x: me.x, y: me.y - 40, t: 1.3, text: '根性！ HP1で耐えた', c: '#ffd84a', big: true });
+        }
         agg.procs.filter(p => p.on === 'hurt').forEach(p => {
             if (Math.random() >= p.v) return;
             if (p.key === 'hurtShield') me.shield = true;
@@ -826,6 +834,7 @@
     // スタン：約3秒、移動・攻撃・ダッシュ・スキルがすべて使えない（クイズの回答だけは可能）
     function stunMe(sec) {
         if (me.dead || me.stunT > 0 || me.stunImm > 0) return;
+        if (AB('iron_will') && Math.random() < 0.5) { popups.push({ x: me.x, y: me.y - 40, t: 1.0, text: '耐性！', c: '#9fe0ff', big: true }); return; }   // 不動の心：状態異常を50%無効化
         me.stunT = sec; me.dashT = 0; me.dashBlast = 0;
         popups.push({ x: me.x, y: me.y - 40, t: 1.3, text: '💫 スタン！', c: '#ffe14a', big: true });
         fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 60, t: 0.4, life: 0.4, c: '#ffe14a' });
@@ -856,7 +865,13 @@
         if (e.hp >= e.maxHp) dmg *= 1 + A('dmgFull');
         if (me.hp / me.maxHp < 0.5) dmg *= 1 + A('rageAtk');
         if (me.empowerT > 0) dmg *= 1.35;
-        const crit = Math.random() < P.crit;
+        if (!e.pvp) {
+            if (AB('re_miserable')) dmg *= 1.25;                              // リ・ミゼラブル：敵のHP0.8倍と同じ
+            if (AB('penetration') && (e.boss || e.elite)) dmg *= 1.15;        // 貫通：防御を半分無視
+        }
+        if (AB('guts') && me.hp <= 1.5) dmg *= 3;                             // 根性：HP1の間は攻撃力3倍
+        let crit = Math.random() < P.crit;
+        if (AB('first_strike') && !run.firstStrike && run.phase === 'run') { crit = true; run.firstStrike = true; }   // 会心の初撃
         if (crit) dmg *= P.critMul;
         return { dmg: dmg, crit: crit };
     }
@@ -891,7 +906,7 @@
                 }
             }
         });
-        if (A('lifesteal') > 0) me.hp = Math.min(me.maxHp, me.hp + h.dmg * A('lifesteal'));
+        if (A('lifesteal') > 0) me.hp = Math.min(me.maxHp, me.hp + Math.min(h.dmg * A('lifesteal'), me.maxHp * 0.06));   // 1回の命中で回復するのは最大HPの6%まで
         return { st: Object.keys(st).length ? st : null, extra: extra };
     }
 
@@ -911,6 +926,14 @@
         me.atkCd = cdv;
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
         spawnAtkFx(d); netSend('atk', d);
+        // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
+        if (AB('dual_weapon') && ((me.atkN = (me.atkN || 0) + 1) % 3) === 0) {
+            setTimeout(() => {
+                if (run.phase !== 'run' || me.dead || me.stunT > 0) return;
+                const n = nearestEnemy(me.x, me.y, Math.max(160, P.range || 0) + 80);
+                if (n) { fx.push({ k: 'line', x: me.x, y: me.y, x2: n.x, y2: n.y, t: 0.2, life: 0.2, c: '#ffd0ff' }); strike(n, 0.7, 40); }
+            }, 120);
+        }
         if (T.lunge) { me.x += Math.cos(ang) * T.lunge; me.y += Math.sin(ang) * T.lunge; pushOutOfRocks(me, me.r); }
 
         if (T.kind === 'cone') {
@@ -1039,7 +1062,7 @@
         p.effects.forEach(k => { if (SELF_FX.indexOf(k) >= 0) applySelfFx(k); });
         const eff = p.effects.filter(k => k !== 'damage' && SELF_FX.indexOf(k) < 0);
         const hasDmg = p.effects.indexOf('damage') >= 0;
-        const base = weapon.dmg * P.atkMul * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1);
+        const base = weapon.dmg * P.atkMul * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
         const later = (sec, fn) => setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) fn(); }, sec * 1000);
 
         if (p.form === 'projectile') {
@@ -1165,6 +1188,7 @@
         if (me.orb) updateOrbit(dt);
         // 持続回復
         if (A('regen') > 0) me.hp = Math.min(me.maxHp, me.hp + me.maxHp * A('regen') * dt);
+        if (me.gutsT > 0) me.gutsT -= dt;
         if (me.regenT > 0) { me.regenT -= dt; me.hp = Math.min(me.maxHp, me.hp + me.maxHp * 0.03 * dt); }
         if (me.fortifyT > 0) me.fortifyT -= dt;
         if (me.empowerT > 0) me.empowerT -= dt;

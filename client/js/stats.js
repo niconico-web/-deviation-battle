@@ -237,6 +237,10 @@ function getPrestigeBonusFlatAmount(player) {
 function getStudyEfficiency() {
     try { return (window.SeasonSys && window.SeasonSys.studyMultiplier()) || 1; } catch (e) { return 1; }
 }
+// 「圧倒的成長性」のTier4オーブ（装備中の武器）：勉強タイマーのステータス上昇が2倍
+function getOrbGrowthMult() {
+    try { return (window.HW && window.HW.studyGrowthMult && window.HW.studyGrowthMult()) || 1; } catch (e) { return 1; }
+}
 function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficiency()); }
 
 // 勉強で得られるステータス成長量。
@@ -247,7 +251,7 @@ function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficien
 // 育成が進んでも勉強し続ける意味が残るようにする。
 function calcStatGain(s, player) {
     const base = Math.max(1, Math.floor(s / 60));
-    const eff = getStudyEfficiency();
+    const eff = getStudyEfficiency() * getOrbGrowthMult();
     if (!player) return Math.max(base, Math.round(base * eff));
     const level = player.level || calcLevel(player.xp || 0);
     const prestigeCount = player.prestigeCount || 0;

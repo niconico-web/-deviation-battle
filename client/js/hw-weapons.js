@@ -372,26 +372,30 @@
         maxHp:  { key: 'hpPct',   label: '最大HP' },
         special:{ key: 'aoePct',  label: '範囲効果' }
     };
-    // ユニーク能力 → HWの効果。マップに無い能力は汎用ボーナスにフォールバック
+    // ユニーク能力（Tier4）→ アクション戦闘での効果。説明文どおりの挙動になるよう、1つずつ実装してある
+    //  stat : 数値ステータスとして加算 / proc : 命中時の発動効果 / flag : stage.js が直接見て特別な処理をする能力
+    //  （flag の中身は stage.js の AB('...') を探すと見つかる）
     const ORB_ABILITY_MAP = {
-        life_drain:      { stat: 'lifesteal', v: 0.04 },
-        critical_hit:    { stat: 'critRate',  v: 0.10 },
-        iron_wall:       { stat: 'dr',        v: 0.10 },
-        swift_wind:      { stat: 'moveSpd',   v: 0.12 },
-        thorn_armor:     { stat: 'thorns',    v: 0.30 },
-        natural_healing: { stat: 'regen',     v: 0.008 },
-        venomous_strike: { proc: 'poison',    v: 0.30 },
-        blazing_strike:  { proc: 'burn',      v: 0.30 },
-        afterimage:      { stat: 'dodge',     v: 0.08 },
-        first_strike:    { stat: 'dmgFull',   v: 0.30 },
-        focus_strike:    { stat: 'critDmg',   v: 0.30 },
-        berserker_state: { stat: 'rageAtk',   v: 0.30 },
-        penetration:     { stat: 'pierce',    v: 1 },
-        sure_hit:        { stat: 'critRate',  v: 0.06 },
-        guts:            { stat: 'dr',        v: 0.07 },
-        iron_will:       { stat: 'defPct',    v: 0.12 },
-        awakening:       { stat: 'atkPct',    v: 0.15 },
-        dual_weapon:     { stat: 'aspd',      v: 0.10 },
+        life_drain:      { stat: 'lifesteal', v: 0.20 },                 // 与えたダメージの20%を回復（1回の命中で最大HPの6%まで）
+        overwhelming_growth: { flag: true },                              // 勉強タイマーのステータス上昇が2倍（stats.js）
+        re_miserable:    { flag: true },                                  // 敵の全ステータス0.8倍（与ダメ×1.25・被ダメ×0.8）
+        penetration:     { stat: 'pierce', v: 1, flag: true },            // 防御を半分無視（ボス・精鋭に+15%）＋弾が貫通
+        iron_wall:       { stat: 'dr', v: 0.50 },                         // 受けるダメージ50%カット
+        sure_hit:        { stat: 'rangePct', v: 0.15 },                   // 必中：攻撃の範囲・当たり判定が広がる
+        critical_hit:    { stat: 'critRate', v: 0.25 },                   // クリティカル率が30%に（通常5%）
+        guts:            { flag: true },                                  // 根性：致死ダメージをHP1で耐える(45秒に1回)・HP1で攻撃力3倍
+        dual_weapon:     { flag: true },                                  // 3回に1回、もう一つの武器で追撃（攻撃力70%）
+        berserker_state: { stat: 'rageAtk', v: 0.30 },                    // 大器晩成：HP50%以下で攻撃力1.3倍
+        focus_strike:    { stat: 'critDmg', v: 0.70 },                    // クリティカル倍率 2.2倍（通常1.5倍）
+        swift_wind:      { stat: 'moveSpd', v: 0.25 },                    // 疾風：素早さ1.25倍
+        thorn_armor:     { flag: true },                                  // 受けたダメージの15%を近くの敵へ反射
+        venomous_strike: { proc: 'poison', v: 1.0 },                      // 命中時、必ず毒
+        blazing_strike:  { proc: 'burn',   v: 1.0 },                      // 命中時、必ず火傷
+        afterimage:      { stat: 'dodge', v: 0.15 },                      // 回避率+15%
+        awakening:       { stat: 'skillPct', v: 0.33 },                   // 覚醒：スキル（必殺技）のダメージ1.5→2.0倍
+        first_strike:    { flag: true },                                  // 会心の初撃：戦闘の最初の攻撃は必ずクリティカル
+        natural_healing: { stat: 'regen', v: 0.01 },                      // 自然治癒：毎秒、最大HPの1%（3秒で約3%）
+        iron_will:       { flag: true },                                  // 不動の心：スタンなどの状態異常を50%無効化
         // ティア5
         god_slayer:      { stat: 'dmgBoss',   v: 0.40 },
         absolute_barrier:{ proc: 'hurtShield', v: 0.45 },
@@ -401,7 +405,7 @@
     };
 
     function orbToEffects(orb) {
-        const out = { stats: {}, procs: [], lines: [] };
+        const out = { stats: {}, procs: [], lines: [], flags: {} };
         if (!orb) return out;
         const add = (key, v) => { out.stats[key] = (out.stats[key] || 0) + v; };
         const m = ORB_STAT_MAP[orb.statType];
@@ -413,9 +417,11 @@
         const ua = orb.uniqueAbility;
         if (ua) {
             const am = ORB_ABILITY_MAP[ua.key];
-            if (am && am.stat) add(am.stat, am.v);
-            else if (am && am.proc) out.procs.push({ key: am.proc, v: am.v });
-            else add('atkPct', orb.tier === 'tier5' ? 0.2 : 0.1);
+            if (am) {
+                if (am.stat) add(am.stat, am.v);
+                if (am.proc) out.procs.push({ key: am.proc, v: am.v });
+                if (am.flag) out.flags[ua.key] = true;
+            } else add('atkPct', orb.tier === 'tier5' ? 0.2 : 0.1);   // 想定外の能力（将来の追加分）は汎用ボーナス
             out.lines.push('★ ' + (ua.name || ua.key));
         }
         return out;
@@ -424,7 +430,7 @@
     // ---------- 集計（戦闘用ステータス）----------
     // 武器本体のdmg・武器種・特殊効果・ソケットのオーブを全部まとめる
     function aggregate(w) {
-        const agg = { stats: {}, procs: [] };
+        const agg = { stats: {}, procs: [], flags: {} };
         if (!w) return agg;
         const addStat = (k, v) => { agg.stats[k] = (agg.stats[k] || 0) + v; };
         (w.effects || []).forEach(fx => {
@@ -436,6 +442,7 @@
         (w.orbs || []).forEach(orb => {
             if (!orb) return;
             const oe = orbToEffects(orb);
+            Object.keys(oe.flags).forEach(k => { agg.flags[k] = true; });
             Object.keys(oe.stats).forEach(k => addStat(k, oe.stats[k]));
             oe.procs.forEach(p => {
                 const e = EFFECTS.find(x => x.key === p.key);
@@ -493,6 +500,13 @@
     }
     // いま操作しているのがシーズンキャラか（season.js の保存データを直接見る。読み込み順に依存しない）
     function isSeasonChar() { try { const s = JSON.parse(localStorage.getItem('sbSeason') || 'null'); return !!(s && s.active === 'season'); } catch (e) { return false; } }
+    // 装備中の武器に「圧倒的成長性」のオーブがはまっていると、勉強タイマーのステータス上昇が2倍になる（stats.js から呼ばれる）
+    function studyGrowthMult() {
+        try {
+            const d = load(), w = d.weapons.find(x => x.id === d.equipped);
+            return (w && (w.orbs || []).some(o => o && o.uniqueAbility && o.uniqueAbility.key === 'overwhelming_growth')) ? 2 : 1;
+        } catch (e) { return 1; }
+    }
     function pctLabel(w) { return '＋' + Math.round((w && w.pct || 0) * 1000) / 10 + '%'; }
     function save(d) {
         try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { console.warn('[HW] save failed', e); }
@@ -644,7 +658,7 @@
         roll, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
         load, save, syncLegacy, getEquipped, sellValue, sellWeapon, socketOrb, unsocketOrb, returnOrbs,
         STORAGE_LIMIT, typesOfWorld,
-        HIT_BASE, PCT_CAP, pctLabel, bulkTargets, bulkSell,
+        HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal
     };
 })();
