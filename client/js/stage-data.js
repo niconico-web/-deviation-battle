@@ -451,7 +451,8 @@
     //  ・bossHp : ノーマル・ソロのボスHP / req : 敵の攻撃力の基準にするステータス合計
     //  ・制限時間は25分。ハード×2.2・ナイトメア×4.5。協力プレイ推奨
     // ============================================================
-    const WS_POWER = { hp: 1, dmg: 1.0, spd: 1.12 };
+    // 敵が強すぎたため弱体化：攻撃 1.0→0.6、速さ 1.12→1.0、雑魚のHP ×0.5（ボスHPは1億超えを維持）
+    const WS_POWER = { hp: 1, mobHp: 0.5, dmg: 0.6, spd: 1.0 };
     const stdEnemies = [E('永劫の従者', '🗡️', 'chaser', '#e0d0ff'), E('終局の砲手', '🔮', 'ranged', '#a08aff'), E('時の番人', '⌛', 'tank', '#ffe0a0')];
     const stdDrops = ['creation_scepter', 'genesis_gunblade', 'divine_rapier', 'sing_omega', 'orb_omega', 'void_king_blade', 'mech_blade_god', 'star_bow'];
     add({ id: 'std_gate', world: 9, standardOnly: true, bossHp: 1.2e8, reqOverride: 1000000, power: WS_POWER, name: '永劫の入口', icon: '♾️', ilvl: 47, bg: '#1a1424', bg2: '#100a1a',
