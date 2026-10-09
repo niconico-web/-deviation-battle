@@ -16,6 +16,7 @@
     let launch = null;
     try { launch = JSON.parse(localStorage.getItem('sbStageLaunch') || 'null'); } catch (e) { launch = null; }
     const stage = launch && window.getStageById ? window.getStageById(launch.stageId) : null;
+    try { localStorage.removeItem('studyTimerState'); } catch (e) {}   // ステージに入ったら勉強タイマーは0に戻る（保険）
     const pdata = (typeof getPlayerData === 'function') ? getPlayerData() : null;
     if (!stage || !pdata) {
         alert('ステージ情報かキャラクターデータが見つかりません。町に戻ります。');
@@ -36,6 +37,9 @@
     const TIME_LIMIT = PVP ? 180 : (stage.standardOnly ? 25 * 60 : 9 * 60);   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
     const ENEMY_CAP_BASE = 30;
+    // 通常攻撃もエネルギーを使う：1秒ぶん連打したときの消費量（武器の攻撃間隔に比例。重い武器ほど1振りが高い）
+    const ATK_ENERGY_PER_SEC = 4;
+    const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
     const SNAP_HZ = 12;
     // ボスの技（boss-moves.js）とスタン
@@ -121,7 +125,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: 0, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -289,7 +293,7 @@
         const stageHp = 70 * 1.7 * G_DMG, mobHp = 70 * 1.7 * G_MOB;
         let hp;
         if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * (stage.hpMul || 1) * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
-        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp; // 雑魚も最低約2秒ぶん（固定）
+        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp * (PW.mobHp || 1); // 雑魚も最低約2秒ぶん（固定）
         return {
             maxHp: Math.round(hp),
             dmg: foeDmg(def.arch, isBoss, elite),
@@ -933,6 +937,9 @@
     }
 
     function doAttack() {
+        const atkCost = Math.max(1, Math.round(P.cd * ATK_ENERGY_PER_SEC * 10) / 10);
+        if (me.energy < atkCost) { me.atkCd = 0.2; flashEnergy(); return; }   // エネルギー切れ：クイズに正解して回復
+        me.energy -= atkCost; updateEnergyUI();
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
@@ -1018,6 +1025,18 @@
             return;
         }
         if (d.f === 'orbit') { if (who && who !== me) who.orb = { t: d.dur, r: d.r, n: d.n }; return; }
+        if (d.f === 'thrust') {   // 突き：細く鋭い白い線
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.22, life: 0.22, c: '#9df0ff', w: d.w || 30 });
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.22, life: 0.22, c: '#ffffff', w: Math.max(4, (d.w || 30) * 0.4) });
+            return;
+        }
+        if (d.f === 'flash') {    // 一閃：出発点と到着点に輪、その間を光が走る
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x2, y2: d.y2, t: 0.4, life: 0.4, c: '#fff3b0', w: d.w || 56 });
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x2, y2: d.y2, t: 0.4, life: 0.4, c: '#ffffff', w: 8 });
+            fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: 40, t: 0.3, life: 0.3, c: '#fff3b0', fill: true });
+            fx.push({ k: 'ring', x: d.x2, y: d.y2, r: 0, max: 50, t: 0.35, life: 0.35, c: '#ffffff', fill: true });
+            return;
+        }
         if (d.f === 'laser') fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.3, life: 0.3, c: '#9df0ff', w: d.w || 24 });
         else if (d.f === 'slash') fx.push({ k: 'arc', x: d.x, y: d.y, a: d.a, rng: d.r, arc: d.arc, t: 0.26, life: 0.26, c: '#c6f0ff' });
         else if (d.f === 'nova') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: d.r, t: 0.35, life: 0.35, c: '#ffe6a0', fill: true });
@@ -1080,6 +1099,8 @@
         const base = weapon.dmg * P.atkMul * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
         const later = (sec, fn) => setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) fn(); }, sec * 1000);
 
+        if (p.pieces) { castPieces(p, base, hasDmg, eff, ang, later); return; }   // 自由配置のスキル、突き、一閃
+
         if (p.form === 'projectile') {
             for (let i = 0; i < p.count; i++) {
                 const a = ang + (i - (p.count - 1) / 2) * p.spread;
@@ -1132,6 +1153,84 @@
         } else if (p.form === 'orbit') {
             me.orb = { t: p.duration, n: p.orbs, r: p.orbitR, tick: {}, spin: p.spin, base: base, hasDmg: hasDmg, eff: eff, ptick: p.tick };
             const d = { f: 'orbit', dur: p.duration, r: p.orbitR, n: p.orbs }; skillFx(d, me); netSend('sk', d);
+        }
+    }
+
+    // 自由配置（layout）のスキルと、突き・一閃の発動。
+    //   配置1つ = 出る場所（前後・左右）、向き、大きさ。位置と向きは、撃った瞬間の自分と狙った向きが基準
+    function castPieces(p, base, hasDmg, eff, ang, later) {
+        const rad = d => d * Math.PI / 180, c0 = Math.cos(ang), s0 = Math.sin(ang);
+        const pieces = p.pieces.map(pc => ({
+            x: clamp(me.x + pc.fw * c0 - pc.sd * s0, 20, WORLD_W - 20), y: clamp(me.y + pc.fw * s0 + pc.sd * c0, 20, WORLD_H - 20),
+            a: ang + rad(pc.a), s: pc.s, k: 0.8 + 0.2 * pc.s     // k：大きいほど少しだけ威力も上がる
+        }));
+        const hitAll = (fn, k, a) => enemies.forEach(e => { if (e.hp > 0 && fn(e)) skillHit(e, base * k, hasDmg, eff, a); });
+        const live = !p.custom;     // 標準配置の突き・一閃は、撃った後も狙った向きに追従する
+
+        if (p.form === 'projectile') {
+            const sk = [];
+            pieces.forEach(q => {
+                const vx = Math.cos(q.a) * p.speed, vy = Math.sin(q.a) * p.speed, r = p.radius * q.s, life = p.range / p.speed;
+                myShots.push({ x: q.x, y: q.y, vx: vx, vy: vy, r: r, life: life, pierce: p.pierce, hit: {}, homing: false, c: '#8fd3ff', skill: { base: base * q.k, hasDmg: hasDmg, eff: eff } });
+                const d = { f: 'projectile', x: q.x, y: q.y, a: q.a }; skillFx(d); netSend('sk', d);
+                sk.push({ x: Math.round(q.x), y: Math.round(q.y), vx: Math.round(vx), vy: Math.round(vy), r: r, life: +life.toFixed(2), pierce: p.pierce, c: '#8fd3ff' });
+            });
+            netSend('shot', { s: sk });
+        } else if (p.form === 'laser') {
+            pieces.forEach(q => {
+                const len = Math.min(900, p.length * q.s), w = p.width * Math.pow(q.s, 0.7);
+                const d = { f: 'laser', x: q.x, y: q.y, a: q.a, len: len, w: w }; skillFx(d); netSend('sk', d);
+                const x2 = q.x + Math.cos(q.a) * len, y2 = q.y + Math.sin(q.a) * len;
+                hitAll(e => distSeg(e.x, e.y, q.x, q.y, x2, y2) <= w / 2 + e.r, q.k, q.a);
+            });
+        } else if (p.form === 'slash') {
+            pieces.forEach((q, i) => later(i * 0.08, () => {
+                const rr = p.radius * q.s;
+                const d = { f: 'slash', x: q.x, y: q.y, a: q.a, r: rr, arc: p.arc }; skillFx(d); netSend('sk', d);
+                hitAll(e => {
+                    const dd = dist(q.x, q.y, e.x, e.y); if (dd > rr + e.r) return false;
+                    let da = Math.atan2(e.y - q.y, e.x - q.x) - q.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+                    return Math.abs(da) <= p.arc / 2 || dd < e.r + 18;
+                }, q.k, q.a);
+            }));
+        } else if (p.form === 'nova') {
+            pieces.forEach((q, i) => later(i * 0.1, () => {
+                const rr = p.radius * q.s;
+                const d = { f: 'nova', x: q.x, y: q.y, r: rr }; skillFx(d); netSend('sk', d);
+                hitAll(e => dist(q.x, q.y, e.x, e.y) <= rr + e.r, q.k, 0);
+            }));
+        } else if (p.form === 'meteor') {
+            pieces.forEach((q, i) => {
+                const rr = p.radius * q.s, fall = p.delay + i * 0.12;
+                const d = { f: 'meteor', x: q.x, y: q.y, r: rr, dl: fall }; skillFx(d); netSend('sk', d);
+                setTimeout(() => {
+                    if (run.phase !== 'run') return;
+                    hitAll(e => dist(q.x, q.y, e.x, e.y) <= rr + e.r, q.k, 0);
+                }, fall * 1000);
+            });
+        } else if (p.form === 'orbit') {
+            const avg = pieces.reduce((a, q) => a + q.s, 0) / pieces.length, r = p.orbitR * avg;
+            me.orb = { t: p.duration, n: pieces.length, r: r, tick: {}, spin: p.spin, base: base * (0.8 + 0.2 * avg), hasDmg: hasDmg, eff: eff, ptick: p.tick };
+            const d = { f: 'orbit', dur: p.duration, r: r, n: pieces.length }; skillFx(d, me); netSend('sk', d);
+        } else if (p.form === 'thrust') {
+            pieces.forEach((q, i) => later(0.08 + i * p.delay, () => {
+                const a = live ? aimAngle() : q.a, x0 = live ? me.x : q.x, y0 = live ? me.y : q.y;
+                const len = p.length * q.s, w = p.width * Math.pow(q.s, 0.5);
+                const x2 = x0 + Math.cos(a) * len, y2 = y0 + Math.sin(a) * len;
+                const d = { f: 'thrust', x: x0, y: y0, a: a, len: len, w: w }; skillFx(d); netSend('sk', d);
+                hitAll(e => distSeg(e.x, e.y, x0, y0, x2, y2) <= w / 2 + e.r, q.k, a);
+                if (live) { me.ang = a; me.x = clamp(me.x + Math.cos(a) * p.lunge, 20, WORLD_W - 20); me.y = clamp(me.y + Math.sin(a) * p.lunge, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); }
+            }));
+        } else if (p.form === 'flash') {
+            // 一閃：その場から dist ぶん瞬間移動し、通り道の敵を斬る。複数なら連続で別の向きへ移動する（移動中は無敵）
+            pieces.forEach((q, i) => later(i * p.delay, () => {
+                const a = q.a, sx = me.x, sy = me.y, dd = p.dist * q.s;
+                me.x = clamp(sx + Math.cos(a) * dd, 20, WORLD_W - 20); me.y = clamp(sy + Math.sin(a) * dd, 20, WORLD_H - 20);
+                pushOutOfRocks(me, me.r); me.ang = a; me.inv = Math.max(me.inv, 0.45);
+                const ex = me.x, ey = me.y, w = p.width * Math.pow(q.s, 0.5);
+                const d = { f: 'flash', x: sx, y: sy, x2: ex, y2: ey, w: w }; skillFx(d); netSend('sk', d);
+                hitAll(e => distSeg(e.x, e.y, sx, sy, ex, ey) <= w / 2 + e.r, q.k, a);
+            }));
         }
     }
 
