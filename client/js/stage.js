@@ -16,6 +16,7 @@
     let launch = null;
     try { launch = JSON.parse(localStorage.getItem('sbStageLaunch') || 'null'); } catch (e) { launch = null; }
     const stage = launch && window.getStageById ? window.getStageById(launch.stageId) : null;
+    try { localStorage.removeItem('studyTimerState'); } catch (e) {}   // ステージに入ったら勉強タイマーは0に戻る（保険）
     const pdata = (typeof getPlayerData === 'function') ? getPlayerData() : null;
     if (!stage || !pdata) {
         alert('ステージ情報かキャラクターデータが見つかりません。町に戻ります。');
@@ -36,6 +37,9 @@
     const TIME_LIMIT = PVP ? 180 : (stage.standardOnly ? 25 * 60 : 9 * 60);   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
     const ENEMY_CAP_BASE = 30;
+    // 通常攻撃もエネルギーを使う：1秒ぶん連打したときの消費量（武器の攻撃間隔に比例。重い武器ほど1振りが高い）
+    const ATK_ENERGY_PER_SEC = 4;
+    const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
     const SNAP_HZ = 12;
     // ボスの技（boss-moves.js）とスタン
@@ -121,7 +125,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: 0, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -289,7 +293,7 @@
         const stageHp = 70 * 1.7 * G_DMG, mobHp = 70 * 1.7 * G_MOB;
         let hp;
         if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * (stage.hpMul || 1) * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
-        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp; // 雑魚も最低約2秒ぶん（固定）
+        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp * (PW.mobHp || 1); // 雑魚も最低約2秒ぶん（固定）
         return {
             maxHp: Math.round(hp),
             dmg: foeDmg(def.arch, isBoss, elite),
@@ -933,6 +937,9 @@
     }
 
     function doAttack() {
+        const atkCost = Math.max(1, Math.round(P.cd * ATK_ENERGY_PER_SEC * 10) / 10);
+        if (me.energy < atkCost) { me.atkCd = 0.2; flashEnergy(); return; }   // エネルギー切れ：クイズに正解して回復
+        me.energy -= atkCost; updateEnergyUI();
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
