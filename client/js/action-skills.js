@@ -3,7 +3,8 @@
 //
 //   スキル = 「形(form)」 + 「効果(effects)」 + 「強化(augments)」
 //
-//   形    : 投射 / レーザー / 斬撃 / 衝撃波 / 流星 / 旋回 のどれか1つ
+//   形    : 投射 / レーザー / 斬撃 / 衝撃波 / 流星 / 旋回 / 突き / 一閃 のどれか1つ
+//   配置  : （任意）出る場所・向き・大きさ・数を自由に置ける（layout）。大きく・多くするほどエネルギー消費が増える
 //   効果  : ヒット時に起きること（ダメージ・燃焼・凍結…）。最大3つ
 //   強化  : 形の性能を伸ばす。同じ強化は重ねがけ可（例：レーザーを+2本）。最大4つ
 //
@@ -17,7 +18,9 @@
         slash:      { name: "斬撃", icon: "🌙", cost: 25, desc: "前方に超広い斬撃を放つ", cd: 1.4 },
         nova:       { name: "衝撃波", icon: "💥", cost: 30, desc: "自分を中心に周囲を吹き飛ばす", cd: 1.6 },
         meteor:     { name: "流星", icon: "☄️", cost: 38, desc: "狙った場所に隕石を降らせる。着弾まで少し遅れる範囲攻撃（増殖で落下数が増える）", cd: 2.2 },
-        orbit:      { name: "旋回", icon: "🌀", cost: 32, desc: "光球が自分の周りを約3秒回り、触れた敵を連続で斬る（増殖で光球が増える）", cd: 2.0 }
+        orbit:      { name: "旋回", icon: "🌀", cost: 32, desc: "光球が自分の周りを約3秒回り、触れた敵を連続で斬る（増殖で光球が増える）", cd: 2.0 },
+        thrust:     { name: "突き", icon: "🗡️", cost: 28, desc: "前方へ鋭く突き出す。細長く、威力が高い（少し前に踏み込む）", cd: 1.3 },
+        flash:      { name: "一閃", icon: "⚡", cost: 40, desc: "一気に瞬間移動して、通り道の敵をまとめて斬り裂く（移動中は無敵）", cd: 1.8 }
     };
 
     // グリフ（効果）。damage以外は基本的にグリフ工房（action-skills.html）で
@@ -56,6 +59,29 @@
         pierce:  { name: "貫通", icon: "➤", cost: 10, stack: 2, forms: ["projectile"], desc: "弾が敵を貫通する" },
         swift:   { name: "迅速", icon: "≫", cost: 5,  stack: 2, forms: [], desc: "弾速上昇＆クールタイム短縮" }
     };
+
+    // ---------- 自由配置（layout） ----------
+    // 1つの「配置」= { fw: 前後(px), sd: 左右(px。＋が右), a: 向き(度。0=狙った方向), s: 大きさ(0.5〜2.5) }
+    // 位置・向きは、スキルを撃った瞬間の自分の位置と狙った向きが基準。大きく・多くするほど消費エネルギーが増える。
+    const MAX_PIECES = 8;
+    const LAYOUT_RANGE = { fw: [-150, 450], sd: [-300, 300], a: [-180, 180], s: [0.5, 2.5] };
+    function defaultPiece(form) { return { fw: form === "meteor" ? 260 : 0, sd: 0, a: 0, s: 1 }; }
+    function normLayout(layout, form) {
+        if (!Array.isArray(layout) || !layout.length) return null;
+        const def = defaultPiece(form), R = LAYOUT_RANGE;
+        const num = (v, d) => (isFinite(Number(v)) && v !== null && v !== "") ? Number(v) : d;
+        const cl = (v, r) => Math.max(r[0], Math.min(r[1], v));
+        return layout.slice(0, MAX_PIECES).map(pc => pc = pc || {}).map(pc => ({
+            fw: Math.round(cl(num(pc.fw, def.fw), R.fw)), sd: Math.round(cl(num(pc.sd, def.sd), R.sd)),
+            a: Math.round(cl(num(pc.a, def.a), R.a)), s: Math.round(cl(num(pc.s, def.s), R.s) * 10) / 10
+        }));
+    }
+    // 配置1つぶんの消費の重み：大きいほど急に重くなる（大きさ1.0で1、2.0で約2.6、0.5で約0.38）。数が増えるほど、さらに上乗せ
+    function pieceWeight(pc) { return Math.pow(pc.s, 1.4); }
+    function layoutCostFactor(layout) {
+        let sum = 0; layout.forEach(pc => sum += pieceWeight(pc));
+        return sum * (1 + 0.08 * (layout.length - 1));
+    }
 
     const MAX_EFFECTS = 3;      // 特殊ステータスが低いとき（初期）のグリフ枠
     const MAX_AUGMENTS = 4;
@@ -153,6 +179,9 @@
             aug.push(a);
         });
         s.augments = aug;
+        const lay = normLayout(s.layout, s.form);
+        if (lay) { s.layout = lay; s.augments = s.augments.filter(a => a !== "multi"); }   // 自由配置のときは、数は配置で決める（増殖は使わない）
+        else delete s.layout;
         return s;
     }
 
@@ -164,13 +193,13 @@
         const multi = countAug(s, "multi"), extend = countAug(s, "extend"),
               amplify = countAug(s, "amplify"), pierce = countAug(s, "pierce"), swift = countAug(s, "swift");
 
-        let cost = FORMS[s.form].cost;
+        let cost = FORMS[s.form].cost * (s.layout ? layoutCostFactor(s.layout) : 1);
         s.effects.forEach(e => cost += EFFECTS[e].cost);
         s.augments.forEach(a => cost += AUGMENTS[a].cost);
 
         const dmgMult = (1 + 0.25 * amplify);
         const cooldown = Math.max(0.6, (FORMS[s.form].cd + cost * 0.02) * (1 - 0.15 * swift));
-        const count = 1 + multi;
+        const count = s.layout ? s.layout.length : 1 + multi;
 
         const p = { form: s.form, count: count, dmgMult: dmgMult, effects: s.effects.slice() };
         if (s.form === "projectile") {
@@ -203,7 +232,26 @@
                 orbs: 2 + multi, orbitR: 95 * (1 + 0.25 * extend), duration: 3.0, tick: 0.4, spin: 4.2,
                 baseMult: 0.85, range: 95 * (1 + 0.25 * extend) + 20
             });
+        } else if (s.form === "thrust") {
+            // 突き：細長い当たり判定が前に伸びる（敵を貫く）。撃つと少し前に踏み込む
+            Object.assign(p, {
+                length: 300 * (1 + 0.3 * extend), width: 34 * (1 + 0.2 * extend), baseMult: 2.6,
+                delay: 0.18, lunge: 60, range: 300 * (1 + 0.3 * extend)
+            });
+        } else if (s.form === "flash") {
+            // 一閃：dist ぶん一気に瞬間移動して、通り道の幅 width の範囲を斬る。数が複数なら連続で移動する
+            Object.assign(p, {
+                dist: 340 * (1 + 0.3 * extend), width: 56, baseMult: 3.0, delay: 0.2, range: 340 * (1 + 0.3 * extend)
+            });
         }
+        // 実際に出る「配置」の一覧（自由配置が無いときは、突き・一閃だけ数ぶんの標準配置を作る）
+        if (s.layout) { p.pieces = s.layout.map(pc => Object.assign({}, pc)); p.custom = true; }
+        else if (s.form === "thrust" || s.form === "flash") {
+            p.pieces = [];
+            const zig = [0, 40, -40, 80, -80];
+            for (let i = 0; i < count; i++) p.pieces.push({ fw: 0, sd: 0, a: s.form === "flash" ? (zig[i % zig.length]) : 0, s: 1 });
+            p.custom = false;
+        } else { p.pieces = null; p.custom = false; }
         return { skill: s, cost: Math.round(cost), cooldown: cooldown, params: p };
     }
 
@@ -212,6 +260,7 @@
         const s = c.skill;
         const parts = [FORMS[s.form].name];
         if (c.params.count > 1) parts.push("×" + c.params.count);
+        if (s.layout) parts.push("自由配置");
         s.effects.forEach(e => parts.push(EFFECTS[e].name));
         const augCount = {};
         s.augments.forEach(a => augCount[a] = (augCount[a] || 0) + 1);
@@ -362,7 +411,7 @@
     }
 
     global.ActionSkills = {
-        FORMS, EFFECTS, AUGMENTS, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
+        FORMS, EFFECTS, AUGMENTS, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
         normalize, compute, describe,
         loadSkills, saveSkills, loadLoadout, saveLoadout, newId,
         enemySkillsFor,
