@@ -171,6 +171,7 @@
         }
         function launch(mode, roomId) {
             if (SS) { const chk = SS.canEnterStage(window.getStageById(selId), selDiff); if (!chk.ok) { alert(chk.reason); return; } }
+            if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: selDiff, at: Date.now() })); } catch (e) {}
             location.href = 'stage.html';
         }
@@ -185,6 +186,7 @@
     //  ・1人で出発すると、スパーリングボットとの練習になる
     // ============================================================
     function launchPvp(mode, roomId) {
+        if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: 'pvp_arena', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
         location.href = 'stage.html';
     }

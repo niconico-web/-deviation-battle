@@ -11,25 +11,25 @@
 
     // ---------- レア度 ----------
     const RARITIES = {
-        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, pctMul: 1.00, orig: 0.05, forge: 100,    sockets: [0, 1], fx: [0, 1], weight: 52,
+        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, pctMul: 1.00, orig: 0.08, forge: 100,    sockets: [0, 1], fx: [0, 1], weight: 52,
                      prefixes: ['弱小な', 'ボロい', 'ふつうの', '錆びた', '古びた', '粗末な'] },
-        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, pctMul: 1.12, orig: 0.08, forge: 1000,   sockets: [1, 2], fx: [1, 2], weight: 28,
+        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, pctMul: 1.12, orig: 0.13, forge: 1000,   sockets: [1, 2], fx: [1, 2], weight: 28,
                      prefixes: ['するどい', '頑丈な', '素早い', '軽やかな', '澄んだ', '堅牢な'] },
-        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, pctMul: 1.30, orig: 0.12, forge: 5000,   sockets: [2, 3], fx: [2, 3], weight: 13,
+        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, pctMul: 1.30, orig: 0.20, forge: 5000,   sockets: [2, 3], fx: [2, 3], weight: 13,
                      prefixes: ['猛き', '疾き', '烈火の', '氷雪の', '雷鳴の', '血濡れの', '凶悪な'] },
-        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, pctMul: 1.55, orig: 0.18, forge: 25000,  sockets: [3, 4], fx: [3, 4], weight: 1.6,
+        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, pctMul: 1.55, orig: 0.30, forge: 25000,  sockets: [3, 4], fx: [3, 4], weight: 1.6,
                      prefixes: ['英雄の', '竜殺しの', '破砕の', '深淵の', '星屑の', '覇者の'] },
-        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, pctMul: 2.00, orig: 0.25, forge: 100000, sockets: [4, 6], fx: [4, 5], weight: 0.012,
+        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, pctMul: 2.00, orig: 0.42, forge: 100000, sockets: [4, 6], fx: [4, 5], weight: 0.012,
                      prefixes: ['神々の', '終焉の', '星砕きの', '世界喰らいの', '永劫の', '天啓の'] }
     };
     const RARITY_ORDER = ['normal', 'magic', 'rare', 'epic', 'legendary'];
 
     // ---------- 武器の攻撃力は「％」で伸びる ----------
     //  ・武器そのものの攻撃力は固定値ではなく「プレイヤーの攻撃力に対する＋○％」。
-    //  ・弱い武器で＋3％前後、最終ボスのレジェンドでも＋30％（PCT_CAP）。強さの主役はステータス合計。
+    //  ・弱い武器で＋3％前後、最終ボスのレジェンドでも＋50％（PCT_CAP。以前は30％だったが、武器が弱く敵が強すぎたため引き上げ）。強さの主役はステータス合計。
     //  ・w.dmg は戦闘計算用（HIT_BASE × (1＋pct)）。stage.js は今までどおり w.dmg を使うので手を入れなくてよい。
     const HIT_BASE = 11;
-    const PCT_CAP = 0.30;
+    const PCT_CAP = 0.50;
     const LEGENDARY_MIN_ILVL = 24;     // レジェンドは、第三世界以降（ステージLv24以上）からしか出ない
     function dmgFromPct(pct) { return Math.round(HIT_BASE * (1 + pct) * 100) / 100; }
 
@@ -362,11 +362,11 @@
         return RARITY_ORDER[minIdx];
     }
 
-    // 武器ベースの階級(tier)から、％の基礎値（3〜15％）を決める。レア度の倍率をかけると最大30％になる
+    // 武器ベースの階級(tier)から、％の基礎値（3〜25％）を決める。レア度の倍率をかけると最大50％になる
     const MAX_TIER = BASES.reduce((m, b) => Math.max(m, b.tier || 1), 1);
     function basePct(base) {
         const t = Math.max(0, Math.min(1, ((base.tier || 1) - 1) / Math.max(1, MAX_TIER - 1)));
-        return 0.03 + 0.12 * t;
+        return 0.03 + 0.22 * t;
     }
     function pctFor(base, rarityKey) {
         return Math.min(PCT_CAP, basePct(base) * RARITIES[rarityKey].pctMul);
@@ -569,6 +569,15 @@
             w.dmg = dmgFromPct(w.pct);
             changed = true;
         });
+        // 上限30％→50％の引き上げに合わせて、すでに持っている武器の％も5/3倍に底上げする（1回だけ）
+        if (!d.pctScaleV2) {
+            d.weapons.forEach(w => {
+                if (typeof w.pct !== 'number') return;
+                w.pct = Math.round(Math.min(PCT_CAP, w.pct * (5 / 3)) * 10000) / 10000;
+                w.dmg = dmgFromPct(w.pct);
+            });
+            d.pctScaleV2 = true; changed = true;
+        }
         if (changed) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
     }
     // いま操作しているのがシーズンキャラか（season.js の保存データを直接見る。読み込み順に依存しない）
@@ -648,7 +657,7 @@
 
     // ---------- オリジナル武器（コイン鍛冶）----------
     //  ・コインを多く使うほどレア度が上がる。レジェンドはコイン100000が必要。名前は自分で決められる。
-    //  ・％は作るレア度で決まる（レジェンドでも25％。ボスのレジェンド最大30％の少し下）。特殊効果とソケットはランダム。
+    //  ・％は作るレア度で決まる（レジェンドで42％。ボスのレジェンド最大50％の少し下）。特殊効果とソケットはランダム。
     const FORGE_NAME_MAX = 14;
     function forgeCost(rarityKey) { return (RARITIES[rarityKey] || RARITIES.normal).forge; }
     function forgeRarityForCoins(coins) {
