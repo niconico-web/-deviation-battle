@@ -373,6 +373,23 @@
         drops: ['gear_omega', 'rail_mk2', 'steam_pistol', 'tesla_whip', 'god_edge', 'dragon_breath'],
         bossDrops: ['gear_omega', 'rail_zero']
     });
+    // ---- ギミックボス（第四世界）----
+    add({
+        id: 'boiler_heart', world: 4, power: W4_POWER, name: '大圧力炉', icon: '♨️', ilvl: 35, bg: '#5a3422', bg2: '#432618',
+        desc: '限界まで蒸気を溜め込む巨大ボイラー。圧力が溜まるたびに「安全弁」を壊さなければ、炉心が大爆発を起こす。',
+        enemies: [E('蒸気兵', '🤖', 'chaser', '#c8b090'), E('ボイラー虫', '🪲', 'bomber', '#ff9a4a'), E('鉄砲台', '🔫', 'ranged', '#9aa4b8')],
+        boss: { name: '炉心の巨人ブラスト', icon: '♨️', color: '#ff8a4a', patterns: ['slam', 'radial', 'charge'], gimmick: 'pressure' },
+        drops: ['rail_mk1', 'gear_saw', 'steam_pistol', 'tesla_whip', 'god_edge', 'dragon_breath'],
+        bossDrops: ['steam_howitzer', 'gear_saw']
+    });
+    add({
+        id: 'grave_of_gears', world: 4, power: W4_POWER, name: '歯車の墓所', icon: '⚰️', ilvl: 36, bg: '#2a2a36', bg2: '#1c1c28',
+        desc: '動かなくなった機械が眠る墓所。死神グリム・リーパーは10秒ごとに全員へ「スティグマ」を刻み、13個たまった者の魂を刈り取る。',
+        enemies: [E('朽ちた機兵', '🦴', 'chaser', '#a0a0b8'), E('墓守の亡霊', '👻', 'ranged', '#b8a8ff'), E('錆びた鎌兵', '🪓', 'charger', '#8a8a98')],
+        boss: { name: '死神グリム・リーパー', icon: '💀', color: '#b8a0ff', patterns: ['slam', 'volley', 'radial'], gimmick: 'stigma' },
+        drops: ['rail_mk2', 'gear_twin', 'clock_blade', 'tesla_whip', 'god_edge', 'chaos_axe'],
+        bossDrops: ['reaper_scythe', 'gear_twin']
+    });
     add({
         id: 'mech_throne', world: 4, power: { hp: 3.3, dmg: 2.2, spd: 1.16 }, name: '機神の玉座', icon: '🤴', ilvl: 38, bg: '#1a2a4a', bg2: '#111c36',
         desc: '機神の都の最奥。すべての機械を統べる機神王が、歯車の玉座に座している。',
@@ -436,6 +453,27 @@
         drops: ['orb_omega', 'sing_maw', 'star_bow', 'eclipse_dagger', 'void_katana', 'aeon_bit'],
         bossDrops: ['orb_omega', 'sing_omega']
     });
+    // ---- ギミックボス（第五世界）----
+    add({
+        id: 'gravity_well', world: 5, power: W5_POWER, name: '重力の井戸', icon: '🪐', ilvl: 42, bg: '#141a3a', bg2: '#0c1028',
+        desc: '光も時間も落ちていく巨大な井戸。重力喰らいグラビトンが、獲物を中心へ引きずり込んでは押し潰す。',
+        enemies: [E('落ちる星屑', '💫', 'swarm', '#a0b0ff'), E('重力の獣', '🐺', 'charger', '#7a8aff'), E('虚ろな眼', '👁️', 'ranged', '#c0a0ff')],
+        boss: { name: '重力喰らいグラビトン', icon: '🪐', color: '#7a8aff', patterns: ['spiral', 'slam', 'radial'], gimmick: 'gravity' },
+        drops: ['orb_array', 'sing_maw', 'nova_greatsword', 'eclipse_dagger', 'void_katana', 'aeon_bit'],
+        bossDrops: ['sing_maw', 'orb_array']
+    });
+    add({
+        id: 'olympus', world: 5, power: W5_POWER, name: '天空神殿オリンポス', icon: '🏛️', ilvl: 45, bg: '#2a2a4a', bg2: '#1c1c36',
+        desc: '雲の上に浮かぶ神殿。雷神ゼウスと火の巨人プロメテウスが、二人で挑戦者を迎え撃つ。片方を倒すと、残った方が15秒で倒れた方を蘇らせようとする。',
+        enemies: [E('神殿の雷雲', '⛈️', 'ranged', '#ffe97a'), E('炎の巨兵', '🔥', 'tank', '#ff8a4a'), E('神鷲', '🦅', 'charger', '#e8e0b0')],
+        boss: { name: '雷神ゼウス', icon: '⚡', color: '#ffe97a', patterns: ['volley', 'slam', 'radial'], gimmick: 'twin' },
+        bosses: [
+            { name: '雷神ゼウス', icon: '⚡', color: '#ffe97a', patterns: ['volley', 'slam', 'radial'], set: 'olympus_zeus', hp: 0.7, dx: -190 },
+            { name: '火の巨人プロメテウス', icon: '🔥', color: '#ff7a3a', patterns: ['slam', 'charge', 'radial'], set: 'olympus_prometheus', hp: 0.7, dx: 190 }
+        ],
+        drops: ['orb_array', 'nova_greatsword', 'star_bow', 'eclipse_dagger', 'void_katana', 'dragon_breath'],
+        bossDrops: ['napoleon', 'star_bow']
+    });
     add({
         id: 'void_throne', world: 5, power: { hp: 3.8, dmg: 2.4, spd: 1.18 }, name: '虚空の玉座', icon: '👑', ilvl: 46, bg: '#14041f', bg2: '#0c0214',
         desc: '世界の果てに据えられた玉座。すべての終わりを見届ける虚空の王が、最後の挑戦者を待っている。',
@@ -445,13 +483,25 @@
         bossDrops: ['sing_omega', 'orb_omega', 'void_king_blade']
     });
 
+    // ---- 第五世界のラスボス（ディメンション・キーパー）----
+    add({
+        id: 'dimension_end', world: 5, bossOnly: true, power: { hp: 4.4, dmg: 2.5, spd: 1.0 }, reqOverride: 130000,
+        name: '次元の終点', icon: '🌀', ilvl: 46, bg: '#12061f', bg2: '#08030f',
+        desc: 'すべての次元が行き着く、世界の一番外側。次元の番人ディメンション・キーパーは6つの核に守られている。核は放射状の技をスキルで跳ね返すと砕け、すべて砕くと門の主としての真の姿を現す。',
+        enemies: [E('次元の影', '👤', 'chaser', '#d0a0ff')],
+        boss: { name: 'ディメンション・キーパー', icon: '🌀', color: '#e0a0ff', patterns: ['radial'], stand: true, gate: true, gimmick: 'dimension' },
+        drops: ['sing_omega', 'orb_omega', 'void_katana', 'star_bow', 'nova_greatsword', 'creation_scepter'],
+        bossDrops: ['dimension_edge', 'sing_omega', 'orb_omega']
+    });
+
     // ============================================================
     // スタンダードワールド（スタンダードキャラ専用）
     //  ・シーズンで持ち帰ったステータスを試す、永遠の世界。最初のボスから HP が1億を超える（ノーマル）
     //  ・bossHp : ノーマル・ソロのボスHP / req : 敵の攻撃力の基準にするステータス合計
     //  ・制限時間は25分。ハード×2.2・ナイトメア×4.5。協力プレイ推奨
     // ============================================================
-    const WS_POWER = { hp: 1, dmg: 1.0, spd: 1.12 };
+    // 敵が強すぎたため弱体化：攻撃 1.0→0.6、速さ 1.12→1.0、雑魚のHP ×0.5（ボスHPは1億超えを維持）
+    const WS_POWER = { hp: 1, mobHp: 0.5, dmg: 0.6, spd: 1.0 };
     const stdEnemies = [E('永劫の従者', '🗡️', 'chaser', '#e0d0ff'), E('終局の砲手', '🔮', 'ranged', '#a08aff'), E('時の番人', '⌛', 'tank', '#ffe0a0')];
     const stdDrops = ['creation_scepter', 'genesis_gunblade', 'divine_rapier', 'sing_omega', 'orb_omega', 'void_king_blade', 'mech_blade_god', 'star_bow'];
     add({ id: 'std_gate', world: 9, standardOnly: true, bossHp: 1.2e8, reqOverride: 1000000, power: WS_POWER, name: '永劫の入口', icon: '♾️', ilvl: 47, bg: '#1a1424', bg2: '#100a1a',
@@ -482,9 +532,9 @@
 
     // 追加の武器種のベースを、近いレベルのステージのドロップに加える（各ベース：tier±3のステージの通常ドロップ、最上位は最も近いボスのドロップにも）
     (function addNewWeaponDrops() {
-        const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade'];
+        const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade', 'healstaff', 'banner', 'hexstaff'];
         const tiers = { rod: [3, 7, 11], sling: [3, 7, 11], claws: [4, 8, 12], flail: [17, 20, 23], fan: [17, 20, 23], boomerang: [17, 20, 23], trident: [24, 27, 30], chime: [24, 27, 30], lance: [25, 28, 30],
-            chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46] };
+            chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46], healstaff: [5, 15, 26, 36, 44], banner: [6, 16, 27, 37, 45], hexstaff: [8, 18, 28, 38, 46] };
         types.forEach(ty => tiers[ty].forEach((tr, i) => {
             const id = ty + '_' + (i + 1);
             const pool = S.filter(st => !st.pvp && !st.standardOnly && !st.gateTo && !st.mini && st.drops && Math.abs(st.ilvl - tr) <= 3);
@@ -539,8 +589,8 @@
     const M = (mob, elite, boss) => ({ mob: mob, elite: elite, boss: boss });
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
-    ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'void_throne'].forEach(id => { MATS[id] = W5M; });
+    ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });

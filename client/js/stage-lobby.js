@@ -171,6 +171,7 @@
         }
         function launch(mode, roomId) {
             if (SS) { const chk = SS.canEnterStage(window.getStageById(selId), selDiff); if (!chk.ok) { alert(chk.reason); return; } }
+            if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: selDiff, at: Date.now() })); } catch (e) {}
             location.href = 'stage.html';
         }
@@ -185,6 +186,7 @@
     //  ・1人で出発すると、スパーリングボットとの練習になる
     // ============================================================
     function launchPvp(mode, roomId) {
+        if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: 'pvp_arena', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
         location.href = 'stage.html';
     }
@@ -262,12 +264,14 @@
                 '<select id="sbFilter" style="margin-bottom:6px;padding:4px"><option value="all">すべて</option><option value="eq">装備中</option>' + Object.keys(types).map(t => '<option value="' + t + '"' + (filter === t ? ' selected' : '') + '>' + esc((HW.TYPES[t] || {}).label || t) + '</option>').join('') + '</select> ' +
                 '<button class="sbl-btn gray" id="sbBulk" style="padding:4px 8px;font-size:.75rem">🗑 一括売却</button>' +
                 '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器を作る</button>' +
-                sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
+                '<button class="sbl-btn green" id="sbArmorBtn" style="padding:4px 8px;font-size:.75rem">🛡 防具（頭・胴・脚）</button>' +
+                sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + (w.elems && w.elems.length && window.SBElem ? ' ' + SBElem.ELEMS[w.elems[0]].icon + (w.elems.length > 1 ? SBElem.ELEMS[w.elems[1]].icon : '') : '') + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
             wl.querySelector('#sbFilter').value = filter;
             wl.querySelector('#sbFilter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
             wl.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
             wl.querySelector('#sbBulk').addEventListener('click', openBulk);
             wl.querySelector('#sbForge').addEventListener('click', openForge);
+            const ab = wl.querySelector('#sbArmorBtn'); if (ab) ab.addEventListener('click', openArmor);
         }
         function addCoins(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
 
@@ -280,6 +284,8 @@
             wd.innerHTML =
                 '<h3 style="margin:0;color:' + R.color + '">' + esc(w.name) + '</h3>' +
                 '<div style="font-size:.82rem;color:#9fb3d9">[' + R.label + '] ' + esc(T.label || w.type) + '　Lv' + w.ilvl + '　攻撃力 ' + HW.pctLabel(w) + (w.custom ? '　★オリジナル' : '') + '</div>' +
+                (T.sup ? '<div style="font-size:.78rem;color:#9fe0a0">🩹 支援武器：' + ({ heal: '攻撃すると自分と近くの味方を回復する', buff: '攻撃すると自分と近くの味方の攻撃・防御を上げる', debuff: '当てた敵を弱体化・減速させ、受けるダメージを増やす' }[T.sup] || '') + '</div>' : '') +
+                (w.elems && w.elems.length && window.SBElem ? '<div class="sbl-sec">属性</div><div style="font-size:.82rem">' + SBElem.labels(w.elems) + '</div><div style="font-size:.76rem">' + SBElem.styleHtml(w.elems) + '</div>' : '<div style="font-size:.76rem;color:#778">無属性</div>') +
                 '<div class="sbl-sec">特殊効果</div>' + (w.effects.length ? w.effects.map(f => '<div class="sbl-fx">◆ ' + esc(HW.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>') +
                 '<div class="sbl-sec">ソケット（オーブをはめ込む）</div><div>' + slots.join('') + '</div>' +
                 (w.orbs.some(Boolean) ? '<div class="sbl-sec">オーブの効果</div>' + w.orbs.map(o => o ? HW.orbToEffects(o).lines.map(l => '<div class="sbl-fx" style="color:#9fe0ff">💎 ' + esc(l) + '</div>').join('') : '').join('') : '') +
@@ -380,6 +386,49 @@
     }
 
     // ---------- 第二世界の解放通知（町に戻ったとき1回だけ）----------
+    // ============================================================
+    // 防具（頭・胴・脚）
+    // ============================================================
+    function openArmor() {
+        if (!window.HW || !window.SBArmor) return;
+        const hack = HW.load(); SBArmor.ensure(hack);
+        let selId = null, slotF = 'all';
+        const m = modal('🛡 防具（頭・胴・脚）', () => { try { refreshInvInfo(); if (typeof updateStatus === 'function') updateStatus(getPlayerData()); } catch (e) {} });
+        m.body.innerHTML = '<div class="sbl-col sbl-left" id="arL"></div><div class="sbl-col sbl-right" id="arR"></div>';
+        const L = m.body.querySelector('#arL'), R = m.body.querySelector('#arR');
+        const addCoins = v => { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); };
+        const eqId = a => hack.armorEq[a.slot] === a.id;
+        function renderList() {
+            const eq = SBArmor.equipped(hack);
+            const arr = hack.armors.filter(a => slotF === 'all' || a.slot === slotF).sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl);
+            L.innerHTML = '<div class="sbl-sec">装備中</div>' + SBArmor.SLOT_ORDER.map(sl => { const a = eq[sl]; return '<div style="font-size:.8rem;padding:2px 0">' + SBArmor.SLOTS[sl].icon + ' ' + SBArmor.SLOTS[sl].label + '：' + (a ? '<span style="color:' + HW.rarityOf(a).color + '">' + esc(a.name) + '</span>' : '<span style="color:#778">なし</span>') + '</div>'; }).join('') +
+                '<div class="sbl-sec">所持防具 ' + hack.armors.length + ' 個</div>' +
+                '<select id="arF" style="margin-bottom:6px;padding:4px"><option value="all">すべて</option>' + SBArmor.SLOT_ORDER.map(sl => '<option value="' + sl + '"' + (slotF === sl ? ' selected' : '') + '>' + SBArmor.SLOTS[sl].label + '</option>').join('') + '</select>' +
+                (arr.length ? arr.map(a => '<div class="sbl-wl' + (a.id === selId ? ' sel' : '') + (eqId(a) ? ' eq' : '') + '" data-id="' + a.id + '"><span style="color:' + HW.rarityOf(a).color + '">' + (eqId(a) ? '【装備中】' : '') + SBArmor.SLOTS[a.slot].icon + ' ' + esc(a.name) + '</span><span style="color:#9fb3d9">Lv' + a.ilvl + (a.locked ? ' 🔒' : '') + '</span></div>').join('') : '<div style="color:#889;font-size:.8rem">防具はステージの敵・ボスがドロップします</div>');
+            L.querySelector('#arF').addEventListener('change', e => { slotF = e.target.value; renderList(); });
+            L.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
+        }
+        function renderDetail() {
+            const a = hack.armors.find(x => x.id === selId);
+            if (!a) { const t = SBArmor.summaryLines(hack); R.innerHTML = '<div class="sbl-sec">装備による効果の合計</div>' + (t.length ? t.map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') : '<div style="color:#889">防具を選んでください</div>'); return; }
+            const Rr = HW.rarityOf(a);
+            R.innerHTML = '<h3 style="margin:0;color:' + Rr.color + '">' + esc(a.name) + '</h3>' +
+                '<div style="font-size:.82rem;color:#9fb3d9">[' + Rr.label + '] ' + SBArmor.SLOTS[a.slot].label + '　Lv' + a.ilvl + '</div>' +
+                '<div class="sbl-sec">基本性能</div>' + SBArmor.statLines(a).filter(Boolean).map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') +
+                '<div class="sbl-sec">特殊効果</div>' + (a.effects.length ? a.effects.map(f => '<div class="sbl-fx">◆ ' + esc(SBArmor.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>') +
+                '<div style="margin-top:8px"><button class="sbl-btn green" id="arEq">' + (eqId(a) ? '外す' : '装備する') + '</button>' +
+                '<button class="sbl-btn red" id="arSell"' + (eqId(a) || a.locked ? ' disabled' : '') + '>売却 (' + SBArmor.sellValue(a) + ')</button>' +
+                '<button class="sbl-btn gray" id="arLock">' + (a.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>';
+            R.querySelector('#arEq').addEventListener('click', () => { if (eqId(a)) SBArmor.unequip(hack, a.slot); else SBArmor.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#arLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#arSell').addEventListener('click', () => {
+                if (!confirm(a.name + ' を売却しますか？')) return;
+                const v = SBArmor.sell(hack, a.id); if (v > 0) { addCoins(v); HW.save(hack); selId = null; renderList(); renderDetail(); }
+            });
+        }
+        renderList(); renderDetail();
+    }
+
     function checkWorldNotice() {
         try {
             if (!window.HW) return;
