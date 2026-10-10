@@ -24,6 +24,15 @@ window.addEventListener('appinstalled', () => {
 });
 
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
+// 勉強タイマーは「時間を指定して、その時間まで勉強する」カウントダウン式（最大2時間）
+const STUDY_MAX_SECONDS = 2 * 60 * 60;
+let studyDurationSec = 30 * 60;
+function readStudyDuration() {
+    const sel = document.getElementById("studyDuration");
+    let m = sel ? parseInt(sel.value, 10) : 30;
+    if (!(m > 0)) m = 30;
+    return Math.min(STUDY_MAX_SECONDS, m * 60);
+}
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
@@ -36,6 +45,7 @@ function saveStudyTimerState() {
         const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
         const state = {
             elapsed: elapsed,
+            duration: studyDurationSec,
             subject: document.getElementById("studyFocus")?.value || 'jp',
             timestamp: Date.now()
         };
@@ -88,6 +98,9 @@ function restoreStudyTimerState() {
     // 中断中に経過した時間を加算して新しい開始時間を設定
     const gapElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
     studyElapsedBefore = savedState.elapsed + Math.max(0, gapElapsed);
+    studyDurationSec = Math.min(STUDY_MAX_SECONDS, savedState.duration || studyDurationSec);
+    const durSel = document.getElementById("studyDuration");
+    if (durSel) { durSel.value = String(Math.round(studyDurationSec / 60)); durSel.disabled = true; }
     studyStartTime = Date.now(); // 現在時刻から再開
 
     studyStartBtn.disabled = true;
@@ -623,6 +636,9 @@ function updateXpDisplay(player) {
 function startStudy() {
     if (studyStartTime !== null) return;
     if (!getPlayerData()) { alert(I18N.needChar); return; }
+    studyDurationSec = readStudyDuration();
+    const durSel = document.getElementById("studyDuration");
+    if (durSel) durSel.disabled = true;
     studyStartTime = Date.now();
     studyElapsedBefore = 0;
     document.getElementById("studyStart").disabled = true;
@@ -636,9 +652,11 @@ function stopStudy() {
     if (studyStartTime === null) return;
     clearInterval(studyTimerInterval);
     studyTimerInterval = null;
-    const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+    const elapsed = Math.min(studyDurationSec, studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
     studyStartTime = null;
     studyElapsedBefore = 0;
+    const durSelEnd = document.getElementById("studyDuration");
+    if (durSelEnd) durSelEnd.disabled = false;
     
     // 保存されたタイマー状態をクリア
     clearStudyTimerState();
@@ -656,9 +674,34 @@ function stopStudy() {
     document.getElementById("studyTimer").textContent = "00:00:00";
 }
 
+// 勉強タイマーを「ゼロに戻す」（報酬なし）。タイマー中にステージ・オンラインマッチへ行ったときに呼ばれる
+function cancelStudyTimer() {
+    const wasRunning = studyStartTime !== null;
+    if (studyTimerInterval) clearInterval(studyTimerInterval);
+    studyTimerInterval = null;
+    studyStartTime = null;
+    studyElapsedBefore = 0;
+    clearStudyTimerState();
+    const b1 = document.getElementById("studyStart"), b2 = document.getElementById("studyStop"), b3 = document.getElementById("studyFocus"), b4 = document.getElementById("studyDuration");
+    if (b1) b1.disabled = false;
+    if (b2) b2.disabled = true;
+    if (b3) b3.disabled = false;
+    if (b4) b4.disabled = false;
+    const t = document.getElementById("studyTimer");
+    if (t) t.textContent = "00:00:00";
+    return wasRunning;
+}
+window.cancelStudyTimer = cancelStudyTimer;
+
 function updateStudyTimerDisplay() {
     if (studyStartTime === null) return;
-    document.getElementById("studyTimer").textContent = formatTime(studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
+    const elapsedNow = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+    if (elapsedNow >= studyDurationSec) {   // 指定時間に到達：自動で終了して報酬を受け取る
+        document.getElementById("studyTimer").textContent = formatTime(0);
+        stopStudy();
+        return;
+    }
+    document.getElementById("studyTimer").textContent = formatTime(studyDurationSec - elapsedNow);   // 残り時間を表示
     // 毎秒ここでも保存しておく（visibilitychange/beforeunloadが
     // 発火しないままアプリが強制終了された場合の保険）
     saveStudyTimerState();
@@ -707,8 +750,19 @@ function updateStatGrowthInfo() {
         } else {
             stats = statNames[stat1];
         }
-        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}</p>`;
+        const elemNote = { jp: '🔥炎', math: '💧水', sci: '🌪️風', soc: '⛰️土', eng: '⚡雷' }[subject];
+        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}${elemNote ? '　／　属性：' + elemNote + 'が強化されます' : ''}</p>`;
+        renderElemPanel();
     }
+}
+
+// 属性ステータス（勉強で強くなる）の表示
+function renderElemPanel() {
+    const box = document.getElementById("elemPanel");
+    if (!box || !window.SBElem) return;
+    let sp = 50;
+    try { const p = getPlayerData(); if (p) sp = (getStatsFromPlayer(p, true) || {}).special || 50; } catch (e) {}
+    box.innerHTML = SBElem.panelHtml(sp);
 }
 
 function applyStudyRewards(seconds) {
@@ -738,6 +792,8 @@ function applyStudyRewards(seconds) {
     }
     
     const [stat1, stat2, stat3] = SUBJECT_STATS[subject];
+    // 勉強した教科の属性ポイントも、ステータス上昇と同じだけ増える（国語→炎／数学→水／理科→風／社会→土／英語→雷）
+    try { if (window.SBElem) SBElem.addStudy(subject, statGain); } catch (e) {}
     stats[stat1] += statGain;
     if (stat2) {
         stats[stat2] += statGain;
@@ -1003,7 +1059,7 @@ function setupSocketEventHandlers() {
 
     window.socket.on("dataLoaded", (loadedPlayer) => {
         if (loadedPlayer && loadedPlayer.id) {
-            if (studyStartTime !== null) stopStudy(); // 勉強中なら停止
+            if (studyStartTime !== null) cancelStudyTimer(); // 勉強中なら中止（報酬なし）
             // 引き継ぎ後に前回のバトル情報が残らないよう掃除する
             ["battlePlayer", "enemy", "roomId", "isBotBattle", "battleResult", "rewardsApplied", "stolenWeapon", "droppedOrb"]
                 .forEach(key => localStorage.removeItem(key));
@@ -1405,7 +1461,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         newBtn.addEventListener('click', () => {
             if (window.I18N && confirm(I18N.deleteConfirm)) {
-                if (studyStartTime !== null) stopStudy();
+                if (studyStartTime !== null) cancelStudyTimer();
                 localStorage.clear();
                 alert(I18N.deleted);
                 location.reload();
@@ -1517,7 +1573,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const studyStopBtn = document.getElementById("studyStop");
         if (studyStopBtn) {
-            studyStopBtn.addEventListener('click', stopStudy);
+            studyStopBtn.addEventListener('click', () => {
+                if (studyStartTime === null) return;
+                if (confirm('途中でやめると、今回の勉強の報酬は受け取れません。やめますか？')) cancelStudyTimer();
+            });
         }
         const studyFocusSelect = document.getElementById("studyFocus");
         if (studyFocusSelect) {
