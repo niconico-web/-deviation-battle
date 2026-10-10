@@ -11,25 +11,25 @@
 
     // ---------- レア度 ----------
     const RARITIES = {
-        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, pctMul: 1.00, orig: 0.05, forge: 100,    sockets: [0, 1], fx: [0, 1], weight: 52,
+        normal:    { label: 'ノーマル',   color: '#c9c9c9', mult: 1.00, pctMul: 1.00, orig: 0.08, forge: 100,    sockets: [0, 1], fx: [0, 1], weight: 52,
                      prefixes: ['弱小な', 'ボロい', 'ふつうの', '錆びた', '古びた', '粗末な'] },
-        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, pctMul: 1.12, orig: 0.08, forge: 1000,   sockets: [1, 2], fx: [1, 2], weight: 28,
+        magic:     { label: 'マジック',   color: '#6fa8ff', mult: 1.18, pctMul: 1.12, orig: 0.13, forge: 1000,   sockets: [1, 2], fx: [1, 2], weight: 28,
                      prefixes: ['するどい', '頑丈な', '素早い', '軽やかな', '澄んだ', '堅牢な'] },
-        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, pctMul: 1.30, orig: 0.12, forge: 5000,   sockets: [2, 3], fx: [2, 3], weight: 13,
+        rare:      { label: 'レア',       color: '#ffd84a', mult: 1.42, pctMul: 1.30, orig: 0.20, forge: 5000,   sockets: [2, 3], fx: [2, 3], weight: 13,
                      prefixes: ['猛き', '疾き', '烈火の', '氷雪の', '雷鳴の', '血濡れの', '凶悪な'] },
-        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, pctMul: 1.55, orig: 0.18, forge: 25000,  sockets: [3, 4], fx: [3, 4], weight: 1.6,
+        epic:      { label: 'エピック',   color: '#c077ff', mult: 1.75, pctMul: 1.55, orig: 0.30, forge: 25000,  sockets: [3, 4], fx: [3, 4], weight: 1.6,
                      prefixes: ['英雄の', '竜殺しの', '破砕の', '深淵の', '星屑の', '覇者の'] },
-        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, pctMul: 2.00, orig: 0.25, forge: 100000, sockets: [4, 6], fx: [4, 5], weight: 0.012,
+        legendary: { label: 'レジェンド', color: '#ff8a2a', mult: 2.20, pctMul: 2.00, orig: 0.42, forge: 100000, sockets: [4, 6], fx: [4, 5], weight: 0.012,
                      prefixes: ['神々の', '終焉の', '星砕きの', '世界喰らいの', '永劫の', '天啓の'] }
     };
     const RARITY_ORDER = ['normal', 'magic', 'rare', 'epic', 'legendary'];
 
     // ---------- 武器の攻撃力は「％」で伸びる ----------
     //  ・武器そのものの攻撃力は固定値ではなく「プレイヤーの攻撃力に対する＋○％」。
-    //  ・弱い武器で＋3％前後、最終ボスのレジェンドでも＋30％（PCT_CAP）。強さの主役はステータス合計。
+    //  ・弱い武器で＋3％前後、最終ボスのレジェンドでも＋50％（PCT_CAP。以前は30％だったが、武器が弱く敵が強すぎたため引き上げ）。強さの主役はステータス合計。
     //  ・w.dmg は戦闘計算用（HIT_BASE × (1＋pct)）。stage.js は今までどおり w.dmg を使うので手を入れなくてよい。
     const HIT_BASE = 11;
-    const PCT_CAP = 0.30;
+    const PCT_CAP = 0.50;
     const LEGENDARY_MIN_ILVL = 24;     // レジェンドは、第三世界以降（ステージLv24以上）からしか出ない
     function dmgFromPct(pct) { return Math.round(HIT_BASE * (1 + pct) * 100) / 100; }
 
@@ -93,7 +93,9 @@
         //  第五世界
         prism:      { label: '稜鏡',       kind: 'line',  range: 262, width: 52, cd: 0.5,  mult: 1.1,  knock: 30, world: 5 },
         comet:      { label: '彗星弓',     kind: 'proj',  speed: 760, radius: 10, cd: 0.5,  mult: 1.3,  range: 900, pierce: 4, world: 5 },
-        voidblade:  { label: '虚空刃',     kind: 'cone',  range: 130, arc: 3.6, cd: 0.9,  mult: 2.6,  knock: 180, world: 5 }
+        voidblade:  { label: '虚空刃',     kind: 'cone',  range: 130, arc: 3.6, cd: 0.9,  mult: 2.6,  knock: 180, world: 5 },
+        //  支援武器（1種類にまとめた）：攻撃すると、自分と近くの味方を回復＆鼓舞し、当てた敵を弱体化・減速させる（攻撃力は低め）
+        supportstaff: { label: '加護の杖', kind: 'ring', radius: 170, cd: 0.8, mult: 0.5, knock: 0, sup: 'all', support: true },
         // 第三世界を作るときは、ここに world: 3 の武器種を足して、第三世界のステージの drops に対応する武器ベースを入れるだけでよい
     };
     // 世界ごとの武器種の一覧（武器庫・図鑑などで「どの世界で解禁される武器種か」を出すのに使う）
@@ -230,6 +232,17 @@
         { id: 'orb_omega',      name: '終焉の衛星砲',   type: 'orbital',   dmg: 100, tier: 46 },
         { id: 'sing_omega',     name: '虚空の特異点',   type: 'singularity', dmg: 100, tier: 46 },
         { id: 'void_king_blade', name: '虚空王の剣',    type: 'sword',     dmg: 100, tier: 46 },
+        // ---- 支援武器（回復・バフ・デバフをまとめた杖）----
+        { id: 'supportstaff_1', name: '加護の小杖',   type: 'supportstaff', dmg: 100, tier: 5 },
+        { id: 'supportstaff_2', name: '聖女の加護杖', type: 'supportstaff', dmg: 100, tier: 15 },
+        { id: 'supportstaff_3', name: '英雄の加護杖', type: 'supportstaff', dmg: 100, tier: 26 },
+        { id: 'supportstaff_4', name: '機神の加護杖', type: 'supportstaff', dmg: 100, tier: 36 },
+        { id: 'supportstaff_5', name: '星の加護杖',   type: 'supportstaff', dmg: 100, tier: 44 },
+        // ---- ギミックボスの固有ドロップ ----
+        { id: 'steam_howitzer', name: '蒸気榴弾砲',     type: 'mortar',    dmg: 100, tier: 35 },   // 大圧力炉のボス
+        { id: 'reaper_scythe',  name: '死神の大鎌',     type: 'scythe',    dmg: 100, tier: 36 },   // 死神グリム・リーパー
+        { id: 'napoleon',       name: 'ナポレオン',     type: 'greatsword', dmg: 100, tier: 45 },  // ゼウス＆プロメテウス（固有ドロップ）
+        { id: 'dimension_edge', name: '次元断ちの刃',   type: 'katana',    dmg: 100, tier: 46 },   // ディメンション・キーパー
         // ---- 追加の武器種のベース ----
         { id: 'rod_1', name: '樫の棍', type: 'rod', dmg: 100, tier: 3 },
         { id: 'rod_2', name: '鋼鉄の棍', type: 'rod', dmg: 100, tier: 7 },
@@ -362,11 +375,11 @@
         return RARITY_ORDER[minIdx];
     }
 
-    // 武器ベースの階級(tier)から、％の基礎値（3〜15％）を決める。レア度の倍率をかけると最大30％になる
+    // 武器ベースの階級(tier)から、％の基礎値（3〜25％）を決める。レア度の倍率をかけると最大50％になる
     const MAX_TIER = BASES.reduce((m, b) => Math.max(m, b.tier || 1), 1);
     function basePct(base) {
         const t = Math.max(0, Math.min(1, ((base.tier || 1) - 1) / Math.max(1, MAX_TIER - 1)));
-        return 0.03 + 0.12 * t;
+        return 0.03 + 0.22 * t;
     }
     function pctFor(base, rarityKey) {
         return Math.min(PCT_CAP, basePct(base) * RARITIES[rarityKey].pctMul);
@@ -408,6 +421,7 @@
             source: opts.source || null,
             createdAt: Date.now()
         };
+        if (window.SBElem) { const el = SBElem.rollElems(); if (el.length) w.elems = el; }   // 属性（半分は無属性。まれに2属性）
         w.name = displayName(w);
         return w;
     }
@@ -501,6 +515,7 @@
         const agg = { stats: {}, procs: [], flags: {} };
         if (!w) return agg;
         const addStat = (k, v) => { agg.stats[k] = (agg.stats[k] || 0) + v; };
+        if (w.elems && w.elems.length && window.SBElem) { const ss = SBElem.styleStats(w.elems); Object.keys(ss).forEach(k => addStat(k, ss[k])); agg.elems = w.elems.slice(); }   // 属性ごとのバトルスタイル
         (w.effects || []).forEach(fx => {
             const e = EFFECT_BY_ID[fx.id];
             if (!e) return;
@@ -536,6 +551,11 @@
         if (!('equipped' in d)) d.equipped = null;
         if (!d.cleared) d.cleared = {};
         migratePct(d);
+        // 旧：癒しの杖・鼓舞の旗・呪詛の杖 → 加護の杖にまとめた（所持品を移行）
+        d.weapons.forEach(w => { if (w.type === 'healstaff' || w.type === 'banner' || w.type === 'hexstaff') {
+            const n = parseInt(String(w.baseId || '').split('_').pop(), 10) || 1;
+            w.type = 'supportstaff'; w.baseId = 'supportstaff_' + Math.min(5, Math.max(1, n)); const b2 = BASE_BY_ID[w.baseId]; if (b2) w.baseName = b2.name; if (w.prefix !== undefined) w.name = displayName(w);
+        } });
         // 門の条件が「ナイトメア攻略」から「クリア（どの難易度でも）」に変わった。すでに最終ステージをクリア済みの人は、門を自動で出す
         try {
             const WS = (window.STAGE_DATA && window.STAGE_DATA.WORLDS) || [];
@@ -569,6 +589,15 @@
             w.dmg = dmgFromPct(w.pct);
             changed = true;
         });
+        // 上限30％→50％の引き上げに合わせて、すでに持っている武器の％も5/3倍に底上げする（1回だけ）
+        if (!d.pctScaleV2) {
+            d.weapons.forEach(w => {
+                if (typeof w.pct !== 'number') return;
+                w.pct = Math.round(Math.min(PCT_CAP, w.pct * (5 / 3)) * 10000) / 10000;
+                w.dmg = dmgFromPct(w.pct);
+            });
+            d.pctScaleV2 = true; changed = true;
+        }
         if (changed) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
     }
     // いま操作しているのがシーズンキャラか（season.js の保存データを直接見る。読み込み順に依存しない）
@@ -648,9 +677,11 @@
 
     // ---------- オリジナル武器（コイン鍛冶）----------
     //  ・コインを多く使うほどレア度が上がる。レジェンドはコイン100000が必要。名前は自分で決められる。
-    //  ・％は作るレア度で決まる（レジェンドでも25％。ボスのレジェンド最大30％の少し下）。特殊効果とソケットはランダム。
+    //  ・％は作るレア度で決まる（レジェンドで42％。ボスのレジェンド最大50％の少し下）。特殊効果とソケットはランダム。
     const FORGE_NAME_MAX = 14;
-    function forgeCost(rarityKey) { return (RARITIES[rarityKey] || RARITIES.normal).forge; }
+    // 属性を付けると割増：1つ＋25%、2つ＋70%
+    const FORGE_ELEM_SURCHARGE = [0, 0.25, 0.7];
+    function forgeCost(rarityKey, nElems) { return Math.round((RARITIES[rarityKey] || RARITIES.normal).forge * (1 + (FORGE_ELEM_SURCHARGE[Math.min(2, nElems || 0)] || 0))); }
     function forgeRarityForCoins(coins) {
         let best = null;
         RARITY_ORDER.forEach(k => { if (coins >= RARITIES[k].forge) best = k; });
@@ -680,9 +711,14 @@
         const nFx = rint(rar.fx[0], rar.fx[1]);
         const fxPool = EFFECTS.slice(), effects = [];
         for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], ilvl, rk));
-        return { id: uid(), baseId: 'orig_' + type, type: type, rarity: rk, prefix: '', baseName: name, name: name, ilvl: ilvl,
+        // 選んだ属性（最大2つ。elements.js にある属性だけ）
+        const elems = [];
+        ((o && o.elems) || []).forEach(id => { if (window.SBElem && SBElem.ELEMS[id] && elems.indexOf(id) < 0 && elems.length < 2) elems.push(id); });
+        const w = { id: uid(), baseId: 'orig_' + type, type: type, rarity: rk, prefix: '', baseName: name, name: name, ilvl: ilvl,
             pct: pct, dmg: dmgFromPct(pct), effects: effects, sockets: sockets, orbs: new Array(sockets).fill(null),
-            source: 'forge', custom: true, forgeCost: rar.forge, createdAt: Date.now() };
+            source: 'forge', custom: true, forgeCost: forgeCost(rk, elems.length), createdAt: Date.now() };
+        if (elems.length) w.elems = elems;
+        return w;
     }
 
     // 売却 / ソケット操作
@@ -730,7 +766,7 @@
 
     window.HW = {
         RARITIES, RARITY_ORDER, TYPES, BASES, BASE_BY_ID, EFFECTS, EFFECT_BY_ID,
-        roll, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
+        roll, pickRarity, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
         load, save, syncLegacy, getEquipped, sellValue, sellWeapon, socketOrb, unsocketOrb, returnOrbs,
         STORAGE_LIMIT, typesOfWorld,
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,

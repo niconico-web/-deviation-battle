@@ -367,6 +367,28 @@ function action () {
                     if (Math.hypot(foe.x - tx, foe.y - ty) <= p.radius + foe.r) hitOn(foe);
                 });
             }
+        } else if (p.form === 'thrust') {
+            // 突き：前方の細長い範囲（旧アクションバトルでは1体相手なので、レーザーと同じ判定で短く鋭い）
+            const pcs = p.pieces || [{ a: 0, s: 1 }];
+            pcs.forEach((pc, i) => after(i * p.delay, () => {
+                if (ended) return;
+                const aa = currentAngle(angle) + (pc.a || 0) * Math.PI / 180, len = p.length * pc.s, w = p.width * Math.sqrt(pc.s);
+                entities.push({ type: 'beam', x: caster.x, y: caster.y, angle: aa, length: len, width: w, color: caster.team === 'player' ? '#ffffff' : '#ff8fa3', life: 0.2, max: 0.2 });
+                const x2 = caster.x + Math.cos(aa) * len, y2 = caster.y + Math.sin(aa) * len;
+                if (distToSegment(foe.x, foe.y, caster.x, caster.y, x2, y2) <= w / 2 + foe.r) hitOn(foe);
+                shake = Math.max(shake, 0.12);
+            }));
+        } else if (p.form === 'flash') {
+            // 一閃：瞬間移動して通り道を斬る
+            const pcs = p.pieces || [{ a: 0, s: 1 }];
+            pcs.forEach((pc, i) => after(i * p.delay, () => {
+                if (ended) return;
+                const aa = angle + (pc.a || 0) * Math.PI / 180, sx = caster.x, sy = caster.y, dd = p.dist * pc.s;
+                caster.x += Math.cos(aa) * dd; caster.y += Math.sin(aa) * dd;
+                entities.push({ type: 'beam', x: sx, y: sy, angle: aa, length: dd, width: p.width, color: '#fff3b0', life: 0.3, max: 0.3 });
+                if (distToSegment(foe.x, foe.y, sx, sy, caster.x, caster.y) <= p.width / 2 + foe.r) hitOn(foe);
+                shake = Math.max(shake, 0.15);
+            }));
         } else if (p.form === 'orbit') {
             entities.push({ type: 'orbit', caster: caster, n: p.orbs, r: p.orbitR, spin: p.spin, ang: 0, tick: 0, tickMax: p.tick,
                 color: caster.team === 'player' ? '#9df0ff' : '#ff9d9d', life: p.duration, max: p.duration, onHit: hitOn });

@@ -38,6 +38,12 @@
     .slot-row { display: grid; grid-template-columns: 34px 1fr; gap: 6px; align-items: center; }
     .msg { font-size: 0.8rem; color: #7fe3a0; min-height: 1.2em; margin-top: 6px; }
     .err { color: #ff8a8a; }
+    #layoutCanvas { width: 100%; max-width: 420px; background: #0c0f17; border: 1px solid #333c58; border-radius: 8px; touch-action: none; display: block; margin: 6px 0; }
+    .lay-item { background: #1f2638; border: 1px solid #333c58; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; font-size: 0.78rem; }
+    .lay-item .row { display: grid; grid-template-columns: 44px 1fr 44px; gap: 6px; align-items: center; margin-top: 2px; }
+    .lay-item input[type=range] { width: 100%; }
+    .lay-item .hd { display: flex; justify-content: space-between; align-items: center; }
+    .lay-note { font-size: 0.72rem; color: #9aa6c4; margin: 2px 0 6px; line-height: 1.5; }
     .glyph-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 1px solid #2b3550; border-radius: 8px; margin-bottom: 6px; background: #1a2030; }
     .glyph-item.unlocked { border-color: #43d675; background: #16281d; }
     .glyph-item .glyph-mats { font-size: 0.7rem; color: #9aa6c4; margin-top: 3px; }
@@ -82,6 +88,20 @@
             <div class="step">③ 強化を加える（最大<span id="maxAug"></span>つ・同じ強化は重ねがけ可）</div>
             <div id="augments"></div>
 
+            <div class="step">④ 配置・大きさ・数を自由に決める（任意）</div>
+            <div class="lay-note">オンにすると、技が出る<b>場所・向き・大きさ・数</b>を自由に置けます（最大<span id="maxPieces"></span>個）。<b>大きく・多くするほどエネルギー消費が増えます</b>。自由配置を使うときは、数は配置の数で決まるので「増殖」は使えません。下の図は真上から見た図で、右が狙った方向です。丸い印をドラッグしても動かせます。</div>
+            <div>
+                <button type="button" class="ghost" id="layoutToggle">自由配置をオンにする</button>
+                <button type="button" class="ghost" id="layoutAdd">＋ 配置を追加</button>
+            </div>
+            <canvas id="layoutCanvas" width="340" height="280"></canvas>
+            <div id="layoutList"></div>
+
+            <div class="step">⑤ 属性を付ける（任意・消費エネルギー+12%）</div>
+            <div class="lay-note">属性を付けると、技のダメージに「属性ダメージ」が上乗せされます（強さは勉強で決まり、特殊ステータスでも伸びます）。敵の弱点属性なら1.6倍、耐性なら0.5倍。命中時の追加効果は属性ごとに違います。</div>
+            <div id="elemPick" class="opts"></div>
+            <div class="lay-note" id="elemInfo"></div>
+
             <div class="summary" id="summary"></div>
             <div>
                 <button type="button" class="primary" id="saveBtn">新しいスキルとして保存</button>
@@ -94,6 +114,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/stats.js"></script>
 <script src="js/materials.js"></script>
+<script src="js/elements.js"></script>
 <script src="js/action-skills.js"></script>
 <script>
 (function () {
@@ -101,9 +122,10 @@
     let skills = AS.loadSkills();
     let loadoutIds = AS.loadLoadout().map(s => s ? s.id : '');
     let editingId = null;
-    let draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] };
+    let draft = { name: '', form: 'projectile', effects: ['damage'], augments: [], layout: null };
 
     document.getElementById('maxEff').textContent = AS.maxEffects();
+    document.getElementById('maxPieces').textContent = AS.MAX_PIECES;
     (function showSpecial() {
         const sp = AS.playerSpecial(), box = document.createElement('div');
         box.style.cssText = 'margin:6px 0;padding:6px 10px;border-radius:8px;background:#1c2542;color:#cfe0ff;font-size:.85rem';
@@ -137,7 +159,7 @@
             el.innerHTML = '<div><div>' + AS.FORMS[s.form].icon + ' <b>' + esc(s.name) + '</b></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's</div></div>' +
                 '<div><button class="ghost" data-a="edit">編集</button> <button class="ghost danger" data-a="del">削除</button></div>';
             el.querySelector('[data-a=edit]').addEventListener('click', () => {
-                editingId = s.id; draft = { name: s.name, form: s.form, effects: s.effects.slice(), augments: s.augments.slice() };
+                editingId = s.id; draft = { name: s.name, form: s.form, effects: s.effects.slice(), augments: s.augments.slice(), layout: s.layout ? s.layout.map(pc => Object.assign({}, pc)) : null };
                 renderBuilder(); window.scrollTo(0, 0);
             });
             el.querySelector('[data-a=del]').addEventListener('click', () => {
@@ -187,10 +209,10 @@
         const aug = document.getElementById('augments'); aug.innerHTML = '';
         Object.keys(AS.AUGMENTS).forEach(k => {
             const a = AS.AUGMENTS[k];
-            const ok = !a.forms.length || a.forms.indexOf(draft.form) !== -1;
+            const ok = (!a.forms.length || a.forms.indexOf(draft.form) !== -1) && !(k === 'multi' && draft.layout);
             const cnt = draft.augments.filter(x => x === k).length;
             const d = document.createElement('div'); d.className = 'aug' + (ok ? '' : ' off');
-            d.innerHTML = '<div>' + a.icon + ' <b>' + a.name + '</b>（+' + a.cost + '）<small>' + a.desc + (ok ? '' : '　※この形では使えません') + '</small></div>' +
+            d.innerHTML = '<div>' + a.icon + ' <b>' + a.name + '</b>（+' + a.cost + '）<small>' + a.desc + (ok ? '' : (k === 'multi' && draft.layout ? '　※自由配置では、数を配置で決めます' : '　※この形では使えません')) + '</small></div>' +
                 '<div class="stepper"><button type="button" data-d="-1">−</button><span>' + cnt + '/' + a.stack + '</span><button type="button" data-d="1">＋</button></div>';
             d.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
                 if (!ok) return;
@@ -206,8 +228,124 @@
             }));
             aug.appendChild(d);
         });
+        renderElem();
+        renderLayout();
         renderSummary();
     }
+
+    // ---------- 属性 ----------
+    function renderElem() {
+        const box = document.getElementById('elemPick'); if (!box) return; box.innerHTML = '';
+        if (!window.SBElem) { box.textContent = '（属性データを読み込めませんでした）'; return; }
+        const mk = (id, html) => {
+            const d = document.createElement('div'); d.className = 'opt' + ((draft.element || '') === id ? ' sel' : ''); d.innerHTML = html;
+            d.addEventListener('click', () => { if (id) draft.element = id; else delete draft.element; renderBuilder(); });
+            box.appendChild(d);
+        };
+        mk('', '無属性<small>属性ダメージなし</small>');
+        SBElem.ORDER.forEach(id => { const m = SBElem.ELEMS[id]; mk(id, m.icon + ' <b>' + m.name + '</b><small>' + (m.base ? '基本属性' : '派生：' + m.parents.map(x => SBElem.ELEMS[x].name).join('＋')) + '</small>'); });
+        const info = document.getElementById('elemInfo');
+        if (info) info.innerHTML = draft.element ? SBElem.styleHtml([draft.element]) + '<div>命中時：' + SBElem.ELEMS[draft.element].hit + '</div>' : '';
+    }
+
+    // ---------- 自由配置エディタ ----------
+    const LC = document.getElementById('layoutCanvas'), LCX = LC.getContext('2d');
+    const OX = 70, OY = 140, SC = 0.45, COLORS = ['#64d8ff', '#ffd54a', '#ff8fa3', '#9dff9d', '#d6a8ff', '#ffb070', '#7fe3d0', '#c0c8ff'];
+    const POS_FORMS = ['projectile', 'laser', 'slash', 'nova', 'meteor', 'thrust'];     // 位置（前後・左右）を使う形
+    const ANG_FORMS = ['projectile', 'laser', 'slash', 'thrust', 'flash'];             // 向きを使う形
+    let dragIdx = -1;
+
+    function drawLayout() {
+        const g = LCX; g.clearRect(0, 0, LC.width, LC.height);
+        g.strokeStyle = '#1d2436'; g.lineWidth = 1;
+        for (let x = OX % 45; x < LC.width; x += 45) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, LC.height); g.stroke(); }
+        for (let y = OY % 45; y < LC.height; y += 45) { g.beginPath(); g.moveTo(0, y); g.lineTo(LC.width, y); g.stroke(); }
+        g.fillStyle = '#9aa6c4'; g.font = '10px sans-serif'; g.fillText('→ 狙った方向', LC.width - 74, 12);
+        // 自分
+        g.fillStyle = '#e8eefc'; g.beginPath(); g.arc(OX, OY, 8, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#e8eefc'; g.lineWidth = 2; g.beginPath(); g.moveTo(OX, OY); g.lineTo(OX + 16, OY); g.stroke();
+        const lay = draft.layout; if (!lay) { g.fillStyle = '#9aa6c4'; g.fillText('自由配置はオフです（標準の出方になります）', 60, 270); return; }
+        const p = AS.compute(draft).params, f = draft.form;
+        let cx = OX, cy = OY, avg = lay.reduce((a, q) => a + q.s, 0) / lay.length;
+        lay.forEach((q, i) => {
+            const col = COLORS[i % COLORS.length], a = q.a * Math.PI / 180;
+            const px = OX + q.fw * SC, py = OY + q.sd * SC;
+            g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2;
+            if (f === 'projectile') { g.globalAlpha = 0.35; g.beginPath(); g.arc(px, py, Math.max(3, p.radius * q.s * SC), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * p.range * SC * 0.5, py + Math.sin(a) * p.range * SC * 0.5); g.setLineDash([4, 4]); g.stroke(); g.setLineDash([]); }
+            else if (f === 'laser' || f === 'thrust') { const len = Math.min(900, (f === 'laser' ? p.length : p.length) * q.s), w = f === 'laser' ? p.width * Math.pow(q.s, 0.7) : p.width * Math.sqrt(q.s); g.globalAlpha = 0.45; g.lineWidth = Math.max(2, w * SC); g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * len * SC, py + Math.sin(a) * len * SC); g.stroke(); g.globalAlpha = 1; }
+            else if (f === 'slash') { g.globalAlpha = 0.35; g.beginPath(); g.moveTo(px, py); g.arc(px, py, p.radius * q.s * SC, a - p.arc / 2, a + p.arc / 2); g.closePath(); g.fill(); g.globalAlpha = 1; }
+            else if (f === 'nova' || f === 'meteor') { g.globalAlpha = 0.3; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.lineWidth = 1; g.stroke(); }
+            else if (f === 'flash') { const nx = cx + Math.cos(a) * p.dist * q.s * SC, ny = cy + Math.sin(a) * p.dist * q.s * SC; g.globalAlpha = 0.6; g.lineWidth = Math.max(3, p.width * Math.sqrt(q.s) * SC); g.beginPath(); g.moveTo(cx, cy); g.lineTo(nx, ny); g.stroke(); g.globalAlpha = 1; cx = nx; cy = ny; }
+            else if (f === 'orbit') { /* 旋回は下でまとめて描く */ }
+            // 印（番号）
+            const mx = f === 'flash' ? cx : (POS_FORMS.indexOf(f) >= 0 ? px : OX + 20 + i * 16), my = f === 'flash' ? cy : (POS_FORMS.indexOf(f) >= 0 ? py : OY - 24);
+            g.fillStyle = col; g.beginPath(); g.arc(mx, my, 8, 0, Math.PI * 2); g.fill();
+            g.fillStyle = '#10131b'; g.font = 'bold 10px sans-serif'; g.textAlign = 'center'; g.fillText(String(i + 1), mx, my + 3.5); g.textAlign = 'start';
+        });
+        if (f === 'orbit') { g.strokeStyle = '#64d8ff'; g.lineWidth = 1; g.beginPath(); g.arc(OX, OY, p.orbitR * avg * SC, 0, Math.PI * 2); g.stroke(); for (let i = 0; i < lay.length; i++) { const aa = i * Math.PI * 2 / lay.length; g.fillStyle = COLORS[i % COLORS.length]; g.beginPath(); g.arc(OX + Math.cos(aa) * p.orbitR * avg * SC, OY + Math.sin(aa) * p.orbitR * avg * SC, 5, 0, Math.PI * 2); g.fill(); } }
+    }
+
+    function renderLayout() {
+        const lay = draft.layout, list = document.getElementById('layoutList'); list.innerHTML = '';
+        document.getElementById('layoutToggle').textContent = lay ? '自由配置をオフにする' : '自由配置をオンにする';
+        document.getElementById('layoutAdd').style.display = lay ? '' : 'none';
+        LC.style.display = lay ? 'block' : 'none';
+        if (!lay) { return; }
+        const usePos = POS_FORMS.indexOf(draft.form) >= 0, useAng = ANG_FORMS.indexOf(draft.form) >= 0;
+        if (!usePos || !useAng) {
+            const n = document.createElement('div'); n.className = 'lay-note';
+            n.textContent = draft.form === 'flash' ? '一閃では、向きと大きさ（移動距離）を決めます。上から順に、連続で瞬間移動します。' : draft.form === 'orbit' ? '旋回では、数と大きさ（回る半径）を決めます。' : (!useAng ? 'この形では、向きは使いません（位置と大きさを決めます）。' : '');
+            if (n.textContent) list.appendChild(n);
+        }
+        const defs = [['fw', '前後', -150, 450, 5, usePos], ['sd', '左右', -300, 300, 5, usePos], ['a', '向き', -180, 180, 5, useAng], ['s', '大きさ', 0.5, 2.5, 0.1, true]];
+        lay.forEach((q, i) => {
+            const box = document.createElement('div'); box.className = 'lay-item';
+            box.innerHTML = '<div class="hd"><b style="color:' + COLORS[i % COLORS.length] + '">● 配置' + (i + 1) + '</b>' + '<button type="button" class="ghost danger">削除</button></div>';
+            box.querySelector('button').addEventListener('click', () => { lay.splice(i, 1); if (!lay.length) draft.layout = null; renderBuilder(); });
+            defs.forEach(d => {
+                if (!d[5]) return;
+                const row = document.createElement('div'); row.className = 'row';
+                const val = document.createElement('span'); val.textContent = d[0] === 'a' ? q.a + '°' : (d[0] === 's' ? '×' + q.s.toFixed(1) : q[d[0]]);
+                const r = document.createElement('input'); r.type = 'range'; r.min = d[2]; r.max = d[3]; r.step = d[4]; r.value = q[d[0]];
+                r.addEventListener('input', () => { q[d[0]] = parseFloat(r.value); val.textContent = d[0] === 'a' ? q.a + '°' : (d[0] === 's' ? '×' + q.s.toFixed(1) : q[d[0]]); drawLayout(); renderSummary(); });
+                const lab = document.createElement('span'); lab.textContent = d[1];
+                row.appendChild(lab); row.appendChild(r); row.appendChild(val); box.appendChild(row);
+            });
+            list.appendChild(box);
+        });
+        drawLayout();
+    }
+
+    document.getElementById('layoutToggle').addEventListener('click', () => {
+        if (draft.layout) draft.layout = null;
+        else { draft.layout = [AS.defaultPiece(draft.form)]; draft.augments = draft.augments.filter(a => a !== 'multi'); }
+        renderBuilder();
+    });
+    document.getElementById('layoutAdd').addEventListener('click', () => {
+        if (!draft.layout) return;
+        if (draft.layout.length >= AS.MAX_PIECES) { say('配置は最大' + AS.MAX_PIECES + '個までです', true); return; }
+        const last = draft.layout[draft.layout.length - 1], np = Object.assign({}, last);
+        np.sd = Math.max(-300, Math.min(300, (last.sd || 0) + (draft.layout.length % 2 ? 60 : -60)));
+        if (draft.form === 'flash') np.a = Math.max(-180, Math.min(180, (last.a || 0) + 45));
+        draft.layout.push(np); renderBuilder();
+    });
+    // 印をドラッグして位置を動かす
+    function canvasPoint(ev) { const r = LC.getBoundingClientRect(); return { x: (ev.clientX - r.left) * LC.width / r.width, y: (ev.clientY - r.top) * LC.height / r.height }; }
+    LC.addEventListener('pointerdown', (ev) => {
+        if (!draft.layout || POS_FORMS.indexOf(draft.form) < 0) return;
+        const pt = canvasPoint(ev); let best = -1, bd = 22;
+        draft.layout.forEach((q, i) => { const d = Math.hypot(OX + q.fw * SC - pt.x, OY + q.sd * SC - pt.y); if (d < bd) { bd = d; best = i; } });
+        if (best >= 0) { dragIdx = best; LC.setPointerCapture(ev.pointerId); ev.preventDefault(); }
+    });
+    LC.addEventListener('pointermove', (ev) => {
+        if (dragIdx < 0 || !draft.layout) return;
+        const pt = canvasPoint(ev), q = draft.layout[dragIdx];
+        q.fw = Math.round(Math.max(-150, Math.min(450, (pt.x - OX) / SC)) / 5) * 5;
+        q.sd = Math.round(Math.max(-300, Math.min(300, (pt.y - OY) / SC)) / 5) * 5;
+        drawLayout(); renderSummary();
+    });
+    const endDrag = () => { if (dragIdx >= 0) { dragIdx = -1; renderLayout(); } };
+    LC.addEventListener('pointerup', endDrag); LC.addEventListener('pointercancel', endDrag);
 
     function renderSummary() {
         const c = AS.compute(draft), p = c.params;
@@ -216,10 +354,15 @@
         if (p.form === 'laser') detail = '本数 ' + p.count + ' ／ 長さ ' + Math.round(p.length) + ' ／ 幅 ' + Math.round(p.width);
         if (p.form === 'slash') detail = '連続 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius) + ' ／ 角度 ' + Math.round(p.arc * 180 / Math.PI) + '°';
         if (p.form === 'nova') detail = '波 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius);
+        if (p.form === 'thrust') detail = '突き ' + p.count + '回 ／ 長さ ' + Math.round(p.length) + ' ／ 太さ ' + Math.round(p.width) + ' ／ 敵を貫く';
+        if (p.form === 'flash') detail = '一閃 ' + p.count + '回 ／ 1回の移動 ' + Math.round(p.dist) + ' ／ 通り道を斬る・移動中は無敵';
+        if (draft.layout) detail += (detail ? ' ／ ' : '') + '自由配置 ' + draft.layout.length + '個（消費 ×' + (c.cost / Math.max(1, AS.compute(Object.assign({}, draft, { layout: null })).cost)).toFixed(1) + '）';
+        const emax = AS.energyMaxFor(AS.playerSpecial());
         document.getElementById('summary').innerHTML =
             '<b>' + esc(AS.describe(draft)) + '</b><br>' + detail + '<br>' +
             'エネルギー消費 <b>' + c.cost + '</b> ／ クールタイム <b>' + c.cooldown.toFixed(1) + '秒</b> ／ 威力倍率 <b>×' + (p.baseMult * p.dmgMult).toFixed(2) + '</b>' +
-            (p.effects.indexOf('damage') === -1 ? '<br><span class="err">※「ダメージ」効果が無いので、状態異常だけを与えます</span>' : '');
+            (p.effects.indexOf('damage') === -1 ? '<br><span class="err">※「ダメージ」効果が無いので、状態異常だけを与えます</span>' : '') +
+            (c.cost > emax ? '<br><span class="err">※消費エネルギーが今のエネルギー上限（' + emax + '）を超えているので、使えません。小さく・少なくするか、特殊ステータスを上げてください</span>' : '');
     }
 
     function renderAll() { renderSlots(); renderList(); renderBuilder(); renderGlyphWorkshop(); }
@@ -284,7 +427,7 @@
 
     document.getElementById('skillName').addEventListener('input', (e) => { draft.name = e.target.value; });
     document.getElementById('resetBtn').addEventListener('click', () => {
-        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] }; renderBuilder(); say('');
+        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [], layout: null }; renderBuilder(); say('');
     });
     document.getElementById('saveBtn').addEventListener('click', () => {
         const name = (draft.name || '').trim();
@@ -299,7 +442,7 @@
             skills.push(Object.assign(norm, { id: AS.newId() }));
             say('「' + name + '」を保存しました。装備スロットに設定するとバトルで使えます');
         }
-        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [] };
+        editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [], layout: null };
         persist(); renderAll();
     });
 

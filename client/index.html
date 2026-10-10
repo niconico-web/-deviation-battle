@@ -153,11 +153,24 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                         <option value="soc">社会（HP・特殊）</option>
                     </select>
                     <div id="statGrowthInfo" class="help-text"></div>
+                    <details id="elemDetails" style="margin:4px 0"><summary class="help-text" style="cursor:pointer">🔥💧🌪️⛰️⚡ 属性ステータス（勉強で強くなる）</summary><div id="elemPanel"></div></details>
+                    <label for="studyDuration" class="help-text">勉強する時間（最大2時間）</label>
+                    <select id="studyDuration">
+                        <option value="10">10分</option>
+                        <option value="15">15分</option>
+                        <option value="20">20分</option>
+                        <option value="30" selected>30分</option>
+                        <option value="45">45分</option>
+                        <option value="60">1時間</option>
+                        <option value="90">1時間30分</option>
+                        <option value="120">2時間</option>
+                    </select>
+                    <div class="help-text">※ 時間を決めて、その時間まで勉強します（残り時間を表示）。最後まで続けると報酬がもらえ、途中でやめると報酬はありません。タイマー中にステージやオンラインマッチへ行くと、0に戻ります。</div>
                     <p id="studyTimer" class="study-timer">00:00:00</p>
                     <p id="xpDisplay" class="xp-display">経験値：0</p>
                     <div class="study-buttons">
                         <button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
-                        <button type="button" id="studyStop" class="btn btn-danger" disabled>勉強終了</button>
+                        <button type="button" id="studyStop" class="btn btn-danger" disabled>やめる（報酬なし）</button>
                     </div>
                 </div>
             </section>
@@ -726,6 +739,8 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/orientation.js"></script>
     <script src="js/season.js"></script>
     <script src="js/hw-weapons.js"></script>
+    <script src="js/elements.js"></script>
+    <script src="js/armor.js"></script>
     <script src="js/stage-data.js"></script>
     <script src="js/stage-lobby.js"></script>
     <script src="js/beginner.js"></script>
