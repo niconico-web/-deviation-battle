@@ -97,11 +97,26 @@
             <canvas id="layoutCanvas" width="340" height="280"></canvas>
             <div id="layoutList"></div>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 2c0fce4e74886c997d49a41ec4d9e460b1b23af3
+>>>>>>> d22f4fae8c343a01d53066b7f4833e6d4c14dd2e
             <div class="step">⑤ 属性を付ける（任意・消費エネルギー+12%）</div>
             <div class="lay-note">属性を付けると、技のダメージに「属性ダメージ」が上乗せされます（強さは勉強で決まり、特殊ステータスでも伸びます）。敵の弱点属性なら1.6倍、耐性なら0.5倍。命中時の追加効果は属性ごとに違います。</div>
             <div id="elemPick" class="opts"></div>
             <div class="lay-note" id="elemInfo"></div>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 008c04656b26eb735955f6749941d6cf82dd8dbc
+>>>>>>> 2c0fce4e74886c997d49a41ec4d9e460b1b23af3
+>>>>>>> d22f4fae8c343a01d53066b7f4833e6d4c14dd2e
             <div class="summary" id="summary"></div>
             <div>
                 <button type="button" class="primary" id="saveBtn">新しいスキルとして保存</button>
@@ -251,7 +266,11 @@
     // ---------- 自由配置エディタ ----------
     const LC = document.getElementById('layoutCanvas'), LCX = LC.getContext('2d');
     const OX = 70, OY = 140, SC = 0.45, COLORS = ['#64d8ff', '#ffd54a', '#ff8fa3', '#9dff9d', '#d6a8ff', '#ffb070', '#7fe3d0', '#c0c8ff'];
+
     const POS_FORMS = ['projectile', 'laser', 'slash', 'nova', 'meteor', 'thrust', 'domain'];     // 位置（前後・左右）を使う形
+
+     // 位置（前後・左右）を使う形
+
     const ANG_FORMS = ['projectile', 'laser', 'slash', 'thrust', 'flash'];             // 向きを使う形
     let dragIdx = -1;
 
@@ -274,7 +293,11 @@
             if (f === 'projectile') { g.globalAlpha = 0.35; g.beginPath(); g.arc(px, py, Math.max(3, p.radius * q.s * SC), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * p.range * SC * 0.5, py + Math.sin(a) * p.range * SC * 0.5); g.setLineDash([4, 4]); g.stroke(); g.setLineDash([]); }
             else if (f === 'laser' || f === 'thrust') { const len = Math.min(900, (f === 'laser' ? p.length : p.length) * q.s), w = f === 'laser' ? p.width * Math.pow(q.s, 0.7) : p.width * Math.sqrt(q.s); g.globalAlpha = 0.45; g.lineWidth = Math.max(2, w * SC); g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * len * SC, py + Math.sin(a) * len * SC); g.stroke(); g.globalAlpha = 1; }
             else if (f === 'slash') { g.globalAlpha = 0.35; g.beginPath(); g.moveTo(px, py); g.arc(px, py, p.radius * q.s * SC, a - p.arc / 2, a + p.arc / 2); g.closePath(); g.fill(); g.globalAlpha = 1; }
+
             else if (f === 'nova' || f === 'meteor' || f === 'domain') { g.globalAlpha = 0.3; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.lineWidth = 1; g.stroke(); }
+
+            else if (f === 'nova' || f === 'meteor') { g.globalAlpha = 0.3; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.lineWidth = 1; g.stroke(); }
+
             else if (f === 'flash') { const nx = cx + Math.cos(a) * p.dist * q.s * SC, ny = cy + Math.sin(a) * p.dist * q.s * SC; g.globalAlpha = 0.6; g.lineWidth = Math.max(3, p.width * Math.sqrt(q.s) * SC); g.beginPath(); g.moveTo(cx, cy); g.lineTo(nx, ny); g.stroke(); g.globalAlpha = 1; cx = nx; cy = ny; }
             else if (f === 'orbit') { /* 旋回は下でまとめて描く */ }
             // 印（番号）
