@@ -60,8 +60,9 @@
         let st = all[pid];
         if (!st) {
             // はじめて見るキャラ。もう遊び込んでいる人にはミッションを出さない
-            const veteran = (p.totalStudySeconds || 0) >= 7200 || clearedCount(h) >= 5;
-            st = all[pid] = { done: {}, ev: {}, veteran: veteran, min: false };
+            // 別の端末で引き継いだキャラなど「進捗はあるのに、この端末にはミッションの記録が無い」場合は、
+            // すでに達成済みのものを報酬なしで済みにして、残りだけを表示する（evaluate() で処理）
+            st = all[pid] = { done: {}, ev: {}, veteran: false, min: false, fresh: true };
         }
         return st;
     }
@@ -75,6 +76,14 @@
         const p = player(), h = hackData(), all = loadAll(), st = stateOf(all, pid, p, h);
         if (st.veteran) { saveAll(all); lastView = null; return null; }
         const ms = list(), ctx = { p: p, h: h, ev: st.ev };
+        if (st.fresh) {
+            st.fresh = false;
+            // 行動の記録（ev）は端末ごとなので、進捗から推測する
+            if (clearedCount(h) > 0) st.ev.gate = true;
+            if (clearedCount(h) > 0 && h && h.weapons && h.weapons.length > 1) st.ev.armory = true;
+            ms.forEach(m => { if (m.check(ctx).done) st.done[m.id] = true; });   // 報酬なしで済みにする
+            if (ms.every(m => st.done[m.id])) st.veteran = true;
+        }
         const gained = [];
         ms.forEach(m => { if (!st.done[m.id] && m.check(ctx).done) { st.done[m.id] = true; gained.push(m); } });
         if (gained.length) {
@@ -100,6 +109,8 @@
             '#bmTracker .bm-bar{height:6px;background:#2a3358;border-radius:3px;margin:5px 0 2px;overflow:hidden}#bmTracker .bm-bar i{display:block;height:100%;background:#ffd36a}',
             '#bmTracker button{background:#3a6ee8;color:#fff;border:0;border-radius:8px;padding:3px 9px;margin:4px 6px 0 0;cursor:pointer;font-size:.78rem}',
             '#bmTracker.min{width:auto;padding:5px 10px}',
+            // スマホ（狭い画面）：左下はジョイスティック、上はツールバーとチャットがあるので、下の中央に小さく出す
+            '@media (max-width:700px),(max-height:520px){#bmTracker{left:50%;transform:translateX(-50%);bottom:calc(6px + env(safe-area-inset-bottom,0px));width:min(260px,58vw);font-size:.74rem;padding:6px 8px;z-index:100010}#bmTracker.min{width:auto}}',
             '.bm-glow{animation:bmGlow 1.1s ease-in-out infinite;position:relative;z-index:1}',
             '@keyframes bmGlow{0%,100%{box-shadow:0 0 0 0 rgba(255,211,106,.0)}50%{box-shadow:0 0 0 5px rgba(255,211,106,.85)}}',
             '.bm-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:100020;background:#2a1f5a;color:#fff;border:1px solid #ffd36a;border-radius:12px;padding:10px 14px;max-width:92vw;font-size:.9rem;text-align:center;box-shadow:0 4px 18px rgba(0,0,0,.5)}',
