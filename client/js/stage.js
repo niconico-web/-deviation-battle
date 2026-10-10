@@ -16,6 +16,7 @@
     let launch = null;
     try { launch = JSON.parse(localStorage.getItem('sbStageLaunch') || 'null'); } catch (e) { launch = null; }
     const stage = launch && window.getStageById ? window.getStageById(launch.stageId) : null;
+    try { localStorage.removeItem('studyTimerState'); } catch (e) {}   // ステージに入ったら勉強タイマーは0に戻る（保険）
     const pdata = (typeof getPlayerData === 'function') ? getPlayerData() : null;
     if (!stage || !pdata) {
         alert('ステージ情報かキャラクターデータが見つかりません。町に戻ります。');
@@ -25,6 +26,7 @@
     const hack = HW.load();
     const weapon = HW.getEquipped(hack);
     const agg = HW.aggregate(weapon);
+    try { if (window.SBArmor) SBArmor.merge(agg, hack); } catch (e) { /* 防具が読めなくても戦える */ }
     const A = k => agg.stats[k] || 0;
     const AB = k => !!(agg.flags && agg.flags[k]);     // Tier4オーブの固有能力のうち、特別な処理が要るもの（hw-weapons.js の ORB_ABILITY_MAP）
     const T = HW.TYPES[weapon.type] || HW.TYPES.sword;
@@ -36,6 +38,9 @@
     const TIME_LIMIT = PVP ? 180 : (stage.standardOnly ? 25 * 60 : 9 * 60);   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
     const ENEMY_CAP_BASE = 30;
+    // 通常攻撃もエネルギーを使う：1秒ぶん連打したときの消費量（武器の攻撃間隔に比例。重い武器ほど1振りが高い）
+    const ATK_ENERGY_PER_SEC = 4;
+    const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
     const SNAP_HZ = 12;
     // ボスの技（boss-moves.js）とスタン
@@ -75,6 +80,50 @@
     // 特殊ステータスが高いほど、エネルギーの上限が増える（特殊50で100、倍になるごとに+30）。上限が大きいぶん溜まる量も少し増やす
     ENERGY_MAX = Math.round(100 + 30 * Math.log2(Math.max(1, base.special / 50)));
     P.energyMul *= Math.sqrt(ENERGY_MAX / 100);
+
+    // ---------- 属性（elements.js）----------
+    //  命中ダメージ × 属性倍率 が「属性ダメージ」として上乗せされる。弱点×1.6／耐性×0.5。属性ごとに命中時の効果（バトルスタイル）が違う
+    const SE = window.SBElem || null;
+    const WEL = SE ? (weapon.elems || []).filter(id => SE.ELEMS[id]) : [];     // 装備中の武器の属性
+    const ELPTS = SE ? SE.getPts(hack) : {};
+    function elemStyle(e, dmg, id, o) {
+        const st = o.st || (o.st = {}), a = Math.atan2(e.y - me.y, e.x - me.x), ch = p => Math.random() < p;
+        const chain = (n, mul, rad) => { let c = 0; enemies.forEach(x => { if (x !== e && x.hp > 0 && !x.pvp && c < n && dist(x.x, x.y, e.x, e.y) < rad) { c++; fx.push({ k: 'line', x: e.x, y: e.y, x2: x.x, y2: x.y, t: 0.2, life: 0.2, c: SE.ELEMS[id].color }); dealHit(x, dmg * mul, { el: [] }); } }); };
+        const splash = (mul, rad) => { fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: rad, t: 0.3, life: 0.3, c: SE.ELEMS[id].color, fill: true }); enemies.forEach(x => { if (x !== e && x.hp > 0 && !x.pvp && dist(x.x, x.y, e.x, e.y) < rad) dealHit(x, dmg * mul, { el: [] }); }); };
+        const push = k => { o.kx = (o.kx || 0) + Math.cos(a) * k; o.ky = (o.ky || 0) + Math.sin(a) * k; };
+        switch (id) {
+            case 'fire': if (ch(0.35)) st.burn = Math.max(st.burn || 0, dmg * 0.3); break;
+            case 'water': if (ch(0.5)) st.slow = 1; break;
+            case 'wind': push(90); if (ch(0.2)) me.haste = Math.max(me.haste || 0, 1.2); break;
+            case 'earth': if (ch(0.1)) st.stun = 1; break;
+            case 'thunder': if (ch(0.3)) chain(2, 0.5, 190); break;
+            case 'steam': if (ch(0.35)) st.weaken = 1; break;
+            case 'blast': if (ch(0.25)) splash(0.4, 100); break;
+            case 'lava': if (ch(0.3)) { st.burn = Math.max(st.burn || 0, dmg * 0.3); st.curse = 1; } break;
+            case 'plasma': if (ch(0.2)) { o.add = (o.add || 0) + dmg * 0.6; fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 40, t: 0.25, life: 0.25, c: '#ff7aff', fill: true }); } break;
+            case 'ice': if (ch(0.5)) st.slow = 1; if (ch(0.12)) st.stun = 1; break;
+            case 'venom': if (ch(0.5)) st.poison = Math.max(st.poison || 0, dmg * 0.22); break;
+            case 'sand': if (ch(0.4)) st.blind = 1; push(60); break;
+            case 'storm': if (ch(0.25)) { chain(1, 0.5, 190); me.haste = Math.max(me.haste || 0, 1.2); } break;
+            case 'discharge': if (ch(0.25)) splash(0.35, 150); break;
+            case 'magnet': if (ch(0.35)) { push(-130); chain(1, 0.4, 190); } break;
+        }
+    }
+    // 属性ダメージ（追加分）を返す。副作用として、命中時の効果を o に足す
+    function elemHit(e, dmg, els, o) {
+        const wk = SE.weakOf(e.def && e.def.name);
+        let extra = 0, col = null;
+        els.forEach(id => {
+            const m = SE.ELEMS[id]; if (!m) return;
+            const r = SE.ratio(id, ELPTS, P.special) * (1 + (A('elAtk:' + id) || 0) + (A('elAtkAll') || 0));
+            const mul = wk.weak === id ? 1.6 : (wk.resist === id ? 0.5 : 1);
+            extra += dmg * r * mul / els.length;
+            col = col || m.color;
+            elemStyle(e, dmg, id, o);
+        });
+        o.elc = col;
+        return extra + (o.add || 0);
+    }
     // 敵の強さの基準は「ステージのレベルだけ」で決まる固定値。プレイヤーの今のステータス・装備には合わせない。
     //  ・FIX_HP  : 敵の攻撃力の基準にする体力（敵のダメージ = 攻撃割合 × この値。防御・軽減は従来どおりプレイヤー側で効く）
     //  ・FIX_DPS : 敵のHPの基準にする火力（ステージの想定火力ぶんの秒数でHPが決まる）
@@ -121,7 +170,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: 0, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -210,6 +259,15 @@
             case 'bhit':
                 if (isHost) eBullets = eBullets.filter(b => b.id !== d.id);
                 break;
+            case 'sup':     // 味方の支援武器（回復・鼓舞）：範囲内にいる自分に効く
+                if (d && d.from !== myId && dist(me.x, me.y, Number(d.x) || 0, Number(d.y) || 0) <= clamp(Number(d.r) || 0, 0, 320)) applySupport(d, false);
+                break;
+            case 'refl':    // 他の人がスキルを発動：その人の周りの放射弾を跳ね返す（ホストが処理）
+                if (isHost && GMK === 'dimension') hostReflect(Number(d.x) || 0, Number(d.y) || 0);
+                break;
+            case 'gm':
+                if (!isHost) onGm(d);
+                break;
             case 'snap':
                 if (!isHost && !PVP) applySnap(d);
                 break;
@@ -244,6 +302,7 @@
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') doDash();
         const sk = { KeyZ: 0, KeyX: 1, KeyC: 2, KeyV: 3 }[e.code]; if (sk !== undefined) castSkill(sk);
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
+        if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
         if (/^Digit[1-4]$/.test(e.code)) quizPick(parseInt(e.code.slice(5), 10) - 1);
         if (e.code.indexOf('Arrow') === 0 || e.code === 'Space') e.preventDefault();
     });
@@ -277,7 +336,7 @@
 
     // ---------- 敵生成（ホスト）----------
     // 敵の攻撃力は「基準HPに対する割合」で持つ（各プレイヤーが自分のHPに換算して受けるので、協力でも公平）
-    function ed(e) { return (e.dmg || 0) * (e.dmgMul || 1); }
+    function ed(e) { return (e.dmg || 0) * (e.dmgMul || 1) * (e.rage || 1); }
     function foeDmg(arch, isBoss, elite) {
         const a = window.STAGE_DATA.ARCH[arch] || window.STAGE_DATA.ARCH.chaser;
         return Math.min(0.22, 0.075 + 0.0045 * stage.ilvl) * DIFF.dmg * a.atk * (isBoss ? 0.9 : 1) * (elite ? 1.4 : 1) * PW.dmg;
@@ -289,7 +348,7 @@
         const stageHp = 70 * 1.7 * G_DMG, mobHp = 70 * 1.7 * G_MOB;
         let hp;
         if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * (stage.hpMul || 1) * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
-        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp; // 雑魚も最低約2秒ぶん（固定）
+        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp * (PW.mobHp || 1); // 雑魚も最低約2秒ぶん（固定）
         return {
             maxHp: Math.round(hp),
             dmg: foeDmg(def.arch, isBoss, elite),
@@ -358,7 +417,7 @@
             if (s.weakenT > 0) s.weakenT -= dt;
             if (s.blindT > 0) s.blindT -= dt;
             e.dmgMul = s.blindT > 0 ? 0.5 : (s.weakenT > 0 ? 0.65 : 1);
-            if (dot > 0) { e.hp -= dot * dt; if (e.hp <= 0) { killEnemy(e, null); continue; } }
+            if (dot > 0 && !e.inv) { e.hp -= dot * dt; if (e.hp <= 0) { killEnemy(e, null); continue; } }
             if (s.stunT > 0) { s.stunT -= dt; continue; }
             const slow = s.slowT > 0 ? 0.45 : 1; if (s.slowT > 0) s.slowT -= dt;
             e.t += dt;
@@ -393,18 +452,18 @@
     function updateBoss(e, dt, tgt, d, ang, slow) {
         const hpR = e.hp / e.maxHp;
         if (!e.enraged && hpR < 0.5) { e.enraged = true; netAnnounce('ボスが激昂した！', 1800); }
-        const pats = stage.boss.patterns;
+        const pats = bdef(e).patterns, SET = setOf(e);
         // 歩行
-        if (e.state === 0 && !stage.boss.stand) { const sp = e.spd * slow * (e.enraged ? 1.3 : 0.8); if (d > 150) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }
+        if (e.state === 0 && !bdef(e).stand) { const sp = e.spd * slow * (e.enraged ? 1.3 : 0.8); if (d > 150) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }
         // 技セット(boss-moves.js)があるボスは技の合間を短めにして、技そのものの見せ場を増やす
-        const cdMax = (BOSS_SET ? (e.enraged ? 0.7 : 1.2) : (e.enraged ? 1.1 : 1.9)) / (DIFF.dmg > 1.5 ? 1.15 : 1);
+        const cdMax = (SET ? (e.enraged ? 0.7 : 1.2) : (e.enraged ? 1.1 : 1.9)) / (DIFF.dmg > 1.5 ? 1.15 : 1);
         if (e.state === 0 && e.t > cdMax) {
-            if (BOSS_SET) { const md = pickMove(e); if (md) { startMove(e, md, ang); return; } }
+            if (SET) { const md = pickMove(e); if (md) { startMove(e, md, ang); return; } }
             const pat = pats[e.patIdx % pats.length]; e.patIdx++; e.t = 0;
             const k = ed(e) * (e.enraged ? 1.15 : 1);
-            if (pat === 'radial') { const n = e.enraged ? 26 : 18, off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, 250, k, 8, 4, stage.boss.color); }
-            else if (pat === 'volley') { const n = e.enraged ? 11 : 7; for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * 0.17, 360, k, 8, 3.2, stage.boss.color); }
-            else if (pat === 'slam') { const alive = alivePlayersPos(); alive.forEach(p => telegraph(p.x, p.y, 120, 1.2, k * 1.6, stage.boss.color)); telegraph(e.x, e.y, 150, 1.2, k * 1.4, stage.boss.color); }
+            if (pat === 'radial') { const n = e.enraged ? 26 : 18, off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, 250, k, 8, 4, bdef(e).color); }
+            else if (pat === 'volley') { const n = e.enraged ? 11 : 7; for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * 0.17, 360, k, 8, 3.2, bdef(e).color); }
+            else if (pat === 'slam') { const alive = alivePlayersPos(); alive.forEach(p => telegraph(p.x, p.y, 120, 1.2, k * 1.6, bdef(e).color)); telegraph(e.x, e.y, 150, 1.2, k * 1.4, bdef(e).color); }
             else if (pat === 'charge') { e.state = 1; e.aim = ang; e.t = 0; }
             else if (pat === 'summon') { const def = stage.enemies[0]; for (let i = 0; i < (e.enraged ? 6 : 4); i++) { const m = spawnEnemy(def, e.x + rnd(-120, 120), e.y + rnd(-120, 120), false); m.hp = m.maxHp = Math.round(m.maxHp * 0.7); } }
             else if (pat === 'spiral') { e.state = 3; e.t = 0; e.spin = 0; }
@@ -413,7 +472,7 @@
         } else if (e.state === 1) { // 突進（予告0.6秒→突進0.7秒）
             if (e.t < 0.6) { /* 予告中：その場で構える */ } else if (e.t < 1.3) { e.x += Math.cos(e.aim) * 620 * dt; e.y += Math.sin(e.aim) * 620 * dt; } else { e.state = 0; e.t = 0; }
         } else if (e.state === 3) { // 渦巻き弾
-            e.spin += dt * 9; if (Math.floor(e.t * 14) !== Math.floor((e.t - dt) * 14)) { bullet(e.x, e.y, e.spin, 240, ed(e) * 0.8, 7, 4, stage.boss.color); bullet(e.x, e.y, e.spin + Math.PI, 240, ed(e) * 0.8, 7, 4, stage.boss.color); }
+            e.spin += dt * 9; if (Math.floor(e.t * 14) !== Math.floor((e.t - dt) * 14)) { bullet(e.x, e.y, e.spin, 240, ed(e) * 0.8, 7, 4, bdef(e).color); bullet(e.x, e.y, e.spin + Math.PI, 240, ed(e) * 0.8, 7, 4, bdef(e).color); }
             if (e.t > 2.2) { e.state = 0; e.t = 0; }
         }
     }
@@ -421,7 +480,23 @@
     // ---------- ボスの技エンジン（技の中身は boss-moves.js）----------
     // 技は「時刻つきステップ」の並び。ホストだけが実行し、範囲攻撃は予告(telegraph)→着弾(boom)で全員に伝わる。
     const BOSS_SET = (BM && BM.SETS && BM.SETS[stage.id]) || null;
+
+    // ---------- ギミックボス（stage.boss.gimmick）----------
+    //  stigma    : 死神。10秒ごとに全員へスティグマ。13個で死亡（HP75/50/25%を切るたびに4個浄化）
+    //  pressure  : 炉心の巨人。25秒ごとに圧力が溜まり、安全弁を全部壊さないと大爆発
+    //  gravity   : 重力喰らい。技「pull」で全員を中心へ引き寄せる
+    //  twin      : ゼウス＆プロメテウス。片方を倒すと、15秒後に残った方が蘇らせる
+    //  dimension : ディメンション・キーパー。6つの核（放射弾をスキルで跳ね返して破壊）→ 強化ゲートキーパー（歴代ラスボス召喚）
+    const GMK = (stage.boss && stage.boss.gimmick) || null;
+    let G = {};                      // ギミックの共有状態。ホストが管理し、スナップショットで全員へ配る
+    let pullFx = null;               // 引き寄せ中 { x, y, t, f }
+    let stgLastS = 0, stgLastC = 0;
+    const STIGMA_MAX = 13, STIGMA_EVERY = 10, REFL_R = 210;
+    const DK_ECHO = [['abyssal_rift', 0.80], ['rift_throne', 0.62], ['god_throne', 0.45], ['mech_throne', 0.30], ['void_throne', 0.15]];   // 歴代ラスボス（HPがこの割合を切るたびに1体ずつ）
+    function bdef(e) { return (e && e.bd) || stage.boss; }
+    function setOf(e) { return (e && e.bset) || BOSS_SET; }
     function pickMove(e) {
+        const BOSS_SET = setOf(e);
         e.mvCount = (e.mvCount || 0) + 1;
         const every = e.enraged ? 3 : 4;                        // 4回に1回（激昂中は3回に1回）はスタン技
         // 大技：HPが ultAt の割合を切るたびに1回ずつ。激昂中は7回に1回も出す
@@ -467,7 +542,7 @@
                 a.spin += dt * 9; a.acc += dt;
                 while (a.acc >= 1 / 14) {
                     a.acc -= 1 / 14;
-                    for (let i = 0; i < a.arms; i++) bullet(e.x, e.y, a.spin + i * Math.PI * 2 / a.arms, a.spd, a.dmg, 7, 4, stage.boss.color);
+                    for (let i = 0; i < a.arms; i++) bullet(e.x, e.y, a.spin + i * Math.PI * 2 / a.arms, a.spd, a.dmg, 7, 4, bdef(e).color);
                 }
                 if (a.el >= a.dur) m.act = null;
             }
@@ -481,7 +556,7 @@
         const k = ed(e) * (en ? 1.15 : 1);
         const dmg = k * (s.dm || 0);
         const tm = en ? 0.85 : 1;                                   // 激昂中は予告が少し短い
-        const c = s.stun ? '#ffd84a' : stage.boss.color;
+        const c = s.stun ? '#ffd84a' : bdef(e).color;
         const aimNow = () => { const p = nearestPlayer(e.x, e.y); return p ? Math.atan2(p.y - e.y, p.x - e.x) : m.ang; };
         const ang = (s.aim === 'l' ? m.ang : aimNow()) + (s.off || 0) * Math.PI / 180;
         const shape = { stun: s.stun, rep: s.rep, gap: s.gap };
@@ -518,6 +593,11 @@
                 m.act = { k: 'leap', el: 0, dur: s.dur, sx: e.x, sy: e.y, tx: tx, ty: ty };
                 break;
             }
+            case 'pull': {    // 全員を、ボスの足元へ引き寄せる（重力）
+                gmPullStart(e.x, e.y, s.dur, s.force);
+                netSend('gm', { k: 'pull', x: Math.round(e.x), y: Math.round(e.y), dur: s.dur, f: s.force });
+                break;
+            }
             case 'ports': {   // ゲートキーパー：標的の周りに「門」を開く
                 const al = alivePlayersPos(); if (!al.length) break;
                 const tg = al[Math.floor(Math.random() * al.length)];
@@ -552,8 +632,8 @@
                 });
                 break;
             }
-            case 'fan': { const n = Math.round(s.n * (en ? 1.3 : 1)); for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * s.sp, s.spd, dmg, 8, 3.4, stage.boss.color); break; }
-            case 'rad': { const n = Math.round(s.n * (en ? 1.3 : 1)), off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, s.spd, dmg, 8, 4, stage.boss.color); break; }
+            case 'fan': { const n = Math.round(s.n * (en ? 1.3 : 1)); for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * s.sp, s.spd, dmg, 8, 3.4, bdef(e).color); break; }
+            case 'rad': { const n = Math.round(s.n * (en ? 1.3 : 1)), off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, s.spd, dmg, 8, 4, bdef(e).color); break; }
             case 'spiral': m.act = { k: 'spiral', el: 0, dur: s.dur, spd: s.spd, arms: s.arms || 2, acc: 0, spin: rnd(0, 6.28), dmg: dmg }; break;
             case 'summon': {
                 const def = stage.enemies[0], n = Math.round(s.n * (en ? 1.4 : 1));
@@ -653,18 +733,24 @@
     function dealHit(e, dmg, o) {
         o = o || {};
         if (e.pvp) { dealPvp(e, dmg, o); return; }
+        if (e.inv) {   // ギミックで守られている間はダメージが通らない
+            if ((e.invAt || 0) < Date.now() - 700) { e.invAt = Date.now(); popups.push({ x: e.x, y: e.y - e.r - 8, t: 0.8, text: 'ガード中', c: '#7fffd4' }); }
+            e.flash = 0.05; return;
+        }
+        const els = SE ? (o.el !== undefined ? o.el : WEL) : [];
+        if (els && els.length && dmg > 0) dmg += elemHit(e, dmg, els, o);
         const d = { eid: e.id, dmg: dmg, st: o.st || null, kx: o.kx || 0, ky: o.ky || 0, by: myId, crit: !!o.crit };
         if (dmg > 0) {
             run.stats.dmg += dmg;
-            popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: String(Math.round(dmg)), c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
+            popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: String(Math.round(dmg)), c: o.crit ? '#ffd84a' : (o.elc || '#fff'), big: !!o.crit });
         }
         e.flash = 0.1;
         if (isHost) applyHit(d); else { netSend('hit', d); e.hp = Math.max(0, e.hp - dmg); }
     }
     function applyHit(d) {
         const e = enemies.find(x => x.id === d.eid);
-        if (!e || e.hp <= 0) return;
-        const amp = e.st.curseT > 0 ? 1.2 : 1;
+        if (!e || e.hp <= 0 || e.inv) return;
+        const amp = (e.st.curseT > 0 ? 1.2 : 1) * (e.vuln > 0 ? 1.3 : 1);
         e.hp -= d.dmg * amp;
         e.kx += d.kx; e.ky += d.ky;
         const s = d.st;
@@ -685,10 +771,14 @@
         if (e.dead) return;
         e.dead = true; e.hp = 0;
         run.kills++;
-        const ev = { id: e.id, x: e.x, y: e.y, boss: e.boss, elite: !!e.elite, by: by, ilvl: stage.ilvl, ico: e.def.icon };
+        const main = e.boss && !e.echo;                                                    // 召喚された歴代ボス(echo)は本体ではない
+        const others = main && enemies.some(o => o !== e && o.boss && !o.echo && !o.dead && o.hp > 0);
+        const last = main && !others;                                                      // 最後の1体を倒したときだけクリア＆ボスドロップ
+        const ev = { id: e.id, x: e.x, y: e.y, boss: last, part: (main && !last) || !!e.noLoot, echo: !!e.echo, elite: !!e.elite, by: by, ilvl: stage.ilvl, ico: e.def.icon };
         onKillEvent(ev);
         netSend('kill', ev);
-        if (e.boss) { run.bossDead = true; }
+        if (main && others && GMK === 'twin') twinOnDeath(e);
+        if (last) { run.bossDead = true; G.rv = null; enemies.forEach(o => { if (o !== e && (o.echo || o.valve)) { o.hp = 0; o.dead = true; } }); }
     }
 
     // 全員が受け取る撃破イベント：各自が自分用のドロップを抽選する（ハクスラ式の個人ドロップ）
@@ -703,6 +793,10 @@
     function onKillEvent(ev) {
         fx.push({ k: 'puff', x: ev.x, y: ev.y, t: 0.4, life: 0.4, c: '#fff' });
         if (stage.pvp) return;   // アリーナのボットは戦利品なし
+        if (ev.part || ev.echo) {   // 双子の片方・召喚されたボス・安全弁：コインだけ
+            run.stats.kills++; run.stats.coins += Math.round((1 + stage.ilvl * 0.8) * (ev.echo ? 6 : 3) * (1 + A('goldPct')));
+            return;
+        }
         if (ev.boss) {
             const wo = worldOpenedByThisStage(), wg = worldOpenedByGate(), hh = HW.load();
             if (wo && !hh[wo.unlock.gateFlag]) setTimeout(() => announce(wo.unlock.openText, 5200), 700);
@@ -719,13 +813,16 @@
             rollLoot(stage.bossDrops, rareBonus, 'rare', ev.x, ev.y, 'boss');
             rollLoot(stage.bossDrops, rareBonus, 'rare', ev.x + 22, ev.y, 'boss');
             rollLoot(stage.drops, rareBonus, 'magic', ev.x - 22, ev.y, 'boss');
+            rollArmor(rareBonus, 'rare', ev.x, ev.y - 20, 'boss'); if (Math.random() < 0.5) rollArmor(rareBonus, 'magic', ev.x + 18, ev.y - 24, 'boss');
             if (Math.random() < 0.8) giveOrb(true);
         } else if (ev.elite) {
             // 精鋭：高確率で武器（マジック以上）、オーブも出やすい
             if (Math.random() < 0.55 * (1 + luck)) rollLoot(stage.drops, rareBonus, 'magic', ev.x, ev.y, 'elite');
+            if (Math.random() < 0.22 * (1 + luck)) rollArmor(rareBonus, 'magic', ev.x, ev.y - 16, 'elite');
             if (Math.random() < 0.22 * (1 + A('orbPct'))) giveOrb(false);
         } else {
             if (Math.random() < 0.07 * (1 + luck)) rollLoot(stage.drops, rareBonus, 'normal', ev.x, ev.y, 'mob');
+            if (Math.random() < 0.025 * (1 + luck)) rollArmor(rareBonus, 'normal', ev.x, ev.y - 12, 'mob');
             if (Math.random() < 0.035 * (1 + A('orbPct'))) giveOrb(false);
         }
         if (ev.by === myId) {
@@ -738,6 +835,15 @@
         }
     }
 
+    function rollArmor(luck, minR, x, y, src) {
+        if (!window.SBArmor) return;
+        const a = SBArmor.roll({ ilvl: stage.ilvl, luck: luck, minRarity: minR, source: stage.id + ':' + src });
+        const d = HW.load(); SBArmor.add(d, a); HW.save(d);
+        run.stats.loot.push(a);
+        popups.push({ x: x, y: y - 14, t: 1.6, text: '🛡 ' + a.name, c: HW.rarityOf(a).color, big: true });
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: 50, t: 0.5, life: 0.5, c: HW.rarityOf(a).color });
+        refreshLootLog();
+    }
     function rollLoot(pool, luck, minR, x, y, src) {
         const w = HW.roll({ ilvl: stage.ilvl, baseIds: pool, luck: luck, minRarity: minR, source: stage.id + ':' + src });
         const d = HW.load();
@@ -859,9 +965,11 @@
     }
 
     // ---------- 攻撃 ----------
+    // オートエイム：スマホと同じく、いちばん近い敵へ自動で狙いを合わせる（PCはGキーでオン/オフ）
+    let autoAim = true; try { autoAim = localStorage.getItem('sbAutoAim') !== '0'; } catch (e) {}
     function aimAngle() {
         if (input.aimStick.id !== null && Math.hypot(input.aimStick.x, input.aimStick.y) > 0.2) return Math.atan2(input.aimStick.y, input.aimStick.x);
-        if (isTouch) { const n = nearestEnemy(me.x, me.y, 520); if (n) return Math.atan2(n.y - me.y, n.x - me.x); }
+        if (isTouch || autoAim) { const n = nearestEnemy(me.x, me.y, 520); if (n) return Math.atan2(n.y - me.y, n.x - me.x); }
         return me.ang;   // マウス操作時は updateMe が毎フレーム me.ang を更新している
     }
     function wantsAttack() {
@@ -922,22 +1030,53 @@
         return { st: Object.keys(st).length ? st : null, extra: extra };
     }
 
+    // 支援武器：自分と近くの味方を回復／鼓舞する（回復量は最大HPの割合。特殊ステータスが高いほど増える）
+    function supportPulse(Tt) {
+        const r = P.radius || Tt.radius || 150;
+        const sp = Math.min(1, P.special / 3000);
+        if (Tt.sup === 'heal') {
+            const v = 0.04 + 0.06 * sp;
+            applySupport({ k: 'heal', v: v, t: 2 }, true);
+            netSend('sup', { k: 'heal', x: Math.round(me.x), y: Math.round(me.y), r: Math.round(r), v: +v.toFixed(3), t: 2, from: myId });
+        } else {
+            applySupport({ k: 'buff', t: 4 + 3 * sp }, true);
+            netSend('sup', { k: 'buff', x: Math.round(me.x), y: Math.round(me.y), r: Math.round(r), t: +(4 + 3 * sp).toFixed(1), from: myId });
+        }
+        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: r, t: 0.4, life: 0.4, c: Tt.sup === 'heal' ? '#7aff9a' : '#ffd84a' });
+    }
+    function applySupport(d, self) {
+        if (me.dead) return;
+        if (d.k === 'heal') {
+            me.hp = Math.min(me.maxHp, me.hp + me.maxHp * clamp(Number(d.v) || 0, 0, 0.12)); me.regenT = Math.max(me.regenT || 0, clamp(Number(d.t) || 0, 0, 3));
+            popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: '+HP', c: '#7aff9a' });
+        } else if (d.k === 'buff') {
+            const t = clamp(Number(d.t) || 0, 0, 8);
+            me.empowerT = Math.max(me.empowerT || 0, t); me.fortifyT = Math.max(me.fortifyT || 0, t);
+            popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: '鼓舞！', c: '#ffd84a' });
+        }
+    }
+
     function strike(e, mult, kb) {
         const h = calcHit(e, mult);
         const pr = onHitProcs(e, h);
         const a = Math.atan2(e.y - me.y, e.x - me.x);
         const k = (kb || 0) * (1 + A('knock'));
+        if (T.sup === 'debuff') pr.st = Object.assign(pr.st || {}, { weaken: 1, slow: 1, curse: 1 });     // 呪詛の杖：弱体・減速・被ダメージ増
         dealHit(e, h.dmg, { crit: h.crit, st: pr.st, kx: Math.cos(a) * k, ky: Math.sin(a) * k });
         if (pr.extra) setTimeout(() => { if (e.hp > 0) dealHit(e, h.dmg * 0.6, { crit: false }); }, 90);
         return h;
     }
 
     function doAttack() {
+        const atkCost = Math.max(1, Math.round(P.cd * ATK_ENERGY_PER_SEC * 10) / 10);
+        if (me.energy < atkCost) { me.atkCd = 0.2; flashEnergy(); return; }   // エネルギー切れ：クイズに正解して回復
+        me.energy -= atkCost; updateEnergyUI();
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
         spawnAtkFx(d); netSend('atk', d);
+        if (T.sup === 'heal' || T.sup === 'buff') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
         if (AB('dual_weapon') && ((me.atkN = (me.atkN || 0) + 1) % 3) === 0) {
             setTimeout(() => {
@@ -1018,6 +1157,18 @@
             return;
         }
         if (d.f === 'orbit') { if (who && who !== me) who.orb = { t: d.dur, r: d.r, n: d.n }; return; }
+        if (d.f === 'thrust') {   // 突き：細く鋭い白い線
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.22, life: 0.22, c: '#9df0ff', w: d.w || 30 });
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.22, life: 0.22, c: '#ffffff', w: Math.max(4, (d.w || 30) * 0.4) });
+            return;
+        }
+        if (d.f === 'flash') {    // 一閃：出発点と到着点に輪、その間を光が走る
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x2, y2: d.y2, t: 0.4, life: 0.4, c: '#fff3b0', w: d.w || 56 });
+            fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x2, y2: d.y2, t: 0.4, life: 0.4, c: '#ffffff', w: 8 });
+            fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: 40, t: 0.3, life: 0.3, c: '#fff3b0', fill: true });
+            fx.push({ k: 'ring', x: d.x2, y: d.y2, r: 0, max: 50, t: 0.35, life: 0.35, c: '#ffffff', fill: true });
+            return;
+        }
         if (d.f === 'laser') fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.len, y2: d.y + Math.sin(d.a) * d.len, t: 0.3, life: 0.3, c: '#9df0ff', w: d.w || 24 });
         else if (d.f === 'slash') fx.push({ k: 'arc', x: d.x, y: d.y, a: d.a, rng: d.r, arc: d.arc, t: 0.26, life: 0.26, c: '#c6f0ff' });
         else if (d.f === 'nova') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: d.r, t: 0.35, life: 0.35, c: '#ffe6a0', fill: true });
@@ -1051,7 +1202,7 @@
             if (has('drain')) healMe(dmg * 0.3);
             if (has('voidrend')) healMe(dmg * 0.6);
         }
-        dealHit(e, dmg, { st: Object.keys(st).length ? st : null, kx: Math.cos(a) * knock * res, ky: Math.sin(a) * knock * res });
+        dealHit(e, dmg, { st: Object.keys(st).length ? st : null, kx: Math.cos(a) * knock * res, ky: Math.sin(a) * knock * res, el: eff.filter(k => k.indexOf('el:') === 0).map(k => k.slice(3)) });
     }
     function healMe(v) {
         v = Math.round(v); if (v <= 0 || me.dead) return;
@@ -1072,13 +1223,17 @@
         if (!s || me.dead || me.stunT > 0 || run.phase !== 'run' || s.cdLeft > 0) return;
         if (me.energy < s.cost) { flashEnergy(); return; }
         me.energy -= s.cost; s.cdLeft = s.cooldown; updateEnergyUI();
+        if (GMK === 'dimension' && G.dp === 1) { if (isHost) hostReflect(me.x, me.y); else netSend('refl', { x: Math.round(me.x), y: Math.round(me.y) }); }   // スキルのタイミングで放射弾を跳ね返す
         const p = s.params, ang = aimAngle(); me.ang = ang;
         popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: s.skill.name, c: '#9df0ff' });
         p.effects.forEach(k => { if (SELF_FX.indexOf(k) >= 0) applySelfFx(k); });
         const eff = p.effects.filter(k => k !== 'damage' && SELF_FX.indexOf(k) < 0);
+        if (p.element) eff.push('el:' + p.element);       // スキルの属性（skillHit が読む）
         const hasDmg = p.effects.indexOf('damage') >= 0;
         const base = weapon.dmg * P.atkMul * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
         const later = (sec, fn) => setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) fn(); }, sec * 1000);
+
+        if (p.pieces) { castPieces(p, base, hasDmg, eff, ang, later); return; }   // 自由配置のスキル、突き、一閃
 
         if (p.form === 'projectile') {
             for (let i = 0; i < p.count; i++) {
@@ -1135,6 +1290,84 @@
         }
     }
 
+    // 自由配置（layout）のスキルと、突き・一閃の発動。
+    //   配置1つ = 出る場所（前後・左右）、向き、大きさ。位置と向きは、撃った瞬間の自分と狙った向きが基準
+    function castPieces(p, base, hasDmg, eff, ang, later) {
+        const rad = d => d * Math.PI / 180, c0 = Math.cos(ang), s0 = Math.sin(ang);
+        const pieces = p.pieces.map(pc => ({
+            x: clamp(me.x + pc.fw * c0 - pc.sd * s0, 20, WORLD_W - 20), y: clamp(me.y + pc.fw * s0 + pc.sd * c0, 20, WORLD_H - 20),
+            a: ang + rad(pc.a), s: pc.s, k: 0.8 + 0.2 * pc.s     // k：大きいほど少しだけ威力も上がる
+        }));
+        const hitAll = (fn, k, a) => enemies.forEach(e => { if (e.hp > 0 && fn(e)) skillHit(e, base * k, hasDmg, eff, a); });
+        const live = !p.custom;     // 標準配置の突き・一閃は、撃った後も狙った向きに追従する
+
+        if (p.form === 'projectile') {
+            const sk = [];
+            pieces.forEach(q => {
+                const vx = Math.cos(q.a) * p.speed, vy = Math.sin(q.a) * p.speed, r = p.radius * q.s, life = p.range / p.speed;
+                myShots.push({ x: q.x, y: q.y, vx: vx, vy: vy, r: r, life: life, pierce: p.pierce, hit: {}, homing: false, c: '#8fd3ff', skill: { base: base * q.k, hasDmg: hasDmg, eff: eff } });
+                const d = { f: 'projectile', x: q.x, y: q.y, a: q.a }; skillFx(d); netSend('sk', d);
+                sk.push({ x: Math.round(q.x), y: Math.round(q.y), vx: Math.round(vx), vy: Math.round(vy), r: r, life: +life.toFixed(2), pierce: p.pierce, c: '#8fd3ff' });
+            });
+            netSend('shot', { s: sk });
+        } else if (p.form === 'laser') {
+            pieces.forEach(q => {
+                const len = Math.min(900, p.length * q.s), w = p.width * Math.pow(q.s, 0.7);
+                const d = { f: 'laser', x: q.x, y: q.y, a: q.a, len: len, w: w }; skillFx(d); netSend('sk', d);
+                const x2 = q.x + Math.cos(q.a) * len, y2 = q.y + Math.sin(q.a) * len;
+                hitAll(e => distSeg(e.x, e.y, q.x, q.y, x2, y2) <= w / 2 + e.r, q.k, q.a);
+            });
+        } else if (p.form === 'slash') {
+            pieces.forEach((q, i) => later(i * 0.08, () => {
+                const rr = p.radius * q.s;
+                const d = { f: 'slash', x: q.x, y: q.y, a: q.a, r: rr, arc: p.arc }; skillFx(d); netSend('sk', d);
+                hitAll(e => {
+                    const dd = dist(q.x, q.y, e.x, e.y); if (dd > rr + e.r) return false;
+                    let da = Math.atan2(e.y - q.y, e.x - q.x) - q.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+                    return Math.abs(da) <= p.arc / 2 || dd < e.r + 18;
+                }, q.k, q.a);
+            }));
+        } else if (p.form === 'nova') {
+            pieces.forEach((q, i) => later(i * 0.1, () => {
+                const rr = p.radius * q.s;
+                const d = { f: 'nova', x: q.x, y: q.y, r: rr }; skillFx(d); netSend('sk', d);
+                hitAll(e => dist(q.x, q.y, e.x, e.y) <= rr + e.r, q.k, 0);
+            }));
+        } else if (p.form === 'meteor') {
+            pieces.forEach((q, i) => {
+                const rr = p.radius * q.s, fall = p.delay + i * 0.12;
+                const d = { f: 'meteor', x: q.x, y: q.y, r: rr, dl: fall }; skillFx(d); netSend('sk', d);
+                setTimeout(() => {
+                    if (run.phase !== 'run') return;
+                    hitAll(e => dist(q.x, q.y, e.x, e.y) <= rr + e.r, q.k, 0);
+                }, fall * 1000);
+            });
+        } else if (p.form === 'orbit') {
+            const avg = pieces.reduce((a, q) => a + q.s, 0) / pieces.length, r = p.orbitR * avg;
+            me.orb = { t: p.duration, n: pieces.length, r: r, tick: {}, spin: p.spin, base: base * (0.8 + 0.2 * avg), hasDmg: hasDmg, eff: eff, ptick: p.tick };
+            const d = { f: 'orbit', dur: p.duration, r: r, n: pieces.length }; skillFx(d, me); netSend('sk', d);
+        } else if (p.form === 'thrust') {
+            pieces.forEach((q, i) => later(0.08 + i * p.delay, () => {
+                const a = live ? aimAngle() : q.a, x0 = live ? me.x : q.x, y0 = live ? me.y : q.y;
+                const len = p.length * q.s, w = p.width * Math.pow(q.s, 0.5);
+                const x2 = x0 + Math.cos(a) * len, y2 = y0 + Math.sin(a) * len;
+                const d = { f: 'thrust', x: x0, y: y0, a: a, len: len, w: w }; skillFx(d); netSend('sk', d);
+                hitAll(e => distSeg(e.x, e.y, x0, y0, x2, y2) <= w / 2 + e.r, q.k, a);
+                if (live) { me.ang = a; me.x = clamp(me.x + Math.cos(a) * p.lunge, 20, WORLD_W - 20); me.y = clamp(me.y + Math.sin(a) * p.lunge, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); }
+            }));
+        } else if (p.form === 'flash') {
+            // 一閃：その場から dist ぶん瞬間移動し、通り道の敵を斬る。複数なら連続で別の向きへ移動する（移動中は無敵）
+            pieces.forEach((q, i) => later(i * p.delay, () => {
+                const a = q.a, sx = me.x, sy = me.y, dd = p.dist * q.s;
+                me.x = clamp(sx + Math.cos(a) * dd, 20, WORLD_W - 20); me.y = clamp(sy + Math.sin(a) * dd, 20, WORLD_H - 20);
+                pushOutOfRocks(me, me.r); me.ang = a; me.inv = Math.max(me.inv, 0.45);
+                const ex = me.x, ey = me.y, w = p.width * Math.pow(q.s, 0.5);
+                const d = { f: 'flash', x: sx, y: sy, x2: ex, y2: ey, w: w }; skillFx(d); netSend('sk', d);
+                hitAll(e => distSeg(e.x, e.y, sx, sy, ex, ey) <= w / 2 + e.r, q.k, a);
+            }));
+        }
+    }
+
     // 旋回：自分の周りを回る光球。同じ敵には ptick 秒に1回ずつヒットする
     function updateOrbit(dt) {
         const o = me.orb; if (!o) return;
@@ -1180,7 +1413,7 @@
         if (me.dead) {
             // 仲間が近くにいると復活する
             const near = !PVP && Object.keys(allies).some(id => { const a = allies[id]; return !a.dead && dist(a.x, a.y, me.x, me.y) < 90; });
-            if (near) { me.reviveT += dt; if (me.reviveT > 2.5) { me.dead = false; me.hp = Math.round(me.maxHp * 0.4); me.inv = 1.5; me.invHard = 1.5; announce('復活！', 900); } } else me.reviveT = Math.max(0, me.reviveT - dt);
+            if (near) { me.reviveT += dt; if (me.reviveT > 2.5) { me.dead = false; me.stg = 0; me.hp = Math.round(me.maxHp * 0.4); me.inv = 1.5; me.invHard = 1.5; announce('復活！', 900); } } else me.reviveT = Math.max(0, me.reviveT - dt);
             return;
         }
         // スタン（動けない・攻撃も回避もできない）。復帰後は少しのあいだスタンしない
@@ -1211,12 +1444,13 @@
         if (me.empowerT > 0) me.empowerT -= dt;
         // 接触ダメージ
         for (const e of enemies) {
-            if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20) continue;
+            if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20 || e.noContact) continue;
             if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber') continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0))); }
         }
         // 敵弾
         for (let i = eBullets.length - 1; i >= 0; i--) {
             const b = eBullets[i];
+            if (b.refl === 2) continue;   // 跳ね返した弾は味方に当たらない
             if (dist(b.x, b.y, me.x, me.y) < b.r + me.r) { hurtMe(b.dmg); eBullets.splice(i, 1); if (!isHost) netSend('bhit', { id: b.id }); }
         }
     }
@@ -1262,9 +1496,18 @@
 
     function updateHost(dt) {
         updateEnemies(dt);
+        gmUpdate(dt);
         // 敵弾
         for (let i = eBullets.length - 1; i >= 0; i--) {
-            const b = eBullets[i]; b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+            const b = eBullets[i];
+            if (b.refl === 2) {   // 跳ね返された弾：ボスへ飛んでいく。最初の1発が核を砕く
+                const bo = enemies.find(o => o.boss && !o.echo && o.hp > 0);
+                if (bo) {
+                    const a = Math.atan2(bo.y - b.y, bo.x - b.x); b.vx = Math.cos(a) * 640; b.vy = Math.sin(a) * 640; b.life = 6;
+                    if (dist(b.x, b.y, bo.x, bo.y) < bo.r + 50) { if (b.core) dimCoreBreak(bo); eBullets.splice(i, 1); continue; }
+                }
+            }
+            b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
             let dead = b.life <= 0 || b.x < -50 || b.y < -50 || b.x > WORLD_W + 50 || b.y > WORLD_H + 50;
             if (!dead) for (const k of rocks) if (dist(b.x, b.y, k.x, k.y) < k.r) { dead = true; break; }
             if (dead) eBullets.splice(i, 1);
@@ -1295,13 +1538,158 @@
         }
     }
 
+    // ================= ギミックボス本体 =================
+    function gmBoss() { return enemies.find(e => e.boss && !e.echo && e.hp > 0) || null; }
+    function gmUpdate(dt) {          // ホストだけ
+        if (!GMK || !run.bossSpawned || run.phase !== 'run' || run.ended) return;
+        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt);
+    }
+    // --- 死神：スティグマ ---
+    function stigmaHost(dt) {
+        const b = gmBoss(); if (!b) return;
+        if (G.sT == null) { G.sT = STIGMA_EVERY; G.sE = 0; G.cE = 0; G.cl = 0; }
+        G.sT -= dt;
+        if (G.sT <= 0) { G.sT += STIGMA_EVERY; G.sE++; netAnnounce('☠ スティグマが刻まれた…', 900); }
+        const hpR = b.hp / b.maxHp;
+        [0.75, 0.5, 0.25].forEach((t, i) => { if (hpR < t && !(G.cl & (1 << i))) { G.cl |= (1 << i); G.cE++; netAnnounce('🕯 魂が浄化された…　スティグマが4つ消えた', 2400); } });
+    }
+    // --- 炉心の巨人：圧力と安全弁 ---
+    function pressureHost(dt) {
+        const b = gmBoss(); if (!b) return;
+        if (G.pT == null) { G.pT = 14; G.cT = 0; G.vl = 0; }
+        if (b.vuln > 0) b.vuln -= dt;
+        if (G.cT > 0) {
+            G.cT -= dt; G.vl = enemies.filter(e => e.valve && e.hp > 0).length;
+            if (G.vl === 0) {   // 安全弁を全部壊した：爆発を阻止。ボスは動けず、受けるダメージ+30%
+                telegraphs = telegraphs.filter(t => t.id !== G.tid);
+                G.cT = 0; G.pT = 24; b.st.stunT = Math.max(b.st.stunT, 5); b.vuln = 6; b.mv = null; b.state = 0;
+                netAnnounce('🔧 安全弁を破壊！　圧力が抜けてボスが動けない！（被ダメージ+30%）', 3000);
+            } else if (G.cT <= 0) { G.pT = 24; enemies.forEach(e => { if (e.valve) e.hp = 0; }); }   // 間に合わなかった：予告範囲が炸裂する
+        } else { G.pT -= dt; if (G.pT <= 0) pressureStart(b); }
+    }
+    function pressureStart(b) {
+        G.cT = 7; const n = Math.min(4, 2 + partyCount());
+        for (let i = 0; i < n; i++) {
+            const a = i * Math.PI * 2 / n + rnd(0, 0.6);
+            const v = spawnEnemy({ name: '安全弁', icon: '🔧', arch: 'tank', color: '#9ac0ff' }, clamp(b.x + Math.cos(a) * 340, 60, WORLD_W - 60), clamp(b.y + Math.sin(a) * 340, 60, WORLD_H - 60), false);
+            v.valve = true; v.noLoot = true; v.noContact = true; v.spd = 0; v.maxHp = v.hp = Math.max(1, Math.round(b.maxHp * 0.018));
+        }
+        telegraph(b.x, b.y, 800, G.cT, ed(b) * 2.6, '#ff6a2a'); G.tid = telegraphs[telegraphs.length - 1].id;
+        netAnnounce('♨ 圧力が限界に！　安全弁を全部壊せ！', 2800);
+    }
+    // --- ゼウス＆プロメテウス：片方が倒れたら15秒で蘇生 ---
+    function twinOnDeath(dead) {
+        const o = enemies.find(x => x.boss && !x.echo && x !== dead && x.hp > 0); if (!o) return;
+        o.rage = 1.3; o.enraged = true;
+        G.used = G.used || {};
+        if (!G.used[dead.pairIdx]) { G.used[dead.pairIdx] = 1; G.rv = { i: dead.pairIdx, t: 15, x: dead.x, y: dead.y, n: dead.def.name }; netAnnounce('⚠ ' + o.def.name + ' が ' + dead.def.name + ' を蘇らせようとしている！　15秒以内に倒せ！', 3200); }
+        else netAnnounce('💢 ' + o.def.name + ' が怒り狂った！', 2000);
+    }
+    function twinHost(dt) {
+        if (!G.rv) return;
+        G.rv.t -= dt; if (G.rv.t > 0) return;
+        const r = G.rv; G.rv = null; const bd = stage.bosses[r.i];
+        const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, r.x, r.y, true);
+        b.spd = 78 * (1 + stage.ilvl * 0.012) * PW.spd; b.bd = bd; b.pairIdx = r.i; b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null;
+        b.maxHp = Math.round(b.maxHp * (bd.hp || 1)); b.hp = Math.round(b.maxHp * 0.4); b.rage = 1.15; b.enraged = true;
+        fx.push({ k: 'ring', x: r.x, y: r.y, r: 0, max: 200, t: 0.6, life: 0.6, c: '#ffe9a0', fill: true });
+        netAnnounce('🔥 ' + bd.name + ' が蘇った！', 2400);
+    }
+    // --- ディメンション・キーパー ---
+    function spawnEcho(stageId, x, y) {
+        const st = window.getStageById(stageId); if (!st) return null;
+        const bd = st.boss, b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, clamp(x, 80, WORLD_W - 80), clamp(y, 80, WORLD_H - 80), true);
+        b.echo = true; b.bd = bd; b.bset = (BM && BM.SETS && BM.SETS[stageId]) || null;
+        b.maxHp = b.hp = Math.round(b.maxHp * 0.14); b.spd = 78 * (1 + stage.ilvl * 0.012) * PW.spd;
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 220, t: 0.7, life: 0.7, c: '#ffe9a0', fill: true });
+        return b;
+    }
+    function dimensionHost(dt) {
+        const b = gmBoss(); if (!b) return;
+        if (G.dp == null) { G.dp = 1; G.dc = 6; G.wt = 5; G.wd = 0; G.de = 0; G.dw = 0; b.bset = (BM && BM.SETS && BM.SETS.dim_keeper1) || null; b.inv = true; }
+        if (G.dp === 1) {
+            b.inv = G.dc > 0;
+            if (G.wd > 0) { G.wd -= dt; if (G.wd <= 0) dimFire(b); }
+            else { G.wt -= dt; if (G.wt <= 0) { G.wt = 8; G.wd = 1.0; telegraph(b.x, b.y, 170, 1.0, 0, '#ff7aff', { sh: 'portal' }); netAnnounce('💠 次元放射！　引きつけて「スキル」を発動し、跳ね返せ！', 1700); } }
+            if (G.dc <= 0) dimPhase2(b);
+        } else {
+            const echoAlive = enemies.some(e => e.echo && e.hp > 0);
+            if (G.dw && !echoAlive) { G.dw = 0; G.de++; b.inv = false; netAnnounce('🚪 門が閉じた…　ゲートキーパーが再び動き出す！', 2200); }
+            if (!G.dw && G.de < DK_ECHO.length && b.hp / b.maxHp < DK_ECHO[G.de][1]) {
+                const st = window.getStageById(DK_ECHO[G.de][0]);
+                spawnEcho(DK_ECHO[G.de][0], b.x + rnd(-260, 260), b.y + rnd(160, 320));
+                G.dw = 1; b.inv = true;
+                netAnnounce('🚪 ゲートから「' + (st ? st.boss.name : '') + '」が現れた！　倒すまでキーパーは無敵！', 3000);
+            }
+        }
+    }
+    function dimFire(b) {            // 反射できる全方位弾（白い輪が付いた弾）
+        const n = 20, off = rnd(0, 6.28), k = ed(b) * 1.2;
+        for (let i = 0; i < n; i++) { bullet(b.x, b.y, off + i * Math.PI * 2 / n, 215, k, 11, 4.6, '#ff7aff'); eBullets[eBullets.length - 1].refl = 1; }
+    }
+    function hostReflect(px, py) {   // ホスト：スキルを発動した人の周りの放射弾を跳ね返す。1回で核1つ
+        if (GMK !== 'dimension' || G.dp !== 1) return;
+        let first = true, n = 0;
+        eBullets.forEach(b => { if (b.refl === 1 && dist(b.x, b.y, px, py) <= REFL_R) { b.refl = 2; b.c = '#7fffd4'; b.life = 6; if (first) { b.core = true; first = false; } n++; } });
+        if (n) { fx.push({ k: 'ring', x: px, y: py, r: 0, max: REFL_R, t: 0.4, life: 0.4, c: '#7fffd4' }); netSend('gm', { k: 'refl', x: Math.round(px), y: Math.round(py) }); }
+    }
+    function dimCoreBreak(b) {
+        G.dc = Math.max(0, (G.dc == null ? 6 : G.dc) - 1);
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 200, t: 0.5, life: 0.5, c: '#ff7aff', fill: true });
+        netSend('gm', { k: 'core', x: Math.round(b.x), y: Math.round(b.y) });
+        netAnnounce('💠 核が砕けた！　残り ' + G.dc + ' / 6', 1800);
+    }
+    function dimPhase2(b) {
+        G.dp = 2; G.de = 0; G.dw = 0;
+        b.inv = false; b.hp = b.maxHp; b.enraged = false; b.bset = (BM && BM.SETS && BM.SETS.dim_keeper2) || null; b.mv = null; b.state = 0; b.t = -2; b.ultN = 0; b.mvIdx = 0; b.mvCount = 0;
+        eBullets = eBullets.filter(x => !x.refl);
+        netAnnounce('⛩ 核がすべて砕けた！　ゲートキーパーの真の姿が現れる…', 3600);
+    }
+    // --- 全員が自分の画面で行う処理 ---
+    function gmPullStart(x, y, dur, f) { pullFx = { x: x, y: y, t: dur, f: f }; fx.push({ k: 'ring', x: x, y: y, r: 0, max: 320, t: 0.8, life: 0.8, c: '#9a8aff' }); }
+    function onGm(d) {               // ホストからの通知（クライアント側）
+        if (d.k === 'pull') gmPullStart(Number(d.x) || 0, Number(d.y) || 0, Math.min(4, Number(d.dur) || 1), Math.min(600, Number(d.f) || 200));
+        else if (d.k === 'refl') fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: REFL_R, t: 0.4, life: 0.4, c: '#7fffd4' });
+        else if (d.k === 'core') fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: 200, t: 0.5, life: 0.5, c: '#ff7aff', fill: true });
+    }
+    function gmApplySnap(g) { G = (g && typeof g === 'object') ? g : {}; }
+    function gmLocal(dt) {
+        if (!GMK || !run.bossSpawned || run.phase !== 'run') return;
+        if (pullFx && pullFx.t > 0) {
+            pullFx.t -= dt;
+            if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { me.x = clamp(me.x + dx / d * pullFx.f * dt, 20, WORLD_W - 20); me.y = clamp(me.y + dy / d * pullFx.f * dt, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); } }
+        }
+        if (GMK === 'stigma') {
+            if (me.stg == null) me.stg = 0;
+            const sE = G.sE || 0, cE = G.cE || 0;
+            if (sE > stgLastS) { if (!me.dead) { me.stg += sE - stgLastS; popups.push({ x: me.x, y: me.y - 40, t: 0.9, text: '☠ スティグマ ' + me.stg, c: '#c9a0ff', big: true }); } stgLastS = sE; }
+            if (cE > stgLastC) { me.stg = Math.max(0, me.stg - 4 * (cE - stgLastC)); stgLastC = cE; }
+            if (me.stg >= STIGMA_MAX && !me.dead) { me.stg = 0; me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('☠ スティグマが13個…　死神に魂を刈り取られた', 2600); }
+        }
+    }
+    function gmHudText() {
+        if (!run.bossSpawned) return '';
+        if (GMK === 'stigma') return '☠ スティグマ ' + (me.stg || 0) + ' / ' + STIGMA_MAX + '　次の刻印まで ' + Math.max(0, Math.ceil(G.sT == null ? STIGMA_EVERY : G.sT)) + '秒';
+        if (GMK === 'pressure' && G.cT > 0) return '♨ 圧力爆発まで ' + Math.ceil(G.cT) + '秒　安全弁 あと ' + (G.vl || 0);
+        if (GMK === 'twin' && G.rv) return '⚠ ' + G.rv.n + ' が蘇るまで ' + Math.ceil(G.rv.t) + '秒　先に倒せ！';
+        if (GMK === 'dimension') return G.dp === 2 ? (G.dw ? '🚪 ゲートの主が出現中：倒さないとキーパーは無敵' : '🚪 歴代ラスボスの召喚 ' + (G.de || 0) + ' / ' + DK_ECHO.length) : '💠 核 ' + (G.dc == null ? 6 : G.dc) + ' / 6　（放射弾をスキルで跳ね返すと砕ける）';
+        return '';
+    }
+
     function startBoss() {
-        run.bossSpawned = true;
+        run.bossSpawned = true; G = {};
         enemies.forEach(e => { if (!e.boss) { e.hp = 0; fx.push({ k: 'puff', x: e.x, y: e.y, t: 0.3, life: 0.3, c: '#aaa' }); } });
         enemies = enemies.filter(e => e.hp > 0);
-        const b = spawnEnemy({ name: stage.boss.name, icon: stage.boss.icon, arch: 'chaser', color: stage.boss.color }, WORLD_W / 2, WORLD_H / 2 - 200, true);
-        b.spd = 78 * (1 + stage.ilvl * 0.012) * PW.spd;
-        netAnnounce('⚠ ' + stage.boss.name + ' が現れた！', 2600);
+        const defs = stage.bosses || [stage.boss];
+        defs.forEach((bd, i) => {
+            const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W / 2 + (bd.dx || 0), WORLD_H / 2 - 200, true);
+            b.spd = 78 * (1 + stage.ilvl * 0.012) * PW.spd;
+            b.bd = bd; b.pairIdx = i;
+            if (bd.set) b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null;
+            if (bd.hp) b.maxHp = b.hp = Math.round(b.maxHp * bd.hp);       // ニコイチのボスは1体ぶんのHPを少なめにする
+        });
+        netAnnounce('⚠ ' + defs.map(d => d.name).join(' と ') + ' が現れた！', 2600);
+        if (GMK === 'stigma') setTimeout(() => netAnnounce('☠ 10秒ごとに「スティグマ」が刻まれる…13個たまると死ぬ！', 3200), 2700);
     }
 
     function finishHost(win, reason) {
@@ -1313,20 +1701,21 @@
     // ---------- スナップショット ----------
     function makeSnap() {
         return {
-            e: enemies.map(e => [e.id, e.def.icon, e.def.color, Math.round(e.x), Math.round(e.y), Math.round(e.hp), e.maxHp, e.r, e.boss ? 1 : 0, e.state, e.def.name, e.arch, e.elite ? 1 : 0, e.dmgMul || 1, Math.round(e.air || 0)]),
-            b: eBullets.map(b => [b.id, Math.round(b.x), Math.round(b.y), b.r, b.c, b.kd || 0, b.kd ? +Math.atan2(b.vy, b.vx).toFixed(2) : 0]),
+            e: enemies.map(e => [e.id, e.def.icon, e.def.color, Math.round(e.x), Math.round(e.y), Math.round(e.hp), e.maxHp, e.r, e.boss ? 1 : 0, e.state, e.def.name, e.arch, e.elite ? 1 : 0, e.dmgMul || 1, Math.round(e.air || 0), (e.inv ? 1 : 0) | (e.echo ? 2 : 0) | (e.boss && !e.echo && bdef(e).gate ? 4 : 0) | (e.valve ? 8 : 0)]),
+            b: eBullets.map(b => [b.id, Math.round(b.x), Math.round(b.y), b.r, b.c, b.kd || 0, b.kd ? +Math.atan2(b.vy, b.vx).toFixed(2) : 0, b.refl || 0]),
             t: telegraphs.map(t => [t.id, t.x, t.y, t.r, +t.t.toFixed(2), t.max, t.c, t.sh || '', t.a != null ? +t.a.toFixed(2) : 0, t.arc != null ? +t.arc.toFixed(2) : 0, t.ri || 0, t.w || 0, t.stun ? 1 : 0, t.live ? 1 : 0]),
-            k: run.kills, n: run.need, tm: Math.round(run.time), bs: run.bossSpawned ? 1 : 0
+            k: run.kills, n: run.need, tm: Math.round(run.time), bs: run.bossSpawned ? 1 : 0, g: G
         };
     }
     function applySnap(s) {
         run.kills = s.k; run.need = s.n; run.time = s.tm; if (s.bs && !run.bossSpawned) run.bossSpawned = true;
+        gmApplySnap(s.g);
         const old = {}; enemies.forEach(e => { old[e.id] = e; });
         enemies = s.e.map(a => {
             const o = old[a[0]] || { x: a[3], y: a[4], flash: 0 };
-            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0 };
+            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
         });
-        eBullets = s.b.map(a => { const o = eBullets.find(x => x.id === a[0]); return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, dmg: 0, dm: 0 }; });
+        eBullets = s.b.map(a => { const o = eBullets.find(x => x.id === a[0]); return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
         // クライアント側の弾はダメージ値を持たないので、ホストが送った値で最小限の被弾を行う（体当たり相当）
         telegraphs = s.t.map(a => ({ id: a[0], x: a[1], y: a[2], r: a[3], t: a[4], max: a[5], c: a[6], sh: a[7] || null, a: a[8], arc: a[9], ri: a[10], w: a[11], stun: !!a[12], live: !!a[13] }));
         eBullets.forEach(b => { b.dmg = foeDmg('ranged', false, false); });
@@ -1396,7 +1785,7 @@
         // 敵
         enemies.forEach(e => drawEnemy(e));
         // 敵弾
-        eBullets.forEach(b => { if (b.kd === 1) { drawSword(b); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
+        eBullets.forEach(b => { if (b.kd === 1) { drawSword(b); return; } if (b.refl === 1) { ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, 7); ctx.stroke(); } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
         // 自分の弾
         myShots.forEach(s => { ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); });
         ghostShots.forEach(s => { ctx.fillStyle = s.c; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
@@ -1477,13 +1866,19 @@
     function drawEnemy(e) {
         if (e.pvp) return;   // 対人戦の相手は drawPlayer で描く
         const fl = e.flash > 0;
-        if (e.boss && stage.boss.gate) drawGateRing(e);
+        if (e.boss && !e.echo && (e.gate != null ? e.gate : bdef(e).gate)) drawGateRing(e);
         ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.8, e.r * 0.9, e.r * 0.4, 0, 0, 7); ctx.fill();
         ctx.save(); if (e.air > 0) ctx.translate(0, -e.air);   // 跳躍中は影を残して本体だけ浮く
         if (e.arch === 'charger' && e.state === 1 && e.aim != null) { ctx.strokeStyle = 'rgba(255,80,80,0.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.aim) * 340, e.y + Math.sin(e.aim) * 340); ctx.stroke(); }
         if (e.boss && e.state === 1 && e.aim != null) { ctx.strokeStyle = 'rgba(255,80,80,0.7)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.aim) * 600, e.y + Math.sin(e.aim) * 600); ctx.stroke(); }
         ctx.fillStyle = fl ? '#fff' : (e.def.color || '#a44'); ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
         if (e.boss) { ctx.strokeStyle = '#ffd84a'; ctx.lineWidth = 3; ctx.stroke(); }
+        if (e.inv) { ctx.strokeStyle = 'rgba(127,255,212,0.9)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 9, 0, 7); ctx.stroke(); }
+        if (GMK === 'dimension' && e.boss && !e.echo && G.dp === 1 && G.dc > 0) {      // 6つの核（周回）
+            const tn = performance.now() / 1000;
+            for (let i = 0; i < G.dc; i++) { const a = tn * 0.9 + i * Math.PI * 2 / 6, cx = e.x + Math.cos(a) * (e.r + 58), cy = e.y + Math.sin(a) * (e.r + 58);
+                ctx.fillStyle = '#ff7aff'; ctx.beginPath(); ctx.arc(cx, cy, 13, 0, 7); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(cx - 3, cy - 3, 4, 0, 7); ctx.fill(); }
+        }
         else if (e.elite) { ctx.strokeStyle = '#ff9a2a'; ctx.lineWidth = 4; ctx.stroke(); ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 6, 0, 7); ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1; }
         ctx.font = Math.round(e.r * 1.25) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
         ctx.fillText(e.def.icon, e.x, e.y + 1);
@@ -1493,6 +1888,11 @@
         if (e.st && (e.st.stunT > 0)) ctx.fillText('💫', e.x, e.y - e.r * 1.2);
         ctx.textBaseline = 'alphabetic';
         ctx.restore();
+        if (SE && (e.boss || e.elite) && !e.pvp) {   // 弱点（×1.6）と耐性（×0.5）の属性
+            const wk = SE.weakOf(e.def && e.def.name);
+            ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
+            ctx.fillText('弱' + SE.ELEMS[wk.weak].icon + ' 耐' + SE.ELEMS[wk.resist].icon, e.x, e.y - e.r - 14); ctx.textAlign = 'start';
+        }
         if ((!e.boss && e.hp < e.maxHp) || e.elite) { const w = e.r * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - w / 2, e.y - e.r - 9, w, 4); ctx.fillStyle = '#e44'; ctx.fillRect(e.x - w / 2, e.y - e.r - 9, w * Math.max(0, e.hp / e.maxHp), 4); }
     }
 
@@ -1567,9 +1967,16 @@
         if (!run.bossSpawned) { el('prog').textContent = '討伐 ' + Math.min(run.kills, run.need) + ' / ' + run.need; el('progFill').style.width = (Math.min(1, run.kills / run.need) * 100) + '%'; el('bossBar').style.display = 'none'; }
         else {
             el('prog').textContent = 'ボス戦'; el('progFill').style.width = '100%';
-            const b = enemies.find(e => e.boss);
-            if (b) { el('bossBar').style.display = 'block'; el('bossName').textContent = b.def.name || stage.boss.name; el('bossFill').style.width = (clamp(b.hp / b.maxHp, 0, 1) * 100) + '%'; }
-            else el('bossBar').style.display = 'none';
+            const bs = enemies.filter(e => e.boss), b = bs.find(x => !x.echo) || bs[0];
+            if (b) {
+                el('bossBar').style.display = 'block'; el('bossName').textContent = (b.def.name || stage.boss.name) + (SE ? '　弱点' + SE.ELEMS[SE.weakOf(b.def.name).weak].icon + ' 耐性' + SE.ELEMS[SE.weakOf(b.def.name).resist].icon : ''); el('bossFill').style.width = (clamp(b.hp / b.maxHp, 0, 1) * 100) + '%';
+                const ex = bs.filter(x => x !== b).map(x => '<div style="font-size:.7rem;margin-top:3px;text-shadow:0 0 4px #000">' + (x.echo ? '🚪 ' : '') + x.def.name + '<div style="height:5px;background:rgba(0,0,0,.6);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + Math.round(clamp(x.hp / x.maxHp, 0, 1) * 100) + '%;background:' + (x.echo ? '#7fffd4' : '#ff5a8a') + '"></div></div></div>').join('');
+                let bx = document.getElementById('bossExtra'); if (!bx) { bx = document.createElement('div'); bx.id = 'bossExtra'; el('bossBar').appendChild(bx); }
+                if (bx.dataset.sig !== ex) { bx.dataset.sig = ex; bx.innerHTML = ex; }
+            } else el('bossBar').style.display = 'none';
+            const gt = gmHudText(); let gh = document.getElementById('gmHud');
+            if (!gh) { gh = document.createElement('div'); gh.id = 'gmHud'; gh.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 52px);left:50%;transform:translateX(-50%);z-index:6;pointer-events:none;font-weight:bold;font-size:.82rem;color:#fff;background:rgba(20,10,30,.72);border:1px solid #c090ff;border-radius:8px;padding:4px 10px;text-shadow:0 0 4px #000;white-space:nowrap;display:none'; document.body.appendChild(gh); }
+            gh.style.display = gt ? 'block' : 'none'; if (gt && gh.textContent !== gt) gh.textContent = gt;
         }
     }
     function updateEnergyUI() { el('enFill').style.width = (me.energy / ENERGY_MAX * 100) + '%'; el('enText').textContent = 'ENERGY ' + Math.round(me.energy) + ' / ' + ENERGY_MAX; if (skillSlots.length) updateSkillBar(); }
@@ -1577,7 +1984,7 @@
     function announce(text, ms) { const a = el('announce'); a.textContent = text; a.classList.add('show'); clearTimeout(annTimer); annTimer = setTimeout(() => a.classList.remove('show'), ms || 2000); }
     function refreshLootLog() {
         const box = el('lootLog');
-        box.innerHTML = run.stats.loot.slice(-5).map(w => '<div style="color:' + HW.rarityOf(w).color + '">✦ ' + escapeHtml(w.name) + '</div>').join('');
+        box.innerHTML = run.stats.loot.slice(-5).map(w => '<div style="color:' + HW.rarityOf(w).color + '">' + (w.kind === 'armor' ? '🛡 ' : '✦ ') + escapeHtml(w.name) + '</div>').join('');
     }
     function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -1654,7 +2061,7 @@
             run.time += dt;
             skillSlots.forEach(sk => { if (sk && sk.cdLeft > 0) sk.cdLeft = Math.max(0, sk.cdLeft - dt); });
             if ((skillT -= dt) <= 0) { skillT = 0.1; updateSkillBar(); }
-            updateMe(dt); updateShots(dt);
+            updateMe(dt); updateShots(dt); gmLocal(dt);
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
             else if (isHost) { updateHost(dt); } else lerpRemote(dt);
             // 位置の送信
