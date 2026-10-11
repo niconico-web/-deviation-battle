@@ -171,6 +171,7 @@
         }
         function launch(mode, roomId) {
             if (SS) { const chk = SS.canEnterStage(window.getStageById(selId), selDiff); if (!chk.ok) { alert(chk.reason); return; } }
+            if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: selDiff, at: Date.now() })); } catch (e) {}
             location.href = 'stage.html';
         }
@@ -185,18 +186,52 @@
     //  ・1人で出発すると、スパーリングボットとの練習になる
     // ============================================================
     function launchPvp(mode, roomId) {
+        if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: 'pvp_arena', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
         location.href = 'stage.html';
     }
     function openPvpArena() {
         bmEvent('pvp');
         if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
-        let rooms = [];
+        let rooms = [], evRank = null;
         const sock = getSock();
         const onRooms = list => { rooms = list || []; draw(); };
-        const m = modal('⚔ オンラインマッチ（アクション対戦）', () => { if (sock) sock.off('stage:rooms', onRooms); });
-        if (sock) { sock.on('stage:rooms', onRooms); sock.on('connect', refresh); }
-        function refresh() { if (sock && sock.connected) sock.emit('stage:list', { stageId: 'pvp_arena' }); }
+        const onRank = d => { if (SBPvpEvent && d && String(d.seasonId) === String(SBPvpEvent.seasonId())) { evRank = d; draw(); } };
+        const m = modal('⚔ オンラインマッチ（アクション対戦）', () => { if (sock) { sock.off('stage:rooms', onRooms); sock.off('pvpEvent:rankingData', onRank); } });
+        if (sock) { sock.on('stage:rooms', onRooms); sock.on('pvpEvent:rankingData', onRank); sock.on('connect', refresh); }
+        function refresh() {
+            if (sock && sock.connected) {
+                sock.emit('stage:list', { stageId: 'pvp_arena' });
+                if (window.SBPvpEvent && SBPvpEvent.open()) { SBPvpEvent.report(sock); const p = getPlayerData(); sock.emit('pvpEvent:ranking', { seasonId: SBPvpEvent.seasonId(), id: p && p.id }); }
+            }
+        }
+        // ---- シーズン5週目〜のPvPイベント ----
+        function addCoinsEv(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
+        function eventHtml() {
+            const EV = window.SBPvpEvent; if (!EV) return '';
+            const st = EV.seasonState(), W = (window.SeasonSys && SeasonSys.SCHEDULE && SeasonSys.SCHEDULE.pvpWeek) || 5;
+            const box = (inner, bd) => '<div style="margin:8px 0;padding:8px 10px;border:1px solid ' + (bd || '#5a4a8a') + ';border-radius:8px;background:rgba(80,50,140,.18);font-size:.85rem;line-height:1.6">' + inner + '</div>';
+            if (!st) return box('⚔ <b>PvPイベント</b>は、<b>シーズンキャラ専用</b>です。シーズンの' + W + '週目から開催されます。');
+            if (!EV.open()) {
+                if (st.ended) return box('⚔ <b>PvPイベント</b>：シーズンは終了しました。');
+                const days = Math.max(0, Math.ceil((new Date(st.def.start).getTime() + (W - 1) * 7 * 86400000 - SeasonSys.now()) / 86400000));
+                return box('⚔ <b>PvPイベント</b>：シーズン' + W + '週目から開催！（あと約 ' + days + ' 日）<br>オンラインマッチで勝つほど、豪華な報酬がもらえます。');
+            }
+            const r = EV.rec();
+            let h = '<b style="color:#ffd36a">⚔ PvPイベント開催中！</b>　勝利 +' + EV.EP_WIN + 'EP ／ 負け +' + EV.EP_LOSE + 'EP（2人以上のオンラインマッチのみ。ボット練習はEPなし）<br>' +
+                'あなたのEP：<b style="color:#ffd84a;font-size:1.05rem">' + r.pts + '</b>　（' + r.plays + '戦 ' + r.wins + '勝）';
+            h += '<div class="sbl-sec">報酬</div>' + EV.MILESTONES.map((mm, i) => {
+                const got = !!r.claimed[i], can = !got && r.pts >= mm.ep;
+                return '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;padding:2px 0;border-bottom:1px solid #2a3350"><span style="' + (got ? 'color:#778' : '') + '">' + mm.ep + 'EP：' + esc(mm.label) + '</span>' +
+                    (got ? '<span style="color:#7aff9a">受取済</span>' : (can ? '<button class="sbl-btn orange" data-claim="' + i + '" style="padding:2px 8px;font-size:.75rem">受け取る</button>' : '<span style="color:#778">あと' + (mm.ep - r.pts) + 'EP</span>')) + '</div>';
+            }).join('');
+            h += '<div class="sbl-sec">ランキング（EP）</div>';
+            if (evRank && evRank.top) {
+                h += (evRank.me ? '<div>あなた：<b>' + evRank.me.rank + '位</b>（' + evRank.me.pts + 'EP）／ 参加 ' + evRank.total + '人</div>' : '<div style="color:#9fb3d9">まだランキングに載っていません（1戦すると載ります）</div>') +
+                    evRank.top.slice(0, 10).map(x => '<div style="display:flex;justify-content:space-between;font-size:.8rem"><span>' + x.rank + '位　' + esc(x.name) + '</span><span>' + x.pts + 'EP（' + x.wins + '勝）</span></div>').join('');
+            } else h += '<div style="color:#9fb3d9">' + (sock && sock.connected ? '読み込み中…' : 'サーバーに接続すると表示されます') + '</div>';
+            return box(h, '#8a6adf');
+        }
         function draw() {
             const p = (typeof getPlayerData === 'function') ? getPlayerData() : null;
             m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
@@ -204,12 +239,16 @@
                 '・2〜4人の乱戦。<b>最後まで立っていた人の勝ち</b>（制限時間3分、切れたらHPの割合で判定）<br>' +
                 '・ダメージは<b>ステータスに関係なく、相手の最大HPの割合</b>で決まります。武器の種類・スキル・特殊効果・立ち回りの勝負！<br>' +
                 '・勝てばコイン+400、負けても+120。1人で出発するとボット練習になります。</div>' +
-                '<div style="margin:8px 0;font-size:.85rem;color:#ffd36a">通算勝利：' + ((p && p.pvpWins) || 0) + '勝</div>' +
+                '<div style="margin:8px 0;font-size:.85rem;color:#ffd36a">通算勝利：' + ((p && p.pvpWins) || 0) + '勝</div>' + eventHtml() +
                 '<div><button class="sbl-btn orange" id="pvQuick">ランダムマッチ</button><button class="sbl-btn" id="pvCreate">部屋を作る</button>' +
                 '<button class="sbl-btn gray" id="pvCode">部屋コードで参加</button><button class="sbl-btn gray" id="pvBot">ボットと練習</button></div>' +
                 '<div class="sbl-sec">募集中の部屋</div>' +
                 (rooms.length ? rooms.map(r => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center"><span>' + esc(r.members.map(x => x.name).join('、')) + '　(' + r.members.length + '/' + r.max + ')</span><button class="sbl-btn" data-room="' + esc(r.id) + '">参加</button></div>').join('') : '<div style="opacity:.7;font-size:.85rem">いまは募集中の部屋はありません。</div>') +
                 '</div>';
+            m.body.querySelectorAll('[data-claim]').forEach(b => b.addEventListener('click', () => {
+                const lines = SBPvpEvent.claim(parseInt(b.dataset.claim, 10), addCoinsEv);
+                if (lines) { alert('PvPイベントの報酬を受け取りました！\n\n' + lines.join('\n')); try { refreshInvInfo(); } catch (e) {} draw(); }
+            }));
             m.body.querySelector('#pvQuick').addEventListener('click', () => launchPvp('quick'));
             m.body.querySelector('#pvCreate').addEventListener('click', () => launchPvp('create'));
             m.body.querySelector('#pvBot').addEventListener('click', () => launchPvp('solo'));
@@ -262,12 +301,14 @@
                 '<select id="sbFilter" style="margin-bottom:6px;padding:4px"><option value="all">すべて</option><option value="eq">装備中</option>' + Object.keys(types).map(t => '<option value="' + t + '"' + (filter === t ? ' selected' : '') + '>' + esc((HW.TYPES[t] || {}).label || t) + '</option>').join('') + '</select> ' +
                 '<button class="sbl-btn gray" id="sbBulk" style="padding:4px 8px;font-size:.75rem">🗑 一括売却</button>' +
                 '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器を作る</button>' +
-                sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
+                '<button class="sbl-btn green" id="sbArmorBtn" style="padding:4px 8px;font-size:.75rem">🛡 防具（頭・胴・脚）</button>' +
+                sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + (w.elems && w.elems.length && window.SBElem ? ' ' + SBElem.ELEMS[w.elems[0]].icon + (w.elems.length > 1 ? SBElem.ELEMS[w.elems[1]].icon : '') : '') + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
             wl.querySelector('#sbFilter').value = filter;
             wl.querySelector('#sbFilter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
             wl.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
             wl.querySelector('#sbBulk').addEventListener('click', openBulk);
             wl.querySelector('#sbForge').addEventListener('click', openForge);
+            const ab = wl.querySelector('#sbArmorBtn'); if (ab) ab.addEventListener('click', openArmor);
         }
         function addCoins(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
 
@@ -280,6 +321,8 @@
             wd.innerHTML =
                 '<h3 style="margin:0;color:' + R.color + '">' + esc(w.name) + '</h3>' +
                 '<div style="font-size:.82rem;color:#9fb3d9">[' + R.label + '] ' + esc(T.label || w.type) + '　Lv' + w.ilvl + '　攻撃力 ' + HW.pctLabel(w) + (w.custom ? '　★オリジナル' : '') + '</div>' +
+                (T.sup ? '<div style="font-size:.78rem;color:#9fe0a0">🩹 支援武器：' + ({ all: '攻撃すると、自分と近くの味方を回復＆鼓舞（攻撃・防御アップ）し、当てた敵を弱体化・減速させて受けるダメージを増やす' }[T.sup] || '') + '</div>' : '') +
+                (w.elems && w.elems.length && window.SBElem ? '<div class="sbl-sec">属性</div><div style="font-size:.82rem">' + SBElem.labels(w.elems) + '</div><div style="font-size:.76rem">' + SBElem.styleHtml(w.elems) + '</div>' : '<div style="font-size:.76rem;color:#778">無属性</div>') +
                 '<div class="sbl-sec">特殊効果</div>' + (w.effects.length ? w.effects.map(f => '<div class="sbl-fx">◆ ' + esc(HW.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>') +
                 '<div class="sbl-sec">ソケット（オーブをはめ込む）</div><div>' + slots.join('') + '</div>' +
                 (w.orbs.some(Boolean) ? '<div class="sbl-sec">オーブの効果</div>' + w.orbs.map(o => o ? HW.orbToEffects(o).lines.map(l => '<div class="sbl-fx" style="color:#9fe0ff">💎 ' + esc(l) + '</div>').join('') : '').join('') : '') +
@@ -287,7 +330,26 @@
                 '<button class="sbl-btn red" id="sbSell"' + (w.id === hack.equipped || w.locked ? ' disabled' : '') + '>売却 (' + HW.sellValue(w) + ')</button>' +
                 '<button class="sbl-btn gray" id="sbLock">' + (w.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>' +
                 '<div class="sbl-note" style="font-size:.74rem;color:#8a97b8;margin-top:3px">ロックした武器は、一括売却の対象になりません。</div>' +
+                (w.custom ? '<div class="sbl-sec">名前を変更（オリジナル武器は、いつでも無料で変えられます）</div><div style="display:flex;gap:4px"><input id="sbRnName" type="text" maxlength="' + HW.FORGE_NAME_MAX + '" value="' + esc(w.name) + '" style="flex:1;min-width:0;padding:5px;box-sizing:border-box"><button class="sbl-btn orange" id="sbRnGo">変更</button></div><div id="sbRnMsg" style="font-size:.8rem;color:#ff9a9a;margin-top:3px"></div>' +
+                    '<div class="sbl-sec">武器種を変更（作成費用の1/4：' + HW.typeChangeCost(w).toLocaleString() + ' コイン）</div><div style="display:flex;gap:4px"><select id="sbTyType" style="flex:1;min-width:0;padding:5px">' + HW.availableTypes(hack).map(t => '<option value="' + t + '"' + (t === w.type ? ' selected' : '') + '>' + esc(HW.TYPES[t].label) + '</option>').join('') + '</select><button class="sbl-btn orange" id="sbTyGo">変更する</button></div><div id="sbTyMsg" style="font-size:.8rem;color:#ff9a9a;margin-top:3px"></div>' : '') +
                 '<div id="sbOrbPick"></div>';
+            if (w.custom) wd.querySelector('#sbTyGo').addEventListener('click', () => {
+                const msg = wd.querySelector('#sbTyMsg'), nt = wd.querySelector('#sbTyType').value;
+                if (!nt || !HW.TYPES[nt]) { msg.textContent = '武器種を選んでください。'; return; }
+                if (nt === w.type) { msg.textContent = 'いまと同じ武器種です。'; return; }
+                const cost = HW.typeChangeCost(w);
+                if (coins() < cost) { msg.textContent = 'コインが足りません。'; return; }
+                if (!confirm(HW.TYPES[w.type].label + ' → ' + HW.TYPES[nt].label + ' に変更します（' + cost.toLocaleString() + ' コイン）。よろしいですか？')) return;
+                if (!HW.changeType(hack, w, nt)) { msg.textContent = 'この武器種には変更できません。'; return; }
+                addCoins(-cost); HW.save(hack); refreshInvInfo(); renderList(); renderDetail();
+            });
+            if (w.custom) wd.querySelector('#sbRnGo').addEventListener('click', () => {
+                const msg = wd.querySelector('#sbRnMsg'), clean = HW.cleanName(wd.querySelector('#sbRnName').value);
+                if (!clean) { msg.textContent = '名前を入力してください。'; return; }
+                const v = (typeof validateName === 'function') ? validateName(clean) : { valid: true };
+                if (!v.valid) { msg.textContent = v.reason; return; }
+                w.name = clean; w.baseName = clean; HW.save(hack); renderList(); renderDetail();
+            });
             wd.querySelector('#sbLock').addEventListener('click', () => { w.locked = !w.locked; HW.save(hack); renderList(); renderDetail(); });
             wd.querySelector('#sbEq').addEventListener('click', () => { hack.equipped = w.id; HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); });
             wd.querySelector('#sbSell').addEventListener('click', () => {
@@ -342,32 +404,38 @@
         // ---------- オリジナル武器（コイン鍛冶）----------
         function openForge() {
             const types = HW.availableTypes(hack);
-            let type = types.indexOf('sword') >= 0 ? 'sword' : types[0], rarity = 'normal', name = '';
+            let type = types.indexOf('sword') >= 0 ? 'sword' : types[0], rarity = 'normal', name = '', els = [];
             function draw() {
                 const have = coins();
-                const rars = HW.RARITY_ORDER.map(k => { const R = HW.RARITIES[k]; return { k: k, R: R, ok: have >= R.forge }; });
+                const rars = HW.RARITY_ORDER.map(k => { const R = HW.RARITIES[k]; const c = HW.forgeCost(k, els.length); return { k: k, R: R, c: c, ok: have >= c }; });
                 wd.innerHTML = '<h3 style="margin:0">🔨 オリジナル武器を作る</h3>' +
                     '<div style="font-size:.82rem;color:#9fb3d9">コインを多く使うほどレア度が上がります。名前は自由に決められます。攻撃力の上昇％はレア度で決まり、特殊効果とソケットはランダムです。</div>' +
                     '<div class="sbl-sec">所持コイン：' + have.toLocaleString() + '</div>' +
                     '<div class="sbl-sec">武器の種類</div><select id="sbFgType" style="padding:4px;max-width:100%">' + types.map(t => '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + esc(HW.TYPES[t].label) + '</option>').join('') + '</select>' +
                     '<div class="sbl-sec">名前（' + HW.FORGE_NAME_MAX + '文字まで）</div><input id="sbFgName" type="text" maxlength="' + HW.FORGE_NAME_MAX + '" placeholder="例：勇者の剣" value="' + esc(name) + '" style="width:100%;box-sizing:border-box;padding:6px;border-radius:6px;border:1px solid #445;background:#0f1530;color:#fff">' +
+                    '<div class="sbl-sec">属性（任意・最大2つ。1つで+25%、2つで+70%のコイン）</div><div id="sbFgEl" style="display:flex;flex-wrap:wrap;gap:4px">' + (window.SBElem ? SBElem.ORDER.map(id => { const m = SBElem.ELEMS[id], on = els.indexOf(id) >= 0; return '<button type="button" data-el="' + id + '" style="padding:3px 7px;border-radius:12px;border:1px solid ' + (on ? m.color : '#3a4670') + ';background:' + (on ? '#26335f' : '#171f3e') + ';color:' + m.color + ';font-size:.78rem;cursor:pointer">' + m.icon + m.name + '</button>'; }).join('') : '') + '</div>' + (els.length && window.SBElem ? '<div style="font-size:.76rem;margin-top:3px">' + SBElem.styleHtml(els) + '</div>' : '') +
                     '<div class="sbl-sec">レア度（使うコイン）</div>' +
-                    rars.map(r => '<label style="display:block;margin:3px 0;padding:4px 6px;border-radius:6px;background:' + (r.k === rarity ? '#26335f' : '#171f3e') + ';opacity:' + (r.ok ? 1 : .5) + ';color:' + r.R.color + '"><input type="radio" name="sbFgR" value="' + r.k + '"' + (r.k === rarity ? ' checked' : '') + (r.ok ? '' : ' disabled') + '> ' + r.R.label + '　<b>' + r.R.forge.toLocaleString() + ' コイン</b>　<small style="color:#9fb3d9">攻撃力 約＋' + Math.round(r.R.orig * 100) + '%・ソケット' + r.R.sockets[0] + '〜' + r.R.sockets[1] + '・効果' + r.R.fx[0] + '〜' + r.R.fx[1] + '</small></label>').join('') +
-                    '<div style="margin-top:8px"><button class="sbl-btn orange" id="sbFgGo">' + HW.RARITIES[rarity].label + 'で作る（' + HW.RARITIES[rarity].forge.toLocaleString() + ' コイン）</button><button class="sbl-btn gray" id="sbFgCancel">やめる</button></div>' +
+                    rars.map(r => '<label style="display:block;margin:3px 0;padding:4px 6px;border-radius:6px;background:' + (r.k === rarity ? '#26335f' : '#171f3e') + ';opacity:' + (r.ok ? 1 : .5) + ';color:' + r.R.color + '"><input type="radio" name="sbFgR" value="' + r.k + '"' + (r.k === rarity ? ' checked' : '') + (r.ok ? '' : ' disabled') + '> ' + r.R.label + '　<b>' + r.c.toLocaleString() + ' コイン</b>　<small style="color:#9fb3d9">攻撃力 約＋' + Math.round(r.R.orig * 100) + '%・ソケット' + r.R.sockets[0] + '〜' + r.R.sockets[1] + '・効果' + r.R.fx[0] + '〜' + r.R.fx[1] + '</small></label>').join('') +
+                    '<div style="margin-top:8px"><button class="sbl-btn orange" id="sbFgGo">' + HW.RARITIES[rarity].label + 'で作る（' + HW.forgeCost(rarity, els.length).toLocaleString() + ' コイン）</button><button class="sbl-btn gray" id="sbFgCancel">やめる</button></div>' +
                     '<div id="sbFgMsg" style="font-size:.82rem;color:#ff9a9a;margin-top:4px"></div>';
                 wd.querySelector('#sbFgType').addEventListener('change', e => { type = e.target.value; name = wd.querySelector('#sbFgName').value; draw(); });
                 wd.querySelector('#sbFgName').addEventListener('input', e => { name = e.target.value; });
                 wd.querySelectorAll('[name=sbFgR]').forEach(r => r.addEventListener('change', () => { name = wd.querySelector('#sbFgName').value; rarity = r.value; draw(); }));
+                wd.querySelectorAll('#sbFgEl [data-el]').forEach(b => b.addEventListener('click', () => {
+                    name = wd.querySelector('#sbFgName').value; const id = b.dataset.el, i = els.indexOf(id);
+                    if (i >= 0) els.splice(i, 1); else if (els.length < 2) els.push(id); else { els.shift(); els.push(id); }
+                    draw();
+                }));
                 wd.querySelector('#sbFgCancel').addEventListener('click', () => renderDetail());
                 wd.querySelector('#sbFgGo').addEventListener('click', () => {
                     const msg = wd.querySelector('#sbFgMsg'); name = wd.querySelector('#sbFgName').value;
                     const clean = HW.cleanName(name);
                     if (clean) { const v = (typeof validateName === 'function') ? validateName(clean) : { valid: true }; if (!v.valid) { msg.textContent = v.reason; return; } }
-                    const cost = HW.forgeCost(rarity);
+                    const cost = HW.forgeCost(rarity, els.length);
                     if (coins() < cost) { msg.textContent = 'コインが足りません。'; return; }
                     if (hack.weapons.length >= HW.STORAGE_LIMIT) { msg.textContent = '武器庫がいっぱいです。不要な武器を売却してください。'; return; }
-                    if (!confirm((clean || 'オリジナル' + HW.TYPES[type].label) + '（' + HW.RARITIES[rarity].label + '）を ' + cost.toLocaleString() + ' コインで作ります。よろしいですか？')) return;
-                    const w = HW.forgeOriginal(hack, { type: type, rarity: rarity, name: clean });
+                    if (!confirm((clean || 'オリジナル' + HW.TYPES[type].label) + '（' + HW.RARITIES[rarity].label + (els.length && window.SBElem ? '・' + SBElem.labels(els) : '') + '）を ' + cost.toLocaleString() + ' コインで作ります。よろしいですか？')) return;
+                    const w = HW.forgeOriginal(hack, { type: type, rarity: rarity, name: clean, elems: els.slice() });
                     if (!w) { msg.textContent = 'この武器種は、まだ作れません。'; return; }
                     addCoins(-cost);
                     hack.weapons.push(w); HW.save(hack); selId = w.id;
@@ -380,6 +448,75 @@
     }
 
     // ---------- 第二世界の解放通知（町に戻ったとき1回だけ）----------
+    // ============================================================
+    // 防具（頭・胴・脚）
+    // ============================================================
+    function openArmor() {
+        if (!window.HW || !window.SBArmor) return;
+        const hack = HW.load(); SBArmor.ensure(hack);
+        let selId = null, slotF = 'all';
+        const m = modal('🛡 防具（頭・胴・脚）', () => { try { refreshInvInfo(); if (typeof updateStatus === 'function') updateStatus(getPlayerData()); } catch (e) {} });
+        m.body.innerHTML = '<div class="sbl-col sbl-left" id="arL"></div><div class="sbl-col sbl-right" id="arR"></div>';
+        const L = m.body.querySelector('#arL'), R = m.body.querySelector('#arR');
+        const addCoins = v => { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); };
+        const eqId = a => hack.armorEq[a.slot] === a.id;
+        function renderList() {
+            const eq = SBArmor.equipped(hack);
+            const arr = hack.armors.filter(a => slotF === 'all' || a.slot === slotF).sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl);
+            L.innerHTML = '<div class="sbl-sec">装備中</div>' + SBArmor.SLOT_ORDER.map(sl => { const a = eq[sl]; return '<div style="font-size:.8rem;padding:2px 0">' + SBArmor.SLOTS[sl].icon + ' ' + SBArmor.SLOTS[sl].label + '：' + (a ? '<span style="color:' + HW.rarityOf(a).color + '">' + esc(a.name) + '</span>' : '<span style="color:#778">なし</span>') + '</div>'; }).join('') +
+                '<div class="sbl-sec">所持防具 ' + hack.armors.length + ' 個 <button class="sbl-btn gray" id="arBulk" style="padding:3px 8px;font-size:.75rem;margin-left:6px">🗑 一括売却</button></div>' +
+                '<select id="arF" style="margin-bottom:6px;padding:4px"><option value="all">すべて</option>' + SBArmor.SLOT_ORDER.map(sl => '<option value="' + sl + '"' + (slotF === sl ? ' selected' : '') + '>' + SBArmor.SLOTS[sl].label + '</option>').join('') + '</select>' +
+                (arr.length ? arr.map(a => '<div class="sbl-wl' + (a.id === selId ? ' sel' : '') + (eqId(a) ? ' eq' : '') + '" data-id="' + a.id + '"><span style="color:' + HW.rarityOf(a).color + '">' + (eqId(a) ? '【装備中】' : '') + SBArmor.SLOTS[a.slot].icon + ' ' + esc(a.name) + '</span><span style="color:#9fb3d9">Lv' + a.ilvl + (a.locked ? ' 🔒' : '') + '</span></div>').join('') : '<div style="color:#889;font-size:.8rem">防具はステージの敵・ボスがドロップします</div>');
+            L.querySelector('#arF').addEventListener('change', e => { slotF = e.target.value; renderList(); });
+            L.querySelector('#arBulk').addEventListener('click', openArmorBulk);
+            L.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
+        }
+        function renderDetail() {
+            const a = hack.armors.find(x => x.id === selId);
+            if (!a) { const t = SBArmor.summaryLines(hack); R.innerHTML = '<div class="sbl-sec">装備による効果の合計</div>' + (t.length ? t.map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') : '<div style="color:#889">防具を選んでください</div>'); return; }
+            const Rr = HW.rarityOf(a);
+            R.innerHTML = '<h3 style="margin:0;color:' + Rr.color + '">' + esc(a.name) + '</h3>' +
+                '<div style="font-size:.82rem;color:#9fb3d9">[' + Rr.label + '] ' + SBArmor.SLOTS[a.slot].label + '　Lv' + a.ilvl + '</div>' +
+                '<div class="sbl-sec">基本性能</div>' + SBArmor.statLines(a).filter(Boolean).map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') +
+                '<div class="sbl-sec">特殊効果</div>' + (a.effects.length ? a.effects.map(f => '<div class="sbl-fx">◆ ' + esc(SBArmor.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>') +
+                '<div style="margin-top:8px"><button class="sbl-btn green" id="arEq">' + (eqId(a) ? '外す' : '装備する') + '</button>' +
+                '<button class="sbl-btn red" id="arSell"' + (eqId(a) || a.locked ? ' disabled' : '') + '>売却 (' + SBArmor.sellValue(a) + ')</button>' +
+                '<button class="sbl-btn gray" id="arLock">' + (a.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>';
+            R.querySelector('#arEq').addEventListener('click', () => { if (eqId(a)) SBArmor.unequip(hack, a.slot); else SBArmor.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#arLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#arSell').addEventListener('click', () => {
+                if (!confirm(a.name + ' を売却しますか？')) return;
+                const v = SBArmor.sell(hack, a.id); if (v > 0) { addCoins(v); HW.save(hack); selId = null; renderList(); renderDetail(); }
+            });
+        }
+        // ---------- 防具の一括売却 ----------
+        function openArmorBulk() {
+            const pick = { normal: true, magic: true, rare: false, epic: false, legendary: false };
+            const slotPick = { head: true, body: true, legs: true };
+            function draw() {
+                const o = { rarities: HW.RARITY_ORDER.filter(k => pick[k]), slots: SBArmor.SLOT_ORDER.filter(s => slotPick[s]) };
+                const targets = SBArmor.bulkTargets(hack, o), total = targets.reduce((a, x) => a + SBArmor.sellValue(x), 0);
+                const count = k => hack.armors.filter(a => a.rarity === k && slotPick[a.slot] && !a.locked && hack.armorEq[a.slot] !== a.id).length;
+                R.innerHTML = '<h3 style="margin:0">🗑 防具の一括売却</h3><div style="font-size:.82rem;color:#9fb3d9">売りたいレア度と部位にチェックを入れてください。装備中・ロック中の防具は売られません。</div>' +
+                    '<div class="sbl-sec">売るレア度</div>' + HW.RARITY_ORDER.map(k => '<label style="display:block;margin:2px 0;color:' + HW.RARITIES[k].color + '"><input type="checkbox" data-r="' + k + '"' + (pick[k] ? ' checked' : '') + '> ' + HW.RARITIES[k].label + '（' + count(k) + '個）</label>').join('') +
+                    '<div class="sbl-sec">売る部位</div>' + SBArmor.SLOT_ORDER.map(s => '<label style="margin-right:10px"><input type="checkbox" data-s="' + s + '"' + (slotPick[s] ? ' checked' : '') + '> ' + SBArmor.SLOTS[s].icon + SBArmor.SLOTS[s].label + '</label>').join('') +
+                    '<div style="margin:10px 0;font-size:1rem"><b>' + targets.length + '個</b> を売却 → <b style="color:#ffd84a">' + total + ' コイン</b></div>' +
+                    '<button class="sbl-btn red" id="arBulkGo"' + (targets.length ? '' : ' disabled') + '>売却する</button><button class="sbl-btn gray" id="arBulkCancel">やめる</button>';
+                R.querySelectorAll('[data-r]').forEach(c => c.addEventListener('change', () => { pick[c.dataset.r] = c.checked; draw(); }));
+                R.querySelectorAll('[data-s]').forEach(c => c.addEventListener('change', () => { slotPick[c.dataset.s] = c.checked; draw(); }));
+                R.querySelector('#arBulkCancel').addEventListener('click', () => renderDetail());
+                R.querySelector('#arBulkGo').addEventListener('click', () => {
+                    const hi = targets.filter(x => x.rarity === 'epic' || x.rarity === 'legendary').length;
+                    if (!confirm(targets.length + '個を売却して ' + total + ' コインを得ます。' + (hi ? '\n※エピック／レジェンドが ' + hi + '個 含まれています！' : '') + '\nよろしいですか？')) return;
+                    const r = SBArmor.bulkSell(hack, o);
+                    addCoins(r.coins); HW.save(hack); selId = null; renderList(); renderDetail();
+                });
+            }
+            draw();
+        }
+        renderList(); renderDetail();
+    }
+
     function checkWorldNotice() {
         try {
             if (!window.HW) return;
