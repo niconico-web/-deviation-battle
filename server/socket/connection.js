@@ -8,6 +8,7 @@ const RoomManager = require("../managers/RoomManager");
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
 const PlayerDataManager = require("../managers/PlayerDataManager");
+const ExtraDataManager = require("../managers/ExtraDataManager");
 
 // BattleManagerのタイマー管理を使用
 const disconnectTimers = BattleManager.disconnectTimers;
@@ -435,6 +436,18 @@ module.exports = function(io){
                 socket.emit("dataError", "無効なプレイヤーデータです。");
             }
         });
+
+        // 引き継ぎ用の「プレイヤー以外のデータ」（武器庫・防具・スキル・ビギナーミッション・シーズンなど）
+        socket.on("saveBundle", (msg) => {
+            const ok = !!(msg && ExtraDataManager.saveBundle(msg.id, msg.bundle));
+            socket.emit("bundleSaved", { id: msg && msg.id, ok: ok, manual: !!(msg && msg.manual) });
+        });
+        socket.on("loadBundle", (playerId) => {
+            socket.emit("bundleLoaded", { id: playerId, bundle: ExtraDataManager.getBundle(playerId) });
+        });
+        // シーズンのPvPイベント
+        socket.on("pvpEvent:report", (m) => { if (m) ExtraDataManager.reportEvent(m.seasonId, m.id, m.name, m.pts, m.wins, m.plays); });
+        socket.on("pvpEvent:ranking", (m) => { socket.emit("pvpEvent:rankingData", Object.assign({ seasonId: m && m.seasonId }, ExtraDataManager.eventRanking(m && m.seasonId, m && m.id))); });
 
         socket.on("loadData", (playerId) => {
             if (playerId) {
