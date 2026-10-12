@@ -12,6 +12,7 @@ app.use(express.json());
 app.get("/api/time", (req, res) => { res.set("Cache-Control", "no-store"); res.json({ now: Date.now() }); });
 const server = http.createServer(app);
 const io = new Server(server, {
+    maxHttpBufferSize: 20 * 1024 * 1024,   // 引き継ぎデータ（武器庫など）は1MBを超えることがある。既定の1MBだと、保存しようとした瞬間に接続が切れていた
     pingInterval: 25000,
     pingTimeout: 60000,
     transports: ["websocket", "polling"],
