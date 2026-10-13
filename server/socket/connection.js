@@ -8,6 +8,7 @@ const RoomManager = require("../managers/RoomManager");
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
 const PlayerDataManager = require("../managers/PlayerDataManager");
+const ExtraDataManager = require("../managers/ExtraDataManager");
 
 // BattleManagerのタイマー管理を使用
 const disconnectTimers = BattleManager.disconnectTimers;
@@ -434,6 +435,47 @@ module.exports = function(io){
             } else {
                 socket.emit("dataError", "無効なプレイヤーデータです。");
             }
+        });
+
+        // 引き継ぎ用の「プレイヤー以外のデータ」（武器庫・防具・スキル・ビギナーミッション・シーズンなど）
+        socket.on("saveBundle", (msg) => {
+            const ok = !!(msg && ExtraDataManager.saveBundle(msg.id, msg.bundle));
+            socket.emit("bundleSaved", { id: msg && msg.id, ok: ok, manual: !!(msg && msg.manual) });
+        });
+        socket.on("loadBundle", (playerId) => {
+            socket.emit("bundleLoaded", { id: playerId, bundle: ExtraDataManager.getBundle(playerId) });
+        });
+        // シーズンのPvPイベント
+        socket.on("pvpEvent:report", (m) => { if (m) ExtraDataManager.reportEvent(m.seasonId, m.id, m.name, m.pts, m.wins, m.plays); });
+        socket.on("pvpEvent:ranking", (m) => { socket.emit("pvpEvent:rankingData", Object.assign({ seasonId: m && m.seasonId }, ExtraDataManager.eventRanking(m && m.seasonId, m && m.id))); });
+
+        // ---------- 端末の連携（同期）----------
+        //  2台の端末が同じプレイヤーIDを共有し、どちらで進めても自動で反映し合う。
+        //  サーバーは「版（rev）」を持つ。端末は「最後に同期した版（baseRev）」を添えて保存し、
+        //  サーバーの版と違えば＝もう一方の端末が先に更新している → 上書きせず衝突として知らせる（force で強制上書き）
+        const syncInfo = (id) => {
+            const pl = PlayerDataManager.getPlayer(id), b = ExtraDataManager.getBundle(id);
+            return { id: id, exists: !!pl, rev: (b && b.rev) || 0, at: (b && b.at) || 0, name: pl ? pl.name : "", level: pl ? (pl.level || 1) : 0, coins: pl ? (pl.coins || 0) : 0 };
+        };
+        const okId = (id) => /^[A-Za-z0-9]{4,12}$/.test(String(id || ""));
+        socket.on("sync:status", (m) => { if (m && okId(m.id)) socket.emit("sync:status", syncInfo(m.id)); });
+        socket.on("sync:push", (m) => {
+            if (!m || !okId(m.id) || !m.player || m.player.id !== m.id) { socket.emit("sync:pushed", { ok: false, reason: "invalid" }); return; }
+            const cur = syncInfo(m.id);
+            const base = Number(m.baseRev) || 0;
+            if (!m.force && cur.exists && cur.rev !== base) { socket.emit("sync:pushed", Object.assign({ ok: false, conflict: true }, cur, { manual: !!m.manual })); return; }
+            if (!PlayerDataManager.savePlayer(m.player)) { socket.emit("sync:pushed", { ok: false, reason: "player", manual: !!m.manual }); return; }
+            const nextRev = cur.rev + 1;
+            const bundleOk = m.bundle ? ExtraDataManager.saveBundle(m.id, m.bundle, nextRev) : ExtraDataManager.saveBundle(m.id, { items: {} }, nextRev);
+            if (!bundleOk) { socket.emit("sync:pushed", { ok: false, reason: "size", manual: !!m.manual }); return; }
+            socket.emit("sync:pushed", { ok: true, rev: nextRev, at: Date.now(), manual: !!m.manual, token: m.token });
+        });
+        socket.on("sync:pull", (m) => {
+            if (!m || !okId(m.id)) { socket.emit("sync:pulled", { ok: false, reason: "invalid" }); return; }
+            const pl = PlayerDataManager.getPlayer(m.id);
+            if (!pl) { socket.emit("sync:pulled", { ok: false, notFound: true, link: !!m.link }); return; }
+            const b = ExtraDataManager.getBundle(m.id);
+            socket.emit("sync:pulled", { ok: true, id: m.id, rev: (b && b.rev) || 0, at: (b && b.at) || 0, player: pl, items: (b && b.items) || null, link: !!m.link });
         });
 
         socket.on("loadData", (playerId) => {
