@@ -97,11 +97,50 @@
             <canvas id="layoutCanvas" width="340" height="280"></canvas>
             <div id="layoutList"></div>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> 4e1619961d06f0e8b2503bc697490514aec6bee1
+>>>>>>> 4ad659fde8a16a920c2fdb4afcd31f9db80d814c
+>>>>>>> eea96c3a1ea13bedbab338eec49e60ff4e9a5cdd
+>>>>>>> 9e04c6540cca8842d4d7732c094febc9a89e3796
+>>>>>>> 0e737a2b5db715921a209d39a4cdc61519b1a951
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
             <div class="step">⑤ 属性を付ける（任意・消費エネルギー+12%）</div>
             <div class="lay-note">属性を付けると、技のダメージに「属性ダメージ」が上乗せされます（強さは勉強で決まり、特殊ステータスでも伸びます）。敵の弱点属性なら1.6倍、耐性なら0.5倍。命中時の追加効果は属性ごとに違います。</div>
             <div id="elemPick" class="opts"></div>
             <div class="lay-note" id="elemInfo"></div>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4e1619961d06f0e8b2503bc697490514aec6bee1
+>>>>>>> 4ad659fde8a16a920c2fdb4afcd31f9db80d814c
+>>>>>>> eea96c3a1ea13bedbab338eec49e60ff4e9a5cdd
+>>>>>>> 9e04c6540cca8842d4d7732c094febc9a89e3796
+>>>>>>> 0e737a2b5db715921a209d39a4cdc61519b1a951
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
             <div class="summary" id="summary"></div>
             <div>
                 <button type="button" class="primary" id="saveBtn">新しいスキルとして保存</button>
@@ -252,7 +291,13 @@
     // ---------- 自由配置エディタ ----------
     const LC = document.getElementById('layoutCanvas'), LCX = LC.getContext('2d');
     const OX = 70, OY = 140, SC = 0.45, COLORS = ['#64d8ff', '#ffd54a', '#ff8fa3', '#9dff9d', '#d6a8ff', '#ffb070', '#7fe3d0', '#c0c8ff'];
+
     const POS_FORMS = ['projectile', 'laser', 'slash', 'nova', 'meteor', 'thrust', 'domain', 'summon', 'barrage'];     // 位置（前後・左右）を使う形
+
+
+    // 位置（前後・左右）を使う形
+
+
     const ANG_FORMS = ['projectile', 'laser', 'slash', 'thrust', 'flash'];             // 向きを使う形
     let dragIdx = -1;
 
@@ -270,15 +315,33 @@
         let cx = OX, cy = OY, avg = lay.reduce((a, q) => a + q.s, 0) / lay.length;
         lay.forEach((q, i) => {
             const col = COLORS[i % COLORS.length], a = q.a * Math.PI / 180;
+
             const bx0 = f === 'barrage' ? 260 : 0;      // 包囲弾幕は、位置が「狙った敵（図の右のほう）」からのずれ
             const px = OX + (q.fw + bx0) * SC, py = OY + q.sd * SC;
+
+
+
             g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2;
             if (f === 'projectile') { g.globalAlpha = 0.35; g.beginPath(); g.arc(px, py, Math.max(3, p.radius * q.s * SC), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * p.range * SC * 0.5, py + Math.sin(a) * p.range * SC * 0.5); g.setLineDash([4, 4]); g.stroke(); g.setLineDash([]); }
             else if (f === 'laser' || f === 'thrust') { const len = Math.min(900, (f === 'laser' ? p.length : p.length) * q.s), w = f === 'laser' ? p.width * Math.pow(q.s, 0.7) : p.width * Math.sqrt(q.s); g.globalAlpha = 0.45; g.lineWidth = Math.max(2, w * SC); g.beginPath(); g.moveTo(px, py); g.lineTo(px + Math.cos(a) * len * SC, py + Math.sin(a) * len * SC); g.stroke(); g.globalAlpha = 1; }
             else if (f === 'slash') { g.globalAlpha = 0.35; g.beginPath(); g.moveTo(px, py); g.arc(px, py, p.radius * q.s * SC, a - p.arc / 2, a + p.arc / 2); g.closePath(); g.fill(); g.globalAlpha = 1; }
+
             else if (f === 'barrage') { g.globalAlpha = 0.5; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, p.ringR * q.s * SC, 0, Math.PI * 2); g.stroke(); for (let b = 0; b < 16; b++) { const aa = b * Math.PI / 8; g.beginPath(); g.arc(px + Math.cos(aa) * p.ringR * q.s * SC, py + Math.sin(aa) * p.ringR * q.s * SC, 2.5, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1; g.fillStyle = '#ff8a8a'; g.beginPath(); g.arc(OX + 260 * SC, OY, 5, 0, Math.PI * 2); g.fill(); }
             else if (f === 'summon') { g.globalAlpha = 0.5; g.beginPath(); g.arc(px, py, Math.max(5, (13 + 6 * q.s) * SC * 1.6), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
             else if (f === 'nova' || f === 'meteor' || f === 'domain') { g.globalAlpha = 0.3; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.lineWidth = 1; g.stroke(); }
+
+
+            else if (f === 'barrage') { g.globalAlpha = 0.5; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, p.ringR * q.s * SC, 0, Math.PI * 2); g.stroke(); for (let b = 0; b < 16; b++) { const aa = b * Math.PI / 8; g.beginPath(); g.arc(px + Math.cos(aa) * p.ringR * q.s * SC, py + Math.sin(aa) * p.ringR * q.s * SC, 2.5, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1; g.fillStyle = '#ff8a8a'; g.beginPath(); g.arc(OX + 260 * SC, OY, 5, 0, Math.PI * 2); g.fill(); }
+            else if (f === 'summon') { g.globalAlpha = 0.5; g.beginPath(); g.arc(px, py, Math.max(5, (13 + 6 * q.s) * SC * 1.6), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+
+
+            else if (f === 'barrage') { g.globalAlpha = 0.5; g.lineWidth = 1.5; g.beginPath(); g.arc(px, py, p.ringR * q.s * SC, 0, Math.PI * 2); g.stroke(); for (let b = 0; b < 16; b++) { const aa = b * Math.PI / 8; g.beginPath(); g.arc(px + Math.cos(aa) * p.ringR * q.s * SC, py + Math.sin(aa) * p.ringR * q.s * SC, 2.5, 0, Math.PI * 2); g.fill(); } g.globalAlpha = 1; g.fillStyle = '#ff8a8a'; g.beginPath(); g.arc(OX + 260 * SC, OY, 5, 0, Math.PI * 2); g.fill(); }
+            else if (f === 'summon') { g.globalAlpha = 0.5; g.beginPath(); g.arc(px, py, Math.max(5, (13 + 6 * q.s) * SC * 1.6), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+
+
+            else if (f === 'summon') { g.globalAlpha = 0.5; g.beginPath(); g.arc(px, py, Math.max(5, (13 + 6 * q.s) * SC * 1.6), 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; }
+       else if (f === 'nova' || f === 'meteor' || f === 'domain') { g.globalAlpha = 0.3; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1; g.beginPath(); g.arc(px, py, p.radius * q.s * SC, 0, Math.PI * 2); g.lineWidth = 1; g.stroke(); }
+
             else if (f === 'flash') { const nx = cx + Math.cos(a) * p.dist * q.s * SC, ny = cy + Math.sin(a) * p.dist * q.s * SC; g.globalAlpha = 0.6; g.lineWidth = Math.max(3, p.width * Math.sqrt(q.s) * SC); g.beginPath(); g.moveTo(cx, cy); g.lineTo(nx, ny); g.stroke(); g.globalAlpha = 1; cx = nx; cy = ny; }
             else if (f === 'orbit') { /* 旋回は下でまとめて描く */ }
             // 印（番号）
@@ -338,13 +401,37 @@
     LC.addEventListener('pointerdown', (ev) => {
         if (!draft.layout || POS_FORMS.indexOf(draft.form) < 0) return;
         const pt = canvasPoint(ev); let best = -1, bd = 22;
+
         draft.layout.forEach((q, i) => { const d = Math.hypot(OX + (q.fw + (draft.form === 'barrage' ? 260 : 0)) * SC - pt.x, OY + q.sd * SC - pt.y); if (d < bd) { bd = d; best = i; } });
+
+
+        draft.layout.forEach((q, i) => { const d = Math.hypot(OX + (q.fw + (draft.form === 'barrage' ? 260 : 0)) * SC - pt.x, OY + q.sd * SC - pt.y); if (d < bd) { bd = d; best = i; } });
+
+
+        draft.layout.forEach((q, i) => { const d = Math.hypot(OX + (q.fw + (draft.form === 'barrage' ? 260 : 0)) * SC - pt.x, OY + q.sd * SC - pt.y); if (d < bd) { bd = d; best = i; } });
+
+        draft.layout.forEach((q, i) => { const d = Math.hypot(OX + q.fw * SC - pt.x, OY + q.sd * SC - pt.y); if (d < bd) { bd = d; best = i; } });
+
+
+
         if (best >= 0) { dragIdx = best; LC.setPointerCapture(ev.pointerId); ev.preventDefault(); }
     });
     LC.addEventListener('pointermove', (ev) => {
         if (dragIdx < 0 || !draft.layout) return;
         const pt = canvasPoint(ev), q = draft.layout[dragIdx];
+
         q.fw = Math.round(Math.max(-150, Math.min(450, (pt.x - OX) / SC - (draft.form === 'barrage' ? 260 : 0))) / 5) * 5;
+
+
+        q.fw = Math.round(Math.max(-150, Math.min(450, (pt.x - OX) / SC - (draft.form === 'barrage' ? 260 : 0))) / 5) * 5;
+
+
+        q.fw = Math.round(Math.max(-150, Math.min(450, (pt.x - OX) / SC - (draft.form === 'barrage' ? 260 : 0))) / 5) * 5;
+
+        q.fw = Math.round(Math.max(-150, Math.min(450, (pt.x - OX) / SC)) / 5) * 5;
+
+
+
         q.sd = Math.round(Math.max(-300, Math.min(300, (pt.y - OY) / SC)) / 5) * 5;
         drawLayout(); renderSummary();
     });
@@ -358,8 +445,15 @@
         if (p.form === 'laser') detail = '本数 ' + p.count + ' ／ 長さ ' + Math.round(p.length) + ' ／ 幅 ' + Math.round(p.width);
         if (p.form === 'slash') detail = '連続 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius) + ' ／ 角度 ' + Math.round(p.arc * 180 / Math.PI) + '°';
         if (p.form === 'nova') detail = '波 ' + p.count + '回 ／ 半径 ' + Math.round(p.radius);
+
         if (p.form === 'barrage') detail = '包囲弾幕 輪' + p.count + '個 ／ 1輪あたり弾' + p.bullets + '発（4回に分けて出る）／ 狙った敵の周りに出て、一斉に襲いかかる。配置の位置は「狙った敵からのずれ」';
         if (p.form === 'summon') detail = 'ミニオン ' + p.count + '体 ／ ' + Math.round(p.duration) + '秒間 ／ 敵を追いかけて殴る（ダメージ・デバフは敵に、バフ・回復は召喚者に）。同じスキルを使い直すと前のミニオンは消える';
+
+
+
+       
+
+
         if (p.form === 'domain') detail = '領域 ' + p.count + '個 ／ 半径 ' + Math.round(p.radius) + ' ／ ' + p.duration + '秒間 ／ デバフ・ダメージは中の敵全員、回復・バフは中の味方全員（自分も）';
         if (p.form === 'thrust') detail = '突き ' + p.count + '回 ／ 長さ ' + Math.round(p.length) + ' ／ 太さ ' + Math.round(p.width) + ' ／ 敵を貫く';
         if (p.form === 'flash') detail = '一閃 ' + p.count + '回 ／ 1回の移動 ' + Math.round(p.dist) + ' ／ 通り道を斬る・移動中は無敵';
