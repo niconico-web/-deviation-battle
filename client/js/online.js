@@ -874,6 +874,7 @@ function setupOnlineEventHandlers() {
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
                 setTimeout(() => {
+                    if (typeof cancelStudyTimer === 'function') cancelStudyTimer();   // 勉強タイマー中なら0に戻す
                     location.href = "battle.html";
                 }, 50);
             };
@@ -1048,6 +1049,7 @@ function setupOnlineEventHandlers() {
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
                 cleanupListeners();
                 setTimeout(() => {
+                    if (typeof cancelStudyTimer === 'function') cancelStudyTimer();   // 勉強タイマー中なら0に戻す
                     location.href = "battle.html";
                 }, 50);
             };
@@ -1136,6 +1138,7 @@ function setupOnlineEventHandlers() {
                 localStorage.setItem("battlePlayer", JSON.stringify(data.me));
                 localStorage.setItem("enemy", JSON.stringify(data.enemy));
                 setTimeout(() => {
+                    if (typeof cancelStudyTimer === 'function') cancelStudyTimer();   // 勉強タイマー中なら0に戻す
                     location.href = "battle.html";
                 }, 50); // 50ミリ秒待機
             };
