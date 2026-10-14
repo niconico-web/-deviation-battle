@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
 <script>
@@ -132,10 +132,20 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                     <p id="syncStatus" class="help-text"></p>
                     <button type="button" id="saveDataBtn" class="btn btn-primary" disabled>いますぐ同期</button>
                     <button type="button" id="loadDataBtn" class="btn btn-secondary">下のIDと連携する</button>
+
+                    <h3>データ管理（端末の連携）</h3>
+                    <p>プレイヤーID（連携ID）: <span id="currentPlayerId">---</span></p>
+                    <p class="help-text">スマホとパソコンなど、2台の端末で同じキャラクターを遊べます。もう1台にこのIDを入力して連携すると、どちらで進めても自動で反映し合います（武器・防具・スキルなども同じ）。</p>
+                    <p id="syncStatus" class="help-text"></p>
+                    <button type="button" id="saveDataBtn" class="btn btn-primary" disabled>いますぐ同期</button>
+
+                    <button type="button" id="syncPwBtn" class="btn btn-secondary">🔒 連携パスワードを設定・変更</button>
+
                     <div class="field-group">
                         <label class="field-label" for="loadPlayerId">連携するプレイヤーID（もう1台の端末のID）</label>
                         <input type="text" id="loadPlayerId" placeholder="6文字のIDを入力" maxlength="6">
                     </div>
+                    <button type="button" id="loadDataBtn" class="btn btn-secondary">この端末を、そのIDと連携する</button>
                 </div>
                 <button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">プレイヤー削除</button>
             </section>
@@ -740,8 +750,13 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/orientation.js"></script>
     <script src="js/season.js"></script>
     <script src="js/hw-weapons.js"></script>
+
     <script src="js/pvp-event.js"></script>
     <script src="js/debug.js"></script>
+
+
+
+
     <script src="js/elements.js"></script>
     <script src="js/armor.js"></script>
     <script src="js/stage-data.js"></script>

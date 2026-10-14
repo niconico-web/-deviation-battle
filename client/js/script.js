@@ -954,7 +954,9 @@ function syncPlayerToServer(silent) {
 //  ・勉強タイマー中は取り込まない（タイマーが止まらないように）
 // ============================================================
 const SYNC_META_KEY = 'sbSyncMeta';
+
 let syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+
 function loadSyncMeta() { try { const m = JSON.parse(localStorage.getItem(SYNC_META_KEY) || 'null'); return m && typeof m === 'object' ? m : null; } catch (e) { return null; } }
 function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_KEY, JSON.stringify(m)); } catch (e) { /* 容量不足 */ } renderSyncStatus(); }
 function currentSyncHash() {
@@ -964,6 +966,32 @@ function currentSyncHash() {
     return (h >>> 0).toString(36) + ':' + n;
 }
 function syncOnline() { return !!(window.socket && window.socket.connected); }
+
+// ---- 連携パスワード ----
+//  パスワードを設定したIDは、パスワードを入力した端末だけが同期できる。入力した端末は、サーバーから「合言葉（トークン）」をもらって覚える（この端末だけの記録 sbSyncAuth。引き継ぎデータには入らない）
+let syncHasPw = false, loginRetry = null, loginTries = 0;
+function getSyncToken(id) { try { const o = JSON.parse(localStorage.getItem('sbSyncAuth') || '{}'); return (o && o[String(id)]) || undefined; } catch (e) { return undefined; } }
+function setSyncToken(id, t) { try { const o = JSON.parse(localStorage.getItem('sbSyncAuth') || '{}') || {}; if (t) o[String(id)] = t; else delete o[String(id)]; localStorage.setItem('sbSyncAuth', JSON.stringify(o)); } catch (e) { /* 容量不足など */ } }
+function askLogin(id, retry) {         // パスワードを聞いて、サーバーで認証する。成功したら retry() を実行
+    if (!syncManual) { setSyncText('🔒 このIDはパスワードで保護されています。「いますぐ同期」を押して、パスワードを入力してください'); return; }   // 自動同期では、勝手に入力画面を出さない
+    const pw = prompt('このプレイヤーID（' + id + '）は、連携パスワードで保護されています。\nパスワードを入力してください。');
+    if (pw === null) { syncManual = false; renderSyncStatus(); return; }
+    loginRetry = retry; window.socket.emit('sync:login', { id: id, password: pw });
+}
+function setSyncPassword() {           // パスワードの設定・変更・解除
+    const p = getPlayerData(); if (!p) return;
+    if (!syncOnline()) { alert('サーバーに接続されていません。通信できる状態でお試しください。'); return; }
+    let current;
+    if (syncHasPw) {
+        current = prompt('いまの連携パスワードを入力してください。');
+        if (current === null) return;
+    }
+    const pw = prompt((syncHasPw ? '新しいパスワード' : '連携パスワード') + '（6〜64文字）を入力してください。' + (syncHasPw ? '\n空のまま[OK]で、パスワードを解除します。' : '\n\nパスワードを設定すると、このIDで連携するときにパスワードが必要になります。IDを知っているだけの人は連携できなくなります。\n※パスワードを忘れても復元できません。') );
+    if (pw === null) return;
+    if (pw !== '') { const again = prompt('確認のため、もう一度入力してください。'); if (again === null) return; if (again !== pw) { alert('パスワードが一致しません。'); return; } }
+    window.socket.emit('sync:setPassword', { id: p.id, token: getSyncToken(p.id), current: current, password: pw });
+}
+
 function runSync(manual) {            // 状態を問い合わせて、送る／取り込む／衝突を判断する（結果は sync:status の返事で処理）
     const player = getPlayerData();
     if (!player) return false;
@@ -972,7 +1000,11 @@ function runSync(manual) {            // 状態を問い合わせて、送る／
     if (Date.now() - syncBusyAt < 1500 && !manual) return true;     // 連打防止
     syncBusyAt = Date.now(); syncManual = syncManual || !!manual;
     setSyncText('🔄 同期中…');
+
     window.socket.emit('sync:status', { id: player.id });
+
+    window.socket.emit('sync:status', { id: player.id, token: getSyncToken(player.id) });
+
     return true;
 }
 function pushSync(force) {
@@ -980,6 +1012,7 @@ function pushSync(force) {
     const meta = loadSyncMeta(), base = meta && meta.id === player.id ? (meta.rev || 0) : 0;
     syncPushHash = currentSyncHash();
     window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
+
 }
 function applyPulled(r) {              // サーバーのデータをこの端末へ反映して、再読み込み
     if (!r || !r.ok || !r.player) return false;
@@ -1001,7 +1034,9 @@ function renderSyncStatus() {
     if (!p) { el.textContent = ''; return; }
     if (!meta || meta.id !== p.id) { el.textContent = '🔗 まだ連携していません。「いますぐ同期」を押すと、このIDで連携が始まります。'; return; }
     const m = Math.floor((Date.now() - (meta.at || 0)) / 60000);
+
     el.textContent = '🔗 連携中（最後の同期：' + (m < 1 ? 'たった今' : m < 60 ? m + '分前' : Math.floor(m / 60) + '時間前') + '）　変更は自動で反映されます';
+
 }
 function showSyncToast(t) {
     const d = document.createElement('div'); d.textContent = t;
@@ -1033,6 +1068,13 @@ function setupSyncHandlers() {
     if (!window.socket || window.__syncHandlers === window.socket) return; window.__syncHandlers = window.socket;
     window.socket.on('sync:status', (st) => {
         const p = getPlayerData(); if (!p || !st || st.id !== p.id) { syncManual = false; return; }
+
+        if (st.authRequired) { syncHasPw = true; askLogin(p.id, () => runSync(true)); return; }       // パスワードが必要（この端末はまだ認証していない）
+        syncHasPw = !!st.hasPassword; renderSyncStatus();
+
+        if (st.authRequired) { syncHasPw = true; askLogin(p.id, () => runSync(true)); return; }       // パスワードが必要（この端末はまだ認証していない）
+        syncHasPw = !!st.hasPassword; renderSyncStatus();
+
         const meta = loadSyncMeta(), linked = !!(meta && meta.id === p.id);
         const dirty = !linked || currentSyncHash() !== meta.hash;
         const serverNewer = st.exists && st.rev > (linked ? meta.rev : 0);
@@ -1108,7 +1150,9 @@ function sendBundle(manual) {
     return true;
 }
 // 画面を閉じる・切り替えるときにも、最新の状態を送っておく（変更があるときだけ。衝突しても勝手には上書きしない）
+
 document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false }); } } });
+
 
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
@@ -1794,6 +1838,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveDataBtn = document.getElementById('saveDataBtn');
         if (saveDataBtn) {
             saveDataBtn.addEventListener('click', () => { syncManual = true; runSync(true); });
+
+            const pwBtn = document.getElementById('syncPwBtn'); if (pwBtn) pwBtn.addEventListener('click', setSyncPassword);
+
         }
 
         const loadDataBtn = document.getElementById('loadDataBtn');
@@ -1809,8 +1856,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 if (confirm(`プレイヤーID: ${loadPlayerId} と連携します。\n\nこの端末のデータは、そのIDのデータに置き換わります。\n以後は、2台の端末が同じキャラクターとして、自動で反映し合います。\n（連携を始める前に、もう一方の端末で「いますぐ同期」を押しておいてください）\n\nよろしいですか？`)) {
+
                     syncManual = true;
                     window.socket.emit('sync:pull', { id: loadPlayerId, link: true });
+
+                    syncManual = true; pullTarget = loadPlayerId;
+                    window.socket.emit('sync:pull', { id: loadPlayerId, link: true, token: getSyncToken(loadPlayerId) });
+
+                    syncManual = true; pullTarget = loadPlayerId;
+                    window.socket.emit('sync:pull', { id: loadPlayerId, link: true, token: getSyncToken(loadPlayerId) });
+
                 }
             });
         }
