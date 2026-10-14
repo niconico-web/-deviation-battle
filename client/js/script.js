@@ -954,7 +954,15 @@ function syncPlayerToServer(silent) {
 //  ・勉強タイマー中は取り込まない（タイマーが止まらないように）
 // ============================================================
 const SYNC_META_KEY = 'sbSyncMeta';
+<<<<<<< HEAD
 let pullTarget = null, syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+=======
+<<<<<<< HEAD
+let pullTarget = null, syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+=======
+let syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 function loadSyncMeta() { try { const m = JSON.parse(localStorage.getItem(SYNC_META_KEY) || 'null'); return m && typeof m === 'object' ? m : null; } catch (e) { return null; } }
 function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_KEY, JSON.stringify(m)); } catch (e) { /* 容量不足 */ } renderSyncStatus(); }
 function currentSyncHash() {
@@ -964,6 +972,10 @@ function currentSyncHash() {
     return (h >>> 0).toString(36) + ':' + n;
 }
 function syncOnline() { return !!(window.socket && window.socket.connected); }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 // ---- 連携パスワード ----
 //  パスワードを設定したIDは、パスワードを入力した端末だけが同期できる。入力した端末は、サーバーから「合言葉（トークン）」をもらって覚える（この端末だけの記録 sbSyncAuth。引き継ぎデータには入らない）
 let syncHasPw = false, loginRetry = null, loginTries = 0;
@@ -988,6 +1000,11 @@ function setSyncPassword() {           // パスワードの設定・変更・�
     if (pw !== '') { const again = prompt('確認のため、もう一度入力してください。'); if (again === null) return; if (again !== pw) { alert('パスワードが一致しません。'); return; } }
     window.socket.emit('sync:setPassword', { id: p.id, token: getSyncToken(p.id), current: current, password: pw });
 }
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 function runSync(manual) {            // 状態を問い合わせて、送る／取り込む／衝突を判断する（結果は sync:status の返事で処理）
     const player = getPlayerData();
     if (!player) return false;
@@ -996,14 +1013,30 @@ function runSync(manual) {            // 状態を問い合わせて、送る／
     if (Date.now() - syncBusyAt < 1500 && !manual) return true;     // 連打防止
     syncBusyAt = Date.now(); syncManual = syncManual || !!manual;
     setSyncText('🔄 同期中…');
+<<<<<<< HEAD
     window.socket.emit('sync:status', { id: player.id, token: getSyncToken(player.id) });
+=======
+<<<<<<< HEAD
+    window.socket.emit('sync:status', { id: player.id, token: getSyncToken(player.id) });
+=======
+    window.socket.emit('sync:status', { id: player.id });
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
     return true;
 }
 function pushSync(force) {
     const player = getPlayerData(); if (!player || !syncOnline()) return;
     const meta = loadSyncMeta(), base = meta && meta.id === player.id ? (meta.rev || 0) : 0;
     syncPushHash = currentSyncHash();
+<<<<<<< HEAD
     window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force, token: getSyncToken(player.id) });
+=======
+<<<<<<< HEAD
+    window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force, token: getSyncToken(player.id) });
+=======
+    window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 }
 function applyPulled(r) {              // サーバーのデータをこの端末へ反映して、再読み込み
     if (!r || !r.ok || !r.player) return false;
@@ -1025,7 +1058,15 @@ function renderSyncStatus() {
     if (!p) { el.textContent = ''; return; }
     if (!meta || meta.id !== p.id) { el.textContent = '🔗 まだ連携していません。「いますぐ同期」を押すと、このIDで連携が始まります。'; return; }
     const m = Math.floor((Date.now() - (meta.at || 0)) / 60000);
+<<<<<<< HEAD
     el.textContent = '🔗 連携中（最後の同期：' + (m < 1 ? 'たった今' : m < 60 ? m + '分前' : Math.floor(m / 60) + '時間前') + '）　変更は自動で反映されます　／　🔒 パスワード：' + (syncHasPw ? '設定済み' : '未設定');
+=======
+<<<<<<< HEAD
+    el.textContent = '🔗 連携中（最後の同期：' + (m < 1 ? 'たった今' : m < 60 ? m + '分前' : Math.floor(m / 60) + '時間前') + '）　変更は自動で反映されます　／　🔒 パスワード：' + (syncHasPw ? '設定済み' : '未設定');
+=======
+    el.textContent = '🔗 連携中（最後の同期：' + (m < 1 ? 'たった今' : m < 60 ? m + '分前' : Math.floor(m / 60) + '時間前') + '）　変更は自動で反映されます';
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 }
 function showSyncToast(t) {
     const d = document.createElement('div'); d.textContent = t;
@@ -1057,8 +1098,16 @@ function setupSyncHandlers() {
     if (!window.socket || window.__syncHandlers === window.socket) return; window.__syncHandlers = window.socket;
     window.socket.on('sync:status', (st) => {
         const p = getPlayerData(); if (!p || !st || st.id !== p.id) { syncManual = false; return; }
+<<<<<<< HEAD
         if (st.authRequired) { syncHasPw = true; askLogin(p.id, () => runSync(true)); return; }       // パスワードが必要（この端末はまだ認証していない）
         syncHasPw = !!st.hasPassword; renderSyncStatus();
+=======
+<<<<<<< HEAD
+        if (st.authRequired) { syncHasPw = true; askLogin(p.id, () => runSync(true)); return; }       // パスワードが必要（この端末はまだ認証していない）
+        syncHasPw = !!st.hasPassword; renderSyncStatus();
+=======
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
         const meta = loadSyncMeta(), linked = !!(meta && meta.id === p.id);
         const dirty = !linked || currentSyncHash() !== meta.hash;
         const serverNewer = st.exists && st.rev > (linked ? meta.rev : 0);
@@ -1156,7 +1205,15 @@ function sendBundle(manual) {
     return true;
 }
 // 画面を閉じる・切り替えるときにも、最新の状態を送っておく（変更があるときだけ。衝突しても勝手には上書きしない）
+<<<<<<< HEAD
 document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false, token: getSyncToken(p.id) }); } } });
+=======
+<<<<<<< HEAD
+document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false, token: getSyncToken(p.id) }); } } });
+=======
+document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false }); } } });
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
 
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
@@ -1842,7 +1899,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const saveDataBtn = document.getElementById('saveDataBtn');
         if (saveDataBtn) {
             saveDataBtn.addEventListener('click', () => { syncManual = true; runSync(true); });
+<<<<<<< HEAD
             const pwBtn = document.getElementById('syncPwBtn'); if (pwBtn) pwBtn.addEventListener('click', setSyncPassword);
+=======
+<<<<<<< HEAD
+            const pwBtn = document.getElementById('syncPwBtn'); if (pwBtn) pwBtn.addEventListener('click', setSyncPassword);
+=======
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
         }
 
         const loadDataBtn = document.getElementById('loadDataBtn');
@@ -1858,8 +1922,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 if (confirm(`プレイヤーID: ${loadPlayerId} と連携します。\n\nこの端末のデータは、そのIDのデータに置き換わります。\n以後は、2台の端末が同じキャラクターとして、自動で反映し合います。\n（連携を始める前に、もう一方の端末で「いますぐ同期」を押しておいてください）\n\nよろしいですか？`)) {
+<<<<<<< HEAD
                     syncManual = true; pullTarget = loadPlayerId;
                     window.socket.emit('sync:pull', { id: loadPlayerId, link: true, token: getSyncToken(loadPlayerId) });
+=======
+<<<<<<< HEAD
+                    syncManual = true; pullTarget = loadPlayerId;
+                    window.socket.emit('sync:pull', { id: loadPlayerId, link: true, token: getSyncToken(loadPlayerId) });
+=======
+                    syncManual = true;
+                    window.socket.emit('sync:pull', { id: loadPlayerId, link: true });
+>>>>>>> b200e3108226a53d0752bd0b96120f860ee2d838
+>>>>>>> 04114b3a007a205c99f3b126ac822c78060b7ea5
                 }
             });
         }
