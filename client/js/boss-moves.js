@@ -46,6 +46,7 @@
     const ports  = (t, mode, n, R, life, o) => Object.assign({ t: t, k: 'ports', mode: mode, n: n, R: R, life: life }, o);
     const swords = (t, o) => Object.assign({ t: t, k: 'swords', per: 1, spd: 520, dm: 0.5, frac: 1 }, o);
     const beams  = (t, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beams', r: len, w: w, tele: tele, dm: dm, frac: 1 }, o);
+    const pull   = (t, dur, force, o) => Object.assign({ t: t, k: 'pull', dur: dur, force: force }, o);   // 全員をボスの方へ引き寄せる（force=px/秒）
     const STUN = { stun: true };
 
     function stepEnd(s) {
@@ -54,7 +55,7 @@
             case 'rain': return s.t + s.tele + s.n * (s.gap || 0.15);
             case 'warn': return s.t + s.tele;
             case 'beams': return s.t + s.tele + (s.rep || 0) * (s.gap || 0.3);
-            case 'dash': case 'leap': case 'spiral': return s.t + s.dur;
+            case 'dash': case 'leap': case 'spiral': case 'pull': return s.t + s.dur;
             default: return s.t;
         }
     }
@@ -487,6 +488,76 @@
         def('az_abyss', '深淵の顎', [donut(0, 560, 200, 1.1, 1.5), ring(1.2, 200, 0.8, 1.5), donut(2.0, 560, 200, 1.0, 1.5)], { rec: 0.9 })
     ], def('az_silence', '無音の世界', [ring(0, 450, 1.4, 1.0, STUN)]),
     { ult: def('az_ult', '虚無への回帰', [spiral(0, 3, 260, 0.8, { arms: 5 }), ring(1.0, 320, 1.2, 1.5), line(1.8, 1000, 90, 1.0, 1.8, { aim: 't' }), donut(2.8, 600, 240, 1.0, 1.6), rain(3.4, 16, 80, 1.0, 1.3, { gap: 0.1 })], { ult: true, rec: 1.3 }), ultAt: [0.75, 0.5, 0.25] });
+
+    // ============================================================
+    // ギミックボス（第四・第五世界）。ギミック本体は stage.js（stigma / pressure / gravity / twin / dimension）
+    // ============================================================
+    // --- 炉心の巨人ブラスト：25秒ごとに圧力を溜めて大爆発（安全弁を壊すと阻止）---
+    set('boiler_heart', [
+        def('bh_vent', '蒸気噴射', [cone(0, 300, 100, 0.75, 1.5, { aim: 't' }), cone(0.9, 300, 100, 0.6, 1.5, { aim: 't' })]),
+        def('bh_rivet', 'リベット弾', [fan(0, 7, 10, 380, 0.8), fan(0.5, 7, 10, 380, 0.8), fan(1.0, 9, 10, 380, 0.8)]),
+        def('bh_crush', '圧壊', [ring(0, 200, 0.9, 1.6), donut(1.0, 520, 210, 0.9, 1.4)]),
+        def('bh_run', '暴走蒸気', [warn(0, 640, 90, 0.7), dash(0.7, 0.6, 820), ring(1.6, 170, 0.7, 1.2)], { rec: 0.7 })
+    ], def('bh_scald', '高圧蒸気', [cone(0, 520, 70, 1.2, 0.8, Object.assign({ aim: 't' }, STUN))]));
+
+    // --- 死神グリム・リーパー：10秒ごとにスティグマ。13個で死亡 ---
+    set('grave_of_gears', [
+        def('gg_scythe', '死神の三連鎌', [cone(0, 280, 110, 0.7, 1.5, { aim: 't' }), cone(0.8, 280, 110, 0.6, 1.5, { aim: 't' }), cone(1.5, 320, 150, 0.8, 1.9, { aim: 't' })]),
+        def('gg_souls', '魂狩りの雨', [rain(0, 11, 80, 1.0, 1.3, { gap: 0.12 }), at(1.2, 105, 0.9, 1.4, { who: 'rand' })]),
+        def('gg_reap', '刈り取りの円環', [0, 1, 2, 3, 4, 5].map(i => line(i * 0.22, 860, 56, 0.85, 1.5, { aim: 'l', off: i * 60 })).concat([ring(1.6, 220, 0.8, 1.4)])),
+        def('gg_veil', '死の帳', [spiral(0, 2.6, 250, 0.8, { arms: 3 }), rad(1.2, 22, 250, 0.7)]),
+        def('gg_call', '亡者の招集', [summon(0, 5), fan(0.5, 9, 8, 380, 0.7)])
+    ], def('gg_gaze', '死の凝視', [cone(0, 560, 60, 1.2, 0.8, Object.assign({ aim: 't' }, STUN))]),
+    { ult: def('gg_ult', '終末の鐘', [ring(0, 260, 1.2, 1.5), donut(1.3, 640, 260, 1.0, 1.6), rain(2.2, 14, 80, 1.0, 1.3, { gap: 0.1 }), line(3.2, 1200, 120, 1.0, 1.8, { aim: 't' })], { ult: true, rec: 1.3 }), ultAt: [0.7, 0.4] });
+
+    // --- 重力喰らいグラビトン：全員を中心へ引き寄せてから押し潰す ---
+    set('gravity_well', [
+        def('gw_pull', '重力井戸', [pull(0, 2.2, 260), ring(1.9, 230, 0.8, 1.6)], { rec: 0.9 }),
+        def('gw_orbit', '周回する星', [spiral(0, 2.8, 240, 0.8, { arms: 3 }), rad(1.4, 20, 250, 0.7)]),
+        def('gw_meteor', '隕石の落下', [rain(0, 13, 80, 1.0, 1.3, { gap: 0.1 }), at(1.3, 110, 0.9, 1.4, { who: 'rand' })]),
+        def('gw_crush', '重力崩壊', [pull(0, 1.4, 320), donut(1.0, 560, 200, 0.9, 1.5), ring(1.6, 200, 0.8, 1.5)])
+    ], def('gw_singularity', '特異点', [pull(0, 1.8, 300), ring(1.2, 380, 1.0, 1.0, STUN)]));
+
+    // --- 雷神ゼウス＆火の巨人プロメテウス（ニコイチ。片方を倒すと残った方が15秒で蘇らせる）---
+    set('olympus_zeus', [
+        def('zs_bolt', '雷霆の矢', [line(0, 1000, 60, 0.8, 1.6, { aim: 't' }), line(0.5, 1000, 60, 0.8, 1.6, { aim: 't', off: -18 }), line(1.0, 1000, 60, 0.8, 1.6, { aim: 't', off: 18 })]),
+        def('zs_storm', '雷雨', [rain(0, 13, 78, 1.0, 1.3, { gap: 0.1 }), at(1.3, 100, 0.9, 1.4, { who: 'rand' })]),
+        def('zs_chain', '連鎖雷', [at(0, 95, 0.8, 1.5), at(0.5, 95, 0.8, 1.5, { who: 'rand' }), at(1.0, 95, 0.8, 1.5, { who: 'rand' }), at(1.5, 95, 0.8, 1.5, { who: 'rand' })]),
+        def('zs_orb', '雷球', [fan(0, 5, 14, 420, 0.8), fan(0.5, 7, 14, 420, 0.8), rad(1.2, 18, 260, 0.7)])
+    ], def('zs_judge', '雷霆の裁き', [at(0, 125, 1.2, 0.9, STUN), ring(0.3, 170, 1.0, 1.0)]),
+    { ult: def('zs_ult', '神雷・天罰', [rain(0, 18, 84, 1.0, 1.4, { gap: 0.08 }), line(1.6, 1300, 150, 1.0, 2.0, { aim: 't' }), ring(2.6, 300, 1.1, 1.6), donut(3.5, 640, 300, 1.0, 1.6)], { ult: true, rec: 1.3 }), ultAt: [0.65, 0.3] });
+    set('olympus_prometheus', [
+        def('pm_flame', '炎の噴流', [cone(0, 320, 100, 0.7, 1.5, { aim: 't' }), cone(0.8, 320, 100, 0.6, 1.5, { aim: 't' }), cone(1.5, 360, 150, 0.8, 1.9, { aim: 't' })]),
+        def('pm_gift', '火の贈り物', [rad(0, 24, 230, 0.8), ring(0.8, 200, 0.8, 1.4), rad(1.6, 24, 260, 0.8)]),
+        def('pm_dash', '業火の突進', [warn(0, 640, 90, 0.7), dash(0.7, 0.6, 860), warn(1.5, 640, 90, 0.5, { aim: 't' }), dash(2.0, 0.6, 860, { aim: 't' })], { rec: 0.8 }),
+        def('pm_ember', '火の粉の雨', [rain(0, 13, 80, 1.0, 1.3, { gap: 0.1 }), donut(1.4, 520, 200, 0.9, 1.4)])
+    ], def('pm_bind', '業火の拘束', [ring(0, 330, 1.3, 1.0, STUN)]),
+    { ult: def('pm_ult', '天の火・神罰', [spiral(0, 3, 250, 0.8, { arms: 4 }), ring(1.0, 280, 1.2, 1.6), line(1.8, 1100, 120, 1.0, 1.8, { aim: 't' }), donut(2.8, 620, 260, 1.0, 1.6)], { ult: true, rec: 1.3 }), ultAt: [0.65, 0.3] });
+
+    // --- ディメンション・キーパー：第一形態（核で守られている。放射弾の反射は stage.js が担当）---
+    set('dim_keeper1', [
+        def('d1_rift', '次元の裂け目', [0, 1, 2, 3, 4].map(i => line(i * 0.2, 1000, 60, 0.9, 1.5, { aim: 't', off: (i - 2) * 22 }))),
+        def('d1_fall', '空間の崩落', [rain(0, 12, 80, 1.0, 1.3, { gap: 0.1 }), ring(1.4, 190, 0.8, 1.4)]),
+        def('d1_ring', '次元輪', [donut(0, 520, 200, 1.0, 1.4), ring(1.0, 200, 0.8, 1.4)])
+    ], def('d1_seal', '次元封印', [ring(0, 380, 1.4, 1.0, STUN)]));
+    // --- ディメンション・キーパー：第二形態（強化ゲートキーパー。ゲートから剣とビーム）---
+    set('dim_keeper2', [
+        def('d2_blades', '次元剣の門', [ports(0, 'around', 12, 540, 4.6),
+            swords(1.0, { per: 3, sp: 0.1 }), swords(1.5, { track: true }), swords(2.0, { track: true, per: 2, sp: 0.12 }), swords(2.5, { track: true }), swords(3.0, { track: true, per: 3, sp: 0.12 })]),
+        def('d2_beams', '次元光条の門', [ports(0, 'side', 9, 640, 3.4, { gapY: 130 }), beams(0.9, 1500, 62, 0.9, 1.5),
+            ports(1.9, 'diag', 4, 680, 2.8), beams(2.8, 1300, 90, 0.9, 1.7), ports(3.2, 'sky', 6, 540, 2.2, { gapX: 180 }), beams(4.0, 1500, 60, 0.8, 1.5)], { rec: 0.8 }),
+        def('d2_rain', '千剣の次元雨', [ports(0, 'sky', 14, 520, 4.8, { gapX: 100 }),
+            swords(0.9, { frac: 0.5, spd: 620 }), swords(1.3, { frac: 0.5, spd: 620 }), swords(1.7, { frac: 0.5, spd: 620 }), swords(2.1, { frac: 0.5, spd: 620 }), swords(2.5, { frac: 0.5, spd: 620 }), swords(2.9, { frac: 0.5, spd: 620 }),
+            beams(1.6, 1500, 56, 0.8, 1.4, { frac: 0.25, track: true })]),
+        def('d2_collapse', '門の崩落・極', [ring(0, 420, 1.2, 1.7), donut(1.3, 680, 420, 1.0, 1.6), ports(1.0, 'around', 8, 440, 3.2), swords(2.4, { track: true, per: 3, sp: 0.12 }), beams(3.0, 1400, 72, 0.9, 1.6, { frac: 0.4, track: true })])
+    ], def('d2_seal', '終端の封門', [ports(0, 'around', 8, 440, 2.4), at(0.2, 150, 1.3, 0.9, STUN)]),
+    { ult: def('d2_ult', '次元崩壊・万象回帰', [
+        ports(0, 'around', 20, 640, 10.4),
+        swords(1.4, { per: 3, sp: 0.1 }), swords(2.0, { track: true, frac: 0.8 }), swords(2.5, { track: true, frac: 0.8 }), swords(3.0, { track: true, frac: 0.7, per: 3, sp: 0.12 }), swords(3.5, { track: true, frac: 0.7, per: 3, sp: 0.12 }),
+        beams(3.0, 1500, 52, 0.9, 1.6, { frac: 0.35 }), ports(4.2, 'diag', 4, 740, 3.4), beams(5.0, 1500, 96, 0.9, 1.9),
+        ports(5.6, 'side', 10, 680, 3.0, { gapY: 130 }), beams(6.5, 1500, 58, 0.9, 1.7), line(7.6, 2800, 260, 1.6, 3.0, { aim: 't' }),
+        ports(8.4, 'sky', 12, 540, 2.8, { gapX: 110 }), swords(9.4, { frac: 0.7, spd: 620 }), swords(9.9, { frac: 0.7, spd: 620 }), beams(10.2, 1500, 60, 0.9, 1.7, { frac: 0.4 })
+    ], { ult: true, rec: 1.5 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
 
     // ============================================================
     // スタンダードワールド
