@@ -21,6 +21,8 @@
 // ============================================
 
 const MAX_MEMBERS = 4;
+const MAX_BY_STAGE = { pvp_3v3: 6 };            // 3v3 は6人まで（ほかは4人）
+const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
 const MAX_RELAY_BYTES = 30000;
 const rooms = new Map();          // roomId -> room
 const socketRoom = new Map();     // socket.id -> roomId
@@ -39,7 +41,7 @@ function newRoomId() {
 }
 function publicRoom(r) {
     return {
-        id: r.id, stageId: r.stageId, diff: r.diff || 0, hostId: r.hostId, state: r.state, max: MAX_MEMBERS,
+        id: r.id, stageId: r.stageId, diff: r.diff || 0, hostId: r.hostId, state: r.state, max: maxOf(r),
         members: r.members.map(m => ({ id: m.id, name: m.name, wname: m.wname, rar: m.rar }))
     };
 }
@@ -65,7 +67,7 @@ module.exports = function (io) {
         leave(socket);
         const id = cleanName(player && player.id, 60);
         if (!id) { socket.emit("stage:error", { message: "プレイヤー情報が不正です" }); return false; }
-        if (r.members.length >= MAX_MEMBERS) { socket.emit("stage:error", { message: "この部屋は満員です" }); return false; }
+        if (r.members.length >= maxOf(r)) { socket.emit("stage:error", { message: "この部屋は満員です" }); return false; }
         if (r.state !== "lobby") { socket.emit("stage:error", { message: "すでに出発しています" }); return false; }
         r.members = r.members.filter(m => m.id !== id); // 同一プレイヤーの二重参加を防ぐ
         r.members.push({ sid: socket.id, id: id, name: cleanName(player.name, 16) || "名無し", wname: cleanName(player.wname, 30), rar: cleanName(player.rar, 12) });
@@ -80,7 +82,7 @@ module.exports = function (io) {
             const sid = data && data.stageId ? String(data.stageId) : null;
             const list = [];
             rooms.forEach(r => {
-                if (r.state !== "lobby" || r.members.length >= MAX_MEMBERS) return;
+                if (r.state !== "lobby" || r.members.length >= maxOf(r)) return;
                 if (sid && r.stageId !== sid) return;
                 list.push(publicRoom(r));
             });
@@ -105,7 +107,7 @@ module.exports = function (io) {
             if (!data || !data.stageId) return;
             const sid = String(data.stageId).slice(0, 40);
             let target = null;
-            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && r.state === "lobby" && r.members.length < MAX_MEMBERS) target = r; });
+            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && r.state === "lobby" && r.members.length < maxOf(r)) target = r; });
             if (!target) {
                 target = { id: newRoomId(), stageId: sid, diff: cleanDiff(data.diff), hostId: cleanName(data.player && data.player.id, 60), state: "lobby", members: [] };
                 rooms.set(target.id, target);
