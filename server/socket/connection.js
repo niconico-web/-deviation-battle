@@ -8,6 +8,7 @@ const RoomManager = require("../managers/RoomManager");
 const BattleManager = require("../managers/BattleManager");
 const BattleEngine = require("../managers/BattleEngine");
 const PlayerDataManager = require("../managers/PlayerDataManager");
+const ExtraDataManager = require("../managers/ExtraDataManager");
 
 // BattleManagerのタイマー管理を使用
 const disconnectTimers = BattleManager.disconnectTimers;
@@ -423,6 +424,7 @@ module.exports = function(io){
         // -----------------------------
 
         socket.on("saveData", (player) => {
+            if (player && player.id && ExtraDataManager.hasPassword(player.id)) { socket.emit("dataError", "このIDはパスワードで保護されています。アプリを最新にして、「いますぐ同期」から連携してください。"); return; }
             if (player && player.id) {
                 console.log(`[Data] Saving data for player ID: ${player.id}`);
                 const success = PlayerDataManager.savePlayer(player);
@@ -436,7 +438,83 @@ module.exports = function(io){
             }
         });
 
+        // 引き継ぎ用の「プレイヤー以外のデータ」（武器庫・防具・スキル・ビギナーミッション・シーズンなど）
+        socket.on("saveBundle", (msg) => {
+            if (msg && ExtraDataManager.hasPassword(msg.id)) { socket.emit("bundleSaved", { id: msg.id, ok: false, manual: !!msg.manual }); return; }
+            const ok = !!(msg && ExtraDataManager.saveBundle(msg.id, msg.bundle));
+            socket.emit("bundleSaved", { id: msg && msg.id, ok: ok, manual: !!(msg && msg.manual) });
+        });
+        socket.on("loadBundle", (playerId) => {
+            if (ExtraDataManager.hasPassword(playerId)) { socket.emit("bundleLoaded", { id: playerId, bundle: null }); return; }
+            socket.emit("bundleLoaded", { id: playerId, bundle: ExtraDataManager.getBundle(playerId) });
+        });
+        // シーズンのPvPイベント
+        socket.on("pvpEvent:report", (m) => { if (m) ExtraDataManager.reportEvent(m.seasonId, m.id, m.name, m.pts, m.wins, m.plays); });
+        socket.on("pvpEvent:ranking", (m) => { socket.emit("pvpEvent:rankingData", Object.assign({ seasonId: m && m.seasonId }, ExtraDataManager.eventRanking(m && m.seasonId, m && m.id))); });
+
+        // ---------- 端末の連携（同期）----------
+        //  2台の端末が同じプレイヤーIDを共有し、どちらで進めても自動で反映し合う。
+        //  サーバーは「版（rev）」を持つ。端末は「最後に同期した版（baseRev）」を添えて保存し、
+        //  サーバーの版と違えば＝もう一方の端末が先に更新している → 上書きせず衝突として知らせる（force で強制上書き）
+        const syncInfo = (id) => {
+            const pl = PlayerDataManager.getPlayer(id), b = ExtraDataManager.getBundle(id);
+            return { id: id, exists: !!pl, rev: (b && b.rev) || 0, at: (b && b.at) || 0, name: pl ? pl.name : "", level: pl ? (pl.level || 1) : 0, coins: pl ? (pl.coins || 0) : 0 };
+        };
+        const okId = (id) => /^[A-Za-z0-9]{4,12}$/.test(String(id || ""));
+        const authed = (m) => !ExtraDataManager.hasPassword(m.id) || ExtraDataManager.checkToken(m.id, m.token);   // パスワードがあるIDは、トークン（パスワード入力済みの端末の証明）が必要
+        socket.on("sync:status", (m) => {
+            if (!m || !okId(m.id)) return;
+            if (!authed(m)) { socket.emit("sync:status", { id: m.id, authRequired: true }); return; }     // 名前やコインなどは見せない
+            socket.emit("sync:status", Object.assign(syncInfo(m.id), { hasPassword: ExtraDataManager.hasPassword(m.id) }));
+        });
+        // パスワードで、この端末の連携を認証する（成功するとトークンを返す）
+        socket.on("sync:login", (m) => {
+            if (!m || !okId(m.id)) { socket.emit("sync:login", { ok: false, reason: "invalid" }); return; }
+            if (!ExtraDataManager.hasPassword(m.id)) { socket.emit("sync:login", { ok: true, id: m.id, token: null, noPassword: true }); return; }
+            if (ExtraDataManager.locked(m.id)) { socket.emit("sync:login", { ok: false, locked: true, id: m.id }); return; }
+            if (!ExtraDataManager.verifyPassword(m.id, m.password)) { ExtraDataManager.recordFail(m.id); socket.emit("sync:login", { ok: false, wrong: true, id: m.id }); return; }
+            ExtraDataManager.clearFails(m.id);
+            socket.emit("sync:login", { ok: true, id: m.id, token: ExtraDataManager.issueToken(m.id) });
+        });
+        // パスワードの設定・変更・解除。すでにパスワードがあるときは、いまのパスワードかトークンが必要
+        socket.on("sync:setPassword", (m) => {
+            const reply = (o) => socket.emit("sync:passwordSet", o);
+            if (!m || !okId(m.id)) { reply({ ok: false, reason: "invalid" }); return; }
+            if (!PlayerDataManager.getPlayer(m.id)) { reply({ ok: false, reason: "nodata" }); return; }          // 先に同期してデータをサーバーに置く
+            if (ExtraDataManager.hasPassword(m.id)) {
+                if (ExtraDataManager.locked(m.id)) { reply({ ok: false, locked: true }); return; }
+                const okTok = ExtraDataManager.checkToken(m.id, m.token), okCur = m.current && ExtraDataManager.verifyPassword(m.id, m.current);
+                if (!okTok && !okCur) { ExtraDataManager.recordFail(m.id); reply({ ok: false, wrong: true }); return; }
+                if (m.current && !okCur) { ExtraDataManager.recordFail(m.id); reply({ ok: false, wrong: true }); return; }
+            }
+            const pw = String(m.password == null ? "" : m.password);
+            if (pw === "") { ExtraDataManager.removePassword(m.id); reply({ ok: true, removed: true }); return; }
+            if (pw.length < 6 || pw.length > 64) { reply({ ok: false, reason: "length" }); return; }
+            reply({ ok: true, token: ExtraDataManager.setPassword(m.id, pw) });
+        });
+        socket.on("sync:push", (m) => {
+            if (!m || !okId(m.id) || !m.player || m.player.id !== m.id) { socket.emit("sync:pushed", { ok: false, reason: "invalid" }); return; }
+            if (!authed(m)) { socket.emit("sync:pushed", { ok: false, authRequired: true, manual: !!m.manual }); return; }
+            const cur = syncInfo(m.id);
+            const base = Number(m.baseRev) || 0;
+            if (!m.force && cur.exists && cur.rev !== base) { socket.emit("sync:pushed", Object.assign({ ok: false, conflict: true }, cur, { manual: !!m.manual })); return; }
+            if (!PlayerDataManager.savePlayer(m.player)) { socket.emit("sync:pushed", { ok: false, reason: "player", manual: !!m.manual }); return; }
+            const nextRev = cur.rev + 1;
+            const bundleOk = m.bundle ? ExtraDataManager.saveBundle(m.id, m.bundle, nextRev) : ExtraDataManager.saveBundle(m.id, { items: {} }, nextRev);
+            if (!bundleOk) { socket.emit("sync:pushed", { ok: false, reason: "size", manual: !!m.manual }); return; }
+            socket.emit("sync:pushed", { ok: true, rev: nextRev, at: Date.now(), manual: !!m.manual, token: m.token });
+        });
+        socket.on("sync:pull", (m) => {
+            if (!m || !okId(m.id)) { socket.emit("sync:pulled", { ok: false, reason: "invalid" }); return; }
+            if (!authed(m)) { socket.emit("sync:pulled", { ok: false, authRequired: true, link: !!m.link }); return; }
+            const pl = PlayerDataManager.getPlayer(m.id);
+            if (!pl) { socket.emit("sync:pulled", { ok: false, notFound: true, link: !!m.link }); return; }
+            const b = ExtraDataManager.getBundle(m.id);
+            socket.emit("sync:pulled", { ok: true, id: m.id, rev: (b && b.rev) || 0, at: (b && b.at) || 0, player: pl, items: (b && b.items) || null, link: !!m.link });
+        });
+
         socket.on("loadData", (playerId) => {
+            if (ExtraDataManager.hasPassword(playerId)) { socket.emit("dataError", "このIDはパスワードで保護されています。アプリを最新にして、連携から読み込んでください。"); return; }
             if (playerId) {
                 console.log(`[Data] Loading data for player ID: ${playerId}`);
                 const player = PlayerDataManager.getPlayer(playerId);
