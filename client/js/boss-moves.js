@@ -734,10 +734,7 @@
     { ult: def('cb10_ult', '無限の壁線・逆回転', ultCommon(10, 'rev').concat(wallSweep(2 * 8 * 0.42 + 1.6, { n: 16, volleys: 4, gap: 0.8, rot0: 0, rot: 0, every: 2, w: 54, tele: 0.8, dm: 1.8 })), { ult: true, rec: 1.2 }), ultAt: [0.85, 0.65, 0.45, 0.25] });
 
 
-    // ============================================================
-    // 無限回廊のボスの強化：威力アップ・予告を少し短く・硬直を短く／新しい技を追加／大技を二段構えに／大技の回数を増やす
-    //  （予告は 0.45 秒を下回らない＝見てから避けられる範囲にとどめる）
-    // ============================================================
+
     (function buffCorridorBosses() {
         const tierOf = { cb1: 1, cb2: 2, cb3: 3, cb4: 4, cb5: 5, cb6: 6, cb7: 7, cb8: 8, cb9: 9, cb10: 10 };
         const TELE_KINDS = { line: 1, ring: 1, cone: 1, donut: 1, at: 1, rain: 1, beams: 1, beamfan: 1, beamAt: 1, blast: 1 };
