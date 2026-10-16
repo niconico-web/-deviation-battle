@@ -21,6 +21,11 @@
 //    ports : 「門」を開く（mode: around=標的の周囲 / sky=頭上に横並び / side=左右から横ビーム用 / diag=四隅の斜め）。life 秒だけ開いている
 //    swords: 開いている門から剣を撃つ（per=1門あたりの本数, frac=撃つ門の割合, track=撃つ瞬間に標的を狙い直す）
 //    beams : 開いている門からビームを撃つ（tele=予告秒, w=幅, r=長さ, frac=撃つ門の割合）
+//  ボスラッシュFinal・無限回廊のボス用（ビーム／弾幕）
+//    beamfan: ボスから扇状に細いビームを何本も撃つ（n=本数, sp=扇の角度°, len=長さ, w=幅）
+//    beamAt : アリーナの外周などの「決まった位置」から撃つビーム（fx,fy=アリーナ内の位置の割合0〜1, a=向き°。track=true で撃つ瞬間に標的を狙う）
+//    blast  : 標的の周囲に砲口（ガスターブラスター風）を並べて、標的へ向けて撃つ（n=個数, R=標的からの距離）
+//    wall   : 画面を横切る弾の壁（隙間が1か所だけある。dir=h/v/rand, gapW=隙間の幅）
 //  aim は 'l'＝技の開始時に狙った方向で固定 / 't'＝そのときのプレイヤーの方向（既定）、off は角度°のずらし
 // ============================================================
 (function () {
@@ -46,6 +51,7 @@
     const ports  = (t, mode, n, R, life, o) => Object.assign({ t: t, k: 'ports', mode: mode, n: n, R: R, life: life }, o);
     const swords = (t, o) => Object.assign({ t: t, k: 'swords', per: 1, spd: 520, dm: 0.5, frac: 1 }, o);
     const beams  = (t, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beams', r: len, w: w, tele: tele, dm: dm, frac: 1 }, o);
+    const pull   = (t, dur, force, o) => Object.assign({ t: t, k: 'pull', dur: dur, force: force }, o);   // 全員をボスの方へ引き寄せる（force=px/秒）
     const STUN = { stun: true };
 
     function stepEnd(s) {
@@ -53,8 +59,8 @@
             case 'cone': case 'line': case 'ring': case 'donut': case 'at': return s.t + s.tele + (s.rep || 0) * (s.gap || 0.3);
             case 'rain': return s.t + s.tele + s.n * (s.gap || 0.15);
             case 'warn': return s.t + s.tele;
-            case 'beams': return s.t + s.tele + (s.rep || 0) * (s.gap || 0.3);
-            case 'dash': case 'leap': case 'spiral': return s.t + s.dur;
+            case 'beams': case 'beamfan': case 'beamAt': case 'blast': return s.t + s.tele + (s.rep || 0) * (s.gap || 0.3);
+            case 'dash': case 'leap': case 'spiral': case 'pull': return s.t + s.dur;
             default: return s.t;
         }
     }
@@ -489,6 +495,76 @@
     { ult: def('az_ult', '虚無への回帰', [spiral(0, 3, 260, 0.8, { arms: 5 }), ring(1.0, 320, 1.2, 1.5), line(1.8, 1000, 90, 1.0, 1.8, { aim: 't' }), donut(2.8, 600, 240, 1.0, 1.6), rain(3.4, 16, 80, 1.0, 1.3, { gap: 0.1 })], { ult: true, rec: 1.3 }), ultAt: [0.75, 0.5, 0.25] });
 
     // ============================================================
+    // ギミックボス（第四・第五世界）。ギミック本体は stage.js（stigma / pressure / gravity / twin / dimension）
+    // ============================================================
+    // --- 炉心の巨人ブラスト：25秒ごとに圧力を溜めて大爆発（安全弁を壊すと阻止）---
+    set('boiler_heart', [
+        def('bh_vent', '蒸気噴射', [cone(0, 300, 100, 0.75, 1.5, { aim: 't' }), cone(0.9, 300, 100, 0.6, 1.5, { aim: 't' })]),
+        def('bh_rivet', 'リベット弾', [fan(0, 7, 10, 380, 0.8), fan(0.5, 7, 10, 380, 0.8), fan(1.0, 9, 10, 380, 0.8)]),
+        def('bh_crush', '圧壊', [ring(0, 200, 0.9, 1.6), donut(1.0, 520, 210, 0.9, 1.4)]),
+        def('bh_run', '暴走蒸気', [warn(0, 640, 90, 0.7), dash(0.7, 0.6, 820), ring(1.6, 170, 0.7, 1.2)], { rec: 0.7 })
+    ], def('bh_scald', '高圧蒸気', [cone(0, 520, 70, 1.2, 0.8, Object.assign({ aim: 't' }, STUN))]));
+
+    // --- 死神グリム・リーパー：10秒ごとにスティグマ。13個で死亡 ---
+    set('grave_of_gears', [
+        def('gg_scythe', '死神の三連鎌', [cone(0, 280, 110, 0.7, 1.5, { aim: 't' }), cone(0.8, 280, 110, 0.6, 1.5, { aim: 't' }), cone(1.5, 320, 150, 0.8, 1.9, { aim: 't' })]),
+        def('gg_souls', '魂狩りの雨', [rain(0, 11, 80, 1.0, 1.3, { gap: 0.12 }), at(1.2, 105, 0.9, 1.4, { who: 'rand' })]),
+        def('gg_reap', '刈り取りの円環', [0, 1, 2, 3, 4, 5].map(i => line(i * 0.22, 860, 56, 0.85, 1.5, { aim: 'l', off: i * 60 })).concat([ring(1.6, 220, 0.8, 1.4)])),
+        def('gg_veil', '死の帳', [spiral(0, 2.6, 250, 0.8, { arms: 3 }), rad(1.2, 22, 250, 0.7)]),
+        def('gg_call', '亡者の招集', [summon(0, 5), fan(0.5, 9, 8, 380, 0.7)])
+    ], def('gg_gaze', '死の凝視', [cone(0, 560, 60, 1.2, 0.8, Object.assign({ aim: 't' }, STUN))]),
+    { ult: def('gg_ult', '終末の鐘', [ring(0, 260, 1.2, 1.5), donut(1.3, 640, 260, 1.0, 1.6), rain(2.2, 14, 80, 1.0, 1.3, { gap: 0.1 }), line(3.2, 1200, 120, 1.0, 1.8, { aim: 't' })], { ult: true, rec: 1.3 }), ultAt: [0.7, 0.4] });
+
+    // --- 重力喰らいグラビトン：全員を中心へ引き寄せてから押し潰す ---
+    set('gravity_well', [
+        def('gw_pull', '重力井戸', [pull(0, 2.2, 260), ring(1.9, 230, 0.8, 1.6)], { rec: 0.9 }),
+        def('gw_orbit', '周回する星', [spiral(0, 2.8, 240, 0.8, { arms: 3 }), rad(1.4, 20, 250, 0.7)]),
+        def('gw_meteor', '隕石の落下', [rain(0, 13, 80, 1.0, 1.3, { gap: 0.1 }), at(1.3, 110, 0.9, 1.4, { who: 'rand' })]),
+        def('gw_crush', '重力崩壊', [pull(0, 1.4, 320), donut(1.0, 560, 200, 0.9, 1.5), ring(1.6, 200, 0.8, 1.5)])
+    ], def('gw_singularity', '特異点', [pull(0, 1.8, 300), ring(1.2, 380, 1.0, 1.0, STUN)]));
+
+    // --- 雷神ゼウス＆火の巨人プロメテウス（ニコイチ。片方を倒すと残った方が15秒で蘇らせる）---
+    set('olympus_zeus', [
+        def('zs_bolt', '雷霆の矢', [line(0, 1000, 60, 0.8, 1.6, { aim: 't' }), line(0.5, 1000, 60, 0.8, 1.6, { aim: 't', off: -18 }), line(1.0, 1000, 60, 0.8, 1.6, { aim: 't', off: 18 })]),
+        def('zs_storm', '雷雨', [rain(0, 13, 78, 1.0, 1.3, { gap: 0.1 }), at(1.3, 100, 0.9, 1.4, { who: 'rand' })]),
+        def('zs_chain', '連鎖雷', [at(0, 95, 0.8, 1.5), at(0.5, 95, 0.8, 1.5, { who: 'rand' }), at(1.0, 95, 0.8, 1.5, { who: 'rand' }), at(1.5, 95, 0.8, 1.5, { who: 'rand' })]),
+        def('zs_orb', '雷球', [fan(0, 5, 14, 420, 0.8), fan(0.5, 7, 14, 420, 0.8), rad(1.2, 18, 260, 0.7)])
+    ], def('zs_judge', '雷霆の裁き', [at(0, 125, 1.2, 0.9, STUN), ring(0.3, 170, 1.0, 1.0)]),
+    { ult: def('zs_ult', '神雷・天罰', [rain(0, 18, 84, 1.0, 1.4, { gap: 0.08 }), line(1.6, 1300, 150, 1.0, 2.0, { aim: 't' }), ring(2.6, 300, 1.1, 1.6), donut(3.5, 640, 300, 1.0, 1.6)], { ult: true, rec: 1.3 }), ultAt: [0.65, 0.3] });
+    set('olympus_prometheus', [
+        def('pm_flame', '炎の噴流', [cone(0, 320, 100, 0.7, 1.5, { aim: 't' }), cone(0.8, 320, 100, 0.6, 1.5, { aim: 't' }), cone(1.5, 360, 150, 0.8, 1.9, { aim: 't' })]),
+        def('pm_gift', '火の贈り物', [rad(0, 24, 230, 0.8), ring(0.8, 200, 0.8, 1.4), rad(1.6, 24, 260, 0.8)]),
+        def('pm_dash', '業火の突進', [warn(0, 640, 90, 0.7), dash(0.7, 0.6, 860), warn(1.5, 640, 90, 0.5, { aim: 't' }), dash(2.0, 0.6, 860, { aim: 't' })], { rec: 0.8 }),
+        def('pm_ember', '火の粉の雨', [rain(0, 13, 80, 1.0, 1.3, { gap: 0.1 }), donut(1.4, 520, 200, 0.9, 1.4)])
+    ], def('pm_bind', '業火の拘束', [ring(0, 330, 1.3, 1.0, STUN)]),
+    { ult: def('pm_ult', '天の火・神罰', [spiral(0, 3, 250, 0.8, { arms: 4 }), ring(1.0, 280, 1.2, 1.6), line(1.8, 1100, 120, 1.0, 1.8, { aim: 't' }), donut(2.8, 620, 260, 1.0, 1.6)], { ult: true, rec: 1.3 }), ultAt: [0.65, 0.3] });
+
+    // --- ディメンション・キーパー：第一形態（核で守られている。放射弾の反射は stage.js が担当）---
+    set('dim_keeper1', [
+        def('d1_rift', '次元の裂け目', [0, 1, 2, 3, 4].map(i => line(i * 0.2, 1000, 60, 0.9, 1.5, { aim: 't', off: (i - 2) * 22 }))),
+        def('d1_fall', '空間の崩落', [rain(0, 12, 80, 1.0, 1.3, { gap: 0.1 }), ring(1.4, 190, 0.8, 1.4)]),
+        def('d1_ring', '次元輪', [donut(0, 520, 200, 1.0, 1.4), ring(1.0, 200, 0.8, 1.4)])
+    ], def('d1_seal', '次元封印', [ring(0, 380, 1.4, 1.0, STUN)]));
+    // --- ディメンション・キーパー：第二形態（強化ゲートキーパー。ゲートから剣とビーム）---
+    set('dim_keeper2', [
+        def('d2_blades', '次元剣の門', [ports(0, 'around', 12, 540, 4.6),
+            swords(1.0, { per: 3, sp: 0.1 }), swords(1.5, { track: true }), swords(2.0, { track: true, per: 2, sp: 0.12 }), swords(2.5, { track: true }), swords(3.0, { track: true, per: 3, sp: 0.12 })]),
+        def('d2_beams', '次元光条の門', [ports(0, 'side', 9, 640, 3.4, { gapY: 130 }), beams(0.9, 1500, 62, 0.9, 1.5),
+            ports(1.9, 'diag', 4, 680, 2.8), beams(2.8, 1300, 90, 0.9, 1.7), ports(3.2, 'sky', 6, 540, 2.2, { gapX: 180 }), beams(4.0, 1500, 60, 0.8, 1.5)], { rec: 0.8 }),
+        def('d2_rain', '千剣の次元雨', [ports(0, 'sky', 14, 520, 4.8, { gapX: 100 }),
+            swords(0.9, { frac: 0.5, spd: 620 }), swords(1.3, { frac: 0.5, spd: 620 }), swords(1.7, { frac: 0.5, spd: 620 }), swords(2.1, { frac: 0.5, spd: 620 }), swords(2.5, { frac: 0.5, spd: 620 }), swords(2.9, { frac: 0.5, spd: 620 }),
+            beams(1.6, 1500, 56, 0.8, 1.4, { frac: 0.25, track: true })]),
+        def('d2_collapse', '門の崩落・極', [ring(0, 420, 1.2, 1.7), donut(1.3, 680, 420, 1.0, 1.6), ports(1.0, 'around', 8, 440, 3.2), swords(2.4, { track: true, per: 3, sp: 0.12 }), beams(3.0, 1400, 72, 0.9, 1.6, { frac: 0.4, track: true })])
+    ], def('d2_seal', '終端の封門', [ports(0, 'around', 8, 440, 2.4), at(0.2, 150, 1.3, 0.9, STUN)]),
+    { ult: def('d2_ult', '次元崩壊・万象回帰', [
+        ports(0, 'around', 20, 640, 10.4),
+        swords(1.4, { per: 3, sp: 0.1 }), swords(2.0, { track: true, frac: 0.8 }), swords(2.5, { track: true, frac: 0.8 }), swords(3.0, { track: true, frac: 0.7, per: 3, sp: 0.12 }), swords(3.5, { track: true, frac: 0.7, per: 3, sp: 0.12 }),
+        beams(3.0, 1500, 52, 0.9, 1.6, { frac: 0.35 }), ports(4.2, 'diag', 4, 740, 3.4), beams(5.0, 1500, 96, 0.9, 1.9),
+        ports(5.6, 'side', 10, 680, 3.0, { gapY: 130 }), beams(6.5, 1500, 58, 0.9, 1.7), line(7.6, 2800, 260, 1.6, 3.0, { aim: 't' }),
+        ports(8.4, 'sky', 12, 540, 2.8, { gapX: 110 }), swords(9.4, { frac: 0.7, spd: 620 }), swords(9.9, { frac: 0.7, spd: 620 }), beams(10.2, 1500, 60, 0.9, 1.7, { frac: 0.4 })
+    ], { ult: true, rec: 1.5 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
+
+    // ============================================================
     // スタンダードワールド
     // ============================================================
     set('std_gate', [
@@ -514,6 +590,145 @@
         def('sl_maze', '迷宮の壁', [0, 1, 2, 3, 4].map(i => line(i * 0.25, 900, 70, 0.9, 1.7, { aim: 'l', off: i * 72 })).concat([donut(1.6, 560, 220, 1.0, 1.5)])),
         def('sl_again', 'もう一度', [summon(0, 6), rain(0.5, 12, 80, 1.0, 1.2, { gap: 0.12 }), ring(2.0, 260, 0.9, 1.5)])
     ], def('sl_trap', '無限の罠', [ring(0, 460, 1.5, 1.0, STUN)]));
+
+
+    // ============================================================
+    // ボスラッシュ Final：強化ディメンション・キーパー（アンダーテールのサンズ風）
+    //  ・ブラスター（標的を囲む砲口）／骨の壁（隙間をくぐる弾の壁）／重力／連続斬撃 を組み合わせた、避ける攻撃が中心
+    // ============================================================
+    const beamfan = (t, n, spread, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamfan', n: n, sp: spread * D, r: len, w: w, tele: tele, dm: dm }, o);
+    const beamAt  = (t, fx, fy, aDeg, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamAt', fx: fx, fy: fy, a: aDeg * D, r: len, w: w, tele: tele, dm: dm }, o);
+    const blast   = (t, n, R, len, w, tele, dm, o) => Object.assign({ t: t, k: 'blast', n: n, R: R, r: len, w: w, tele: tele, dm: dm }, o);
+    const wall    = (t, dir, spd, dm, o) => Object.assign({ t: t, k: 'wall', dir: dir, spd: spd, dm: dm, gapW: 190 }, o);
+
+    // アリーナの外周に砲口を並べ、一斉に内側へビームを撃つ。volleys 回、向きを rot° ずつ回しながら撃ち続ける
+    //  o: { n:砲口の数, volleys:回数, gap:間隔(秒), rot:1回ごとに回す角度°, rot0:最初の角度°, w:幅, tele:予告秒, dm:威力, every:「k番目の砲口おきに撃つ」(隙間づくり) }
+    function wallSweep(t0, o) {
+        const out = [], n = o.n || 14, V = o.volleys || 8, gap = o.gap || 0.55, every = o.every || 2;
+        for (let v = 0; v < V; v++) {
+            for (let k = 0; k < n; k++) {
+                if (every > 1 && ((k + v) % every) !== 0) continue;
+                const u = (k + 0.5) / n * 4, side = Math.floor(u), q = u - side;
+                let fx, fy, nrm;
+                if (side === 0) { fx = q; fy = 0; nrm = 90; } else if (side === 1) { fx = 1; fy = q; nrm = 180; } else if (side === 2) { fx = 1 - q; fy = 1; nrm = -90; } else { fx = 0; fy = 1 - q; nrm = 0; }
+                out.push(beamAt(t0 + v * gap, fx, fy, nrm + (o.rot0 || 0) + v * (o.rot || 12), o.len || 2800, o.w || 46, o.tele || 0.8, o.dm || 1.4, { rep: o.rep != null ? o.rep : 2, gap: 0.14 }));
+            }
+        }
+        return out;
+    }
+    // 往復：順回転のあと、逆回転でもう一度撃つ（不壊の悪魔の大技）
+    function wallSweepRev(t0, o) {
+        const V = o.volleys || 8, gap = o.gap || 0.55, rot = o.rot || 12;
+        const fwd = wallSweep(t0, Object.assign({}, o, { rot0: o.rot0 || -50 }));
+        const back = wallSweep(t0 + V * gap + (o.pause != null ? o.pause : 0.9), Object.assign({}, o, { rot0: (o.rot0 || -50) + (V - 1) * rot, rot: -rot, every: o.every2 || o.every }));
+        return fwd.concat(back);
+    }
+    const spokes = (t0, n, step, len, w, tele, dm, o) => { const out = []; for (let i = 0; i < n; i++) out.push(line(t0 + i * step, len, w, tele, dm, Object.assign({ aim: 'l', off: i * (o && o.rot != null ? o.rot : 30) }, o))); return out; };
+
+    // --- ディメンション・キーパー・極（Final）---
+    set('dk_final', [
+        def('dkf_blasters', '次元ブラスター', [blast(0, 6, 430, 1400, 70, 0.9, 1.6, { rep: 2, gap: 0.18 }), blast(1.1, 7, 470, 1400, 70, 0.8, 1.6, { rep: 2, gap: 0.18 }), blast(2.2, 8, 500, 1400, 74, 0.75, 1.7, { rep: 2, gap: 0.18 })], { rec: 0.8 }),
+        def('dkf_bones', '骨の壁', [wall(0, 'h', 300, 0.9), wall(1.1, 'v', 320, 0.9), wall(2.2, 'h', 340, 0.9), wall(3.3, 'v', 360, 0.9)], { rec: 0.8 }),
+        def('dkf_slash', '審判の連斬', [0, 1, 2, 3, 4, 5, 6].map(i => line(i * 0.32, 1500, 64, 0.5, 1.5, { aim: 't', off: (i % 2 ? 8 : -8) }))),
+        def('dkf_gravity', '重力反転', [pull(0, 1.6, 340), ring(0.3, 220, 1.1, 1.5), blast(1.4, 6, 380, 1300, 66, 0.8, 1.6, { rep: 2, gap: 0.16 })], { rec: 0.9 }),
+        def('dkf_mix', '無慈悲な連撃', [wall(0, 'h', 340, 0.9), blast(0.6, 6, 460, 1400, 68, 0.85, 1.6, { rep: 2, gap: 0.18 }), wall(1.8, 'v', 360, 0.9), blast(2.4, 8, 520, 1400, 70, 0.8, 1.7, { rep: 2, gap: 0.18 })], { rec: 0.9 })
+    ], def('dkf_seal', '魂の拘束', [blast(0, 4, 380, 1200, 70, 1.0, 0.9, { rep: 1 }), at(0.2, 130, 1.3, 0.9, STUN)]),
+    { ult: def('dkf_ult', '最後の審判', [
+        blast(0, 8, 520, 1500, 76, 0.9, 1.7, { rep: 2, gap: 0.18 }), wall(1.4, 'h', 360, 1.0), wall(2.6, 'v', 380, 1.0),
+        blast(3.4, 10, 560, 1500, 76, 0.8, 1.8, { rep: 2, gap: 0.18 }), wall(4.4, 'h', 400, 1.0, { gapW: 170 }), wall(5.0, 'v', 400, 1.0, { gapW: 170 })
+    ].concat(wallSweepRev(6.2, { n: 14, volleys: 7, gap: 0.5, rot: 14, w: 52, tele: 0.85, dm: 1.6, every: 2 })).concat([line(14.2, 3000, 300, 1.6, 3.0, { aim: 't' })]), { ult: true, rec: 1.6 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
+
+    // ============================================================
+    // 無限回廊のボス10体（不壊の悪魔を頂点に、ビーム攻撃の系譜）
+    //  共通の流れ：①通常攻撃＝細いビームを絶え間なく撃つ ②得意技 ③スタン技 ④大技（壁から大量のビーム）
+    //  tier が上がるほど、ビームの本数・回数・大技の長さが増える
+    // ============================================================
+    // 絶え間ないビーム（通常攻撃）：標的へ扇状に撃ち、少しずらしてまた撃つ。技の合間がほぼ無いので撃ち続けているように見える
+    function stream(tier, w) {
+        const n = 3 + Math.min(6, Math.floor(tier / 2) + 1), rounds = 3 + (tier >= 6 ? 2 : 1), out = [];
+        for (let r = 0; r < rounds; r++) out.push(beamfan(r * 0.42, n + (r % 2), 44 + tier * 2, 1500, w || 30, 0.55, 0.85, { aim: 't', off: (r % 2 ? 4 : -4), rep: 1, gap: 0.12 }));
+        return out;
+    }
+    // 大技の共通部分
+    const ultCommon = (tier, kind) => {
+        const V = 6 + Math.min(5, Math.floor(tier / 2)), n = 10 + Math.min(8, tier);
+        const o = { n: n, volleys: V, gap: Math.max(0.42, 0.62 - tier * 0.02), rot: 12 + (tier >= 8 ? 2 : 0), w: 44 + tier, tele: Math.max(0.7, 0.95 - tier * 0.02), dm: 1.3 + tier * 0.05, every: 2 };
+        if (kind === 'rev') return wallSweepRev(0.4, Object.assign({ rot0: -48 }, o));
+        if (kind === 'double') return wallSweep(0.4, Object.assign({ rot0: -48 }, o)).concat(wallSweep(0.4, Object.assign({ rot0: 48, rot: -(o.rot) }, o, { rot: -o.rot, rot0: 48, every: 2 })));
+        if (kind === 'cross') { const a = wallSweep(0.4, Object.assign({}, o, { rot0: 0, rot: 0, volleys: 4, gap: 0.9, every: 2 })); return a.concat(wallSweep(1.0, Object.assign({}, o, { rot0: 90, rot: 0, volleys: 4, gap: 0.9, every: 2 }))); }
+        return wallSweep(0.4, Object.assign({ rot0: -48 }, o));
+    };
+
+    // 1. 灼眼の小悪魔
+    set('cb1', [
+        def('cb1_stream', '灼眼ビーム連射', stream(1), { rec: 0.15 }),
+        def('cb1_rain', '業火の雨', [rain(0, 8, 80, 1.0, 1.1, { gap: 0.16 }), ring(1.4, 170, 0.8, 1.2)]),
+        def('cb1_stream2', '灼眼ビーム連射・偏差', stream(1, 34), { rec: 0.15 })
+    ], def('cb1_seal', '炎の拘束', [at(0, 105, 1.2, 0.9, STUN)]),
+    { ult: def('cb1_ult', '壁際の炎線', ultCommon(1, 'one').concat([]), { ult: true, rec: 1.2 }), ultAt: [0.6, 0.3] });
+    // 2. 氷獄の番犬
+    set('cb2', [
+        def('cb2_stream', '氷息ビーム連射', stream(2), { rec: 0.15 }),
+        def('cb2_nova', '凍てつく輪', [ring(0, 190, 0.9, 1.3), donut(1.0, 460, 190, 0.9, 1.3)]),
+        def('cb2_fan', '三首の氷線', [beamfan(0, 3, 40, 1500, 58, 0.9, 1.4, { aim: 't' }), beamfan(1.0, 5, 60, 1500, 50, 0.9, 1.4, { aim: 't' })])
+    ], def('cb2_freeze', '凍結の咆哮', [cone(0, 520, 70, 1.2, 0.8, Object.assign({ aim: 't' }, STUN))]),
+    { ult: def('cb2_ult', '氷柱の壁線', ultCommon(2, 'cross'), { ult: true, rec: 1.2 }), ultAt: [0.65, 0.3] });
+    // 3. 雷鳴の処刑人
+    set('cb3', [
+        def('cb3_stream', '雷光ビーム連射', stream(3), { rec: 0.15 }),
+        def('cb3_track', '追雷', [0, 1, 2, 3, 4].map(i => line(i * 0.4, 1600, 52, 0.55, 1.4, { aim: 't' }))),
+        def('cb3_dash', '雷速突進', [warn(0, 600, 80, 0.6), dash(0.6, 0.55, 860), ring(1.3, 150, 0.7, 1.3)], { rec: 0.7 })
+    ], def('cb3_stun', '落雷の裁き', [at(0, 115, 1.1, 0.9, STUN)]),
+    { ult: def('cb3_ult', '格子雷', ultCommon(3, 'cross'), { ult: true, rec: 1.2 }), ultAt: [0.7, 0.35] });
+    // 4. 鏡面の悪魔
+    set('cb4', [
+        def('cb4_stream', '鏡写しビーム連射', stream(4), { rec: 0.15 }),
+        def('cb4_mirror', '挟み撃ち', [beamfan(0, 5, 70, 1600, 56, 0.9, 1.5, { aim: 't' }), beamfan(0.1, 5, 70, 1600, 56, 0.9, 1.5, { aim: 't', off: 180 })]),
+        def('cb4_split', '虚像', [summon(0, 3), rad(0.5, 16, 240, 0.8)])
+    ], def('cb4_stun', '反転の瞳', [ring(0, 360, 1.4, 0.9, STUN)]),
+    { ult: def('cb4_ult', '鏡の回転線', ultCommon(4, 'double'), { ult: true, rec: 1.3 }), ultAt: [0.7, 0.4] });
+    // 5. 虚無の司祭
+    set('cb5', [
+        def('cb5_stream', '虚無ビーム連射', stream(5), { rec: 0.15 }),
+        def('cb5_ports', '虚無の門', [ports(0, 'around', 8, 460, 3.6), beams(0.9, 1500, 56, 0.9, 1.5, { track: true }), beams(1.9, 1500, 56, 0.9, 1.5, { track: true })]),
+        def('cb5_spiral', '渦の祈り', [spiral(0, 2.4, 240, 0.8, { arms: 3 }), ring(2.6, 220, 0.8, 1.4)])
+    ], def('cb5_seal', '虚無の封印', [ports(0, 'around', 6, 420, 2.2), at(0.2, 140, 1.3, 0.9, STUN)]),
+    { ult: def('cb5_ult', '虚無の渦線', ultCommon(5, 'rev'), { ult: true, rec: 1.3 }), ultAt: [0.7, 0.4] });
+    // 6. 時喰らいの時計悪魔
+    set('cb6', [
+        def('cb6_stream', '刻針ビーム連射', stream(6), { rec: 0.15 }),
+        def('cb6_hands', '長針と短針', spokes(0, 6, 0.3, 1600, 60, 1.2, 1.5, { rot: 60 })),
+        def('cb6_tick', '秒針の雨', [rain(0, 12, 76, 1.0, 1.3, { gap: 0.11 }), ring(1.6, 230, 0.8, 1.4)])
+    ], def('cb6_stop', '時間停止', [ring(0, 420, 1.5, 1.0, STUN)]),
+    { ult: def('cb6_ult', '正時の大鐘', ultCommon(6, 'rev'), { ult: true, rec: 1.3 }), ultAt: [0.75, 0.5, 0.25] });
+    // 7. 重力の暴君
+    set('cb7', [
+        def('cb7_stream', '重圧ビーム連射', stream(7), { rec: 0.15 }),
+        def('cb7_pull', '引力ビーム', [pull(0, 1.4, 320), beamfan(0.4, 7, 80, 1500, 56, 0.9, 1.5, { aim: 't' }), ring(1.5, 220, 0.8, 1.5)], { rec: 0.9 }),
+        def('cb7_rain', '隕鉄の雨', [rain(0, 13, 82, 1.0, 1.4, { gap: 0.1 }), donut(1.4, 540, 210, 1.0, 1.5)])
+    ], def('cb7_crush', '重力崩壊', [pull(0, 0.8, 380), at(0.6, 150, 1.0, 0.9, STUN)]),
+    { ult: def('cb7_ult', '収束する壁線', ultCommon(7, 'rev'), { ult: true, rec: 1.4 }), ultAt: [0.75, 0.5, 0.25] });
+    // 8. 星砕きの魔神
+    set('cb8', [
+        def('cb8_stream', '星砕きビーム連射', stream(8), { rec: 0.15 }),
+        def('cb8_barrage', '星屑の弾幕', [spiral(0, 3, 250, 0.8, { arms: 4 }), rad(1.0, 24, 260, 0.7), rad(1.8, 24, 290, 0.7)]),
+        def('cb8_star', '五芒星', [0, 1, 2, 3, 4].map(i => line(i * 0.25, 1700, 58, 1.0, 1.6, { aim: 'l', off: i * 144 })))
+    ], def('cb8_stun', '流星の鉄槌', [at(0, 130, 1.1, 0.9, STUN), ring(0.3, 180, 1.0, 1.0)]),
+    { ult: def('cb8_ult', '星の壁線', ultCommon(8, 'double'), { ult: true, rec: 1.4 }), ultAt: [0.75, 0.5, 0.25] });
+    // 9. 終焉の魔王
+    set('cb9', [
+        def('cb9_stream', '終焉ビーム連射', stream(9), { rec: 0.15 }),
+        def('cb9_combo', '魔王の連携', [blast(0, 6, 440, 1400, 64, 0.9, 1.6, { rep: 2, gap: 0.16 }), beamfan(1.0, 7, 70, 1600, 52, 0.8, 1.6, { aim: 't' }), ring(1.9, 210, 0.8, 1.5)]),
+        def('cb9_walls', '骨牢', [wall(0, 'h', 330, 0.9), wall(1.1, 'v', 350, 0.9), wall(2.2, 'h', 370, 0.9)], { rec: 0.8 })
+    ], def('cb9_seal', '魔王の封印', [blast(0, 4, 380, 1200, 66, 1.0, 0.9, { rep: 1 }), at(0.2, 140, 1.3, 0.9, STUN)]),
+    { ult: def('cb9_ult', '終焉の二重回転', ultCommon(9, 'double'), { ult: true, rec: 1.5 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
+    // 10. 不壊の悪魔（最強）：通常攻撃で大量のビームを常に放ち続ける。大技は壁から大量のビームを撃ち切り、逆回転でもう一度撃つ
+    set('cb10', [
+        def('cb10_stream', '不壊の連射', stream(10, 34), { rec: 0.08 }),
+        def('cb10_stream2', '不壊の連射・奔流', stream(11, 30).concat(stream(11, 30).map(s => Object.assign({}, s, { t: s.t + 1.7, off: (s.off || 0) + 9 }))), { rec: 0.08 }),
+        def('cb10_pull', '不壊の引力', [pull(0, 1.3, 330), beamfan(0.4, 9, 90, 1600, 54, 0.85, 1.6, { aim: 't' }), blast(1.5, 6, 440, 1400, 62, 0.8, 1.6, { rep: 2, gap: 0.16 })], { rec: 0.8 })
+    ], def('cb10_seal', '不壊の封印', [blast(0, 4, 360, 1200, 64, 0.95, 0.9, { rep: 1 }), at(0.2, 140, 1.2, 0.9, STUN)]),
+    { ult: def('cb10_ult', '無限の壁線・逆回転', ultCommon(10, 'rev').concat(wallSweep(2 * 8 * 0.42 + 1.6, { n: 16, volleys: 4, gap: 0.8, rot0: 0, rot: 0, every: 2, w: 54, tele: 0.8, dm: 1.8 })), { ult: true, rec: 1.2 }), ultAt: [0.85, 0.65, 0.45, 0.25] });
 
     window.BOSS_MOVES = { MOVES: MOVES, SETS: SETS, STUN_SECONDS: 3.0, STUN_IMMUNE: 3.5 };
 })();

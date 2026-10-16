@@ -373,6 +373,23 @@
         drops: ['gear_omega', 'rail_mk2', 'steam_pistol', 'tesla_whip', 'god_edge', 'dragon_breath'],
         bossDrops: ['gear_omega', 'rail_zero']
     });
+    // ---- ギミックボス（第四世界）----
+    add({
+        id: 'boiler_heart', world: 4, power: W4_POWER, name: '大圧力炉', icon: '♨️', ilvl: 35, bg: '#5a3422', bg2: '#432618',
+        desc: '限界まで蒸気を溜め込む巨大ボイラー。圧力が溜まるたびに「安全弁」を壊さなければ、炉心が大爆発を起こす。',
+        enemies: [E('蒸気兵', '🤖', 'chaser', '#c8b090'), E('ボイラー虫', '🪲', 'bomber', '#ff9a4a'), E('鉄砲台', '🔫', 'ranged', '#9aa4b8')],
+        boss: { name: '炉心の巨人ブラスト', icon: '♨️', color: '#ff8a4a', patterns: ['slam', 'radial', 'charge'], gimmick: 'pressure' },
+        drops: ['rail_mk1', 'gear_saw', 'steam_pistol', 'tesla_whip', 'god_edge', 'dragon_breath'],
+        bossDrops: ['steam_howitzer', 'gear_saw']
+    });
+    add({
+        id: 'grave_of_gears', world: 4, power: W4_POWER, name: '歯車の墓所', icon: '⚰️', ilvl: 36, bg: '#2a2a36', bg2: '#1c1c28',
+        desc: '動かなくなった機械が眠る墓所。死神グリム・リーパーは10秒ごとに全員へ「スティグマ」を刻み、13個たまった者の魂を刈り取る。',
+        enemies: [E('朽ちた機兵', '🦴', 'chaser', '#a0a0b8'), E('墓守の亡霊', '👻', 'ranged', '#b8a8ff'), E('錆びた鎌兵', '🪓', 'charger', '#8a8a98')],
+        boss: { name: '死神グリム・リーパー', icon: '💀', color: '#b8a0ff', patterns: ['slam', 'volley', 'radial'], gimmick: 'stigma' },
+        drops: ['rail_mk2', 'gear_twin', 'clock_blade', 'tesla_whip', 'god_edge', 'chaos_axe'],
+        bossDrops: ['reaper_scythe', 'gear_twin']
+    });
     add({
         id: 'mech_throne', world: 4, power: { hp: 3.3, dmg: 2.2, spd: 1.16 }, name: '機神の玉座', icon: '🤴', ilvl: 38, bg: '#1a2a4a', bg2: '#111c36',
         desc: '機神の都の最奥。すべての機械を統べる機神王が、歯車の玉座に座している。',
@@ -436,6 +453,27 @@
         drops: ['orb_omega', 'sing_maw', 'star_bow', 'eclipse_dagger', 'void_katana', 'aeon_bit'],
         bossDrops: ['orb_omega', 'sing_omega']
     });
+    // ---- ギミックボス（第五世界）----
+    add({
+        id: 'gravity_well', world: 5, power: W5_POWER, name: '重力の井戸', icon: '🪐', ilvl: 42, bg: '#141a3a', bg2: '#0c1028',
+        desc: '光も時間も落ちていく巨大な井戸。重力喰らいグラビトンが、獲物を中心へ引きずり込んでは押し潰す。',
+        enemies: [E('落ちる星屑', '💫', 'swarm', '#a0b0ff'), E('重力の獣', '🐺', 'charger', '#7a8aff'), E('虚ろな眼', '👁️', 'ranged', '#c0a0ff')],
+        boss: { name: '重力喰らいグラビトン', icon: '🪐', color: '#7a8aff', patterns: ['spiral', 'slam', 'radial'], gimmick: 'gravity' },
+        drops: ['orb_array', 'sing_maw', 'nova_greatsword', 'eclipse_dagger', 'void_katana', 'aeon_bit'],
+        bossDrops: ['sing_maw', 'orb_array']
+    });
+    add({
+        id: 'olympus', world: 5, power: W5_POWER, name: '天空神殿オリンポス', icon: '🏛️', ilvl: 45, bg: '#2a2a4a', bg2: '#1c1c36',
+        desc: '雲の上に浮かぶ神殿。雷神ゼウスと火の巨人プロメテウスが、二人で挑戦者を迎え撃つ。片方を倒すと、残った方が15秒で倒れた方を蘇らせようとする。',
+        enemies: [E('神殿の雷雲', '⛈️', 'ranged', '#ffe97a'), E('炎の巨兵', '🔥', 'tank', '#ff8a4a'), E('神鷲', '🦅', 'charger', '#e8e0b0')],
+        boss: { name: '雷神ゼウス', icon: '⚡', color: '#ffe97a', patterns: ['volley', 'slam', 'radial'], gimmick: 'twin' },
+        bosses: [
+            { name: '雷神ゼウス', icon: '⚡', color: '#ffe97a', patterns: ['volley', 'slam', 'radial'], set: 'olympus_zeus', hp: 0.7, dx: -190 },
+            { name: '火の巨人プロメテウス', icon: '🔥', color: '#ff7a3a', patterns: ['slam', 'charge', 'radial'], set: 'olympus_prometheus', hp: 0.7, dx: 190 }
+        ],
+        drops: ['orb_array', 'nova_greatsword', 'star_bow', 'eclipse_dagger', 'void_katana', 'dragon_breath'],
+        bossDrops: ['napoleon', 'star_bow']
+    });
     add({
         id: 'void_throne', world: 5, power: { hp: 3.8, dmg: 2.4, spd: 1.18 }, name: '虚空の玉座', icon: '👑', ilvl: 46, bg: '#14041f', bg2: '#0c0214',
         desc: '世界の果てに据えられた玉座。すべての終わりを見届ける虚空の王が、最後の挑戦者を待っている。',
@@ -445,13 +483,58 @@
         bossDrops: ['sing_omega', 'orb_omega', 'void_king_blade']
     });
 
+    // ---- 第五世界のラスボス（ディメンション・キーパー）----
+    add({
+        id: 'dimension_end', world: 5, bossOnly: true, power: { hp: 4.4, dmg: 2.5, spd: 1.0 }, reqOverride: 130000,
+        name: '次元の終点', icon: '🌀', ilvl: 46, bg: '#12061f', bg2: '#08030f',
+        desc: 'すべての次元が行き着く、世界の一番外側。次元の番人ディメンション・キーパーは6つの核に守られている。核は放射状の技をスキルで跳ね返すと砕け、すべて砕くと門の主としての真の姿を現す。',
+        enemies: [E('次元の影', '👤', 'chaser', '#d0a0ff')],
+        boss: { name: 'ディメンション・キーパー', icon: '🌀', color: '#e0a0ff', patterns: ['radial'], stand: true, gate: true, gimmick: 'dimension' },
+        drops: ['sing_omega', 'orb_omega', 'void_katana', 'star_bow', 'nova_greatsword', 'creation_scepter'],
+        bossDrops: ['dimension_edge', 'sing_omega', 'orb_omega']
+    });
+
+    // ============================================================
+    // ボスラッシュ（ディメンション・キーパーを倒すと解放）
+    //  ・フェーズ1〜5＋Final の6フェーズ。フェーズNでは第N世界のボスから4体が厳選されて一気に出てくる
+    //  ・ボスは「第四世界のボス並」まで強化され、フェーズが進むごとに一段ずつ強くなる（RUSH.phases の req / pw）
+    //  ・Final は強化ディメンション・キーパー（サンズ風の弾幕）
+    //  ・難易度は イージー／ハード／ナイトメア／エクストリーム（RUSH_DIFFS）
+    //    エクストリームは、ディメンション・キーパーをナイトメアでクリアしていないと入れない
+    // ============================================================
+    add({
+        id: 'boss_rush', world: 5, rush: true, bossOnly: true, power: { hp: 1, dmg: 1, spd: 1 }, reqOverride: 22000,
+        name: 'ボスラッシュ', icon: '🏆', ilvl: 46, bg: '#1c1030', bg2: '#10081e',
+        unlock: { cleared: 'dimension_end', text: 'ディメンション・キーパーを倒すと解放されます' },
+        desc: '歴代のボスたちが、第四世界のボス並の強さで蘇る。フェーズ1〜5では、その世界のボス4体が一気に襲いかかる。Finalは、強化されたディメンション・キーパー。',
+        enemies: [E('歴代の影', '👤', 'chaser', '#d0a0ff')],
+        boss: { name: '歴代のボスたち', icon: '🏆', color: '#ffd84a', patterns: ['radial'], stand: true },
+        drops: [], bossDrops: []
+    });
+
+    // ============================================================
+    // 無限回廊（ボスラッシュをどの難易度でもクリアすると解放）
+    //  ・下へ下へと続く迷路のダンジョン。階層ごとにランダム生成。敵の強さは「自分のステータス」と階層で決まる
+    //  ・宝箱（ミミックの罠あり）／ボス部屋（行かなくてもよい）。宝箱から武器と特殊アイテムが出る
+    // ============================================================
+    add({
+        id: 'infinite_corridor', world: 6, corridor: true, anyChar: true, power: { hp: 1, dmg: 1, spd: 1 }, reqOverride: 1000,
+        name: '無限回廊', icon: '🌀', ilvl: 46, bg: '#262033', bg2: '#15101f',
+        unlock: { flag: 'corridorOpen', text: 'ボスラッシュをクリアすると解放されます（難易度は問いません）' },
+        desc: '果てしなく続く迷宮。下へ降りる階段を探そう。深いほど敵は強くなる（敵の強さは、あなたのステータスに合わせて変わる）。宝箱にはミミックが紛れている。',
+        enemies: [E('迷宮の影', '👤', 'chaser', '#b0a0d0')],
+        boss: { name: '回廊のボス', icon: '😈', color: '#ff4a6a', patterns: ['radial'], stand: true },
+        drops: [], bossDrops: []
+    });
+
     // ============================================================
     // スタンダードワールド（スタンダードキャラ専用）
     //  ・シーズンで持ち帰ったステータスを試す、永遠の世界。最初のボスから HP が1億を超える（ノーマル）
     //  ・bossHp : ノーマル・ソロのボスHP / req : 敵の攻撃力の基準にするステータス合計
     //  ・制限時間は25分。ハード×2.2・ナイトメア×4.5。協力プレイ推奨
     // ============================================================
-    const WS_POWER = { hp: 1, dmg: 1.0, spd: 1.12 };
+    // 敵が強すぎたため弱体化：攻撃 1.0→0.6、速さ 1.12→1.0、雑魚のHP ×0.5（ボスHPは1億超えを維持）
+    const WS_POWER = { hp: 1, mobHp: 0.5, dmg: 0.6, spd: 1.0 };
     const stdEnemies = [E('永劫の従者', '🗡️', 'chaser', '#e0d0ff'), E('終局の砲手', '🔮', 'ranged', '#a08aff'), E('時の番人', '⌛', 'tank', '#ffe0a0')];
     const stdDrops = ['creation_scepter', 'genesis_gunblade', 'divine_rapier', 'sing_omega', 'orb_omega', 'void_king_blade', 'mech_blade_god', 'star_bow'];
     add({ id: 'std_gate', world: 9, standardOnly: true, bossHp: 1.2e8, reqOverride: 1000000, power: WS_POWER, name: '永劫の入口', icon: '♾️', ilvl: 47, bg: '#1a1424', bg2: '#100a1a',
@@ -463,7 +546,7 @@
     add({ id: 'std_cause', world: 9, standardOnly: true, bossHp: 1.1e9, reqOverride: 2500000, power: WS_POWER, name: '因果の断崖', icon: '🧭', ilvl: 49, bg: '#102a2a', bg2: '#0a1c1c',
         desc: '原因と結果が断ち切られた断崖。裁定者が、あらゆる因果を書き換える。',
         enemies: stdEnemies, boss: { name: '因果の裁定者コーザ・ジャッジ', icon: '⚖️', color: '#80ffe0', patterns: ['volley', 'slam', 'radial', 'summon'] }, drops: stdDrops, bossDrops: stdDrops.slice(2, 5) });
-    add({ id: 'std_loop', world: 9, standardOnly: true, bossHp: 3.3e9, reqOverride: 4000000, power: WS_POWER, name: '無限回廊', icon: '🔁', ilvl: 50, bg: '#2a1040', bg2: '#1c0a2c',
+    add({ id: 'std_loop', world: 9, standardOnly: true, bossHp: 3.3e9, reqOverride: 4000000, power: WS_POWER, name: '循環の回廊', icon: '🔁', ilvl: 50, bg: '#2a1040', bg2: '#1c0a2c',
         desc: '出口のない無限の回廊。回廊主が、挑戦者を何度でも迷わせる。',
         enemies: stdEnemies, boss: { name: '無限の回廊主ループ・マスター', icon: '🔁', color: '#d080ff', patterns: ['charge', 'spiral', 'slam', 'volley'] }, drops: stdDrops, bossDrops: stdDrops.slice(3, 6) });
     add({ id: 'eternal_throne', world: 9, standardOnly: true, bossHp: 1e10, reqOverride: 6000000, power: WS_POWER, name: '永劫の玉座', icon: '♾️', ilvl: 51, bg: '#14101e', bg2: '#0c0814',
@@ -475,6 +558,15 @@
     //  ・2〜4人の乱戦。敵はいない。ダメージはステータスに関係なく「最大HPの割合」で決まる（武器・スキル・特殊効果の勝負）
     //  ・1人で入ると、スパーリングボットとの練習になる
     // ============================================================
+    // チーム戦（2v2 / 3v3）：pvpTeam＝1チームの人数。参加順に青・赤へ交互に振り分け。味方には攻撃が当たらず、相手チーム全員を倒したら勝ち
+    add({ id: 'pvp_2v2', world: 0, pvp: true, pvpTeam: 2, bossOnly: true, name: 'チーム戦 2v2', icon: '🤝', ilvl: 1, bg: '#22304a', bg2: '#161e30',
+        desc: 'オンラインマッチ（チーム戦）。2人×2チーム。相手チームを全滅させたら勝ち。',
+        enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
+        drops: [], bossDrops: [] });
+    add({ id: 'pvp_3v3', world: 0, pvp: true, pvpTeam: 3, bossOnly: true, name: 'チーム戦 3v3', icon: '🤝', ilvl: 1, bg: '#2a2a4a', bg2: '#1a1a30',
+        desc: 'オンラインマッチ（チーム戦）。3人×2チーム。相手チームを全滅させたら勝ち。',
+        enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
+        drops: [], bossDrops: [] });
     add({ id: 'pvp_arena', world: 0, pvp: true, bossOnly: true, name: 'アリーナ', icon: '⚔️', ilvl: 1, bg: '#2a2a3a', bg2: '#1c1c2a',
         desc: 'オンラインマッチ会場。2〜4人の乱戦、最後まで立っていた人の勝ち。',
         enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
@@ -482,12 +574,12 @@
 
     // 追加の武器種のベースを、近いレベルのステージのドロップに加える（各ベース：tier±3のステージの通常ドロップ、最上位は最も近いボスのドロップにも）
     (function addNewWeaponDrops() {
-        const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade'];
+        const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade', 'supportstaff'];
         const tiers = { rod: [3, 7, 11], sling: [3, 7, 11], claws: [4, 8, 12], flail: [17, 20, 23], fan: [17, 20, 23], boomerang: [17, 20, 23], trident: [24, 27, 30], chime: [24, 27, 30], lance: [25, 28, 30],
-            chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46] };
+            chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46], supportstaff: [5, 15, 26, 36, 44] };
         types.forEach(ty => tiers[ty].forEach((tr, i) => {
             const id = ty + '_' + (i + 1);
-            const pool = S.filter(st => !st.pvp && !st.standardOnly && !st.gateTo && !st.mini && st.drops && Math.abs(st.ilvl - tr) <= 3);
+            const pool = S.filter(st => !st.pvp && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
             pool.forEach(st => { if (st.drops.indexOf(id) < 0) st.drops.push(id); });
             if (i === 2 && pool.length) { const bs = pool.reduce((a, b) => (Math.abs(b.ilvl - tr) < Math.abs(a.ilvl - tr) ? b : a)); if (bs.bossDrops && bs.bossDrops.indexOf(id) < 0) bs.bossDrops.push(id); }
         }));
@@ -539,11 +631,12 @@
     const M = (mob, elite, boss) => ({ mob: mob, elite: elite, boss: boss });
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
-    ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'void_throne'].forEach(id => { MATS[id] = W5M; });
+    ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });
+    MATS.infinite_corridor = MATS.void_throne || MATS.god_throne;   // 無限回廊：深いほど、レアな素材を落とす敵が出てくる（stage.js が階層に応じて表を選ぶ）
     S.forEach(st => { st.mats = MATS[st.id] || { mob: [], elite: [], boss: [] }; });
 
 
@@ -556,7 +649,7 @@
     //  ・weapon の攻撃力上昇は「％」なので、ステータス合計の差がそのまま強さの差になる。
     // ============================================================
     const STAT_REQ = { start: 250, w1End: 1500, w1EndIlvl: 15, final: 100000 };
-    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly).map(x => x.ilvl));
+    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly && !x.rush && !x.corridor).map(x => x.ilvl));
     function reqTotal(ilvl) {
         if (ilvl <= 1) return STAT_REQ.start;
         if (ilvl <= STAT_REQ.w1EndIlvl) return STAT_REQ.start * Math.pow(STAT_REQ.w1End / STAT_REQ.start, (ilvl - 1) / (STAT_REQ.w1EndIlvl - 1));
@@ -575,11 +668,81 @@
     });
 
     // 難易度：敵のHP・攻撃・速さ・精鋭の出現率と、ドロップのレア度補正
+    //  healRed : 回復系の効果（回復スキル・吸血・自然回復・撃破時回復・支援の回復など）がこの割合だけ弱くなる
     const DIFFS = [
-        { name: 'ノーマル',   hp: 1.0, dmg: 1.0, spd: 1.0,  elite: 0.10, luck: 0.0, color: '#3a6ee8', note: '標準。装備を整えながら進める難易度。' },
-        { name: 'ハード',     hp: 2.2, dmg: 1.6, spd: 1.08, elite: 0.16, luck: 0.7, color: '#d9812a', note: '敵が硬く強い。高レア武器が出やすい。' },
-        { name: 'ナイトメア', hp: 4.5, dmg: 2.4, spd: 1.16, elite: 0.24, luck: 1.6, color: '#b03a3a', note: '被弾が痛い上級者向け。伝説武器を狙える。' }
+        { name: 'ノーマル',   hp: 1.0, dmg: 1.0, spd: 1.0,  elite: 0.10, luck: 0.0, healRed: 0,    color: '#3a6ee8', note: '標準。装備を整えながら進める難易度。' },
+        { name: 'ハード',     hp: 2.2, dmg: 1.6, spd: 1.08, elite: 0.16, luck: 0.7, healRed: 0,    color: '#d9812a', note: '敵が硬く強い。高レア武器が出やすい。' },
+        { name: 'ナイトメア', hp: 4.5, dmg: 2.4, spd: 1.16, elite: 0.24, luck: 1.6, healRed: 0.5,  color: '#b03a3a', note: '被弾が痛い上級者向け。伝説武器を狙える。回復系の効果（回復スキル・吸血・自然回復など）が50%低下。' }
     ];
+
+    // ボスラッシュの難易度（イージー／ハード／ナイトメア／エクストリーム）
+    //  phaseMin : 1フェーズあたりの制限時間（分）
+    const RUSH_DIFFS = [
+        { name: 'イージー',       hp: 0.7, dmg: 0.75, spd: 0.97, elite: 0, luck: 0.0, healRed: 0,    phaseMin: 8,  color: '#3aa86a', note: 'ボスラッシュの入門。はじめて挑むならここから。' },
+        { name: 'ハード',         hp: 2.0, dmg: 1.5,  spd: 1.06, elite: 0, luck: 0.8, healRed: 0,    phaseMin: 9,  color: '#d9812a', note: 'ボスが硬く強い。高レア武器が出やすい。' },
+        { name: 'ナイトメア',     hp: 4.0, dmg: 2.3,  spd: 1.14, elite: 0, luck: 1.8, healRed: 0.5,  phaseMin: 12, color: '#b03a3a', note: '回復系の効果が50%低下。被弾が致命傷になる。' },
+        { name: 'エクストリーム', hp: 7.0, dmg: 3.2,  spd: 1.22, elite: 0, luck: 3.0, healRed: 0.75, phaseMin: 15, color: '#8a2ae0', note: '回復系の効果が75%低下。ディメンション・キーパーをナイトメアで倒していないと挑めない。', needDimNightmare: true }
+    ];
+
+    // ボスラッシュのフェーズ表
+    //  world : そのフェーズで出てくるボスの世界（Finalは強化ディメンション・キーパー）
+    //  req/pw: ボスの強さ（推奨ステータス合計・HP/攻撃/速さの倍率）。フェーズ1が第四世界のボス並で、一段ずつ上がる
+    //  lootWorld : ドロップ武器・防具・素材をどの世界の表から引くか
+    //  perBossHp : 4体同時なので、1体あたりのHPは通常のボスより少なめにする
+    const RUSH = {
+        unlockStage: 'dimension_end', extremeNeed: { stageId: 'dimension_end', diff: 2 },
+        perBossHp: 0.42, bossCount: 4, intermission: 6,
+        phases: [
+            { n: 1, label: 'フェーズ1', world: 1, ilvl: 34, req: 22000,  pw: { hp: 2.7, dmg: 1.9, spd: 1.14 }, lootWorld: 4 },
+            { n: 2, label: 'フェーズ2', world: 2, ilvl: 38, req: 50000,  pw: { hp: 3.1, dmg: 2.1, spd: 1.16 }, lootWorld: 5 },
+            { n: 3, label: 'フェーズ3', world: 3, ilvl: 42, req: 70000,  pw: { hp: 3.4, dmg: 2.2, spd: 1.17 }, lootWorld: 5 },
+            { n: 4, label: 'フェーズ4', world: 4, ilvl: 44, req: 90000,  pw: { hp: 3.6, dmg: 2.3, spd: 1.18 }, lootWorld: 5 },
+            { n: 5, label: 'フェーズ5', world: 5, ilvl: 46, req: 115000, pw: { hp: 3.9, dmg: 2.4, spd: 1.18 }, lootWorld: 5 },
+            { n: 6, label: 'Final',     world: 5, ilvl: 46, req: 160000, pw: { hp: 4.6, dmg: 2.6, spd: 1.0 },  lootWorld: 5, final: true }
+        ],
+        finalBoss: { name: 'ディメンション・キーパー・極', icon: '🌀', color: '#f0b0ff', set: 'dk_final', stand: true, gate: true }
+    };
+    // フェーズN で出るボスの候補：第N世界の通常ステージのボス（ミニ・門・ギミックボス・双子ボスは除く）
+    RUSH.pool = function (world) {
+        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
+    };
+    // 戦利品の表（ドロップ武器・ボス武器）：その世界の通常ステージの表をまとめたもの
+    RUSH.lootPool = function (world) {
+        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
+        const uniq = a => a.filter((v, i) => a.indexOf(v) === i);
+        let drops = [], boss = [];
+        L.forEach(st => { drops = drops.concat(st.drops); boss = boss.concat(st.bossDrops || []); });
+        const dk = S.find(st => st.id === 'dimension_end');
+        if (world === 5 && dk) boss = boss.concat(dk.bossDrops || []);
+        return { drops: uniq(drops), bossDrops: uniq(boss.length ? boss : drops) };
+    };
+
+    // 無限回廊のデータ
+    //  mobs : 階層 from 以降に出てくる敵。boss : 回廊のボス10体（10番目が最強の「不壊の悪魔」）。mul はボスの強さ倍率
+    const CORRIDOR = {
+        mimic: { name: 'ミミック', icon: '📦', arch: 'charger', color: '#c98a3a' },
+        mobs: [
+            { from: 1,  name: '迷宮のスライム', icon: '🟢', arch: 'chaser',  color: '#58c24a' }, { from: 1,  name: '骸骨剣士',   icon: '💀', arch: 'chaser',  color: '#e8e4d0' }, { from: 1,  name: '洞窟コウモリ', icon: '🦇', arch: 'swarm',  color: '#7a5a9a' },
+            { from: 3,  name: '骸骨弓兵',       icon: '🏹', arch: 'ranged',  color: '#d8d0a8' }, { from: 3,  name: '石像兵',     icon: '🗿', arch: 'tank',    color: '#9a9aa8' }, { from: 3,  name: '爆弾虫',       icon: '🪲', arch: 'bomber', color: '#ffb02a' },
+            { from: 8,  name: '迷宮の亡霊',     icon: '👻', arch: 'ranged',  color: '#d0d8ff' }, { from: 8,  name: '悪魔の猟犬', icon: '🐺', arch: 'charger', color: '#c0502f' }, { from: 8,  name: '毒蜘蛛',       icon: '🕷️', arch: 'swarm',  color: '#8aca5a' },
+            { from: 14, name: '機械兵',         icon: '🤖', arch: 'chaser',  color: '#8ab4ff' }, { from: 14, name: '魔導砲台',   icon: '🔮', arch: 'ranged',  color: '#c080ff' }, { from: 14, name: '鉄の巨兵',     icon: '🛡️', arch: 'tank',   color: '#b0b8c8' },
+            { from: 22, name: '虚無の使徒',     icon: '👁️', arch: 'charger', color: '#b060ff' }, { from: 22, name: '影の群れ',   icon: '🌑', arch: 'swarm',   color: '#6a5a8a' }, { from: 22, name: '地獄の砲手',   icon: '😈', arch: 'ranged', color: '#ff4a3a' },
+            { from: 30, name: '堕天の騎士',     icon: '⚔️', arch: 'chaser',  color: '#e8c0ff' }, { from: 30, name: '終焉の爆弾', icon: '💥', arch: 'bomber',  color: '#ff6a4a' }, { from: 30, name: '無貌の巨人',   icon: '🗿', arch: 'tank',   color: '#7a6a9a' }
+        ],
+        bosses: [
+            { id: 'cb1',  tier: 1,  mul: 0.80, name: '灼眼の小悪魔インプ・ロード',   icon: '👿', color: '#ff7a3a', set: 'cb1',  note: '細いビームを絶え間なく撃つ。壁から炎のビームが走る。' },
+            { id: 'cb2',  tier: 2,  mul: 0.90, name: '氷獄の番犬フロスト・ケルベロス', icon: '🐕', color: '#7ad8ff', set: 'cb2',  note: '氷のビームが扇状に広がる。壁の氷柱ビームが左右から迫る。' },
+            { id: 'cb3',  tier: 3,  mul: 1.00, name: '雷鳴の処刑人ボルト・エクスキューショナー', icon: '⚡', color: '#ffe44a', set: 'cb3',  note: '速い雷ビームが追尾。壁から格子状の雷が降る。' },
+            { id: 'cb4',  tier: 4,  mul: 1.10, name: '鏡面の悪魔ミラー・ディアブロ', icon: '🪞', color: '#c8e8ff', set: 'cb4',  note: '正面と背後から挟み撃ちのビーム。鏡写しの回転ビーム。' },
+            { id: 'cb5',  tier: 5,  mul: 1.22, name: '虚無の司祭ヴォイド・プリースト', icon: '🧙', color: '#b070ff', set: 'cb5',  note: '門を開いて四方からビーム。壁から渦を巻くビーム。' },
+            { id: 'cb6',  tier: 6,  mul: 1.34, name: '時喰らいの時計悪魔クロック・デーモン', icon: '🕰️', color: '#ffd070', set: 'cb6',  note: '時計の針のように回るビーム。長い予告のあとで一斉に撃つ。' },
+            { id: 'cb7',  tier: 7,  mul: 1.46, name: '重力の暴君グラビティ・タイラント', icon: '🌑', color: '#8a6aff', set: 'cb7',  note: '引き寄せてからビームの雨。壁から中心へ収束するビーム。' },
+            { id: 'cb8',  tier: 8,  mul: 1.58, name: '星砕きの魔神スター・ブレイカー', icon: '💫', color: '#ff9ad8', set: 'cb8',  note: '弾幕とビームの同時攻撃。星形に走るビーム。' },
+            { id: 'cb9',  tier: 9,  mul: 1.72, name: '終焉の魔王エンド・ロード',     icon: '👑', color: '#ff4a8a', set: 'cb9',  note: 'あらゆるビームを組み合わせる魔王。大技は二重の回転ビーム。' },
+            { id: 'cb10', tier: 10, mul: 1.90, name: '不壊の悪魔',                   icon: '😈', color: '#ff2a4a', set: 'cb10', note: '通常攻撃で大量のビームを常に放ち続ける最強のボス。大技は壁から大量のビームを撃ち切り、逆回転でもう一度撃つ。' }
+        ]
+    };
+
 
     // 世界(ワールド)の定義
     //  unlock.stageId/diff : このステージを diff 以上の難易度（0=ノーマルでもよい）でクリアすると「門」が現れる（gateFlag）
@@ -602,10 +765,16 @@
           unlock: { stageId: 'mech_throne', diff: 0, gateId: 'gate_world5', gateFlag: 'gateOpen5', flag: 'world5',
                     openText: '機神の玉座の背後で、虚空が口を開けた...', openSub: '「虚空の門」が現れた。ゲートキーパー・無限を倒せば、第五世界へ進める。',
                     clearText: '虚空の門が開かれた...', clearSub: 'ステージゲートに「第五世界」が追加されました。' } },
+        // 無限回廊（ボスラッシュをクリアすると現れる。どちらのキャラでも入れる）
+        { id: 6, name: '無限回廊', icon: '🌀', color: '#c0a0ff', anyChar: true, unlock: { flag: 'corridorOpen' }, note: '終わりのない迷宮。階段を探して下へ。敵の強さはあなたのステータスで変わる。' },
         // スタンダードワールド（スタンダードキャラ専用。最初から入れる。最初のボスからHPが1億超え）
         { id: 9, name: 'スタンダードワールド', icon: '♾️', color: '#c0a0ff', standardOnly: true, alwaysOpen: true, note: 'シーズンで持ち帰ったステータスを試す、永遠の世界。ボスのHPは1億超えから。制限時間25分・協力プレイ推奨。' }
     ];
 
-    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
+    // 推奨ステータス合計 req から、敵の強さの倍率を出す（無限回廊・ボスラッシュは、ステージ中に req が変わるので関数にしてある）
+    function scaleOf(req) {
+        return { gMob: atkMulRef(req) / atkMulRef(STAT_REQ.start), gDmg: atkMulRef(req) / atkMulRef(STAT_REQ.start), gHp: maxHpRef(req) / maxHpRef(STAT_REQ.start) };
+    }
+    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, RUSH_DIFFS: RUSH_DIFFS, RUSH: RUSH, CORRIDOR: CORRIDOR, scaleOf: scaleOf, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
     window.getStageById = function (id) { return S.find(s => s.id === id) || null; };
 })();
