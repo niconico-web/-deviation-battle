@@ -24,6 +24,15 @@ window.addEventListener('appinstalled', () => {
 });
 
 let studyStartTime = null, studyTimerInterval = null, studyElapsedBefore = 0;
+// 勉強タイマーは「時間を指定して、その時間まで勉強する」カウントダウン式（最大2時間）
+const STUDY_MAX_SECONDS = 2 * 60 * 60;
+let studyDurationSec = 30 * 60;
+function readStudyDuration() {
+    const sel = document.getElementById("studyDuration");
+    let m = sel ? parseInt(sel.value, 10) : 30;
+    if (!(m > 0)) m = 30;
+    return Math.min(STUDY_MAX_SECONDS, m * 60);
+}
 let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
@@ -36,6 +45,7 @@ function saveStudyTimerState() {
         const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
         const state = {
             elapsed: elapsed,
+            duration: studyDurationSec,
             subject: document.getElementById("studyFocus")?.value || 'jp',
             timestamp: Date.now()
         };
@@ -88,6 +98,9 @@ function restoreStudyTimerState() {
     // 中断中に経過した時間を加算して新しい開始時間を設定
     const gapElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
     studyElapsedBefore = savedState.elapsed + Math.max(0, gapElapsed);
+    studyDurationSec = Math.min(STUDY_MAX_SECONDS, savedState.duration || studyDurationSec);
+    const durSel = document.getElementById("studyDuration");
+    if (durSel) { durSel.value = String(Math.round(studyDurationSec / 60)); durSel.disabled = true; }
     studyStartTime = Date.now(); // 現在時刻から再開
 
     studyStartBtn.disabled = true;
@@ -244,7 +257,8 @@ function initializeSocket() {
         if (localStorage.getItem('pendingSave') === 'true') {
             console.log("Found pending save, attempting to sync to server...");
         }
-        syncPlayerToServer(true); // silent=trueで自動保存
+        setupSyncHandlers(); startAutoSync();
+        syncPlayerToServer(true); // 接続時は自動で同期（送る／取り込む）
 
         if (pendingRandomMatchPlayer) {
             console.log("Re-emitting pending random match request after reconnect", pendingRandomMatchPlayer.id);
@@ -623,6 +637,9 @@ function updateXpDisplay(player) {
 function startStudy() {
     if (studyStartTime !== null) return;
     if (!getPlayerData()) { alert(I18N.needChar); return; }
+    studyDurationSec = readStudyDuration();
+    const durSel = document.getElementById("studyDuration");
+    if (durSel) durSel.disabled = true;
     studyStartTime = Date.now();
     studyElapsedBefore = 0;
     document.getElementById("studyStart").disabled = true;
@@ -636,9 +653,11 @@ function stopStudy() {
     if (studyStartTime === null) return;
     clearInterval(studyTimerInterval);
     studyTimerInterval = null;
-    const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+    const elapsed = Math.min(studyDurationSec, studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
     studyStartTime = null;
     studyElapsedBefore = 0;
+    const durSelEnd = document.getElementById("studyDuration");
+    if (durSelEnd) durSelEnd.disabled = false;
     
     // 保存されたタイマー状態をクリア
     clearStudyTimerState();
@@ -656,9 +675,34 @@ function stopStudy() {
     document.getElementById("studyTimer").textContent = "00:00:00";
 }
 
+// 勉強タイマーを「ゼロに戻す」（報酬なし）。タイマー中にステージ・オンラインマッチへ行ったときに呼ばれる
+function cancelStudyTimer() {
+    const wasRunning = studyStartTime !== null;
+    if (studyTimerInterval) clearInterval(studyTimerInterval);
+    studyTimerInterval = null;
+    studyStartTime = null;
+    studyElapsedBefore = 0;
+    clearStudyTimerState();
+    const b1 = document.getElementById("studyStart"), b2 = document.getElementById("studyStop"), b3 = document.getElementById("studyFocus"), b4 = document.getElementById("studyDuration");
+    if (b1) b1.disabled = false;
+    if (b2) b2.disabled = true;
+    if (b3) b3.disabled = false;
+    if (b4) b4.disabled = false;
+    const t = document.getElementById("studyTimer");
+    if (t) t.textContent = "00:00:00";
+    return wasRunning;
+}
+window.cancelStudyTimer = cancelStudyTimer;
+
 function updateStudyTimerDisplay() {
     if (studyStartTime === null) return;
-    document.getElementById("studyTimer").textContent = formatTime(studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000));
+    const elapsedNow = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+    if (elapsedNow >= studyDurationSec) {   // 指定時間に到達：自動で終了して報酬を受け取る
+        document.getElementById("studyTimer").textContent = formatTime(0);
+        stopStudy();
+        return;
+    }
+    document.getElementById("studyTimer").textContent = formatTime(studyDurationSec - elapsedNow);   // 残り時間を表示
     // 毎秒ここでも保存しておく（visibilitychange/beforeunloadが
     // 発火しないままアプリが強制終了された場合の保険）
     saveStudyTimerState();
@@ -707,8 +751,19 @@ function updateStatGrowthInfo() {
         } else {
             stats = statNames[stat1];
         }
-        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}</p>`;
+        const elemNote = { jp: '🔥炎', math: '💧水', sci: '🌪️風', soc: '⛰️土', eng: '⚡雷' }[subject];
+        infoEl.innerHTML = `<p><strong>${I18N.statGrowthInfo}</strong>${stats}${elemNote ? '　／　属性：' + elemNote + 'が強化されます' : ''}</p>`;
+        renderElemPanel();
     }
+}
+
+// 属性ステータス（勉強で強くなる）の表示
+function renderElemPanel() {
+    const box = document.getElementById("elemPanel");
+    if (!box || !window.SBElem) return;
+    let sp = 50;
+    try { const p = getPlayerData(); if (p) sp = (getStatsFromPlayer(p, true) || {}).special || 50; } catch (e) {}
+    box.innerHTML = SBElem.panelHtml(sp);
 }
 
 function applyStudyRewards(seconds) {
@@ -738,6 +793,8 @@ function applyStudyRewards(seconds) {
     }
     
     const [stat1, stat2, stat3] = SUBJECT_STATS[subject];
+    // 勉強した教科の属性ポイントも、ステータス上昇と同じだけ増える（国語→炎／数学→水／理科→風／社会→土／英語→雷）
+    try { if (window.SBElem) SBElem.addStudy(subject, statGain); } catch (e) {}
     stats[stat1] += statGain;
     if (stat2) {
         stats[stat2] += statGain;
@@ -882,10 +939,176 @@ function syncPlayerToServer(silent) {
         return false;
     }
 
-    pendingSilentSave = !!silent;
-    window.socket.emit("saveData", player);
+    // 以前の「保存」は、いまは端末の連携（同期）。変更があれば送り、もう一方の端末が先に更新していれば取り込む
+    runSync(!silent);
     return true;
 }
+
+// ============================================================
+// 端末の連携（同期）
+//  2台以上の端末が、同じプレイヤーIDで「同じキャラクター」を共有する。どちらで進めても、自動で反映し合う。
+//  ・サーバーは、データの「版（rev）」を持つ。端末は「最後に同期した版」と「そのときのデータの指紋(hash)」を覚えておく（sbSyncMeta。端末ごとの記録）
+//  ・この端末に変更がなく、サーバーが新しければ → 自動で取り込む（再読み込み）
+//  ・この端末に変更があり、サーバーが変わっていなければ → 自動で送る
+//  ・両方に変更があれば（衝突）→ どちらを使うか選ぶ画面を出す
+//  ・勉強タイマー中は取り込まない（タイマーが止まらないように）
+// ============================================================
+const SYNC_META_KEY = 'sbSyncMeta';
+let syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+function loadSyncMeta() { try { const m = JSON.parse(localStorage.getItem(SYNC_META_KEY) || 'null'); return m && typeof m === 'object' ? m : null; } catch (e) { return null; } }
+function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_KEY, JSON.stringify(m)); } catch (e) { /* 容量不足 */ } renderSyncStatus(); }
+function currentSyncHash() {
+    let h = 5381, n = 0;
+    const feed = (s) => { s = s || ''; n += s.length; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; h = ((h << 5) + h + 7) | 0; };
+    feed(localStorage.getItem('player')); TRANSFER_KEYS.forEach(k => feed(localStorage.getItem(k)));
+    return (h >>> 0).toString(36) + ':' + n;
+}
+function syncOnline() { return !!(window.socket && window.socket.connected); }
+function runSync(manual) {            // 状態を問い合わせて、送る／取り込む／衝突を判断する（結果は sync:status の返事で処理）
+    const player = getPlayerData();
+    if (!player) return false;
+    if (!syncOnline()) { localStorage.setItem('pendingSave', 'true'); if (manual) alert('サーバーに接続されていません。通信できる状態でもう一度お試しください。'); return false; }
+    if (!syncReady && !manual) { syncWanted = true; return true; }   // 開いた直後の初期化が終わるまで待つ
+    if (Date.now() - syncBusyAt < 1500 && !manual) return true;     // 連打防止
+    syncBusyAt = Date.now(); syncManual = syncManual || !!manual;
+    setSyncText('🔄 同期中…');
+    window.socket.emit('sync:status', { id: player.id });
+    return true;
+}
+function pushSync(force) {
+    const player = getPlayerData(); if (!player || !syncOnline()) return;
+    const meta = loadSyncMeta(), base = meta && meta.id === player.id ? (meta.rev || 0) : 0;
+    syncPushHash = currentSyncHash();
+    window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
+}
+function applyPulled(r) {              // サーバーのデータをこの端末へ反映して、再読み込み
+    if (!r || !r.ok || !r.player) return false;
+    const migrated = typeof migratePlayer === 'function' ? migratePlayer(r.player) : r.player;
+    try {
+        localStorage.setItem('player', JSON.stringify(migrated));
+        TRANSFER_KEYS.forEach(k => { if (r.items && typeof r.items[k] === 'string') localStorage.setItem(k, r.items[k]); else localStorage.removeItem(k); });   // この端末に残っていた別のキャラのデータが混ざらないよう、無いものは消す
+    } catch (e) { alert('データの反映に失敗しました（保存容量が足りない可能性があります）。'); return false; }
+    saveSyncMeta({ id: migrated.id, rev: r.rev || 0, hash: currentSyncHash(), at: Date.now() });
+    localStorage.removeItem('pendingSave');
+    try { sessionStorage.setItem('sbSyncToast', r.link ? ('🔗 「' + migrated.name + '」と連携しました') : '🔄 もう一方の端末の最新データを反映しました'); } catch (e) { /* なくてもよい */ }
+    location.reload();
+    return true;
+}
+function setSyncText(t) { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; }
+function renderSyncStatus() {
+    const el = document.getElementById('syncStatus'); if (!el) return;
+    const meta = loadSyncMeta(), p = getPlayerData();
+    if (!p) { el.textContent = ''; return; }
+    if (!meta || meta.id !== p.id) { el.textContent = '🔗 まだ連携していません。「いますぐ同期」を押すと、このIDで連携が始まります。'; return; }
+    const m = Math.floor((Date.now() - (meta.at || 0)) / 60000);
+    el.textContent = '🔗 連携中（最後の同期：' + (m < 1 ? 'たった今' : m < 60 ? m + '分前' : Math.floor(m / 60) + '時間前') + '）　変更は自動で反映されます';
+}
+function showSyncToast(t) {
+    const d = document.createElement('div'); d.textContent = t;
+    d.style.cssText = 'position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:100000;background:rgba(30,60,120,.95);color:#fff;padding:8px 16px;border-radius:20px;font-weight:bold;font-size:.9rem;box-shadow:0 2px 10px rgba(0,0,0,.4)';
+    document.body.appendChild(d); setTimeout(() => d.remove(), 4000);
+}
+function showSyncConflict(info) {       // 両方の端末に変更がある：どちらを使うか選ぶ
+    if (syncConflictOpen) return; syncConflictOpen = true;
+    const p = getPlayerData() || {};
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:12px';
+    const when = info && info.at ? new Date(info.at).toLocaleString() : '不明';
+    wrap.innerHTML = '<div style="background:#1b2340;color:#fff;border:1px solid #5a6aa8;border-radius:12px;max-width:420px;width:100%;padding:16px;line-height:1.6">' +
+        '<h3 style="margin:0 0 8px">🔁 データが2か所で変わっています</h3>' +
+        '<div style="font-size:.88rem;color:#c9d4f5">この端末と、もう一方の端末の両方で進めたため、自動では決められません。どちらを使うか選んでください。</div>' +
+        '<div style="margin:10px 0;font-size:.9rem"><div>📱 <b>この端末</b>：Lv ' + (p.level || 1) + ' ／ コイン ' + (p.coins || 0) + '</div>' +
+        '<div>☁ <b>もう一方の端末（サーバー）</b>：Lv ' + (info.level || 1) + ' ／ コイン ' + (info.coins || 0) + '（最終同期 ' + when + '）</div></div>' +
+        '<div style="font-size:.78rem;color:#ffb0b0;margin-bottom:8px">選ばなかった側の、この間の進み具合は失われます。</div>' +
+        '<button id="syncKeepLocal" class="btn btn-primary" style="width:100%;margin-bottom:6px">この端末のデータを使う（もう一方を上書き）</button>' +
+        '<button id="syncKeepServer" class="btn btn-secondary" style="width:100%;margin-bottom:6px">もう一方の端末のデータを使う（この端末を上書き）</button>' +
+        '<button id="syncLater" class="btn btn-danger-outline" style="width:100%">あとで決める</button></div>';
+    document.body.appendChild(wrap);
+    const close = () => { wrap.remove(); syncConflictOpen = false; };
+    wrap.querySelector('#syncKeepLocal').addEventListener('click', () => { close(); syncManual = true; pushSync(true); });
+    wrap.querySelector('#syncKeepServer').addEventListener('click', () => { close(); window.socket.emit('sync:pull', { id: (getPlayerData() || {}).id }); });
+    wrap.querySelector('#syncLater').addEventListener('click', close);
+}
+function setupSyncHandlers() {
+    if (!window.socket || window.__syncHandlers === window.socket) return; window.__syncHandlers = window.socket;
+    window.socket.on('sync:status', (st) => {
+        const p = getPlayerData(); if (!p || !st || st.id !== p.id) { syncManual = false; return; }
+        const meta = loadSyncMeta(), linked = !!(meta && meta.id === p.id);
+        const dirty = !linked || currentSyncHash() !== meta.hash;
+        const serverNewer = st.exists && st.rev > (linked ? meta.rev : 0);
+        if (!st.exists) { pushSync(false); return; }                               // サーバーにまだ無い → 初回の保存
+        if (!serverNewer) {
+            if (dirty) pushSync(false);                                             // この端末だけ変わっている → 送る
+            else { if (linked) saveSyncMeta(Object.assign({}, meta, { at: Date.now() })); if (syncManual) alert('すでに最新です（この端末ともう一方の端末は同じ状態です）。'); syncManual = false; }
+            return;
+        }
+        if (!dirty || !linked && st.rev === 0) {                                    // サーバーだけ新しい → 取り込む（勉強タイマー中は後回し）
+            if (typeof studyStartTime !== 'undefined' && studyStartTime !== null) { setSyncText('⏳ 勉強が終わったら、もう一方の端末の変更を取り込みます'); syncManual = false; return; }
+            window.socket.emit('sync:pull', { id: p.id }); return;
+        }
+        syncManual = false; showSyncConflict(st);                                    // 両方変わっている → 選んでもらう
+    });
+    window.socket.on('sync:pushed', (r) => {
+        if (!r) return;
+        if (r.ok) {
+            const p = getPlayerData() || {};
+            saveSyncMeta({ id: p.id, rev: r.rev, hash: syncPushHash || currentSyncHash(), at: Date.now() });
+            localStorage.removeItem('pendingSave');
+            if (r.manual && syncManual) alert('同期しました。\n（キャラクター・武器庫・防具・スキルなど）\n\nもう1台の端末に、このIDを入力して連携すると、同じデータで遊べます。\nプレイヤーID: ' + p.id);
+            syncManual = false; return;
+        }
+        if (r.conflict) { syncManual = false; showSyncConflict(r); return; }       // 送る直前に、もう一方の端末が先に更新した
+        syncManual = false;
+        alert(r.reason === 'size' ? '同期に失敗しました（データが大きすぎます）。' : '同期に失敗しました。しばらくしてからもう一度お試しください。');
+        renderSyncStatus();
+    });
+    window.socket.on('sync:pulled', (r) => {
+        if (r && r.ok) { syncManual = false; applyPulled(r); return; }
+        syncManual = false;
+        if (r && r.notFound) alert('そのプレイヤーIDのデータは見つかりませんでした。\nもう一方の端末で、先に「いますぐ同期」を押してください。');
+        else if (r) alert('データの取得に失敗しました。');
+    });
+}
+// 自動同期：開いたとき・タブに戻ったとき・45秒ごと（見えているときだけ）
+function startAutoSync() {
+    if (window.__autoSyncOn) return; window.__autoSyncOn = true;
+    setInterval(() => { if (!document.hidden && getPlayerData()) runSync(false); renderSyncStatus(); }, 45000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && getPlayerData()) runSync(false); });
+    // 開いた直後の初期化（保存データの整形など）による変化は「進めた」とは数えない：開いた時点で最新だったなら、整えたあとの状態を基準にし直す
+    setTimeout(() => {
+        const m = loadSyncMeta(), p = getPlayerData();
+        if (m && p && m.id === p.id && bootSyncHash === m.hash) saveSyncMeta(Object.assign({}, m, { hash: currentSyncHash() }));
+        syncReady = true; if (syncWanted) { syncWanted = false; runSync(false); }
+    }, 2500);
+    try { const t = sessionStorage.getItem('sbSyncToast'); if (t) { sessionStorage.removeItem('sbSyncToast'); setTimeout(() => showSyncToast(t), 600); } } catch (e) { /* なくてもよい */ }
+    renderSyncStatus();
+}
+
+// ---------- データ引き継ぎ：プレイヤー以外のデータ ----------
+const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent'];
+let lastBundleAt = 0;
+// ページを開いた直後（初期化で保存データが整えられる前）のデータの指紋。同期の「この端末に変更があるか」の判定に使う
+const bootSyncHash = currentSyncHash();
+function collectBundle() {
+    const items = {};
+    TRANSFER_KEYS.forEach(k => {
+        try {
+            let v = localStorage.getItem(k); if (v == null) return;
+            if (k === 'sbSeason') { try { const o = JSON.parse(v); delete o.preSeason; v = JSON.stringify(o); } catch (e) { /* そのまま */ } }   // 大きいバックアップは運ばない
+            items[k] = v;
+        } catch (e) { /* 読めないものは飛ばす */ }
+    });
+    return { items: items };
+}
+function sendBundle(manual) {
+    const player = getPlayerData();
+    if (!player || !window.socket || !window.socket.connected) return false;
+    lastBundleAt = Date.now();
+    window.socket.emit("saveBundle", { id: player.id, bundle: collectBundle(), manual: !!manual });
+    return true;
+}
+// 画面を閉じる・切り替えるときにも、最新の状態を送っておく（変更があるときだけ。衝突しても勝手には上書きしない）
+document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false }); } } });
 
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
@@ -990,6 +1213,7 @@ function setupSocketEventHandlers() {
     });
 
     // データ保存・読み込み関連のイベント
+    let manualSaveWait = null;
     window.socket.on("dataSaved", (info) => {
         localStorage.removeItem('pendingSave'); // 保存成功したので保留フラグを削除
         const id = info && info.playerId ? info.playerId : (getPlayerData()?.id || "");
@@ -998,23 +1222,57 @@ function setupSocketEventHandlers() {
             console.log("[Data] Auto saved to server:", id);
             return;
         }
-        alert(`データをサーバーに保存しました。\n\nプレイヤーID: ${id}\n\nこのIDを他の端末で入力すると引き継げます。`);
+        // 手動保存：武器庫などの保存（bundleSaved）の結果も合わせて知らせる
+        if (manualSaveWait) clearTimeout(manualSaveWait.t);
+        manualSaveWait = { id: id, t: setTimeout(() => {
+            manualSaveWait = null;
+            alert(`キャラクターは保存しましたが、武器庫・防具・スキルなどの保存が確認できませんでした。\n通信が安定した場所で、もう一度「データ保存」を押してください。\n\nプレイヤーID: ${id}`);
+        }, 6000) };
+    });
+    window.socket.on("bundleSaved", (r) => {
+        if (!r || !r.manual || !manualSaveWait) return;
+        clearTimeout(manualSaveWait.t); const id = manualSaveWait.id; manualSaveWait = null;
+        if (r.ok) alert(`データをサーバーに保存しました。\n（キャラクター・武器庫・防具・スキルなど）\n\nプレイヤーID: ${id}\n\nこのIDを他の端末で入力すると引き継げます。`);
+        else alert(`キャラクターは保存しましたが、武器庫・防具・スキルなどの保存に失敗しました（データが大きすぎる可能性があります）。\n\nプレイヤーID: ${id}`);
     });
 
     window.socket.on("dataLoaded", (loadedPlayer) => {
         if (loadedPlayer && loadedPlayer.id) {
-            if (studyStartTime !== null) stopStudy(); // 勉強中なら停止
+            if (studyStartTime !== null) cancelStudyTimer(); // 勉強中なら中止（報酬なし）
             // 引き継ぎ後に前回のバトル情報が残らないよう掃除する
             ["battlePlayer", "enemy", "roomId", "isBotBattle", "battleResult", "rewardsApplied", "stolenWeapon", "droppedOrb"]
                 .forEach(key => localStorage.removeItem(key));
             const migrated = typeof migratePlayer === "function" ? migratePlayer(loadedPlayer) : loadedPlayer;
-            localStorage.setItem("player", JSON.stringify(migrated));
-            alert(`プレイヤー「${migrated.name}」(ID: ${migrated.id}) のデータを引き継ぎました。`);
-            location.reload(); // ページをリロードしてUIを完全に更新
+            // キャラクターに続けて、武器庫・防具・スキルなどを受け取ってから反映する（来なくても6秒で先へ進む）
+            if (transferWait) clearTimeout(transferWait.t);
+            transferWait = { migrated: migrated, t: setTimeout(() => finishTransfer(null), 6000) };
+            window.socket.emit("loadBundle", migrated.id);
         } else {
             alert("指定されたIDのプレイヤーデータが見つかりませんでした。\n\n・IDが正しいか確認してください（英数字6文字）\n・引き継ぎ元の端末で「データをサーバーに保存」を実行済みか確認してください");
         }
     });
+
+    let transferWait = null;
+    window.socket.on("bundleLoaded", (r) => {
+        if (!transferWait || !r || String(r.id || '').toUpperCase() !== String(transferWait.migrated.id || '').toUpperCase()) return;
+        finishTransfer(r.bundle || null);
+    });
+    function finishTransfer(bundle) {
+        if (!transferWait) return;
+        clearTimeout(transferWait.t);
+        const migrated = transferWait.migrated; transferWait = null;
+        localStorage.setItem("player", JSON.stringify(migrated));
+        let restored = false;
+        if (bundle && bundle.items) {
+            // この端末に残っていた「別のキャラクターのデータ」が混ざらないよう、無いものは消してから置き換える
+            TRANSFER_KEYS.forEach(k => {
+                try { if (typeof bundle.items[k] === 'string') { localStorage.setItem(k, bundle.items[k]); restored = true; } else localStorage.removeItem(k); } catch (e) { /* 容量不足など */ }
+            });
+        }
+        localStorage.removeItem('pendingSave');
+        alert(`プレイヤー「${migrated.name}」(ID: ${migrated.id}) のデータを引き継ぎました。` + (restored ? '\n（武器庫・防具・スキルなども引き継ぎました）' : '\n\n※武器庫・防具・スキルは、サーバーに保存されていませんでした。\n引き継ぎ元の端末で、もう一度「データ保存」を押してから読み込んでください。'));
+        location.reload(); // ページをリロードしてUIを完全に更新
+    }
 
     window.socket.on("dataError", (message) => {
         pendingSilentSave = false;
@@ -1405,7 +1663,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         newBtn.addEventListener('click', () => {
             if (window.I18N && confirm(I18N.deleteConfirm)) {
-                if (studyStartTime !== null) stopStudy();
+                if (studyStartTime !== null) cancelStudyTimer();
                 localStorage.clear();
                 alert(I18N.deleted);
                 location.reload();
@@ -1517,7 +1775,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const studyStopBtn = document.getElementById("studyStop");
         if (studyStopBtn) {
-            studyStopBtn.addEventListener('click', stopStudy);
+            studyStopBtn.addEventListener('click', () => {
+                if (studyStartTime === null) return;
+                if (confirm('途中でやめると、今回の勉強の報酬は受け取れません。やめますか？')) cancelStudyTimer();
+            });
         }
         const studyFocusSelect = document.getElementById("studyFocus");
         if (studyFocusSelect) {
@@ -1532,9 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // データ管理ボタン
         const saveDataBtn = document.getElementById('saveDataBtn');
         if (saveDataBtn) {
-            saveDataBtn.addEventListener('click', () => {
-                syncPlayerToServer(false);
-            });
+            saveDataBtn.addEventListener('click', () => { syncManual = true; runSync(true); });
         }
 
         const loadDataBtn = document.getElementById('loadDataBtn');
@@ -1549,8 +1808,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('サーバーに接続されていません。ページを再読み込みしてください。');
                     return;
                 }
-                if (confirm(`プレイヤーID: ${loadPlayerId} のデータを読み込みます。\n現在のデータは上書きされます。よろしいですか？`)) {
-                    window.socket.emit('loadData', loadPlayerId);
+                if (confirm(`プレイヤーID: ${loadPlayerId} と連携します。\n\nこの端末のデータは、そのIDのデータに置き換わります。\n以後は、2台の端末が同じキャラクターとして、自動で反映し合います。\n（連携を始める前に、もう一方の端末で「いますぐ同期」を押しておいてください）\n\nよろしいですか？`)) {
+                    syncManual = true;
+                    window.socket.emit('sync:pull', { id: loadPlayerId, link: true });
                 }
             });
         }
