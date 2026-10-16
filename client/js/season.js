@@ -121,6 +121,7 @@
         const w = (window.STAGE_DATA && window.STAGE_DATA.WORLDS || []).find(x => x.id === worldId);
         const seasonChar = isSeasonChar();
         if (w && w.standardOnly) return !seasonChar;         // スタンダードワールドはスタンダードキャラだけ
+        if (w && w.anyChar) return true;                      // 無限回廊は、どちらのキャラでも入れる（解放条件は進行状況で判定）
         if (!seasonChar) return STANDARD_CAN_PLAY_SEASON_WORLDS;   // シーズンワールドはシーズンキャラだけ
         const st = myState();
         if (!st || st.ended) return true;
@@ -148,6 +149,7 @@
     // ステージに入れるか（理由つき）
     function canEnterStage(stage, diffIdx) {
         if (stage && stage.pvp) return { ok: true };         // オンラインマッチはどちらのキャラでも遊べる
+        if (stage && stage.anyChar) return { ok: true };       // 無限回廊：どちらのキャラでも、いつでも入れる
         if (stage && stage.standardOnly && isSeasonChar()) return { ok: false, reason: 'このステージは、スタンダードキャラ専用（スタンダードワールド）です。' };
         const wid = stage ? (stage.world || 1) : 1;
         if (!isSeasonChar() && !(stage && stage.standardOnly) && !STANDARD_CAN_PLAY_SEASON_WORLDS) return { ok: false, reason: 'シーズンワールドは、シーズンキャラで遊べます。スタンダードキャラは「スタンダードワールド」へ！' };
