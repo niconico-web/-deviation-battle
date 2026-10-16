@@ -845,6 +845,13 @@
         netSend('end', d);
         finish(team >= 0 && team === teamMap[myId], d);
     }
+    function endPvpTeam(team, reason) {      // team: 0/1＝勝ったチーム、-1＝引き分け
+        if (run.ended) return;
+        run.ended = true;
+        const d = { winnerTeam: team, reason: reason };
+        netSend('end', d);
+        finish(team >= 0 && team === teamMap[myId], d);
+    }
     function endPvp(winnerId, reason) {
         if (run.ended) return;
         run.ended = true;
