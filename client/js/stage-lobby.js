@@ -169,7 +169,7 @@
         // ボスラッシュの詳細（4つの難易度・フェーズ一覧・解放条件）
         function renderRush(s) {
             const un = stageUnlocked(s), eq = HW.getEquipped(hack), bestOf = i => (hack.rushBest || {})[i] | 0, clr = i => ((hack.clearedDiff || {})[s.id] || {})[i] | 0;
-            const phases = RUSH.phases.map(p => '<div style="font-size:.82rem;margin:2px 0"><b style="color:' + (p.final ? '#f0b0ff' : '#ffd36a') + '">' + p.label + '</b>　' + (p.final ? '🌀 強化ディメンション・キーパー（サンズ風の弾幕）' : '第' + p.world + '世界のボスから' + RUSH.bossCount + '体が同時に出現') + '</div>').join('');
+            const phases = RUSH.phases.map(p => '<div style="font-size:.82rem;margin:2px 0"><b style="color:' + (p.final ? '#f0b0ff' : '#ffd36a') + '">' + p.label + '</b>　' + (p.final ? '🌀 ディメンション・キーパー 極' : '第' + p.world + '世界のボスから' + RUSH.bossCount + '体が同時に出現') + '</div>').join('');
             detEl.innerHTML =
                 '<h3 style="margin:0 0 4px">' + s.icon + ' ' + esc(s.name) + '</h3><div style="font-size:.85rem;color:#b8c4e0">' + esc(s.desc) + '</div>' +
                 (un ? '' : '<div style="margin:8px 0;padding:8px;border:2px solid #ffb86a;border-radius:8px;color:#ffd9a0;font-weight:bold">🔒 ' + esc(s.unlock.text) + '</div>') +

@@ -592,10 +592,7 @@
     ], def('sl_trap', '無限の罠', [ring(0, 460, 1.5, 1.0, STUN)]));
 
 
-    // ============================================================
-    // ボスラッシュ Final：強化ディメンション・キーパー（アンダーテールのサンズ風）
-    //  ・ブラスター（標的を囲む砲口）／骨の壁（隙間をくぐる弾の壁）／重力／連続斬撃 を組み合わせた、避ける攻撃が中心
-    // ============================================================
+
     const beamfan = (t, n, spread, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamfan', n: n, sp: spread * D, r: len, w: w, tele: tele, dm: dm }, o);
     const beamAt  = (t, fx, fy, aDeg, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamAt', fx: fx, fy: fy, a: aDeg * D, r: len, w: w, tele: tele, dm: dm }, o);
     const blast   = (t, n, R, len, w, tele, dm, o) => Object.assign({ t: t, k: 'blast', n: n, R: R, r: len, w: w, tele: tele, dm: dm }, o);
@@ -725,7 +722,7 @@
         def('cb9_walls', '骨牢', [wall(0, 'h', 330, 0.9), wall(1.1, 'v', 350, 0.9), wall(2.2, 'h', 370, 0.9)], { rec: 0.8 })
     ], def('cb9_seal', '魔王の封印', [blast(0, 4, 380, 1200, 66, 1.0, 0.9, { rep: 1 }), at(0.2, 140, 1.3, 0.9, STUN)]),
     { ult: def('cb9_ult', '終焉の二重回転', ultCommon(9, 'double'), { ult: true, rec: 1.5 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
-    // 10. 不壊の悪魔（最強）：通常攻撃で大量のビームを常に放ち続ける。大技は壁から大量のビームを撃ち切り、逆回転でもう一度撃つ
+    // 10. 不壊の悪魔
     set('cb10', [
         def('cb10_stream', '不壊の連射', stream(10, 34), { rec: 0.08 }),
         def('cb10_stream2', '不壊の連射・奔流', stream(11, 30).concat(stream(11, 30).map(s => Object.assign({}, s, { t: s.t + 1.7, off: (s.off || 0) + 9 }))), { rec: 0.08 }),
