@@ -2148,7 +2148,7 @@
     //  迷路の階層（ランダム生成）を下へ下へ。敵の強さ＝「自分のステータス合計」×「階層で上がる倍率」。
     //  宝箱（ミミックの罠あり）／ボス部屋の入口（行かなくてもよい）／下への階段。ソロ専用。
     function corrTotal() { return Math.max(250, (base.maxHp || 0) + (base.atk || 0) + (base.def || 0) + (base.speed || 0) + (base.special || 0)); }
-    function corrMul(f) { return 0.35 * Math.pow(1.075, f - 1); }                   // 階層ごとの敵の強さ（自分のステータス合計に対する倍率）。1階は0.35倍、約11階で0.78倍、約20階で1.4倍、深いほど自分より強くなる
+    function corrMul(f) { return 1.05 * Math.pow(1.075, f - 1); }                   // 階層ごとの敵の強さ（自分のステータス合計に対する倍率）。1階は0.35倍、約11階で0.78倍、約20階で1.4倍、深いほど自分より強くなる
     function corrIlvl(f) { return Math.min(46, 6 + f * 0.85); }                      // 階層ごとのドロップ・敵のレベル
     function corrScaleFloor(f) { applyScale(corrTotal() * corrMul(f), corrIlvl(f), { hp: 1, dmg: 1, spd: Math.min(1.25, 1 + f * 0.004) }); SC.hpMul = 1; }
     function corrPool(il) {      // この階層で出る武器の表（レベルが近い武器）
