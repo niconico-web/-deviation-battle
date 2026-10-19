@@ -212,7 +212,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, dashStrike: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -389,8 +389,6 @@
         if (e.repeat && ['Space'].indexOf(e.code) >= 0) return;
         keys[e.code] = true;
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') doDash();
-        if (e.code === 'KeyF') { e.preventDefault(); doParry(); }
-        if (e.code === 'KeyR') { e.preventDefault(); doUltimate(); }
         const sk = { KeyZ: 0, KeyX: 1, KeyC: 2, KeyV: 3 }[e.code]; if (sk !== undefined) castSkill(sk);
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
         if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
@@ -810,33 +808,13 @@
     // PvP は成長・装備を「基準火力」に使いつつ、一撃死を防ぐ割合ダメージ方式。
     // 従来より基礎を少し下げ、コンボ・パリィ・任意必殺でテンポと読み合いを作る。
     const PVP_BASE = 0.036, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
-    const PVP_COMBO_WINDOW = 1.15, PVP_COMBO_MAX = 8, PVP_PARRY_WINDOW = 0.22, PVP_PARRY_CD = 3.2;
-    const pvp = { combo: 0, comboT: 0, ult: 0, parryT: 0, parryCd: 0 };
-    function pvpActive() { return PVP && run.pvpMode && run.phase === 'run' && !me.dead; }
+    const PVP_COMBO_WINDOW = 1.15, PVP_COMBO_MAX = 8;
+    const pvp = { combo: 0, comboT: 0 };
     function pvpComboMul() { return 1 + Math.min(PVP_COMBO_MAX, pvp.combo) * 0.018; }
-    function pvpGainUlt(v) { if (!pvpActive()) return; pvp.ult = clamp(pvp.ult + v, 0, 100); }
     function pvpResetCombo() { pvp.combo = 0; pvp.comboT = 0; }
     function pvpLandHit() {
         pvp.combo = Math.min(PVP_COMBO_MAX, pvp.combo + 1); pvp.comboT = PVP_COMBO_WINDOW;
-        pvpGainUlt(7 + Math.min(3, pvp.combo) * 0.5);
         if (pvp.combo > 1) popups.push({ x: me.x, y: me.y - 44, t: 0.55, text: pvp.combo + ' COMBO', c: '#ffe08a' });
-    }
-    function doParry() {
-        if (!pvpActive() || me.stunT > 0 || pvp.parryCd > 0) return;
-        pvp.parryT = PVP_PARRY_WINDOW; pvp.parryCd = PVP_PARRY_CD;
-        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 52, t: PVP_PARRY_WINDOW, life: PVP_PARRY_WINDOW, c: '#9df0ff' });
-        popups.push({ x: me.x, y: me.y - 34, t: 0.5, text: 'PARRY!', c: '#9df0ff', big: true });
-    }
-    function doUltimate() {
-        if (!pvpActive() || me.stunT > 0 || pvp.ult < 100) return;
-        const target = nearestEnemy(me.x, me.y, 250);
-        if (!target) { announce('必殺技は相手の近くで使おう', 1100); return; }
-        pvp.ult = 0; pvpResetCombo(); me.atkCd = Math.max(me.atkCd, 0.35);
-        const a = Math.atan2(target.y - me.y, target.x - me.x);
-        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.42, life: 0.42, c: '#ffd84a', fill: true });
-        popups.push({ x: me.x, y: me.y - 42, t: 1.0, text: '✦ 必殺技！', c: '#ffd84a', big: true });
-        strike(target, 3.0, 260);
-        netSend('atk', { k: 'ultimate', x: me.x, y: me.y, a: a, rng: 160, c: '#ffd84a' });
     }
     const pvpDummies = {};
     function syncPvpDummies() {
@@ -864,20 +842,13 @@
     // 相手の攻撃を受けたとき（ダメージは自分の最大HPの割合）
     function hurtPvp(f, kx, ky, st, by) {
         if (me.dead || me.invHard > 0 || run.phase !== 'run' || me.inv > 0) return;
-        if (pvpActive() && pvp.parryT > 0) {
-            pvp.parryT = 0; me.inv = 0.18; pvpGainUlt(12);
-            fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 90, t: 0.3, life: 0.3, c: '#9df0ff' });
-            popups.push({ x: me.x, y: me.y - 30, t: 0.9, text: 'PERFECT PARRY!', c: '#9df0ff', big: true });
-            if (by) netSend('pvph', { to: by, f: 0.026, kx: -(kx || 0), ky: -(ky || 0), st: { stun: 0.35 } });
-            return;
-        }
         if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.1; return; }
         if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.4; return; }
         let dmg = Math.max(1, Math.round(f * me.maxHp * (1 - Math.min(0.6, A('dr')) * sdDefMul()) * (me.stunT > 0 ? 1 - 0.4 * sdDefMul() : 1)));   // サドンデスで、ダメージ軽減（防御）の効き目が下がっていく
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); if (dmg <= 0) { me.inv = 0.1; return; } }
         const lost = Math.min(me.hp, dmg);
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
-        pvpGainUlt(Math.min(10, lost / me.maxHp * 22)); pvpResetCombo();
+        pvpResetCombo();
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (by) { const pct = +(lost / me.maxHp * 100).toFixed(2); tallyDmg(by, pct); netSend('pvpd', { by: by, p: pct }); }   // 実際に減った分を「与ダメージ」として、全員の画面で記録する
         if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
@@ -1237,6 +1208,7 @@
         if (e.hp >= e.maxHp) dmg *= 1 + A('dmgFull');
         if (me.hp / me.maxHp < 0.5) dmg *= 1 + A('rageAtk');
         if (me.empowerT > 0) dmg *= 1.35;
+        if (me.dashStrike > 0) dmg *= 1.18; // ダッシュ直後に踏み込むと、次の一撃が強くなる
         if (!e.pvp) {
             if (AB('re_miserable')) dmg *= 1.25;                              // リ・ミゼラブル：敵のHP0.8倍と同じ
             if (AB('penetration') && (e.boss || e.elite)) dmg *= 1.15;        // 貫通：防御を半分無視
@@ -1327,8 +1299,10 @@
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
+        const dashStrike = me.dashStrike > 0; me.dashStrike = 0;
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
         spawnAtkFx(d); netSend('atk', d);
+        if (dashStrike) { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 54, t: 0.18, life: 0.18, c: '#bfe6ff' }); addShake(1.2, 0.08); }
         if (T.sup === 'heal' || T.sup === 'buff' || T.sup === 'all') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
         if (AB('dual_weapon') && ((me.atkN = (me.atkN || 0) + 1) % 3) === 0) {
@@ -1383,7 +1357,6 @@
         else if (d.k === 'line') fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.rng, y2: d.y + Math.sin(d.a) * d.rng, t: 0.14, life: 0.14, c: d.c, w: d.w || 14 });
         else if (d.k === 'ring') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: d.rad || 100, t: 0.25, life: 0.25, c: d.c });
         else if (d.k === 'smash') fx.push({ k: 'ring', x: d.x + Math.cos(d.a) * 60, y: d.y + Math.sin(d.a) * 60, r: 0, max: d.rad || 90, t: 0.25, life: 0.25, c: d.c });
-        else if (d.k === 'ultimate') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: 160, t: 0.42, life: 0.42, c: d.c || '#ffd84a', fill: true });
     }
 
     function doDash() {
@@ -1391,7 +1364,7 @@
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
         const l = Math.hypot(mx, my) || 1;
-        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
+        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.dashStrike = 0.7; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
         fx.push({ k: 'puff', x: me.x, y: me.y, t: 0.25, life: 0.25, c: '#bfe6ff' });
         agg.procs.filter(p => p.on === 'dash').forEach(p => { me.dashBlast = p.v; });
         accEvent('dash');
@@ -1874,9 +1847,7 @@
     // ---------- 更新 ----------
     function updateMe(dt) {
         accTick(dt);
-        me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
-        if (pvp.parryT > 0) pvp.parryT -= dt;
-        if (pvp.parryCd > 0) pvp.parryCd -= dt;
+        me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.dashStrike > 0) me.dashStrike -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
         if (pvp.comboT > 0) { pvp.comboT -= dt; if (pvp.comboT <= 0) pvpResetCombo(); }
         if (me.dead) {
             // 仲間が近くにいると復活する
@@ -2509,7 +2480,8 @@
     // 階層を作る（シードが同じなら同じ迷路になる）
     function corrGen(f, spawn) {
         const rng = seeded((CF.seed + f * 7919) >>> 0), RI = n => Math.floor(rng() * n);
-        const cols = Math.min(15, 9 + Math.floor(f / 5)), rows = Math.min(10, 6 + Math.floor(f / 7));
+        // 1階が長すぎると「ただ歩くだけ」になりやすいので、短い探索→報酬→次階の循環にする。
+        const cols = Math.min(12, 7 + Math.floor(f / 6)), rows = Math.min(8, 5 + Math.floor(f / 8));
         CF.pal = CPALS[Math.min(CPALS.length - 1, Math.floor((f - 1) / 5))];
         { let tw0 = 0; CTHEMES.forEach(t => { tw0 += t.w; }); let r0 = rng() * tw0, th0 = CTHEMES[0]; for (const t of CTHEMES) { if ((r0 -= t.w) <= 0) { th0 = t; break; } } CF.theme = f < 2 ? CTHEMES[0] : th0; }
         const open = new Uint8Array(cols * rows), vis = new Uint8Array(cols * rows), st = [], idx = (cx, cy) => cy * cols + cx;
@@ -2575,13 +2547,13 @@
         const inRoom = c => { const r = roomR[c]; return { x: (r.x + 1 + rng() * (r.w - 2)) * TILE, y: (r.y + 1 + rng() * (r.h - 2)) * TILE }; };
         CF.start = sc; props.push({ k: 'stairs', x: fc.x, y: fc.y, r: 34, c: far });
         { const c = takeCell(), p = inRoom(c); props.push({ k: 'gate', x: p.x, y: p.y, r: 30, c: c }); }       // 脱出ゲート：各階層に1つ。どこかの部屋にある
-        const thm = CF.theme.id, nChest = 1 + (rng() < 0.5 ? 1 : 0) + (f % 5 === 0 ? 1 : 0) + (thm === 'treasure' ? 3 : 0) + (thm === 'quiet' ? 1 : 0);
+        const thm = CF.theme.id, nChest = 2 + (rng() < 0.5 ? 1 : 0) + (f % 5 === 0 ? 1 : 0) + (thm === 'treasure' ? 3 : 0) + (thm === 'quiet' ? 1 : 0);
         for (let i = 0; i < nChest; i++) { const c = takeCell(), p = inRoom(c); props.push({ k: 'chest', x: p.x, y: p.y, r: 20, c: c, mimic: f >= 2 && rng() < (thm === 'treasure' ? 0.3 : 0.16) }); }
         // 回復の泉（使い切り）：たまにある。静寂の階では必ずある
         if (f >= 2 && (thm === 'quiet' || rng() < 0.4)) { const c = takeCell(), p = inRoom(c); props.push({ k: 'spring', x: p.x, y: p.y, r: 28, c: c }); }
         // 棘の罠：部屋の中にある。見えている間は、周期的に飛び出す
         { const nTrap = Math.min(14, 3 + Math.floor(f / 2)); for (let i = 0; i < nTrap; i++) { const c = free.length ? free[RI(free.length)] : far, p = inRoom(c); props.push({ k: 'trap', x: p.x, y: p.y, r: 26, c: c, ph: rng() * 3.2 }); } }
-        if (f >= 2 && rng() < 0.42) { const c = takeCell(), p = inRoom(c); props.push({ k: 'portal', x: p.x, y: p.y, r: 30, c: c }); }
+        if (f >= 2 && rng() < 0.62) { const c = takeCell(), p = inRoom(c); props.push({ k: 'portal', x: p.x, y: p.y, r: 30, c: c }); }
         CF.props = props; CF.seen = new Uint8Array(cols * rows); CF.flow = null; CF.flowFor = -1;
         CF.mini = document.createElement('canvas'); CF.mini.width = tw; CF.mini.height = th; CF.miniCtx = CF.mini.getContext('2d'); CF.miniDone = new Uint8Array(cols * rows);
         // 敵（グループごとに、スタートから離れたマスへ）。乱数の使い方は全員同じにして（同じ迷路・同じ宝箱になる）、敵を実際に出すのはホストだけ
@@ -2625,7 +2597,7 @@
         corrGen(f, spawn !== false);
         corrPlaceMe();
         if (me.dead && !me.escaped) { me.dead = false; me.stg = 0; me.reviveT = 0; me.hp = Math.round(me.maxHp * 0.4); }      // 倒れていた仲間も、次の階層へは連れていける
-        if (f > 1 && !me.escaped) { run.stats.floors = f - 1; run.stats.coins += Math.round((1 + corrIlvl(f - 1) * 0.6) * 6 * (1 + A('goldPct'))); addHp(me.maxHp * 0.15); announce('🌀 地下' + f + '階　' + CF.pal.n + (CF.theme.n ? '「' + CF.theme.n + '」' : ''), 2000); if (CF.theme.d) setTimeout(() => { if (CF.floor === f) announce(CF.theme.d, 2600); }, 2100); }
+        if (f > 1 && !me.escaped) { run.stats.floors = f - 1; run.stats.coins += Math.round((1 + corrIlvl(f - 1) * 0.6) * 9 * (1 + A('goldPct'))); addHp(me.maxHp * 0.25); addEnergy(ENERGY_MAX * 0.3); if ((f - 1) % 3 === 0) corrGiveItem(corrPickItem(), me.x, me.y, 1); announce('🌀 地下' + f + '階　' + CF.pal.n + (CF.theme.n ? '「' + CF.theme.n + '」' : '') + '　HP・ENERGY回復', 2000); if (CF.theme.d) setTimeout(() => { if (CF.floor === f) announce(CF.theme.d, 2600); }, 2100); }
         CF.fade = 0.6;
     }
     function corrDescend() {       // ホスト（ソロ含む）だけが呼ぶ。クライアントは「階段に着いた」とお願いして、スナップショットで追いかける
@@ -2678,8 +2650,8 @@
         try {
             const r = Math.random();
             if (r < 0.50) rollLoot(pool, rb, 'magic', x, y, 'chest');
-            else if (r < 0.64) rollAcc(rb, 'normal', x, y);              // アクセサリー 14%
-            else if (r < 0.80) corrGiveItem(corrPickItem(), x, y, 1);      // 特殊アイテム 16%（以前は36%）
+            else if (r < 0.58) rollAcc(rb, 'normal', x, y);              // アクセサリー 8%
+            else if (r < 0.82) corrGiveItem(corrPickItem(), x, y, 1);      // 特殊アイテム 24%
             else rollArmor(rb, 'magic', x, y, 'chest');
             run.stats.coins += Math.round((1 + il * 0.6) * 8 * (1 + A('goldPct')));
         } finally { LT = null; }
@@ -3084,7 +3056,6 @@
         const hp = isMe ? me.hp / me.maxHp : (p.hp / Math.max(1, p.maxHp));
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, p.y - 24, 36, 5); ctx.fillStyle = hp > 0.3 ? '#4adb6a' : '#ff5a5a'; ctx.fillRect(p.x - 18, p.y - 24, 36 * clamp(hp, 0, 1), 5);
         if (isMe && me.shield) { ctx.strokeStyle = '#9fe0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, 7); ctx.stroke(); }
-        if (isMe && pvp.parryT > 0) { ctx.strokeStyle = '#9df0ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, 28 + Math.sin(performance.now() / 35) * 3, 0, 7); ctx.stroke(); }
         if (p.dead) { ctx.font = '16px sans-serif'; ctx.fillText('💀', p.x, p.y + 5); }
         const orb = isMe ? me.orb : p.orb;
         if (orb && !p.dead) {
@@ -3115,7 +3086,6 @@
     // ---------- HUD ----------
     const el = id => document.getElementById(id);
     function drawHUD() {
-        updatePvpBar();
         // ミニマップ
         const mw = VH < 520 ? 92 : 140, mh = Math.round(mw * WORLD_H / WORLD_W), mx = VW - mw - 10, my = VH < 520 ? 34 : 56;
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx, my, mw, mh);
@@ -3147,10 +3117,7 @@
             ctx.strokeText(t1, VW / 2, 92); ctx.fillStyle = run.time < SD.start ? '#cfe6ff' : (prog > 0.6 ? '#ff6a6a' : '#ffb347'); ctx.fillText(t1, VW / 2, 92);
             ctx.font = 'bold 13px sans-serif'; ctx.strokeText(t2, VW / 2, 112); ctx.fillStyle = '#fff'; ctx.fillText(t2, VW / 2, 112);
             ctx.restore();
-            const combo = pvp.combo ? ('　' + pvp.combo + ' COMBO ×' + pvpComboMul().toFixed(2)) : '';
-            ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
-            const combat = '必殺 ' + Math.round(pvp.ult) + '%　パリィ ' + (pvp.parryCd > 0 ? pvp.parryCd.toFixed(1) + '秒' : 'OK') + combo;
-            ctx.strokeText(combat, VW / 2, 132); ctx.fillStyle = pvp.ult >= 100 ? '#ffd84a' : '#cfe6ff'; ctx.fillText(combat, VW / 2, 132); ctx.restore();
+            if (pvp.combo) { const combat = pvp.combo + ' COMBO ×' + pvpComboMul().toFixed(2); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(combat, VW / 2, 132); ctx.fillStyle = '#ffe08a'; ctx.fillText(combat, VW / 2, 132); ctx.restore(); }
         }
         // ボスラッシュ：幕間の表示／無限回廊：階の切り替わりの暗転
         if (RUSH_ON && run.phase === 'run' && RS.st === 2) {
@@ -3189,19 +3156,6 @@
         }
     }
     function updateEnergyUI() { el('enFill').style.width = (me.energy / ENERGY_MAX * 100) + '%'; el('enText').textContent = 'ENERGY ' + Math.round(me.energy) + ' / ' + ENERGY_MAX; if (skillSlots.length) updateSkillBar(); }
-    function updatePvpBar() {
-        const box = el('pvpBar'); if (!box) return;
-        const active = PVP && run.pvpMode && run.phase === 'run'; box.classList.toggle('show', active);
-        if (!active) return;
-        const parry = el('btnParry'), ultimate = el('btnUltimate');
-        // drawHUD は毎フレーム呼ばれる。DOMを書き換えるのは表示値が変化した時だけにする。
-        const sig = [pvp.parryT > 0 ? 1 : 0, Math.ceil(Math.max(0, pvp.parryCd) * 10) / 10, Math.round(pvp.ult)].join(':');
-        if (box.dataset.sig === sig) return;
-        box.dataset.sig = sig;
-        parry.classList.toggle('ready', pvp.parryCd <= 0); parry.classList.toggle('active', pvp.parryT > 0);
-        parry.innerHTML = pvp.parryT > 0 ? 'パリィ中！ <small>攻撃を受け止めろ</small>' : 'パリィ <small>F / ' + (pvp.parryCd > 0 ? pvp.parryCd.toFixed(1) + '秒' : '反撃') + '</small>';
-        ultimate.classList.toggle('ready', pvp.ult >= 100); ultimate.innerHTML = '必殺技 <small>R / ゲージ ' + Math.round(pvp.ult) + '%</small>';
-    }
     let annTimer = 0;
     function announce(text, ms) { const a = el('announce'); a.textContent = text; a.classList.add('show'); clearTimeout(annTimer); annTimer = setTimeout(() => a.classList.remove('show'), ms || 2000); }
     function refreshLootLog() {
@@ -3328,8 +3282,6 @@
     el('waitLeave').addEventListener('click', () => { if (socket) socket.emit('stage:leave'); location.href = 'index.html'; });
     el('resBack').addEventListener('click', () => { if (socket) socket.emit('stage:leave'); location.href = 'index.html'; });
     el('quizToggle').addEventListener('click', toggleQuiz);
-    el('btnParry').addEventListener('pointerdown', (e) => { e.preventDefault(); doParry(); });
-    el('btnUltimate').addEventListener('pointerdown', (e) => { e.preventDefault(); doUltimate(); });
     window.addEventListener('beforeunload', () => { if (socket) socket.emit('stage:leave'); });
     if (isTouch) {
         document.documentElement.classList.add('touch');
@@ -3352,6 +3304,6 @@
     // 自動テスト用の窓口（テストページが window.__SB_TEST を用意したときだけ公開する。通常のプレイでは何も起きない）
     if (window.__SB_TEST) window.__SB_TEST.api = { run: run, me: me, RS: RS, CF: CF, get enemies() { return enemies; }, get eBullets() { return eBullets; }, get telegraphs() { return telegraphs; }, get world() { return [WORLD_W, WORLD_H]; }, get domains() { return domains; },
         killEnemy: killEnemy, onKillEvent: onKillEvent, corrDescend: corrDescend, corrEnterBoss: corrEnterBoss, corrLeaveBoss: corrLeaveBoss, corrOpenChest: corrOpenChest, corrWakeMimic: corrWakeMimic, corrTotal: corrTotal, corrMul: corrMul,
-        hurtPvp: hurtPvp, dealPvp: dealPvp, doParry: doParry, doUltimate: doUltimate, pvp: pvp, rushStartPhase: rushStartPhase, rushPd: rushPd, REF: () => REF_HP, hurtMe: hurtMe, healMe: healMe, addHp: addHp, healMul: healMul, sdAtkMul: sdAtkMul, sdDefMul: sdDefMul, stunMe: stunMe, spawnEnemy: spawnEnemy, DIFF: () => DIFF, SC: SC, tally: tallyDmg, dmgOf: dmgOf, pvpHostCheck: pvpHostCheck, spawnDomain: spawnDomain, accSlots: accSlots, accFire: accFire, accEvent: accEvent, rollAcc: rollAcc, BAG: BAG, corrAsk: corrAsk, corrEscape: corrEscape, corrGiveUp: corrGiveUp, corrProp: corrProp, corrGiveItem: corrGiveItem, get allies() { return allies; }, get isHost() { return isHost; }, step: (dt) => { run.time += 0; } };
+        hurtPvp: hurtPvp, dealPvp: dealPvp, pvp: pvp, rushStartPhase: rushStartPhase, rushPd: rushPd, REF: () => REF_HP, hurtMe: hurtMe, healMe: healMe, addHp: addHp, healMul: healMul, sdAtkMul: sdAtkMul, sdDefMul: sdDefMul, stunMe: stunMe, spawnEnemy: spawnEnemy, DIFF: () => DIFF, SC: SC, tally: tallyDmg, dmgOf: dmgOf, pvpHostCheck: pvpHostCheck, spawnDomain: spawnDomain, accSlots: accSlots, accFire: accFire, accEvent: accEvent, rollAcc: rollAcc, BAG: BAG, corrAsk: corrAsk, corrEscape: corrEscape, corrGiveUp: corrGiveUp, corrProp: corrProp, corrGiveItem: corrGiveItem, get allies() { return allies; }, get isHost() { return isHost; }, step: (dt) => { run.time += 0; } };
     requestAnimationFrame(loop);
 })();
