@@ -184,7 +184,10 @@
     const ctx = canvas.getContext('2d');
     let VW = 960, VH = 540, DPR = 1;
     function fit() {
-        DPR = Math.min(2, window.devicePixelRatio || 1);
+        // 高DPI端末の2倍キャンバスは、4人対戦時に描画量が4倍になる。
+        // PvPは応答性を優先し、低コア端末ではさらに軽い解像度にする。
+        const lowSpec = (navigator.hardwareConcurrency || 8) <= 4;
+        DPR = Math.min(PVP ? (lowSpec ? 1.15 : 1.5) : (lowSpec ? 1.5 : 2), window.devicePixelRatio || 1);
         VW = window.innerWidth; VH = window.innerHeight;
         canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
         canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
@@ -213,7 +216,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, dashStrike: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -842,7 +845,17 @@
     //  ・相手は自分の画面では「敵」として扱う（pvp ダミー）ので、武器・スキル・特殊効果は今までの攻撃がそのまま使える
     //  ・ダメージはステータスに関係なく「相手の最大HPの割合」。基準の一撃（自分の素のステータスでの武器1振り）= 4.5%
     //    → 武器の％・種類・クリティカル・スキル・特殊効果の勝負になる（ステータス差で圧倒されない）
-    const PVP_BASE = 0.045, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
+    // PvP は成長・装備を「基準火力」に使いつつ、一撃死を防ぐ割合ダメージ方式。
+    // 従来より基礎を少し下げ、コンボ・パリィ・任意必殺でテンポと読み合いを作る。
+    const PVP_BASE = 0.036, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
+    const PVP_COMBO_WINDOW = 1.15, PVP_COMBO_MAX = 8;
+    const pvp = { combo: 0, comboT: 0 };
+    function pvpComboMul() { return 1 + Math.min(PVP_COMBO_MAX, pvp.combo) * 0.018; }
+    function pvpResetCombo() { pvp.combo = 0; pvp.comboT = 0; }
+    function pvpLandHit() {
+        pvp.combo = Math.min(PVP_COMBO_MAX, pvp.combo + 1); pvp.comboT = PVP_COMBO_WINDOW;
+        if (pvp.combo > 1) popups.push({ x: me.x, y: me.y - 44, t: 0.55, text: pvp.combo + ' COMBO', c: '#ffe08a' });
+    }
     const pvpDummies = {};
     function syncPvpDummies() {
         const list = [];
@@ -859,9 +872,10 @@
     }
     function dealPvp(e, dmg, o) {
         // 1発のダメージ（相手の最大HPに対する割合）。上限はなし（通信の異常値だけ弾く）。サドンデスで時間とともに攻撃力が上がる
-        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
+        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul() * pvpComboMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
         popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
         run.stats.dmg += f * 100; e.flash = 0.1;
+        if (f > 0) pvpLandHit();
         const st = o.st && o.st.stun ? { stun: Math.min(PVP_STUN_MAX, typeof o.st.stun === 'number' ? o.st.stun : 1) } : null;
         netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st });
     }
@@ -874,6 +888,7 @@
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); if (dmg <= 0) { me.inv = 0.1; return; } }
         const lost = Math.min(me.hp, dmg);
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
+        pvpResetCombo();
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (by) { const pct = +(lost / me.maxHp * 100).toFixed(2); tallyDmg(by, pct); netSend('pvpd', { by: by, p: pct }); }   // 実際に減った分を「与ダメージ」として、全員の画面で記録する
         if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
@@ -1233,6 +1248,7 @@
         if (e.hp >= e.maxHp) dmg *= 1 + A('dmgFull');
         if (me.hp / me.maxHp < 0.5) dmg *= 1 + A('rageAtk');
         if (me.empowerT > 0) dmg *= 1.35;
+        if (me.dashStrike > 0) dmg *= 1.18; // ダッシュ直後に踏み込むと、次の一撃が強くなる
         if (!e.pvp) {
             if (AB('re_miserable')) dmg *= 1.25;                              // リ・ミゼラブル：敵のHP0.8倍と同じ
             if (AB('penetration') && (e.boss || e.elite)) dmg *= 1.15;        // 貫通：防御を半分無視
@@ -1323,8 +1339,10 @@
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
+        const dashStrike = me.dashStrike > 0; me.dashStrike = 0;
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
         spawnAtkFx(d); netSend('atk', d);
+        if (dashStrike) { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 54, t: 0.18, life: 0.18, c: '#bfe6ff' }); addShake(1.2, 0.08); }
         if (T.sup === 'heal' || T.sup === 'buff' || T.sup === 'all') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
         if (AB('dual_weapon') && ((me.atkN = (me.atkN || 0) + 1) % 3) === 0) {
@@ -1387,7 +1405,7 @@
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
         const l = Math.hypot(mx, my) || 1;
-        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
+        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.dashStrike = 0.7; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
         fx.push({ k: 'puff', x: me.x, y: me.y, t: 0.25, life: 0.25, c: '#bfe6ff' });
         agg.procs.filter(p => p.on === 'dash').forEach(p => { me.dashBlast = p.v; });
         accEvent('dash');
@@ -1937,7 +1955,8 @@
                 ghostShots.splice(i, 1);
             }
         }
-        if (ghostShots.length > 300) ghostShots.splice(0, ghostShots.length - 300);
+        const ghostCap = PVP ? 120 : 300;
+        if (ghostShots.length > ghostCap) ghostShots.splice(0, ghostShots.length - ghostCap);
     }
     function updateShots(dt) {
         updateGhostShots(dt);
@@ -3144,6 +3163,7 @@
             ctx.strokeText(t1, VW / 2, 92); ctx.fillStyle = run.time < SD.start ? '#cfe6ff' : (prog > 0.6 ? '#ff6a6a' : '#ffb347'); ctx.fillText(t1, VW / 2, 92);
             ctx.font = 'bold 13px sans-serif'; ctx.strokeText(t2, VW / 2, 112); ctx.fillStyle = '#fff'; ctx.fillText(t2, VW / 2, 112);
             ctx.restore();
+            if (pvp.combo) { const combat = pvp.combo + ' COMBO ×' + pvpComboMul().toFixed(2); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(combat, VW / 2, 132); ctx.fillStyle = '#ffe08a'; ctx.fillText(combat, VW / 2, 132); ctx.restore(); }
         }
         // ボスラッシュ：幕間の表示／無限回廊：階の切り替わりの暗転
         if (RUSH_ON && run.phase === 'run' && RS.st === 2) {
@@ -3296,6 +3316,7 @@
         if (comboT > 0) { comboT -= dt; if (comboT <= 0) comboN = 0; }
         if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeA = 0; }
         popups.forEach(p => { p.t -= dt; }); popups = popups.filter(p => p.t > 0);
+        if (popups.length > 120) popups.splice(0, popups.length - 120);
         enemies.forEach(e => { if (e.flash > 0) e.flash -= dt; });
         render();
         requestAnimationFrame(loop);
