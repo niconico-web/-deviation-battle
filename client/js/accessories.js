@@ -1,7 +1,7 @@
 // ============================================================
 // アクセサリー (accessories.js)
 //  ・装備してもステータスは上がらない。かわりに「特殊なスキル」が使えるようになる（自動で発動する範囲攻撃が中心）
-//  ・装備枠は3つ。ステージ・ボスラッシュ・無限回廊のドロップで手に入る（武器庫の「✨ アクセサリー」で装備する）
+    //  ・装備枠は3つ。ステージ・ボスラッシュ・無限回廊のドロップで手に入る（武器庫の「✨ アクセサリー」で装備する）
 //  ・発動のしかた（trigger）：
 //      timer  = 一定時間ごと（近くに敵がいるとき）／ kills = 敵をN体倒すごと／ hurt = 攻撃を受けたとき
 //      dash   = ダッシュしたとき／ hit = 攻撃が命中したとき（確率）／ lowhp = HPが少ないとき（大技）／ skill = スキルを使ったとき（確率）
@@ -59,8 +59,9 @@
     const BASE_BY_ID = {}; BASES.forEach(b => { BASE_BY_ID[b.id] = b; });
 
     // レア度ごとの威力・間隔（レジェンドは威力2倍、間隔も2割短い）
-    const PW = { normal: 1.0, magic: 1.18, rare: 1.4, epic: 1.7, legendary: 2.1 };
-    const CDM = { normal: 1.0, magic: 0.96, rare: 0.92, epic: 0.86, legendary: 0.78 };
+    // 自動発動は補助火力に留める。基準威力の約10%で、レア度差も小さくする。
+    const PW = { normal: 0.08, magic: 0.09, rare: 0.10, epic: 0.11, legendary: 0.12 };
+    const CDM = { normal: 1.15, magic: 1.1, rare: 1.05, epic: 1.0, legendary: 0.94 };
     const PREFIX = { normal: ['古びた', 'ふつうの'], magic: ['輝く', '磨かれた'], rare: ['秘められた', '名工の'], epic: ['神秘の', '覇者の'], legendary: ['伝説の', '神話の'] };
 
     const rnd = (a, b) => a + Math.random() * (b - a);
@@ -95,7 +96,7 @@
     function sellValue(a) { const idx = H().RARITY_ORDER.indexOf(a.rarity); return Math.max(2, Math.round((5 + a.ilvl * 1.6) * (1 + idx * 1.4))); }
     function sell(d, id) { ensure(d); const i = d.accs.findIndex(x => x.id === id); if (i < 0 || d.accEq.indexOf(id) >= 0 || d.accs[i].locked) return 0; const v = sellValue(d.accs[i]); d.accs.splice(i, 1); return v; }
     // 発動の間隔（レア度で短くなる）
-    function cdOf(a) { const b = baseOf(a); if (!b) return 99; return Math.max(0.8, (b.trig.cd || 0) * (CDM[a.rarity] || 1)); }
+    function cdOf(a) { const b = baseOf(a); if (!b) return 99; return Math.max(1.8, (b.trig.cd || 0) * (CDM[a.rarity] || 1)); }
     function triggerText(a) {
         const b = baseOf(a); if (!b) return ''; const t = b.trig;
         if (t.t === 'timer') return '一定時間ごと（' + cdOf(a).toFixed(1) + '秒）';
