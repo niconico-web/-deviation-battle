@@ -188,10 +188,12 @@
             detEl.innerHTML =
                 '<h3 style="margin:0 0 4px">' + s.icon + ' ' + esc(s.name) + '</h3><div style="font-size:.85rem;color:#b8c4e0">' + esc(s.desc) + '</div>' +
                 (un ? '' : '<div style="margin:8px 0;padding:8px;border:2px solid #ffb86a;border-radius:8px;color:#ffd9a0;font-weight:bold">🔒 ' + esc(s.unlock.text) + '</div>') +
-                '<div class="sbl-sec">ルール</div><div style="font-size:.82rem;line-height:1.6">・階層ごとにランダムな迷路。<b>下への階段</b>を見つけて進む（深いほど敵は強い）<br>・敵の強さは<b>あなたのステータス合計</b>と階層で決まる<br>・宝箱：武器・防具・特殊アイテムが出る。<b>ミミック</b>の罠に注意<br>・ときどき<b>ボス部屋</b>の入口が現れる（行かなくてもよい。倒すと特別な報酬）<br>・手に入れた武器・アイテムは、倒れても持ち帰れる（ソロ専用）</div>' +
+                '<div class="sbl-sec">ルール</div><div style="font-size:.82rem;line-height:1.6">・階層ごとにランダムな迷路。<b>下への階段</b>を見つけて進む（深いほど敵は強い）<br>・敵の強さは<b>あなたのステータス合計</b>と階層で決まる<br>・宝箱：武器・防具・特殊アイテムが出る。<b>ミミック</b>の罠に注意<br>・ときどき<b>ボス部屋</b>の入口が現れる（行かなくてもよい。倒すと特別な報酬）<br>・<b>持ち帰れるのは「脱出ゲート」から脱出したときだけ</b>。各階層のどこかにある。<b>倒れると、手に入れた報酬はすべてゼロ</b><br>・仲間と一緒に潜れる（最大4人）。階段・ボス部屋は全員で移動。宝箱の中身は開けた人のもの。脱出は一人ずつ</div>' +
                 '<div class="sbl-sec">特殊アイテム（武器庫で使う）</div><div style="font-size:.82rem;color:#ffd9a0">' + items + '</div>' +
                 '<div class="sbl-sec">記録</div><div style="font-size:.85rem">最深：' + ((hack.corridorBest | 0) ? '地下' + (hack.corridorBest | 0) + '階' : '未挑戦') + '</div>' +
-                (un ? '<div style="margin-top:8px"><button class="sbl-btn green" id="sbSolo">潜る（ソロ）</button></div>' : '');
+                (un ? '<div style="margin-top:8px"><button class="sbl-btn green" id="sbSolo">ソロで潜る</button><button class="sbl-btn" id="sbCreate">部屋を作って募集</button><button class="sbl-btn orange" id="sbQuick">クイック参加</button></div>' +
+                    '<div class="sbl-sec">募集中の部屋 <button class="sbl-btn gray" id="sbRefresh" style="padding:3px 8px;font-size:.75rem">更新</button></div>' +
+                    '<div id="sbRooms">' + (rooms.length ? rooms.filter(r => r.stageId === selId).map(r => '<div class="sbl-room"><span>' + esc(r.members[0] ? r.members[0].name : '?') + ' の部屋 (' + r.members.length + '/' + r.max + ')</span><button class="sbl-btn" data-room="' + r.id + '" style="margin:0">参加</button></div>').join('') || '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>' : '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>') + '</div>' : '');
             bindDetail(false);
         }
         function bindDetail(rush) {
@@ -237,7 +239,7 @@
             if (!stageUnlocked(st)) { alert(st.unlock.text); return; }
             let useDiff = selDiff;
             if (st.rush) { if (diffLocked(st, selRush)) { alert('エクストリームは、ディメンション・キーパーを「ナイトメア」でクリアすると挑戦できます。'); return; } useDiff = selRush; }
-            if (st.corridor) { mode = 'solo'; roomId = null; useDiff = 0; }
+            if (st.corridor) useDiff = 0;
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), at: Date.now() })); } catch (e) {}
@@ -273,11 +275,11 @@
                 if (window.SBPvpEvent && SBPvpEvent.open()) { SBPvpEvent.report(sock); const p = getPlayerData(); sock.emit('pvpEvent:ranking', { seasonId: SBPvpEvent.seasonId(), id: p && p.id }); }
             }
         }
-        // ---- シーズン5週目〜のPvPイベント ----
+        // ---- シーズン最終週（SCHEDULE.pvpWeek）のPvPイベント ----
         function addCoinsEv(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
         function eventHtml() {
             const EV = window.SBPvpEvent; if (!EV) return '';
-            const st = EV.seasonState(), W = (window.SeasonSys && SeasonSys.SCHEDULE && SeasonSys.SCHEDULE.pvpWeek) || 5;
+            const st = EV.seasonState(), W = (window.SeasonSys && SeasonSys.SCHEDULE && SeasonSys.SCHEDULE.pvpWeek) || 4;
             const box = (inner, bd) => '<div style="margin:8px 0;padding:8px 10px;border:1px solid ' + (bd || '#5a4a8a') + ';border-radius:8px;background:rgba(80,50,140,.18);font-size:.85rem;line-height:1.6">' + inner + '</div>';
             if (!st) return box('⚔ <b>PvPイベント</b>は、<b>シーズンキャラ専用</b>です。シーズンの' + W + '週目から開催されます。');
             if (!EV.open()) {
@@ -394,6 +396,7 @@
                 '<button class="sbl-btn gray" id="sbBulk" style="padding:4px 8px;font-size:.75rem">🗑 一括売却</button>' +
                 '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器を作る</button>' +
                 '<button class="sbl-btn green" id="sbArmorBtn" style="padding:4px 8px;font-size:.75rem">🛡 防具（頭・胴・脚）</button>' +
+                '<button class="sbl-btn orange" id="sbAccBtn" style="padding:4px 8px;font-size:.75rem">✨ アクセサリー（スキル）</button>' +
                 sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + (w.elems && w.elems.length && window.SBElem ? ' ' + SBElem.ELEMS[w.elems[0]].icon + (w.elems.length > 1 ? SBElem.ELEMS[w.elems[1]].icon : '') : '') + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
             wl.querySelector('#sbFilter').value = filter;
             wl.querySelector('#sbFilter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
@@ -401,6 +404,7 @@
             wl.querySelector('#sbBulk').addEventListener('click', openBulk);
             wl.querySelector('#sbForge').addEventListener('click', openForge);
             const ab = wl.querySelector('#sbArmorBtn'); if (ab) ab.addEventListener('click', openArmor);
+            const ac = wl.querySelector('#sbAccBtn'); if (ac) ac.addEventListener('click', openAccessory);
         }
         function addCoins(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
 
@@ -547,6 +551,53 @@
     }
 
     // ---------- 第二世界の解放通知（町に戻ったとき1回だけ）----------
+    // ============================================================
+    // アクセサリー（装備すると、特殊なスキルが自動で使えるようになる。ステータスは上がらない）
+    // ============================================================
+    function openAccessory() {
+        if (!window.HW || !window.SBAcc) return;
+        const hack = HW.load(); SBAcc.ensure(hack);
+        let selId = null;
+        const m = modal('✨ アクセサリー（装備するとスキルが使える）', () => { try { refreshInvInfo(); if (typeof updateStatus === 'function') updateStatus(getPlayerData()); } catch (e) {} });
+        m.body.innerHTML = '<div class="sbl-col sbl-left" id="acL"></div><div class="sbl-col sbl-right" id="acR"></div>';
+        const L = m.body.querySelector('#acL'), R = m.body.querySelector('#acR');
+        const addCoins = v => { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); };
+        const isEq = a => hack.accEq.indexOf(a.id) >= 0;
+        function renderList() {
+            const eq = SBAcc.equippedList(hack);
+            const arr = hack.accs.slice().sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl);
+            L.innerHTML = '<div class="sbl-sec">装備中（' + SBAcc.SLOTS + '枠）</div>' +
+                eq.map((a, i) => '<div style="font-size:.82rem;padding:3px 0">' + (i + 1) + '. ' + (a ? '<span style="color:' + HW.rarityOf(a).color + '">' + SBAcc.baseOf(a).icon + ' ' + esc(a.name) + '</span> <button class="sbl-btn gray" data-off="' + a.id + '" style="padding:1px 6px;font-size:.7rem;margin:0">はずす</button>' : '<span style="color:#778">（空き）</span>') + '</div>').join('') +
+                '<div class="sbl-sec">所持アクセサリー ' + hack.accs.length + ' 個 <button class="sbl-btn gray" id="acBulk" style="padding:3px 8px;font-size:.75rem;margin-left:6px">🗑 一括売却</button></div>' +
+                (arr.length ? arr.map(a => '<div class="sbl-wl' + (a.id === selId ? ' sel' : '') + (isEq(a) ? ' eq' : '') + '" data-id="' + a.id + '"><span style="color:' + HW.rarityOf(a).color + '">' + (isEq(a) ? '【装備中】' : '') + SBAcc.baseOf(a).icon + ' ' + esc(a.name) + '</span><span style="font-size:.72rem;color:#9fb3d9">Lv' + a.ilvl + (a.locked ? ' 🔒' : '') + '</span></div>').join('') : '<div style="color:#889;font-size:.85rem;padding:6px 0">まだアクセサリーを持っていません。ボスを倒す・ボスラッシュ・無限回廊の宝箱で手に入ります。</div>');
+            L.querySelectorAll('[data-off]').forEach(b => b.addEventListener('click', () => { SBAcc.unequip(hack, b.dataset.off); HW.save(hack); renderList(); renderDetail(); }));
+            L.querySelector('#acBulk').addEventListener('click', bulk);
+            L.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
+        }
+        function renderDetail() {
+            const a = hack.accs.find(x => x.id === selId);
+            if (!a) { R.innerHTML = '<div class="sbl-sec">アクセサリーとは</div><div class="sbl-fx">◆ 装備しても、ステータスは上がりません</div><div class="sbl-fx">◆ かわりに、特殊なスキルが<b>自動で</b>発動します（範囲攻撃が中心）</div><div class="sbl-fx">◆ 3つまで同時に装備できます。発動条件が違うものを組み合わせると強力です</div><div class="sbl-fx">◆ 対人戦では使えません</div><div style="color:#889;margin-top:8px">左のリストから選んでください</div>'; return; }
+            const Rr = HW.rarityOf(a), b = SBAcc.baseOf(a);
+            R.innerHTML = '<h3 style="margin:0;color:' + Rr.color + '">' + b.icon + ' ' + esc(a.name) + '</h3>' +
+                '<div style="font-size:.82rem;color:#9fb3d9">[' + Rr.label + ']　Lv' + a.ilvl + '</div>' +
+                '<div class="sbl-sec">スキル</div>' + SBAcc.describe(a).map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') +
+                '<div style="margin-top:8px"><button class="sbl-btn green" id="acEq"' + (!isEq(a) && hack.accEq.indexOf(null) < 0 ? ' disabled' : '') + '>' + (isEq(a) ? '外す' : (hack.accEq.indexOf(null) < 0 ? '装備枠がいっぱい' : '装備する')) + '</button>' +
+                '<button class="sbl-btn red" id="acSell"' + (isEq(a) || a.locked ? ' disabled' : '') + '>売却 (' + SBAcc.sellValue(a) + ')</button>' +
+                '<button class="sbl-btn gray" id="acLock">' + (a.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>';
+            R.querySelector('#acEq').addEventListener('click', () => { if (isEq(a)) SBAcc.unequip(hack, a.id); else SBAcc.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#acLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#acSell').addEventListener('click', () => { if (!confirm(a.name + ' を売却しますか？')) return; const v = SBAcc.sell(hack, a.id); if (v > 0) { addCoins(v); HW.save(hack); selId = null; renderList(); renderDetail(); } });
+        }
+        function bulk() {   // ノーマル・マジックで、ロックも装備もしていないものをまとめて売る
+            const t = hack.accs.filter(a => (a.rarity === 'normal' || a.rarity === 'magic') && !a.locked && !isEq(a));
+            if (!t.length) { alert('売却できるアクセサリー（ノーマル・マジックで、ロック・装備していないもの）がありません。'); return; }
+            const total = t.reduce((n, a) => n + SBAcc.sellValue(a), 0);
+            if (!confirm('ノーマル・マジックのアクセサリー ' + t.length + ' 個を売却します（+' + total + ' コイン）。よろしいですか？')) return;
+            t.forEach(a => SBAcc.sell(hack, a.id)); addCoins(total); HW.save(hack); selId = null; renderList(); renderDetail();
+        }
+        renderList(); renderDetail();
+    }
+
     // ============================================================
     // 防具（頭・胴・脚）
     // ============================================================

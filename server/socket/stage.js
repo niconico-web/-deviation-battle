@@ -23,7 +23,7 @@
 const MAX_MEMBERS = 4;
 const MAX_BY_STAGE = { pvp_3v3: 6 };            // 3v3 は6人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
-const MAX_RELAY_BYTES = 30000;
+const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room
 const socketRoom = new Map();     // socket.id -> roomId
 
