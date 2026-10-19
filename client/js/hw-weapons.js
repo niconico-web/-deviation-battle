@@ -348,11 +348,34 @@
         { id: 'kill_energy',kind: 'proc', on: 'kill',  key: 'killEnergy', name: '知の収穫', range: [0.15, 0.30], desc: v => `敵撃破時${pct(v)}でエネルギー+8` },
         { id: 'hurt_shield',kind: 'proc', on: 'hurt',  key: 'hurtShield', name: '護りの光', range: [0.15, 0.30], desc: v => `被弾時${pct(v)}でバリア（次の被ダメージ無効）` },
         { id: 'hurt_nova',  kind: 'proc', on: 'hurt',  key: 'hurtNova', name: '報復波',   range: [0.20, 0.40], desc: v => `被弾時${pct(v)}で周囲を吹き飛ばす` },
-        { id: 'dash_blast', kind: 'proc', on: 'dash',  key: 'dashBlast', name: '衝撃脚',  range: [0.50, 1.00], desc: v => `ダッシュ終点で衝撃波（攻撃力の${pct(v)}）` }
+        { id: 'dash_blast', kind: 'proc', on: 'dash',  key: 'dashBlast', name: '衝撃脚',  range: [0.50, 1.00], desc: v => `ダッシュ終点で衝撃波（攻撃力の${pct(v)}）` },
+        // --- リスキー・尖った効果（強い代わりに、はっきりした代償がある）。mods が「実際にかかる効果」の一覧 ---
+        { id: 'rk_glass',   kind: 'risk', risk: true, key: 'rk_glass',   name: '脆き砲台',   range: [0.40, 0.80], mods: v => ({ atkPct: v, hpHalf: 1 }),          desc: v => `⚠ 最大HPの上限が50%で固定／攻撃力 +${pct(v)}` },
+        { id: 'rk_blood',   kind: 'risk', risk: true, key: 'rk_blood',   name: '血の契約',   range: [0.30, 0.60], mods: v => ({ atkPct: v, selfBleed: 0.015 }),   desc: v => `⚠ 毎秒 最大HPの1.5%を失う（HP1で止まる）／攻撃力 +${pct(v)}` },
+        { id: 'rk_reckless',kind: 'risk', risk: true, key: 'rk_reckless',name: '無防備',     range: [0.30, 0.55], mods: v => ({ atkPct: v, dmgTaken: 0.4 }),      desc: v => `⚠ 被ダメージ +40%／攻撃力 +${pct(v)}` },
+        { id: 'rk_berserk', kind: 'risk', risk: true, key: 'rk_berserk', name: '狂戦士',     range: [0.50, 1.00], mods: v => ({ berserk: v }),                    desc: v => `⚠ HPが50%を超えていると攻撃力 -25%／HP50%以下で攻撃力 +${pct(v)}` },
+        { id: 'rk_noheal',  kind: 'risk', risk: true, key: 'rk_noheal',  name: '渇望',       range: [0.40, 0.80], mods: v => ({ atkPct: v, noHeal: 1 }),          desc: v => `⚠ HPがいっさい回復しない／攻撃力 +${pct(v)}` },
+        { id: 'rk_lone',    kind: 'risk', risk: true, key: 'rk_lone',    name: '孤高',       range: [0.35, 0.70], mods: v => ({ loneWolf: v }),                   desc: v => `⚠ 仲間がいると攻撃力 -30%／ソロだと攻撃力 +${pct(v)}` },
+        { id: 'rk_frail',   kind: 'risk', risk: true, key: 'rk_frail',   name: '紙の速さ',   range: [0.25, 0.50], mods: v => ({ aspd: v, hpPct: -0.3 }),          desc: v => `⚠ 最大HP -30%／攻撃速度 +${pct(v)}` },
+        { id: 'rk_skill',   kind: 'risk', risk: true, key: 'rk_skill',   name: '魔力暴走',   range: [0.40, 0.90], mods: v => ({ skillPct: v, skillCdUp: 0.6 }),   desc: v => `⚠ スキルのクールダウン +60%／スキルの威力 +${pct(v)}` },
+        { id: 'rk_lamp',    kind: 'risk', risk: true, key: 'rk_lamp',    name: '命の灯火',   range: [0.30, 0.60], mods: v => ({ hpPct: v, atkPct: -0.3 }),        desc: v => `⚠ 攻撃力 -30%／最大HP +${pct(v)}` },
+        { id: 'rk_still',   kind: 'risk', risk: true, key: 'rk_still',   name: '不動',       range: [0.30, 0.60], mods: v => ({ atkPct: v, noDash: 1 }),          desc: v => `⚠ ダッシュが使えない／攻撃力 +${pct(v)}` },
+        { id: 'rk_titan',   kind: 'risk', risk: true, key: 'rk_titan',   name: '鈍重の巨人', range: [0.35, 0.70], mods: v => ({ atkPct: v, moveSpd: -0.35 }),     desc: v => `⚠ 移動速度 -35%／攻撃力 +${pct(v)}` },
+        { id: 'rk_onehit',  kind: 'risk', risk: true, key: 'rk_onehit',  name: '一撃必殺',   range: [0.80, 1.60], mods: v => ({ atkPct: v, aspd: -0.4 }),         desc: v => `⚠ 攻撃速度 -40%／攻撃力 +${pct(v)}` },
+        { id: 'rk_edge',    kind: 'risk', risk: true, key: 'rk_edge',    name: '諸刃',       range: [0.20, 0.40], mods: v => ({ critRate: v, nonCritDown: 0.3 }), desc: v => `⚠ クリティカルでない攻撃のダメージ -30%／クリティカル率 +${pct(v)}` },
+        { id: 'rk_drain',   kind: 'risk', risk: true, key: 'rk_drain',   name: '消耗',       range: [0.30, 0.60], mods: v => ({ atkPct: v, energyUp: -0.5 }),     desc: v => `⚠ クイズで得るエネルギー -50%／攻撃力 +${pct(v)}` },
+        { id: 'rk_vamp',    kind: 'risk', risk: true, key: 'rk_vamp',    name: '呪われた吸血', range: [0.06, 0.12], mods: v => ({ lifesteal: v, dmgTaken: 0.25 }), desc: v => `⚠ 被ダメージ +25%／与ダメージの${pct(v)}をHP回復` }
     ];
     const EFFECT_BY_ID = {};
     EFFECTS.forEach(e => { EFFECT_BY_ID[e.id] = e; });
 
+    function takeFx(pool) { const e = pickFx(pool); pool.splice(pool.indexOf(e), 1); return e; }
+    // 効果の候補から1つ選ぶ。リスキーな効果は出にくい（約12%）
+    function pickFx(pool) {
+        const risky = pool.filter(e => e.risk), safe = pool.filter(e => !e.risk);
+        const useRisk = risky.length && (!safe.length || Math.random() < 0.12), src = useRisk ? risky : safe;
+        return src[Math.floor(Math.random() * src.length)];
+    }
     // ---------- 乱数ユーティリティ ----------
     const rnd = (a, b) => a + Math.random() * (b - a);
     const rint = (a, b) => Math.floor(rnd(a, b + 1));
@@ -402,7 +425,7 @@
         const fxPool = EFFECTS.slice();
         const effects = [];
         for (let i = 0; i < nFx && fxPool.length; i++) {
-            const e = fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0];
+            const e = takeFx(fxPool);
             effects.push(rollEffect(e, ilvl, rarityKey));
         }
         const w = {
@@ -433,11 +456,12 @@
         if (e.int) v = Math.max(1, Math.round(rnd(e.range[0], e.range[1]) * (idx >= 3 ? 2 : 1)));
         else v = Math.round(v * 1000) / 1000;
         if (e.kind === 'proc' || e.key === 'critRate' || e.key === 'dodge') v = Math.min(v, e.kind === 'proc' ? 0.85 : 0.5);
+        if (e.risk) v = Math.min(v, Math.round(e.range[1] * 2.2 * 1000) / 1000);
         return { id: e.id, v: v };
     }
 
     function displayName(w) {
-        return w.prefix + '＋' + w.baseName;
+        return w.prefix + '＋' + w.baseName + ((w.plus | 0) > 0 ? '+' + (w.plus | 0) : '');
     }
 
     function describeEffect(fx) {
@@ -519,7 +543,8 @@
         (w.effects || []).forEach(fx => {
             const e = EFFECT_BY_ID[fx.id];
             if (!e) return;
-            if (e.kind === 'stat') addStat(e.key, fx.v);
+            if (e.mods) { const m = e.mods(fx.v); Object.keys(m).forEach(k => addStat(k, m[k])); }
+            else if (e.kind === 'stat') addStat(e.key, fx.v);
             else agg.procs.push({ key: e.key, on: e.on, v: fx.v });
         });
         (w.orbs || []).forEach(orb => {
@@ -721,7 +746,7 @@
         const sockets = rint(rar.sockets[0], rar.sockets[1]);
         const nFx = rint(rar.fx[0], rar.fx[1]);
         const fxPool = EFFECTS.slice(), effects = [];
-        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], ilvl, rk));
+        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(takeFx(fxPool), ilvl, rk));
         // 選んだ属性（最大2つ。elements.js にある属性だけ）
         const elems = [];
         ((o && o.elems) || []).forEach(id => { if (window.SBElem && SBElem.ELEMS[id] && elems.indexOf(id) < 0 && elems.length < 2) elems.push(id); });
@@ -784,8 +809,8 @@
     const MAX_SOCKETS = 6;
     const SPECIAL_ITEMS = {
         slot:   { name: '宝珠の拡張石', icon: '💠', color: '#7fd8ff', desc: '武器のオーブスロットを1つ増やす（最大' + MAX_SOCKETS + '）' },
-        rarity: { name: '昇華の結晶',   icon: '🔶', color: '#ffb347', desc: '武器のレア度を1段階上げる（レジェンドまで）' },
-        reroll: { name: '混沌の宝珠',   icon: '🌀', color: '#c077ff', desc: '武器・防具の追加効果をすべて振り直す' }
+        rarity: { name: '昇華の結晶',   icon: '🔶', color: '#ffb347', desc: '武器のレア度を1段階上げる。レジェンド武器には「＋N」のアップグレード（攻撃の%が少し上がる。最大+100）' },
+        reroll: { name: '混沌の宝珠',   icon: '🌀', color: '#c077ff', desc: '武器・防具の追加効果のうち、選んだもの（いくつでも）を引き直す' }
     };
     const SPECIAL_ORDER = ['slot', 'rarity', 'reroll'];
     function itemCount(d, k) { return Math.max(0, (d && d.items && d.items[k]) | 0); }
@@ -799,34 +824,50 @@
         while (w.orbs.length < w.sockets) w.orbs.push(null);
         return true;
     }
+    // レア度を上げる。すでにレジェンドなら「＋N」アップグレード（攻撃の%がすこしずつ上がる。最大 +100）
+    const PLUS_MAX = 100, PLUS_STEP = 0.006;       // 1回ごとに、元の攻撃の%の 0.6% ぶん（＋100で元の1.6倍）
     function canUpgradeRarity(w) { const i = RARITY_ORDER.indexOf(w && w.rarity); return i >= 0 && i < RARITY_ORDER.length - 1; }
+    function canUpgradePlus(w) { return !!w && w.rarity === 'legendary' && (w.plus | 0) < PLUS_MAX; }
+    function canUseCrystal(w) { return canUpgradeRarity(w) || canUpgradePlus(w); }
+    function upgradePlus(w) {
+        if (!canUpgradePlus(w)) return false;
+        if (w.pct0 == null) w.pct0 = w.pct || 0;
+        w.plus = (w.plus | 0) + 1;
+        w.pct = Math.round(w.pct0 * (1 + PLUS_STEP * w.plus) * 10000) / 10000;       // ＋の強化は、レア度の上限(PCT_CAP)を超えてよい
+        w.dmg = dmgFromPct(w.pct);
+        if (!w.custom) w.name = displayName(w);
+        return true;
+    }
     function upgradeRarity(w) {
+        if (canUpgradePlus(w)) return upgradePlus(w);
         if (!canUpgradeRarity(w)) return false;
         const old = w.rarity, nk = RARITY_ORDER[RARITY_ORDER.indexOf(old) + 1], ro = RARITIES[old], rn = RARITIES[nk];
         const ratio = w.custom ? rn.orig / ro.orig : rn.pctMul / ro.pctMul;
         w.rarity = nk;
         w.pct = Math.round(Math.min(PCT_CAP, (w.pct || 0) * ratio) * 10000) / 10000;
         w.dmg = dmgFromPct(w.pct);
-        // 効果の強さ：レア度が上がるぶんだけ伸ばす（個数が最低数に足りなければ足す）
         const io = RARITY_ORDER.indexOf(old), ratioFx = (1 + (io + 1) * 0.22) / (1 + io * 0.22);
         (w.effects || []).forEach(f => {
             const e = EFFECT_BY_ID[f.id]; if (!e || e.int) return;
             let v = f.v * ratioFx; if (e.kind === 'proc' || e.key === 'critRate' || e.key === 'dodge') v = Math.min(v, e.kind === 'proc' ? 0.85 : 0.5);
+            if (e.risk) v = Math.min(v, e.range[1] * 2.2);
             f.v = Math.round(v * 1000) / 1000;
         });
         w.effects = w.effects || [];
         const used = w.effects.map(f => f.id), fxPool = EFFECTS.filter(e => used.indexOf(e.id) < 0);
-        while (w.effects.length < rn.fx[0] && fxPool.length) w.effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], w.ilvl || 1, nk));
-        // スロットの最低数
+        while (w.effects.length < rn.fx[0] && fxPool.length) w.effects.push(rollEffect(takeFx(fxPool), w.ilvl || 1, nk));
         const minS = rn.sockets[0]; if ((w.sockets | 0) < minS) { w.sockets = minS; w.orbs = Array.isArray(w.orbs) ? w.orbs.slice() : []; while (w.orbs.length < w.sockets) w.orbs.push(null); }
         if (!w.custom) { w.prefix = pick(rn.prefixes); w.name = displayName(w); }
         return true;
     }
-    function rerollWeaponEffects(w) {
-        if (!w) return false;
-        const n = (w.effects || []).length, fxPool = EFFECTS.slice(), out = [];
-        for (let i = 0; i < n && fxPool.length; i++) out.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], w.ilvl || 1, w.rarity || 'normal'));
-        w.effects = out;
+    // 追加効果の振り直し：idxs（効果の番号の配列。いくつでも選べる）の効果だけを、別の効果に引き直す。省略すると全部
+    function rerollWeaponEffects(w, idxs) {
+        if (!w || !Array.isArray(w.effects)) return false;
+        const sel = Array.isArray(idxs) ? idxs.filter(i => i >= 0 && i < w.effects.length) : w.effects.map((_, i) => i);
+        if (!sel.length) return false;
+        const keepIds = w.effects.filter((_, i) => sel.indexOf(i) < 0).map(f => f.id);
+        const pool = EFFECTS.filter(e => keepIds.indexOf(e.id) < 0);
+        sel.forEach(i => { if (!pool.length) return; w.effects[i] = rollEffect(takeFx(pool), w.ilvl || 1, w.rarity || 'normal'); });
         return true;
     }
 
@@ -837,6 +878,6 @@
         STORAGE_LIMIT, typesOfWorld,
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal, typeChangeCost, changeType,
-        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, upgradeRarity, rerollWeaponEffects
+        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP
     };
 })();
