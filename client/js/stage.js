@@ -42,13 +42,17 @@
     let WORLD_W = PVP ? 1500 : (RUSH_ON ? 1700 : 2400), WORLD_H = PVP ? 1000 : (RUSH_ON ? 1100 : 1600);   // ボスラッシュは弾幕が避けやすい広さに。無限回廊は階層ごとに変わる
     const MAX_PARTY = 4;
     const TIME_LIMIT = PVP ? 180 : (CORR_ON ? Infinity : (RUSH_ON ? 99 * 60 : (stage.standardOnly ? 25 * 60 : 9 * 60)));   // ボスラッシュは全体ではなく「1フェーズごと」の制限時間（難易度で決まる）。無限回廊は無制限   // 時間切れ（スタンダードワールドは長丁場）
-    const KILLS_BASE = 45;               // ボス出現に必要な討伐数（1人）
-    const ENEMY_CAP_BASE = 30;
+    const KILLS_BASE = 75;               // ボス出現に必要な討伐数（1人）。敵が弱く数が多いぶん、以前（45）より多め
+    const ENEMY_CAP_BASE = 50;           // 同時に出る敵の数の上限（以前は30）
+    const MOB_HP_MUL = 0.6, MOB_DMG_MUL = 0.85, MOB_GROUP_MUL = 1.5;   // 雑魚の体力・攻撃は下げ、1グループの数を増やす（爽快感のため。精鋭とボスは変えない）
     // 通常攻撃もエネルギーを使う：1秒ぶん連打したときの消費量（武器の攻撃間隔に比例。重い武器ほど1振りが高い）
     const ATK_ENERGY_PER_SEC = 4;
     const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
-    const SNAP_HZ = 12;
+    const SNAP_HZ = 16;
+    // 位置は補間して表示するため、20Hzで全員が送り合う必要はない。
+    // 低速回線・低性能端末での送受信とGCを抑えつつ、PvPはやや高めに維持する。
+    const POS_HZ = PVP ? 15 : 12;
     // ボスの技（boss-moves.js）とスタン
     const BM = window.BOSS_MOVES || null;
     const STUN_SEC = (BM && BM.STUN_SECONDS) || 3.0;     // スタンの長さ（動けない・攻撃も回避もできない）
@@ -65,7 +69,7 @@
     function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
     // ---------- 難易度 ----------
-    const CORR_DIFF = { name: '無限回廊', hp: 1.0, dmg: 1.0, spd: 1.0, elite: 0.12, luck: 0.9, healRed: 0 };
+    const CORR_DIFF = { name: '無限回廊', hp: 1.0, dmg: 1.0, spd: 1.0, elite: 0.22, luck: 0.9, healRed: 0 };
     const DIFFS = RUSH_ON ? window.STAGE_DATA.RUSH_DIFFS : (CORR_ON ? [CORR_DIFF] : window.STAGE_DATA.DIFFS);
     let DIFF = DIFFS[Math.max(0, Math.min(DIFFS.length - 1, parseInt(launch.diff, 10) || 0))];
 
@@ -146,7 +150,7 @@
     let REF_HP = FIX_HP;
     // ボスラッシュ（フェーズごと）・無限回廊（階層ごと／自分のステータスに合わせる）では、ステージの途中で敵の強さの基準が変わる。
     //  req : 推奨ステータス合計（敵の強さの基準）／ ilvl : 敵の足の速さなどに効くレベル／ pw : HP・攻撃・速さの倍率
-    const SC = { ilvl: stage.ilvl, hpMul: stage.hpMul || 1 };
+    const SC = { ilvl: stage.ilvl, hpMul: stage.hpMul || 1, dmgMul: 1 };
     function applyScale(req, ilvl, pw) {
         const sc = window.STAGE_DATA.scaleOf(Math.max(250, req));
         G_DMG = sc.gDmg; G_HP = sc.gHp; G_MOB = sc.gMob;
@@ -154,12 +158,20 @@
         SC.ilvl = ilvl; PW = pw || { hp: 1, dmg: 1, spd: 1 };
     }
     const RUSHD = window.STAGE_DATA.RUSH, CD = window.STAGE_DATA.CORRIDOR, RUSHD_EXTREME = window.STAGE_DATA.RUSH_DIFFS.length - 1;
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
     const RS = { ph: 0, st: 0, t: 0, limit: 0, inter: 0 };      // ボスラッシュの進行：ph=フェーズ(1〜6)、st=0待機/1戦闘中/2幕間、t=フェーズ開始からの秒、limit=制限秒、inter=幕間の残り秒
     const TILE = 22, CELL_T = 14;                                  // 無限回廊：1タイルの大きさ(px)／1区画の幅（タイル数。区画の中に部屋を1つ作り、区画どうしを通路でつなぐ＝トルネコの大冒険のような構造）
-    const CF = { on: false, inBoss: false, floor: 1, seed: 0, cols: 0, rows: 0, tw: 0, th: 0, solid: null, open: null, rects: [], props: [], start: null, seen: null, flow: null, flowFor: -1, rc: null, bend: null, big: null, mini: null, miniCtx: null, saved: null, exit: null, fade: 0, st: { chests: 0, mimics: 0, bosses: 0 } };
+    const CF = { on: false, inBoss: false, floor: 1, seed: 0, cols: 0, rows: 0, tw: 0, th: 0, solid: null, open: null, rects: [], props: [], start: null, seen: null, flow: null, flowFor: -1, flows: null, gateT: 0, reqT: 0, rc: null, bend: null, big: null, mini: null, miniCtx: null, saved: null, exit: null, fade: 0, st: { chests: 0, mimics: 0, bosses: 0 } };
     // 戦利品の文脈：ボスラッシュ・無限回廊では、倒した敵ごとに「どのレベル・どの表から」ドロップを引くかが変わる（null ならステージ本来のもの）
     let LT = null;
     const L = () => LT || stage;
+    // 撃破の報酬は、武器庫のデータを毎回読み書きすると重い（全武器の読み込み＋保存＋旧システムへの同期）。
+    // 1回の撃破で10回近く保存していたのがボスラッシュのフリーズの原因だったので、撃破イベントの間はメモリ上の1つを使い回し、最後に1回だけ保存する
+    let TX = null;
+    const hwLoad = () => TX || HW.load();
+    const hwSave = d => { if (!TX) HW.save(d); };
+    // 無限回廊の「袋」：手に入れた武器・防具・素材・オーブ・特殊アイテムは、脱出ゲートから脱出するまで保存されない（死んだら全部失う）
+    const BAG = { weapons: [], armors: [], accs: [], items: {}, mats: {}, orbs: [] };
     const myId = String(pdata.id || ('p' + Math.random().toString(36).slice(2, 8)));
     const myName = pdata.name || 'あなた';
 
@@ -168,7 +180,10 @@
     const ctx = canvas.getContext('2d');
     let VW = 960, VH = 540, DPR = 1;
     function fit() {
-        DPR = Math.min(2, window.devicePixelRatio || 1);
+        // 高DPI端末の2倍キャンバスは、4人対戦時に描画量が4倍になる。
+        // PvPは応答性を優先し、低コア端末ではさらに軽い解像度にする。
+        const lowSpec = (navigator.hardwareConcurrency || 8) <= 4;
+        DPR = Math.min(PVP ? (lowSpec ? 1.15 : 1.5) : (lowSpec ? 1.5 : 2), window.devicePixelRatio || 1);
         VW = window.innerWidth; VH = window.innerHeight;
         canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
         canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
@@ -225,7 +240,8 @@
     const run = { phase: 'wait', time: 0, kills: 0, need: KILLS_BASE, bossSpawned: false, bossDead: false, ended: false,
         stats: { kills: 0, dmg: 0, loot: [], coins: 0, orbs: 0, mats: {} } };
     let isHost = true, room = null, socket = null;
-    let spawnT = 1.5, snapT = 0, posT = 0;
+    let spawnT = 1.5, snapT = 0, posT = 0, posSeq = 0, snapSeq = 0, lastSnapQ = -1, lastSnapAt = 0, snapAge = 0;
+    const posLast = { x: 0, y: 0, t: performance.now() };
 
     // ---------- ネットワーク ----------
     function netSend(t, d) { if (socket && room) socket.emit('stage:relay', { t: t, d: d }); }
@@ -252,7 +268,7 @@
     function adoptEnemies() {
         enemies = enemies.map(e => {
             const def = e.boss ? { name: stage.boss.name, icon: stage.boss.icon, color: stage.boss.color, arch: 'chaser' }
-                : (stage.enemies.find(d => d.name === e.def.name) || stage.enemies[0]);
+                : (CORR_ON ? (CD.mobs.find(d => d.name === e.def.name) || (e.def.name === CD.mimic.name ? CD.mimic : CD.mobs[0])) : (stage.enemies.find(d => d.name === e.def.name) || stage.enemies[0]));
             const st = enemyStats(def, e.boss, e.elite);
             return { id: e.id, def: def, arch: def.arch, boss: e.boss, elite: !!e.elite, x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, dmg: st.dmg, spd: st.spd, r: e.r,
                 t: 0, state: 0, st: { burn: 0, burnT: 0, poison: 0, poisonT: 0, slowT: 0, stunT: 0, bleed: 0, bleedT: 0, curseT: 0, weakenT: 0, blindT: 0 }, kx: 0, ky: 0, aim: 0, fuse: 0, patIdx: 0, enraged: e.hp / e.maxHp < 0.5, air: 0, mv: null };
@@ -283,7 +299,23 @@
         const a = allies[m.from];
         switch (m.t) {
             case 'pos':
-                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead; a.stun = !!d.st; }
+                if (a && !(d.q < a.pq)) { a.pq = d.q; a.vx = clamp(+d.vx || 0, -900, 900); a.vy = clamp(+d.vy || 0, -900, 900); a.pt = performance.now(); if (d.tp) { a.x = d.x; a.y = d.y; a.vx = 0; a.vy = 0; } }
+                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; if (d.tt > 0) a.tt = d.tt; }
+                break;
+            case 'esc':     // 無限回廊：仲間が脱出した（倒れた扱いにして、敵に狙われないようにする）
+                if (a) { a.esc = true; a.dead = true; popups.push({ x: a.x, y: a.y - 30, t: 1.6, text: '脱出！', c: '#9fe8ff', big: true }); }
+                break;
+            case 'creq':    // 無限回廊：クライアントからの「階段に着いた／ボス部屋の入口に入った／出口に着いた」
+                if (CORR_ON && isHost && run.phase === 'run' && d) corrAsk(String(d.k), d.i | 0);
+                break;
+            case 'cuse':    // 無限回廊：仲間が回復の泉を使った
+                if (CORR_ON && d) { const q = corrProp(d.i | 0); if (q && q.k === 'spring') q.k = 'spring_done'; }
+                break;
+            case 'cho':     // 無限回廊：仲間が宝箱を開けた（中身は開けた人のもの）
+                if (CORR_ON && d) { const q = corrProp(d.i | 0); if (q && q.k === 'chest') { q.k = 'open'; fx.push({ k: 'ring', x: q.x, y: q.y, r: 0, max: 60, t: 0.4, life: 0.4, c: '#ffd84a' }); } }
+                break;
+            case 'cmim':    // 無限回廊：宝箱がミミックだった（ホストが敵として出す）
+                if (CORR_ON && d) { const q = corrProp(d.i | 0); if (q) { CF.props = CF.props.filter(x => x !== q); popups.push({ x: q.x, y: q.y - 30, t: 1.4, text: 'ミミックだ！', c: '#ff6a5a', big: true }); } }
                 break;
             case 'atk':
                 if (a) spawnAtkFx(d);
@@ -357,6 +389,8 @@
         if (e.repeat && ['Space'].indexOf(e.code) >= 0) return;
         keys[e.code] = true;
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') doDash();
+        if (e.code === 'KeyF') { e.preventDefault(); doParry(); }
+        if (e.code === 'KeyR') { e.preventDefault(); doUltimate(); }
         const sk = { KeyZ: 0, KeyX: 1, KeyC: 2, KeyV: 3 }[e.code]; if (sk !== undefined) castSkill(sk);
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
         if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
@@ -405,10 +439,10 @@
         const stageHp = 70 * 1.7 * G_DMG, mobHp = 70 * 1.7 * G_MOB;
         let hp;
         if (isBoss) hp = Math.max(stageHp * 24, FIX_DPS * 45) * SC.hpMul * DIFF.hp * ps * PW.hp;                 // 想定火力で最低45秒ぶん（固定）
-        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : 1) * PW.hp * (PW.mobHp || 1); // 雑魚も最低約2秒ぶん（固定）
+        else hp = Math.max(mobHp, 28 * 1.18 * G_MOB * 1.8) * DIFF.hp * a.hp * ps * (elite ? 4.5 : (CORR_ON ? 1 : MOB_HP_MUL)) * PW.hp * (PW.mobHp || 1); // 雑魚も最低約2秒ぶん（固定）
         return {
             maxHp: Math.round(hp),
-            dmg: foeDmg(def.arch, isBoss, elite),
+            dmg: foeDmg(def.arch, isBoss, elite) * (isBoss || elite || CORR_ON ? 1 : MOB_DMG_MUL) * (isBoss ? SC.dmgMul : 1),
             spd: 118 * a.spd * (1 + ilvl * 0.015) * DIFF.spd * (elite ? 1.05 : 1) * PW.spd,
             r: (isBoss ? 46 : a.r) * (elite ? 1.3 : 1)
         };
@@ -429,7 +463,7 @@
         const def = stage.enemies[Math.floor(Math.random() * stage.enemies.length)];
         const eliteAlive = enemies.filter(e => e.elite && e.hp > 0).length;
         const elite = def.arch !== 'swarm' && eliteAlive < 3 && Math.random() < DIFF.elite;
-        const n = elite ? 1 : (def.arch === 'swarm' ? Math.floor(rnd(5, 9)) : (def.arch === 'tank' ? Math.floor(rnd(1, 3)) : Math.floor(rnd(3, 6))));
+        const n = elite ? 1 : Math.round((def.arch === 'swarm' ? Math.floor(rnd(5, 9)) : (def.arch === 'tank' ? Math.floor(rnd(1, 3)) : Math.floor(rnd(3, 6)))) * MOB_GROUP_MUL);
         const ang = rnd(0, Math.PI * 2), d = rnd(480, 660);
         if (elite) announce('⚔ 精鋭が出現！', 1100);
         for (let i = 0; i < n; i++) {
@@ -452,6 +486,7 @@
     }
 
     function bullet(x, y, ang, spd, dmg, r, life, color, kd) {   // kd: 1 = 剣（ゲートキーパーの射出物）
+        if (eBullets.length > 420) eBullets.splice(0, 60);      // 弾が増えすぎると処理が重くなり、画面が固まって見える。古い弾から消す
         eBullets.push({ id: nextId++, x: x, y: y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd, dmg: dmg, r: r || 7, life: life || 3.2, c: color || '#ff6a5a', kd: kd || 0 });
     }
     // 予告範囲。o で形を指定できる：{ sh:'cone'|'line'|'donut', a:向き, arc:角度, ri:内半径, w:幅, stun:スタン付き, rep/gap:持続ヒット }
@@ -772,7 +807,37 @@
     //  ・相手は自分の画面では「敵」として扱う（pvp ダミー）ので、武器・スキル・特殊効果は今までの攻撃がそのまま使える
     //  ・ダメージはステータスに関係なく「相手の最大HPの割合」。基準の一撃（自分の素のステータスでの武器1振り）= 4.5%
     //    → 武器の％・種類・クリティカル・スキル・特殊効果の勝負になる（ステータス差で圧倒されない）
-    const PVP_BASE = 0.045, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
+    // PvP は成長・装備を「基準火力」に使いつつ、一撃死を防ぐ割合ダメージ方式。
+    // 従来より基礎を少し下げ、コンボ・パリィ・任意必殺でテンポと読み合いを作る。
+    const PVP_BASE = 0.036, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
+    const PVP_COMBO_WINDOW = 1.15, PVP_COMBO_MAX = 8, PVP_PARRY_WINDOW = 0.22, PVP_PARRY_CD = 3.2;
+    const pvp = { combo: 0, comboT: 0, ult: 0, parryT: 0, parryCd: 0 };
+    function pvpActive() { return PVP && run.pvpMode && run.phase === 'run' && !me.dead; }
+    function pvpComboMul() { return 1 + Math.min(PVP_COMBO_MAX, pvp.combo) * 0.018; }
+    function pvpGainUlt(v) { if (!pvpActive()) return; pvp.ult = clamp(pvp.ult + v, 0, 100); }
+    function pvpResetCombo() { pvp.combo = 0; pvp.comboT = 0; }
+    function pvpLandHit() {
+        pvp.combo = Math.min(PVP_COMBO_MAX, pvp.combo + 1); pvp.comboT = PVP_COMBO_WINDOW;
+        pvpGainUlt(7 + Math.min(3, pvp.combo) * 0.5);
+        if (pvp.combo > 1) popups.push({ x: me.x, y: me.y - 44, t: 0.55, text: pvp.combo + ' COMBO', c: '#ffe08a' });
+    }
+    function doParry() {
+        if (!pvpActive() || me.stunT > 0 || pvp.parryCd > 0) return;
+        pvp.parryT = PVP_PARRY_WINDOW; pvp.parryCd = PVP_PARRY_CD;
+        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 52, t: PVP_PARRY_WINDOW, life: PVP_PARRY_WINDOW, c: '#9df0ff' });
+        popups.push({ x: me.x, y: me.y - 34, t: 0.5, text: 'PARRY!', c: '#9df0ff', big: true });
+    }
+    function doUltimate() {
+        if (!pvpActive() || me.stunT > 0 || pvp.ult < 100) return;
+        const target = nearestEnemy(me.x, me.y, 250);
+        if (!target) { announce('必殺技は相手の近くで使おう', 1100); return; }
+        pvp.ult = 0; pvpResetCombo(); me.atkCd = Math.max(me.atkCd, 0.35);
+        const a = Math.atan2(target.y - me.y, target.x - me.x);
+        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.42, life: 0.42, c: '#ffd84a', fill: true });
+        popups.push({ x: me.x, y: me.y - 42, t: 1.0, text: '✦ 必殺技！', c: '#ffd84a', big: true });
+        strike(target, 3.0, 260);
+        netSend('atk', { k: 'ultimate', x: me.x, y: me.y, a: a, rng: 160, c: '#ffd84a' });
+    }
     const pvpDummies = {};
     function syncPvpDummies() {
         const list = [];
@@ -789,21 +854,30 @@
     }
     function dealPvp(e, dmg, o) {
         // 1発のダメージ（相手の最大HPに対する割合）。上限はなし（通信の異常値だけ弾く）。サドンデスで時間とともに攻撃力が上がる
-        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
+        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul() * pvpComboMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
         popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
         run.stats.dmg += f * 100; e.flash = 0.1;
+        if (f > 0) pvpLandHit();
         const st = o.st && o.st.stun ? { stun: Math.min(PVP_STUN_MAX, typeof o.st.stun === 'number' ? o.st.stun : 1) } : null;
         netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st });
     }
     // 相手の攻撃を受けたとき（ダメージは自分の最大HPの割合）
     function hurtPvp(f, kx, ky, st, by) {
         if (me.dead || me.invHard > 0 || run.phase !== 'run' || me.inv > 0) return;
+        if (pvpActive() && pvp.parryT > 0) {
+            pvp.parryT = 0; me.inv = 0.18; pvpGainUlt(12);
+            fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 90, t: 0.3, life: 0.3, c: '#9df0ff' });
+            popups.push({ x: me.x, y: me.y - 30, t: 0.9, text: 'PERFECT PARRY!', c: '#9df0ff', big: true });
+            if (by) netSend('pvph', { to: by, f: 0.026, kx: -(kx || 0), ky: -(ky || 0), st: { stun: 0.35 } });
+            return;
+        }
         if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.1; return; }
         if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.4; return; }
         let dmg = Math.max(1, Math.round(f * me.maxHp * (1 - Math.min(0.6, A('dr')) * sdDefMul()) * (me.stunT > 0 ? 1 - 0.4 * sdDefMul() : 1)));   // サドンデスで、ダメージ軽減（防御）の効き目が下がっていく
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); if (dmg <= 0) { me.inv = 0.1; return; } }
         const lost = Math.min(me.hp, dmg);
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
+        pvpGainUlt(Math.min(10, lost / me.maxHp * 22)); pvpResetCombo();
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (by) { const pct = +(lost / me.maxHp * 100).toFixed(2); tallyDmg(by, pct); netSend('pvpd', { by: by, p: pct }); }   // 実際に減った分を「与ダメージ」として、全員の画面で記録する
         if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
@@ -869,6 +943,7 @@
         }
         e.flash = 0.1;
         if (isHost) applyHit(d); else { netSend('hit', d); e.hp = Math.max(0, e.hp - dmg); }
+        if (dmg > 0 && !accBusy) accEvent('hit');
     }
     function applyHit(d) {
         const e = enemies.find(x => x.id === d.eid);
@@ -897,12 +972,12 @@
         const main = e.boss && !e.echo;                                                    // 召喚された歴代ボス(echo)は本体ではない
         const others = main && enemies.some(o => o !== e && o.boss && !o.echo && !o.dead && o.hp > 0);
         const last = main && !others;                                                      // 最後の1体を倒したときだけクリア＆ボスドロップ
-        const ev = { id: e.id, x: e.x, y: e.y, boss: last, part: (main && !last && !RUSH_ON) || !!e.noLoot, echo: !!e.echo, elite: !!e.elite, by: by, ilvl: SC.ilvl, ico: e.def.icon };
+        const ev = { id: e.id, x: e.x, y: e.y, boss: last, part: (main && !last && !RUSH_ON) || !!e.noLoot, echo: !!e.echo, elite: !!e.elite, by: by, ilvl: SC.ilvl, ico: e.def.icon, col: e.def.color || '#fff', r: e.r };
         if (RUSH_ON && main) {      // ボスラッシュ：1体ごとに報酬（rb=1）、フェーズの最後の1体は豪華（rb=2）
             const pd = RUSHD.phases[Math.max(0, RS.ph - 1)] || RUSHD.phases[0];
             ev.rb = last ? 2 : 1; ev.ph = RS.ph; ev.fin = !!pd.final; ev.lw = pd.lootWorld; ev.ilvl = pd.ilvl; ev.src = e.rushSrc || '';
         }
-        if (CORR_ON) { ev.fl = CF.floor; ev.cm = e.mimic ? 1 : 0; ev.cb = e.cboss || 0; }
+        if (CORR_ON) { ev.fl = CF.floor; ev.cm = e.mimic ? 1 : 0; ev.cb = e.cboss || 0; if (e.affix === 'explosive') telegraph(e.x, e.y, 150, 0.9, e.dmg * 1.2, '#ff7a3a'); }
         onKillEvent(ev);
         netSend('kill', ev);
         if (main && others && GMK === 'twin') twinOnDeath(e);
@@ -923,6 +998,27 @@
     function worldOpenedByGate() {           // このステージ（ゲート）のゲートキーパーを倒すと解放される世界（flag）
         return (window.STAGE_DATA.WORLDS || []).find(w => w.unlock && stage.id === w.unlock.gateId) || null;
     }
+    // ---------- 撃破の演出（爽快感）----------
+    //  光の輪・飛び散る火花・コンボ表示・画面の揺れ。精鋭とボスはさらに派手に。多くの敵を一度に倒しても重くならないよう、演出の数に上限をかける
+    let shakeT = 0, shakeA = 0, comboN = 0, comboT = 0;
+    function addShake(a, t) { if (a > shakeA || shakeT <= 0) { shakeA = a; } shakeT = Math.max(shakeT, t); }
+    function killFx(ev) {
+        const col = ev.col || '#fff', big = ev.boss ? 3 : (ev.elite ? 2 : 1), r0 = ev.r || 14;
+        fx.push({ k: 'puff', x: ev.x, y: ev.y, t: 0.35, life: 0.35, c: '#fff' });
+        fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 0, max: 34 + r0 * 1.4 * big, t: 0.38, life: 0.38, c: col });
+        if (fx.length > 420) return;
+        const n = ev.boss ? 46 : (ev.elite ? 26 : 11);
+        for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, v = (120 + Math.random() * 360) * (0.8 + big * 0.25); fx.push({ k: 'spark', x: ev.x, y: ev.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, sz: 2.5 + Math.random() * 3.5 * (big > 1 ? 1.4 : 1), t: 0.35 + Math.random() * 0.3, life: 0.65, c: Math.random() < 0.4 ? '#fff' : col }); }
+        if (big >= 2) { fx.push({ k: 'ring', x: ev.x, y: ev.y, r: 0, max: 120 + 30 * big, t: 0.5, life: 0.5, c: '#fff' }); addShake(big === 3 ? 9 : 4, big === 3 ? 0.5 : 0.22); }
+        if (ev.by === myId) {      // 自分が倒したときだけコンボを数える
+            comboT = 2.4; comboN++;
+            if (comboN >= 5 && comboN % 5 === 0) {
+                const hype = comboN >= 100 ? '殲滅！' : (comboN >= 50 ? '無双！' : (comboN >= 25 ? '圧倒！' : (comboN >= 10 ? '連鎖！' : '')));
+                popups.push({ x: me.x, y: me.y - 64, t: 1.1, text: (hype ? hype + ' ' : '') + comboN + ' COMBO', c: comboN >= 50 ? '#ff7bd5' : (comboN >= 25 ? '#ffb347' : '#ffe08a'), big: true });
+                if (comboN % 25 === 0) { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 220, t: 0.5, life: 0.5, c: '#ffe08a', fill: true }); addShake(3, 0.2); }
+            }
+        }
+    }
     // 戦利品の文脈：ボスラッシュは「そのフェーズの世界」の表、無限回廊は「その階層のレベル」の表から引く
     function lootCtx(ev) {
         if (RUSH_ON && ev.lw) {
@@ -934,10 +1030,11 @@
     }
     function onKillEvent(ev) {
         LT = lootCtx(ev);
-        try { onKillEvent0(ev); } finally { LT = null; }
+        const own = !TX && !CORR_ON; if (own) TX = HW.load();
+        try { onKillEvent0(ev); } finally { LT = null; if (own) { const d = TX; TX = null; HW.save(d); } }
     }
     function onKillEvent0(ev) {
-        fx.push({ k: 'puff', x: ev.x, y: ev.y, t: 0.4, life: 0.4, c: '#fff' });
+        killFx(ev);
         if (stage.pvp || DBG) return;   // アリーナのボットとデバッグ戦闘は戦利品なし
         if (ev.part || ev.echo) {   // 双子の片方・召喚されたボス・安全弁：コインだけ
             run.stats.kills++; run.stats.coins += Math.round((1 + (ev.ilvl || stage.ilvl) * 0.8) * (ev.echo ? 6 : 3) * (1 + A('goldPct')));
@@ -950,6 +1047,8 @@
         }
         run.stats.kills++;
         if (ev.rb) { rushKillReward(ev); return; }          // ボスラッシュ：専用の報酬
+        { const al = A('rarePct') + DIFF.luck;      // アクセサリー：ボス・精鋭・雑魚の順に出にくい
+          if (ev.boss && Math.random() < 0.45 + 0.1 * al) rollAcc(al, 'magic', ev.x + 14, ev.y); else if (ev.elite && Math.random() < 0.05 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); else if (!ev.part && !ev.boss && Math.random() < 0.004 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); }
         if (CORR_ON) { corrKillReward(ev); return; }        // 無限回廊：専用の報酬
         const coin = Math.round((1 + stage.ilvl * 0.8) * (ev.boss ? 25 : 1) * (1 + A('goldPct')));
         run.stats.coins += coin;
@@ -986,7 +1085,7 @@
     function rollArmor(luck, minR, x, y, src) {
         if (!window.SBArmor) return;
         const a = SBArmor.roll({ ilvl: L().ilvl, luck: luck, minRarity: minR, source: L().id + ':' + src });
-        const d = HW.load(); SBArmor.add(d, a); HW.save(d);
+        if (CORR_ON) BAG.armors.push(a); else { const d = hwLoad(); SBArmor.add(d, a); hwSave(d); }
         run.stats.loot.push(a);
         popups.push({ x: x, y: y - 14, t: 1.6, text: '🛡 ' + a.name, c: HW.rarityOf(a).color, big: true });
         fx.push({ k: 'ring', x: x, y: y, r: 0, max: 50, t: 0.5, life: 0.5, c: HW.rarityOf(a).color });
@@ -994,8 +1093,7 @@
     }
     function rollLoot(pool, luck, minR, x, y, src) {
         const w = HW.roll({ ilvl: L().ilvl, baseIds: pool, luck: luck, minRarity: minR, source: L().id + ':' + src });
-        const d = HW.load();
-        d.weapons.push(w); HW.save(d);
+        if (CORR_ON) BAG.weapons.push(w); else { const d = hwLoad(); d.weapons.push(w); hwSave(d); }
         run.stats.loot.push(w);
         popups.push({ x: x, y: y - 14, t: 1.6, text: '✦ ' + w.name, c: HW.rarityOf(w).color, big: true });
         fx.push({ k: 'ring', x: x, y: y, r: 0, max: 50, t: 0.5, life: 0.5, c: HW.rarityOf(w).color });
@@ -1019,14 +1117,14 @@
     function giveMaterials(got, x, y) {
         const ids = Object.keys(got);
         if (!ids.length) return;
-        const p = getPlayerData(); if (!p) return;
+        const p = CORR_ON ? {} : getPlayerData(); if (!p) return;
         if (!p.materials || Array.isArray(p.materials)) p.materials = {};
         ids.forEach((id, i) => {
-            p.materials[id] = (p.materials[id] || 0) + got[id];
+            if (CORR_ON) BAG.mats[id] = (BAG.mats[id] || 0) + got[id]; else p.materials[id] = (p.materials[id] || 0) + got[id];
             run.stats.mats[id] = (run.stats.mats[id] || 0) + got[id];
             popups.push({ x: x + (i - (ids.length - 1) / 2) * 6, y: y - 10 - i * 14, t: 1.1, text: '🧪 ' + matName(id) + (got[id] > 1 ? '×' + got[id] : ''), c: '#c8f7a0' });
         });
-        try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
+        if (!CORR_ON) { try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {} }
     }
     function giveOrb(isBoss) {
         if (typeof createOrb !== 'function') return;
@@ -1038,16 +1136,20 @@
         else if (il >= 3 && r < (isBoss ? 0.7 : 0.4)) tier = 'tier2';
         const orb = createOrb(tier);
         if (!orb) return;
-        const p = getPlayerData(); if (!p) return;
-        if (!Array.isArray(p.orbs)) p.orbs = [];
-        p.orbs.push(orb);
-        try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
+        if (CORR_ON) BAG.orbs.push(orb);
+        else {
+            const p = getPlayerData(); if (!p) return;
+            if (!Array.isArray(p.orbs)) p.orbs = [];
+            p.orbs.push(orb);
+            try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
+        }
         run.stats.orbs++;
         popups.push({ x: me.x, y: me.y - 40, t: 1.4, text: '💎 オーブ入手 (' + (orb.tier || tier) + ')', c: '#9fe0ff', big: true });
     }
 
     // 自分が倒したとき（撃破時効果）
     function onMyKill() {
+        accEvent('kills');
         agg.procs.filter(p => p.on === 'kill').forEach(p => {
             if (Math.random() >= p.v && p.key !== 'killHeal') return;
             if (p.key === 'killHeal') addHp(me.maxHp * Math.min(0.2, p.v));
@@ -1081,6 +1183,7 @@
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
+        accEvent('hurt');
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         // 被弾時効果
         if (A('thorns') > 0) { const n = nearestEnemy(me.x, me.y, 140); if (n) dealHit(n, weapon.dmg * P.atkMul * A('thorns'), {}); }
@@ -1235,7 +1338,7 @@
                 if (n) { fx.push({ k: 'line', x: me.x, y: me.y, x2: n.x, y2: n.y, t: 0.2, life: 0.2, c: '#ffd0ff' }); strike(n, 0.7, 40); }
             }, 120);
         }
-        if (T.lunge) { me.x += Math.cos(ang) * T.lunge; me.y += Math.sin(ang) * T.lunge; pushOutOfRocks(me, me.r); }
+        if (T.lunge) { const L = blinkLimit(me.x, me.y, ang, T.lunge, me.r); me.x += Math.cos(ang) * L; me.y += Math.sin(ang) * L; pushOutOfRocks(me, me.r); }
 
         if (T.kind === 'cone') {
             const range = P.range, arc = T.arc;
@@ -1280,6 +1383,7 @@
         else if (d.k === 'line') fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.rng, y2: d.y + Math.sin(d.a) * d.rng, t: 0.14, life: 0.14, c: d.c, w: d.w || 14 });
         else if (d.k === 'ring') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: d.rad || 100, t: 0.25, life: 0.25, c: d.c });
         else if (d.k === 'smash') fx.push({ k: 'ring', x: d.x + Math.cos(d.a) * 60, y: d.y + Math.sin(d.a) * 60, r: 0, max: d.rad || 90, t: 0.25, life: 0.25, c: d.c });
+        else if (d.k === 'ultimate') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: 160, t: 0.42, life: 0.42, c: d.c || '#ffd84a', fill: true });
     }
 
     function doDash() {
@@ -1290,6 +1394,7 @@
         me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
         fx.push({ k: 'puff', x: me.x, y: me.y, t: 0.25, life: 0.25, c: '#bfe6ff' });
         agg.procs.filter(p => p.on === 'dash').forEach(p => { me.dashBlast = p.v; });
+        accEvent('dash');
     }
 
     // ---------- アクティブスキル（従来のモジュール式スキル：投射／レーザー／斬撃／衝撃波）----------
@@ -1372,7 +1477,7 @@
         const s = skillSlots[slot];
         if (!s || me.dead || me.stunT > 0 || run.phase !== 'run' || s.cdLeft > 0) return;
         if (me.energy < s.cost) { flashEnergy(); return; }
-        me.energy -= s.cost; s.cdLeft = s.cooldown; updateEnergyUI();
+        me.energy -= s.cost; s.cdLeft = s.cooldown; updateEnergyUI(); accEvent('skill');
         if (GMK === 'dimension' && G.dp === 1) { if (isHost) hostReflect(me.x, me.y); else netSend('refl', { x: Math.round(me.x), y: Math.round(me.y) }); }   // スキルのタイミングで放射弾を跳ね返す
         const p = s.params, ang = aimAngle(); me.ang = ang;
         popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: s.skill.name, c: '#9df0ff' });
@@ -1540,19 +1645,38 @@
                 const x2 = x0 + Math.cos(a) * len, y2 = y0 + Math.sin(a) * len;
                 const d = { f: 'thrust', x: x0, y: y0, a: a, len: len, w: w }; skillFx(d); netSend('sk', d);
                 hitAll(e => distSeg(e.x, e.y, x0, y0, x2, y2) <= w / 2 + e.r, q.k, a);
-                if (live) { me.ang = a; me.x = clamp(me.x + Math.cos(a) * p.lunge, 20, WORLD_W - 20); me.y = clamp(me.y + Math.sin(a) * p.lunge, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); }
+                if (live) { me.ang = a; const L = blinkLimit(me.x, me.y, a, p.lunge, me.r); me.x = clamp(me.x + Math.cos(a) * L, 20, WORLD_W - 20); me.y = clamp(me.y + Math.sin(a) * L, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); }
             }));
         } else if (p.form === 'flash') {
             // 一閃：その場から dist ぶん瞬間移動し、通り道の敵を斬る。複数なら連続で別の向きへ移動する（移動中は無敵）
             pieces.forEach((q, i) => later(i * p.delay, () => {
                 const a = q.a, sx = me.x, sy = me.y, dd = p.dist * q.s;
-                me.x = clamp(sx + Math.cos(a) * dd, 20, WORLD_W - 20); me.y = clamp(sy + Math.sin(a) * dd, 20, WORLD_H - 20);
+                const stop = blinkLimit(sx, sy, a, dd, me.r);       // 通り道に壁・岩があれば、その手前までしか進めない
+                me.x = clamp(sx + Math.cos(a) * stop, 20, WORLD_W - 20); me.y = clamp(sy + Math.sin(a) * stop, 20, WORLD_H - 20);
                 pushOutOfRocks(me, me.r); me.ang = a; me.inv = Math.max(me.inv, 0.45);
                 const ex = me.x, ey = me.y, w = p.width * Math.pow(q.s, 0.5);
                 const d = { f: 'flash', x: sx, y: sy, x2: ex, y2: ey, w: w }; skillFx(d); netSend('sk', d);
                 hitAll(e => distSeg(e.x, e.y, sx, sy, ex, ey) <= w / 2 + e.r, q.k, a);
             }));
         }
+    }
+
+    // 瞬間移動（一閃）で進める距離：出発点から角度 a の方向へ、壁タイル・岩にぶつかる手前まで（r はプレイヤーの半径）
+    function blinkLimit(x, y, a, maxD, r) {
+        const step = 8, n = Math.ceil(maxD / step), cx = Math.cos(a), cy = Math.sin(a);
+        let ok = 0;
+        for (let i = 1; i <= n; i++) {
+            const d = Math.min(maxD, i * step), px = x + cx * d, py = y + cy * d;
+            let hit = false;
+            if (CORR_ON && CF.on) {      // 壁は、体の幅ぶん（左右・前）も見る
+                if (corrSolid(px, py) || corrSolid(px + cy * r * 0.7, py - cx * r * 0.7) || corrSolid(px - cy * r * 0.7, py + cx * r * 0.7) || corrSolid(px + cx * r, py + cy * r)) hit = true;
+            }
+            if (!hit) for (const k of rocks) if (dist(px, py, k.x, k.y) < k.r + r * 0.6) { hit = true; break; }
+            if (px < 20 || py < 20 || px > WORLD_W - 20 || py > WORLD_H - 20) hit = true;
+            if (hit) break;
+            ok = d;
+        }
+        return ok;
     }
 
     // ---------- スキル「領域」----------
@@ -1749,10 +1873,14 @@
 
     // ---------- 更新 ----------
     function updateMe(dt) {
+        accTick(dt);
         me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
+        if (pvp.parryT > 0) pvp.parryT -= dt;
+        if (pvp.parryCd > 0) pvp.parryCd -= dt;
+        if (pvp.comboT > 0) { pvp.comboT -= dt; if (pvp.comboT <= 0) pvpResetCombo(); }
         if (me.dead) {
             // 仲間が近くにいると復活する
-            const near = !PVP && Object.keys(allies).some(id => { const a = allies[id]; return !a.dead && dist(a.x, a.y, me.x, me.y) < 90; });
+            const near = !PVP && !me.escaped && Object.keys(allies).some(id => { const a = allies[id]; return !a.dead && dist(a.x, a.y, me.x, me.y) < 90; });
             if (near) { me.reviveT += dt; if (me.reviveT > 2.5) { me.dead = false; me.stg = 0; me.hp = Math.round(me.maxHp * 0.4); me.inv = 1.5; me.invHard = 1.5; announce('復活！', 900); } } else me.reviveT = Math.max(0, me.reviveT - dt);
             return;
         }
@@ -1809,7 +1937,8 @@
                 ghostShots.splice(i, 1);
             }
         }
-        if (ghostShots.length > 300) ghostShots.splice(0, ghostShots.length - 300);
+        const ghostCap = PVP ? 120 : 300;
+        if (ghostShots.length > ghostCap) ghostShots.splice(0, ghostShots.length - ghostCap);
     }
     function updateShots(dt) {
         updateGhostShots(dt);
@@ -1869,14 +1998,14 @@
         else if (run.phase === 'run' && !run.bossSpawned) {
             spawnT -= dt;
             const cap = ENEMY_CAP_BASE + 8 * (partyCount() - 1);
-            if (spawnT <= 0 && enemies.length < cap) { spawnGroup(); spawnT = clamp(1.9 - run.kills / 70, 0.8, 1.9) / (1 + 0.25 * (partyCount() - 1)); }
+            if (spawnT <= 0 && enemies.length < cap) { spawnGroup(); spawnT = clamp(1.5 - run.kills / 110, 0.55, 1.5) / (1 + 0.25 * (partyCount() - 1)); }
             const need = Math.round(KILLS_BASE * (1 + 0.35 * (partyCount() - 1)));
             run.need = need;
             if (run.kills >= need) startBoss();
         }
         if (run.bossSpawned && run.bossDead && !run.ended) { run.ended = true; setTimeout(() => finishHost(true), 2600); }
         if (run.phase === 'run' && !run.ended) {
-            const everyoneDown = me.dead && Object.keys(allies).every(id => allies[id].dead);
+            const everyoneDown = me.dead && Object.keys(allies).every(id => allies[id].dead || allies[id].esc);
             if (everyoneDown) { run.ended = true; setTimeout(() => finishHost(false, 'down'), 1200); }
             else if (run.time > TIME_LIMIT) { run.ended = true; finishHost(false, 'time'); }
         }
@@ -2043,40 +2172,171 @@
     }
 
     // ---------- スナップショット ----------
+    // 近い順に n 個だけ残す（弾・予告が多すぎて、サーバーの中継の大きさの上限を超えると、仲間の画面が止まって見えるため）
+    function nearestN(arr, n, xi, yi) {
+        if (arr.length <= n) return arr;
+        const ps = alivePlayersPos(); if (!ps.length) return arr.slice(0, n);
+        const key = a => { let m = 1e12; for (const q of ps) { const d = (a[xi] - q.x) * (a[xi] - q.x) + (a[yi] - q.y) * (a[yi] - q.y); if (d < m) m = d; } return m; };
+        return arr.map(a => [key(a), a]).sort((p, q) => p[0] - q[0]).slice(0, n).map(p => p[1]);
+    }
     function makeSnap() {
+        const m = makeSnap0();
+        let nb = 200, nt = 60, len = JSON.stringify(m).length;
+        while (len > 24000 && nb > 20) {      // 大きすぎるときは、遠くの弾・予告から切り捨てる
+            nb = Math.floor(nb * 0.7); nt = Math.max(16, Math.floor(nt * 0.8));
+            m.b = nearestN(m.b, nb, 1, 2); m.t = nearestN(m.t, nt, 1, 2); len = JSON.stringify(m).length;
+        }
+        if (m.b.length > nb) m.b = nearestN(m.b, nb, 1, 2);
+        m.q = ++snapSeq;
+        return m;
+    }
+    function makeSnap0() {
         return {
             e: enemies.map(e => [e.id, e.def.icon, e.def.color, Math.round(e.x), Math.round(e.y), Math.round(e.hp), e.maxHp, e.r, e.boss ? 1 : 0, e.state, e.def.name, e.arch, e.elite ? 1 : 0, e.dmgMul || 1, Math.round(e.air || 0), (e.inv ? 1 : 0) | (e.echo ? 2 : 0) | (e.boss && !e.echo && bdef(e).gate ? 4 : 0) | (e.valve ? 8 : 0)]),
             b: eBullets.map(b => [b.id, Math.round(b.x), Math.round(b.y), b.r, b.c, b.kd || 0, b.kd ? +Math.atan2(b.vy, b.vx).toFixed(2) : 0, b.refl || 0]),
             t: telegraphs.map(t => [t.id, t.x, t.y, t.r, +t.t.toFixed(2), t.max, t.c, t.sh || '', t.a != null ? +t.a.toFixed(2) : 0, t.arc != null ? +t.arc.toFixed(2) : 0, t.ri || 0, t.w || 0, t.stun ? 1 : 0, t.live ? 1 : 0]),
             k: run.kills, n: run.need, tm: Math.round(run.time), bs: run.bossSpawned ? 1 : 0, g: G,
-            rs: RUSH_ON ? [RS.ph, RS.st, Math.round(RS.limit - RS.t), Math.round(RS.inter)] : 0
+            rs: RUSH_ON ? [RS.ph, RS.st, Math.round(RS.limit - RS.t), Math.round(RS.inter)] : 0,
+            cf: CORR_ON && CF.rc ? [CF.floor, CF.seed, CF.inBoss ? 1 : 0, CF.portalIdx, CF.exit ? 1 : 0] : 0
         };
     }
     function applySnap(s) {
+        if (s.q != null) { if (s.q <= lastSnapQ && s.q > lastSnapQ - 50) return; lastSnapQ = s.q; }      // 古い・順番が入れ替わったスナップショットは捨てる
+        const nowS = performance.now(), dtS = clamp((nowS - (lastSnapAt || nowS - 80)) / 1000, 0.03, 0.4); lastSnapAt = nowS; snapAge = 0;
         run.kills = s.k; run.need = s.n; run.time = s.tm; if (s.bs && !run.bossSpawned) run.bossSpawned = true;
         if (RUSH_ON && s.rs) {      // ボスラッシュ：フェーズが進んだら、敵の強さの基準を合わせ、幕間に入ったら回復する
             const prevSt = RS.st, prevPh = RS.ph;
             RS.ph = s.rs[0]; RS.st = s.rs[1]; RS.t = RS.limit - s.rs[2]; RS.inter = s.rs[3];
-            if (RS.ph !== prevPh && RS.ph > 0) { const pd = rushPd(RS.ph); applyScale(pd.req, pd.ilvl, pd.pw); RS.limit = (DIFF.phaseMin || 10) * 60; RS.t = RS.limit - s.rs[2]; }
+            if (RS.ph !== prevPh && RS.ph > 0) { const pd = rushPd(RS.ph); applyScale(pd.req, pd.ilvl, pd.pw); SC.dmgMul = pd.final ? 1 : RUSHD.perBossDmg; if (prevPh > 0) { me.inv = Math.max(me.inv, 3); me.invHard = Math.max(me.invHard || 0, 3); } RS.limit = (DIFF.phaseMin || 10) * 60; RS.t = RS.limit - s.rs[2]; }
             if (RS.st === 2 && prevSt !== 2) rushLocalInter();
         }
+        if (CORR_ON && s.cf) corrSync(s.cf);
         gmApplySnap(s.g);
         const old = {}; enemies.forEach(e => { old[e.id] = e; });
         enemies = s.e.map(a => {
             const o = old[a[0]] || { x: a[3], y: a[4], flash: 0 };
-            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
+            let evx = 0, evy = 0; if (o.tx != null) { evx = clamp((a[3] - o.tx) / dtS, -1400, 1400); evy = clamp((a[4] - o.ty) / dtS, -1400, 1400); if (Math.hypot(a[3] - o.tx, a[4] - o.ty) > 380) { evx = evy = 0; o.x = a[3]; o.y = a[4]; } }      // 前の位置との差から速度を求めて、次が届くまで先読みする。瞬間移動は補間しない
+            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], vx: evx, vy: evy, hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
         });
-        eBullets = s.b.map(a => { const o = eBullets.find(x => x.id === a[0]); return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
+        const oldB = {}; eBullets.forEach(x => { oldB[x.id] = x; });
+        eBullets = s.b.map(a => { const o = oldB[a[0]]; const bvx = o && o.tx != null ? clamp((a[1] - o.tx) / dtS, -1800, 1800) : 0, bvy = o && o.tx != null ? clamp((a[2] - o.ty) / dtS, -1800, 1800) : 0; return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], vx: bvx, vy: bvy, r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
         // クライアント側の弾はダメージ値を持たないので、ホストが送った値で最小限の被弾を行う（体当たり相当）
         telegraphs = s.t.map(a => ({ id: a[0], x: a[1], y: a[2], r: a[3], t: a[4], max: a[5], c: a[6], sh: a[7] || null, a: a[8], arc: a[9], ri: a[10], w: a[11], stun: !!a[12], live: !!a[13] }));
         eBullets.forEach(b => { b.dmg = foeDmg('ranged', false, false); });
     }
     function lerpRemote(dt) {
-        const k = Math.min(1, dt * 14);
-        enemies.forEach(e => { if (e.tx != null) { e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; } });
-        eBullets.forEach(b => { if (b.tx != null) { b.x += (b.tx - b.x) * k; b.y += (b.ty - b.y) * k; } });
+        // 次のスナップショットが届くまで（最大0.25秒）、前回の速度で目標位置を先に進めて、滑らかに追いかける
+        snapAge += dt; const ext = snapAge < 0.25, k = 1 - Math.exp(-dt * 24);
+        enemies.forEach(e => { if (e.tx != null) { if (ext && e.vx) { e.tx += e.vx * dt; e.ty += e.vy * dt; } e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; } });
+        eBullets.forEach(b => { if (b.tx != null) { if (ext && b.vx) { b.tx += b.vx * dt; b.ty += b.vy * dt; } b.x += (b.tx - b.x) * k; b.y += (b.ty - b.y) * k; } });
     }
 
+
+
+    // ================= アクセサリー =================
+    //  装備しているアクセサリーのスキルが、条件を満たすたびに自動で発動する（範囲攻撃が中心）。対人戦では使わない。
+    //  データと発動条件は accessories.js、ここは「効果の中身」と「いつ呼ぶか」
+    const accSlots = (!PVP && window.SBAcc) ? SBAcc.equippedList(hack).filter(Boolean).map(a => ({ a: a, b: SBAcc.baseOf(a), cd: 1.2 + Math.random() * 1.5, kills: 0 })).filter(x => x.b) : [];
+    let accBusy = false;
+    function accDmg(mult) { return weapon.dmg * P.atkMul * mult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1); }
+    function accNear(r) { for (const e of enemies) if (e.hp > 0 && e.act !== false && dist(me.x, me.y, e.x, e.y) < r + e.r) return true; return false; }
+    function accHitAll(x, y, r, base, eff) { enemies.forEach(e => { if (e.hp > 0 && dist(x, y, e.x, e.y) <= r + e.r) skillHit(e, base, true, eff, 0); }); }
+    function accLater(sec, fn) { setTimeout(() => { if (run.phase !== 'run' || me.dead) return; const was = accBusy; accBusy = true; try { fn(); } finally { accBusy = was; } }, sec * 1000); }
+    function accBurstFx(x, y, r, col, fill) {
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: r, t: 0.4, life: 0.4, c: col, fill: !!fill });
+        if (fx.length < 420) for (let i = 0; i < 12; i++) { const a = Math.random() * Math.PI * 2, v = 100 + Math.random() * 300; fx.push({ k: 'spark', x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, sz: 2.5 + Math.random() * 3, t: 0.35 + Math.random() * 0.25, life: 0.6, c: Math.random() < 0.4 ? '#fff' : col }); }
+    }
+    function accBolt(x1, y1, x2, y2, col, w) {      // 稲妻（ぎざぎざの線）
+        const pts = [[x1, y1]], n = Math.max(3, Math.round(dist(x1, y1, x2, y2) / 34)), nx = -(y2 - y1), ny = x2 - x1, nl = Math.hypot(nx, ny) || 1;
+        for (let i = 1; i < n; i++) { const t = i / n, j = (Math.random() - 0.5) * 34; pts.push([x1 + (x2 - x1) * t + nx / nl * j, y1 + (y2 - y1) * t + ny / nl * j]); }
+        pts.push([x2, y2]); fx.push({ k: 'bolt', pts: pts, c: col, w: w || 4, t: 0.18, life: 0.18 });
+    }
+    function accTargets(range) {      // 近い順の敵
+        return enemies.filter(e => e.hp > 0 && e.act !== false && dist(me.x, me.y, e.x, e.y) < range).sort((a, b) => dist(me.x, me.y, a.x, a.y) - dist(me.x, me.y, b.x, b.y));
+    }
+    function accFire(s) {
+        const a = s.a, f = s.b.fx, pw = a.pw || 1, base = accDmg(f.mult * pw), eff = (f.eff || []).slice(), col = f.col || '#fff';
+        popups.push({ x: me.x, y: me.y - 52, t: 0.9, text: s.b.icon + ' ' + s.b.name, c: col });
+        const was = accBusy; accBusy = true;
+        try {
+            if (f.kind === 'nova') {
+                accBurstFx(me.x, me.y, f.r, col, true); accHitAll(me.x, me.y, f.r, base, eff); addShake(2.5, 0.12);
+            } else if (f.kind === 'chain') {
+                const hit = {}; let from = { x: me.x, y: me.y }, list = accTargets(f.range + 200);
+                for (let i = 0; i < f.n; i++) {
+                    const e = list.filter(x => !hit[x.id]).sort((p, q) => dist(from.x, from.y, p.x, p.y) - dist(from.x, from.y, q.x, q.y))[0];
+                    if (!e || dist(from.x, from.y, e.x, e.y) > f.range) break;
+                    hit[e.id] = 1; accBolt(from.x, from.y, e.x, e.y, col, 4); fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 46, t: 0.25, life: 0.25, c: col });
+                    skillHit(e, base * (1 - i * 0.05), true, eff, 0); from = { x: e.x, y: e.y };
+                }
+            } else if (f.kind === 'meteor') {
+                const ts = accTargets(760); const pts = [];
+                for (let i = 0; i < f.n; i++) { const e = ts.length ? ts[Math.floor(Math.random() * Math.min(ts.length, 12))] : null; pts.push(e ? { x: e.x + (Math.random() - 0.5) * 50, y: e.y + (Math.random() - 0.5) * 50 } : { x: me.x + (Math.random() - 0.5) * 520, y: me.y + (Math.random() - 0.5) * 520 }); }
+                pts.forEach((q, i) => {
+                    fx.push({ k: 'ring', x: q.x, y: q.y, r: f.r * 0.4, max: f.r, t: 0.45 + i * 0.1, life: 0.45 + i * 0.1, c: col });
+                    accLater(0.45 + i * 0.1, () => { accBolt(q.x - 90, q.y - 520, q.x, q.y, col, 7); accBurstFx(q.x, q.y, f.r, col, true); accHitAll(q.x, q.y, f.r, base, eff); addShake(2, 0.1); });
+                });
+            } else if (f.kind === 'spin') {
+                for (let i = 0; i < f.ticks; i++) accLater(i * f.gap, () => { accBurstFx(me.x, me.y, f.r, col, false); accHitAll(me.x, me.y, f.r, base, eff); });
+            } else if (f.kind === 'quake') {
+                for (let i = 0; i < f.rings; i++) accLater(i * 0.28, () => { const r = f.r * (0.55 + 0.45 * (i + 1) / f.rings); accBurstFx(me.x, me.y, r, col, true); accHitAll(me.x, me.y, r, base, eff); addShake(4, 0.18); });
+            } else if (f.kind === 'radial') {
+                const off = Math.random() * 6.28;
+                for (let i = 0; i < f.n; i++) { const ang = off + i * Math.PI * 2 / f.n; myShots.push({ x: me.x, y: me.y, vx: Math.cos(ang) * f.speed, vy: Math.sin(ang) * f.speed, r: 8, life: 0.9, pierce: f.pierce || 0, hit: {}, homing: false, c: col, skill: { base: base, hasDmg: true, eff: eff } }); }
+                fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 90, t: 0.25, life: 0.25, c: col });
+            } else if (f.kind === 'blackhole') {
+                const ts = accTargets(520), c = ts.length ? { x: ts[0].x, y: ts[0].y } : { x: me.x + Math.cos(me.ang) * 200, y: me.y + Math.sin(me.ang) * 200 }, ticks = Math.round(f.dur / 0.25);
+                for (let i = 0; i < ticks; i++) accLater(i * 0.25, () => {
+                    fx.push({ k: 'ring', x: c.x, y: c.y, r: f.r, max: 20, t: 0.25, life: 0.25, c: col });
+                    enemies.forEach(e => { if (e.hp > 0 && dist(c.x, c.y, e.x, e.y) <= f.r + e.r) { const an = Math.atan2(c.y - e.y, c.x - e.x); dealHit(e, Math.round(base), { kx: Math.cos(an) * 300 * (e.boss ? 0.3 : 1), ky: Math.sin(an) * 300 * (e.boss ? 0.3 : 1) }); } });
+                });
+            } else if (f.kind === 'heal') {
+                healMe(me.maxHp * f.pct); accBurstFx(me.x, me.y, f.r, col, true); accHitAll(me.x, me.y, f.r, base, eff); addShake(3, 0.15);
+            } else if (f.kind === 'rain') {
+                for (let i = 0; i < f.n; i++) { const q = { x: me.x + (Math.random() - 0.5) * f.spread * 2, y: me.y + (Math.random() - 0.5) * f.spread * 2 }, dl = Math.random() * 0.9; fx.push({ k: 'ring', x: q.x, y: q.y, r: 40, max: 8, t: 0.3 + dl, life: 0.3 + dl, c: col }); accLater(0.3 + dl, () => { accBolt(q.x + 30, q.y - 380, q.x, q.y, col, 3); accBurstFx(q.x, q.y, 64, col, true); accHitAll(q.x, q.y, 64, base, eff); }); }
+            } else if (f.kind === 'beam') {
+                const off = Math.random() * 6.28;
+                for (let i = 0; i < f.n; i++) {
+                    const an = off + i * Math.PI * 2 / f.n, x2 = me.x + Math.cos(an) * f.len, y2 = me.y + Math.sin(an) * f.len;
+                    const d = { f: 'laser', x: me.x, y: me.y, a: an, len: f.len, w: f.w }; skillFx(d); netSend('sk', d);
+                    enemies.forEach(e => { if (e.hp > 0 && distSeg(e.x, e.y, me.x, me.y, x2, y2) <= f.w / 2 + e.r) skillHit(e, base, true, eff, an); });
+                }
+            } else if (f.kind === 'shield') {
+                me.barrierHp = (me.barrierHp || 0) + Math.max(10, Math.round(me.maxHp * f.pct)); popups.push({ x: me.x, y: me.y - 46, t: 0.9, text: 'バリア', c: '#7fc8ff' });
+                accBurstFx(me.x, me.y, f.r, col, true); accHitAll(me.x, me.y, f.r, base, eff); addShake(3, 0.15);
+                if (f.spinR) for (let i = 1; i <= 6; i++) accLater(i * 0.25, () => { accBurstFx(me.x, me.y, f.spinR, col, false); accHitAll(me.x, me.y, f.spinR, base * 0.6, eff); });
+            }
+        } finally { accBusy = was; }
+    }
+    function accTick(dt) {
+        if (!accSlots.length || me.dead || run.phase !== 'run' || me.stunT > 0) return;
+        for (const s of accSlots) {
+            if (s.cd > 0) { s.cd -= dt; continue; }
+            const t = s.b.trig;
+            if (t.t === 'timer') { if (accNear(720)) { accFire(s); s.cd = SBAcc.cdOf(s.a); } }
+            else if (t.t === 'lowhp') { if (me.hp > 0 && me.hp / me.maxHp < t.hp) { accFire(s); s.cd = SBAcc.cdOf(s.a); } }
+        }
+    }
+    function accEvent(type) {
+        if (!accSlots.length || accBusy || me.dead || run.phase !== 'run') return;
+        for (const s of accSlots) {
+            const t = s.b.trig; if (t.t !== type) continue;
+            if (type === 'kills') { s.kills++; if (s.kills >= t.n) { s.kills = 0; accFire(s); } continue; }
+            if (s.cd > 0) continue;
+            if (t.chance && Math.random() > t.chance) continue;
+            accFire(s); s.cd = SBAcc.cdOf(s.a);
+        }
+    }
+    // アクセサリーのドロップ（手に入れたものは、無限回廊では袋に入る）
+    function rollAcc(luck, minR, x, y) {
+        if (!window.SBAcc || PVP) return;
+        const a = SBAcc.roll({ ilvl: L().ilvl, luck: luck, minRarity: minR, source: L().id });
+        if (CORR_ON) BAG.accs.push(a); else { const d = hwLoad(); SBAcc.ensure(d); d.accs.push(a); hwSave(d); }
+        run.stats.accs = run.stats.accs || []; run.stats.accs.push(a);
+        const R = HW.rarityOf(a);
+        popups.push({ x: x, y: y - 20, t: 1.6, text: '✨ ' + a.name, c: R.color, big: true });
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: 70, t: 0.5, life: 0.5, c: R.color });
+    }
 
     // ================= ボスラッシュ =================
     //  フェーズ1〜5＝第N世界のボスから4体が選ばれて同時に出る（第四世界のボス並に強化。進むごとにさらに強く）。Final＝強化ディメンション・キーパー。
@@ -2086,13 +2346,14 @@
     function rushStartPhase(n) {
         const pd = rushPd(n);
         RS.ph = n; RS.st = 1; RS.t = 0; RS.limit = (DIFF.phaseMin || 10) * 60; RS.inter = 0;
-        applyScale(pd.req, pd.ilvl, pd.pw); SC.hpMul = pd.final ? 2.4 : RUSHD.perBossHp;
+        applyScale(pd.req, pd.ilvl, pd.pw); SC.hpMul = pd.final ? 2.4 : RUSHD.perBossHp; SC.dmgMul = pd.final ? 1 : RUSHD.perBossDmg;
+        me.inv = Math.max(me.inv, 3); me.invHard = Math.max(me.invHard || 0, 3);      // フェーズの最初の3秒は無敵（登場の瞬間に倒されないように）
         enemies = []; eBullets = []; telegraphs = []; G = {}; myShots = []; ghostShots = [];
         run.bossSpawned = true; run.bossDead = false;
         if (pd.final) {
             const fb = RUSHD.finalBoss;
             const b = spawnEnemy({ name: fb.name, icon: fb.icon, arch: 'chaser', color: fb.color }, WORLD_W / 2, WORLD_H * 0.3, true);
-            b.bd = fb; b.bset = (BM && BM.SETS && BM.SETS[fb.set]) || null; b.rushSrc = 'dimension_end'; b.spd = 70 * (1 + SC.ilvl * 0.012) * PW.spd; b.t = -1.5;
+            b.bd = fb; b.bset = (BM && BM.SETS && BM.SETS[fb.set]) || null; b.rushSrc = 'dimension_end'; b.spd = 70 * (1 + SC.ilvl * 0.012) * PW.spd; b.t = -2.5;
             netAnnounce('🌀 Final　強化されたディメンション・キーパーが現れた！', 3200);
         } else {
             let pool = RUSHD.pool(pd.world); if (!pool.length) pool = RUSHD.pool(1);
@@ -2101,7 +2362,7 @@
             pick.forEach((st, i) => {
                 const bd = st.boss, x = WORLD_W * (0.2 + 0.2 * i), y = WORLD_H * (0.22 + (i % 2) * 0.1);
                 const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, x, y, true);
-                b.bd = bd; b.bset = (BM && BM.SETS && BM.SETS[st.id]) || null; b.rushSrc = st.id; b.spd = 70 * (1 + SC.ilvl * 0.012) * PW.spd; b.pairIdx = i; b.t = -0.6 - i * 0.5;
+                b.bd = bd; b.bset = (BM && BM.SETS && BM.SETS[st.id]) || null; b.rushSrc = st.id; b.spd = 70 * (1 + SC.ilvl * 0.012) * PW.spd; b.pairIdx = i; b.t = -1.6 - i * 1.0;      // 4体が同時に撃ち始めないよう、登場から攻撃までの間をずらす
                 if (DBG && DBG.hp > 0) b.maxHp = b.hp = Math.max(1, Math.round(b.maxHp * DBG.hp));
             });
             netAnnounce('🏆 ' + pd.label + '　第' + pd.world + '世界のボス' + RUSHD.bossCount + '体が同時に現れた！', 3200);
@@ -2132,6 +2393,7 @@
         run.stats.coins += coin;
         rollMats('boss', ev.x, ev.y);
         if (!last) {
+            if (Math.random() < 0.3) rollAcc(rareBonus, 'magic', ev.x + 12, ev.y);
             rollLoot(L().bossDrops, rareBonus, 'magic', ev.x, ev.y, 'rush');
             if (Math.random() < 0.45) rollArmor(rareBonus, 'magic', ev.x, ev.y - 18, 'rush');
             if (Math.random() < 0.4) giveOrb(true);
@@ -2139,7 +2401,8 @@
             rollLoot(L().bossDrops, rareBonus, 'rare', ev.x, ev.y, 'rush'); rollLoot(L().bossDrops, rareBonus, 'rare', ev.x + 22, ev.y, 'rush'); rollLoot(L().drops, rareBonus, 'magic', ev.x - 22, ev.y, 'rush');
             rollArmor(rareBonus, 'rare', ev.x, ev.y - 20, 'rush'); if (Math.random() < 0.6) rollArmor(rareBonus, 'rare', ev.x + 18, ev.y - 24, 'rush');
             giveOrb(true); if ((ev.ph || 1) >= 4) giveOrb(true);
-            if (ev.fin) { rollLoot(L().bossDrops, rareBonus + 1.5, 'epic', ev.x, ev.y + 20, 'rush'); rollLoot(L().bossDrops, rareBonus + 1.5, 'epic', ev.x + 24, ev.y + 20, 'rush'); giveOrb(true); giveOrb(true); }
+            rollAcc(rareBonus, (ev.ph || 1) >= 3 ? 'rare' : 'magic', ev.x - 14, ev.y);      // フェーズの最後のボスは、アクセサリーを必ず落とす
+            if (ev.fin) { rollAcc(rareBonus + 1.5, 'epic', ev.x + 26, ev.y); rollAcc(rareBonus + 1.5, 'epic', ev.x - 26, ev.y); rollLoot(L().bossDrops, rareBonus + 1.5, 'epic', ev.x, ev.y + 20, 'rush'); rollLoot(L().bossDrops, rareBonus + 1.5, 'epic', ev.x + 24, ev.y + 20, 'rush'); giveOrb(true); giveOrb(true); }
         }
         if (ev.by === myId) onMyKill();
     }
@@ -2148,9 +2411,14 @@
     //  迷路の階層（ランダム生成）を下へ下へ。敵の強さ＝「自分のステータス合計」×「階層で上がる倍率」。
     //  宝箱（ミミックの罠あり）／ボス部屋の入口（行かなくてもよい）／下への階段。ソロ専用。
     function corrTotal() { return Math.max(250, (base.maxHp || 0) + (base.atk || 0) + (base.def || 0) + (base.speed || 0) + (base.special || 0)); }
-    function corrMul(f) { return 0.35 * Math.pow(1.075, f - 1); }                   // 階層ごとの敵の強さ（自分のステータス合計に対する倍率）。1階は0.35倍、約11階で0.78倍、約20階で1.4倍、深いほど自分より強くなる
+    // 敵の強さの基準：マルチのときは、パーティ全員のステータス合計の平均（各自の合計は pos で配られる）
+    function corrPartyTotal() {
+        const arr = [corrTotal()]; Object.keys(allies).forEach(id => { if (allies[id].tt > 0) arr.push(allies[id].tt); });
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+    function corrMul(f) { return 0.85 * Math.pow(1.095, f - 1); }                   // 階層ごとの敵の強さ（自分のステータス合計に対する倍率）。1階は0.85倍、約5階で1.2倍、10階で1.9倍、20階で4.7倍、40階で48倍（深いほど急に自分より強くなる）
     function corrIlvl(f) { return Math.min(46, 6 + f * 0.85); }                      // 階層ごとのドロップ・敵のレベル
-    function corrScaleFloor(f) { applyScale(corrTotal() * corrMul(f), corrIlvl(f), { hp: 1, dmg: 1, spd: Math.min(1.25, 1 + f * 0.004) }); SC.hpMul = 1; }
+    function corrScaleFloor(f) { applyScale(corrPartyTotal() * corrMul(f), corrIlvl(f), { hp: 1.35, dmg: 1.25 + Math.min(1.5, f * 0.03), spd: Math.min(1.4, 1.05 + f * 0.007) }); SC.hpMul = 1; }
     function corrPool(il) {      // この階層で出る武器の表（レベルが近い武器）
         const B = (HW.BASES || []).filter(b => b.tier >= il - 10 && b.tier <= il + 3);
         return (B.length ? B : (HW.BASES || []).slice(-12)).map(b => b.id);
@@ -2185,6 +2453,25 @@
             }
         }
     }
+    // 深さごとの景色（5階ごとに変わる）と、階層ごとの特性（毎回同じ階層にならないように）
+    const CPALS = [
+        { n: '石の回廊', wall: '#2b2440', hi: 'rgba(190,170,255,0.16)', floor: null },
+        { n: '凍てつく洞窟', wall: '#1f3347', hi: 'rgba(170,230,255,0.22)', floor: '#2b3f55' },
+        { n: '溶岩の洞窟', wall: '#4a2418', hi: 'rgba(255,170,90,0.24)', floor: '#3b231c' },
+        { n: '古代遺跡', wall: '#4a4126', hi: 'rgba(255,230,140,0.22)', floor: '#3a3524' },
+        { n: '深き森', wall: '#1f3a28', hi: 'rgba(150,255,170,0.2)', floor: '#243a2a' },
+        { n: '虚無の回廊', wall: '#221a35', hi: 'rgba(255,120,230,0.2)', floor: '#150f24' }
+    ];
+    const CTHEMES = [
+        { id: 'normal', w: 5, n: '' },
+        { id: 'horde', w: 2, n: '大群の階', d: '敵がとても多い。数は多いが、1体ずつは弱い' },
+        { id: 'elite', w: 2, n: '精鋭の階', d: '強敵が多い。そのぶん報酬も良い' },
+        { id: 'treasure', w: 2, n: '宝物庫の階', d: '宝箱がたくさん。ミミックに注意' },
+        { id: 'dark', w: 2, n: '暗闇の階', d: '視界が狭い。仲間と離れすぎないこと' },
+        { id: 'swift', w: 2, n: '疾風の階', d: '敵の足がとても速い。止まると囲まれる' },
+        { id: 'quiet', w: 1, n: '静寂の階', d: '敵は少なめ。回復の泉が必ずある' }
+    ];
+    const CAFFIX = [{ id: 'swift', n: '俊足の', i: '💨' }, { id: 'giant', n: '巨躯の', i: '🛡️' }, { id: 'explosive', n: '爆ぜる', i: '💥' }];
     const CDIR = [[0, -1, 1, 4], [1, 0, 2, 8], [0, 1, 4, 1], [-1, 0, 8, 2]];        // [dx, dy, 出口のビット, 向こう側の入口のビット]
     function corrCellOf(x, y) {
         const cx = clamp(Math.floor((x / TILE - 1) / CELL_T), 0, CF.cols - 1), cy = clamp(Math.floor((y / TILE - 1) / CELL_T), 0, CF.rows - 1);
@@ -2203,8 +2490,9 @@
         if (!CF.on || corrLOS(e.x, e.y, tgt.x, tgt.y)) return tgt;
         const ec = corrCellOf(e.x, e.y), tc = corrCellOf(tgt.x, tgt.y);
         if (ec === tc) return corrCenter(ec);
-        if (CF.flowFor !== tc) { CF.flow = corrBfs(tc); CF.flowFor = tc; }
-        const f = CF.flow, cx = ec % CF.cols, cy = Math.floor(ec / CF.cols); let best = -1, bd = f[ec] < 0 ? 1e9 : f[ec];
+        CF.flows = CF.flows || new Map();
+        let f = CF.flows.get(tc); if (!f) { if (CF.flows.size > 6) CF.flows.clear(); f = corrBfs(tc); CF.flows.set(tc, f); }
+        const cx = ec % CF.cols, cy = Math.floor(ec / CF.cols); let best = -1, bd = f[ec] < 0 ? 1e9 : f[ec];
         CDIR.forEach(d => { if (!(CF.open[ec] & d[2])) return; const nx = cx + d[0], ny = cy + d[1]; if (nx < 0 || ny < 0 || nx >= CF.cols || ny >= CF.rows) return; const n = ny * CF.cols + nx; if (f[n] >= 0 && f[n] < bd) { bd = f[n]; best = n; } });
         if (best < 0) return tgt;
         const nc = corrCenter(best), bend = CF.bend[Math.min(ec, best) * 4096 + Math.max(ec, best)], own = corrCenter(ec);
@@ -2212,15 +2500,18 @@
         if (bend && corrLOS(e.x, e.y, bend.x, bend.y)) return dist(e.x, e.y, bend.x, bend.y) < 26 ? nc : bend;
         return own;
     }
-    function corrWake(e) {       // 眠っている敵が起きる条件：近い／見える／攻撃を受けた
-        const d = dist(e.x, e.y, me.x, me.y);
-        if (d < 260 || e.flash > 0 || (d < 640 && corrLOS(e.x, e.y, me.x, me.y))) { e.act = true; return true; }
+    function corrWake(e) {       // 眠っている敵が起きる条件：誰かが近い／見える／攻撃を受けた
+        if (e.flash > 0) { e.act = true; return true; }
+        const ps = alivePlayersPos();
+        for (const q of ps) { const d = dist(e.x, e.y, q.x, q.y); if (d < 260 || (d < 640 && corrLOS(e.x, e.y, q.x, q.y))) { e.act = true; return true; } }
         return false;
     }
     // 階層を作る（シードが同じなら同じ迷路になる）
-    function corrGen(f) {
+    function corrGen(f, spawn) {
         const rng = seeded((CF.seed + f * 7919) >>> 0), RI = n => Math.floor(rng() * n);
         const cols = Math.min(15, 9 + Math.floor(f / 5)), rows = Math.min(10, 6 + Math.floor(f / 7));
+        CF.pal = CPALS[Math.min(CPALS.length - 1, Math.floor((f - 1) / 5))];
+        { let tw0 = 0; CTHEMES.forEach(t => { tw0 += t.w; }); let r0 = rng() * tw0, th0 = CTHEMES[0]; for (const t of CTHEMES) { if ((r0 -= t.w) <= 0) { th0 = t; break; } } CF.theme = f < 2 ? CTHEMES[0] : th0; }
         const open = new Uint8Array(cols * rows), vis = new Uint8Array(cols * rows), st = [], idx = (cx, cy) => cy * cols + cx;
         const sy = RI(rows); vis[idx(0, sy)] = 1; st.push([0, sy]);
         while (st.length) {      // 穴掘り法（行き止まりの多い、迷路らしい形になる）
@@ -2283,74 +2574,123 @@
         const sc = corrCenter(startC), fc = corrCenter(far);
         const inRoom = c => { const r = roomR[c]; return { x: (r.x + 1 + rng() * (r.w - 2)) * TILE, y: (r.y + 1 + rng() * (r.h - 2)) * TILE }; };
         CF.start = sc; props.push({ k: 'stairs', x: fc.x, y: fc.y, r: 34, c: far });
-        const nChest = 1 + (rng() < 0.5 ? 1 : 0) + (f % 5 === 0 ? 1 : 0);
-        for (let i = 0; i < nChest; i++) { const c = takeCell(), p = inRoom(c); props.push({ k: 'chest', x: p.x, y: p.y, r: 20, c: c, mimic: f >= 2 && rng() < 0.16 }); }
-        if (f >= 3 && rng() < 0.22) { const c = takeCell(), p = inRoom(c); props.push({ k: 'portal', x: p.x, y: p.y, r: 30, c: c }); }
+        { const c = takeCell(), p = inRoom(c); props.push({ k: 'gate', x: p.x, y: p.y, r: 30, c: c }); }       // 脱出ゲート：各階層に1つ。どこかの部屋にある
+        const thm = CF.theme.id, nChest = 1 + (rng() < 0.5 ? 1 : 0) + (f % 5 === 0 ? 1 : 0) + (thm === 'treasure' ? 3 : 0) + (thm === 'quiet' ? 1 : 0);
+        for (let i = 0; i < nChest; i++) { const c = takeCell(), p = inRoom(c); props.push({ k: 'chest', x: p.x, y: p.y, r: 20, c: c, mimic: f >= 2 && rng() < (thm === 'treasure' ? 0.3 : 0.16) }); }
+        // 回復の泉（使い切り）：たまにある。静寂の階では必ずある
+        if (f >= 2 && (thm === 'quiet' || rng() < 0.4)) { const c = takeCell(), p = inRoom(c); props.push({ k: 'spring', x: p.x, y: p.y, r: 28, c: c }); }
+        // 棘の罠：部屋の中にある。見えている間は、周期的に飛び出す
+        { const nTrap = Math.min(14, 3 + Math.floor(f / 2)); for (let i = 0; i < nTrap; i++) { const c = free.length ? free[RI(free.length)] : far, p = inRoom(c); props.push({ k: 'trap', x: p.x, y: p.y, r: 26, c: c, ph: rng() * 3.2 }); } }
+        if (f >= 2 && rng() < 0.42) { const c = takeCell(), p = inRoom(c); props.push({ k: 'portal', x: p.x, y: p.y, r: 30, c: c }); }
         CF.props = props; CF.seen = new Uint8Array(cols * rows); CF.flow = null; CF.flowFor = -1;
         CF.mini = document.createElement('canvas'); CF.mini.width = tw; CF.mini.height = th; CF.miniCtx = CF.mini.getContext('2d'); CF.miniDone = new Uint8Array(cols * rows);
-        // 敵（グループごとに、スタートから離れたマスへ）
+        // 敵（グループごとに、スタートから離れたマスへ）。乱数の使い方は全員同じにして（同じ迷路・同じ宝箱になる）、敵を実際に出すのはホストだけ
         const avail = CD.mobs.filter(m => m.from <= f), recent = avail.filter(m => m.from > f - 10);
-        const groups = Math.min(18, 6 + Math.floor(f * 0.5));
-        for (let g = 0; g < groups && enemies.length < 44; g++) {
-            const cands = free.length ? free : [far]; const c = cands[RI(cands.length)], cc = corrCenter(c);
-            const def = (recent.length && rng() < 0.6 ? recent : avail)[RI((recent.length && rng() < 0.6 ? recent : avail).length)] || avail[0];
-            const elite = def.arch !== 'swarm' && rng() < DIFF.elite;
-            const n = elite ? 1 : (def.arch === 'swarm' ? 4 + RI(3) : (def.arch === 'tank' ? 1 + RI(2) : (def.arch === 'ranged' ? 2 + RI(2) : 2 + RI(3))));
-            for (let i = 0; i < n; i++) { const q = inRoom(c), e = spawnEnemy(def, q.x, q.y, false, elite); e.act = false; pushOutOfRocks(e, e.r); }
+        const dens = thm === 'horde' ? 1.6 : (thm === 'quiet' ? 0.55 : 1), eliteP = thm === 'elite' ? Math.max(0.45, DIFF.elite * 3) : DIFF.elite;
+        const groups = Math.min(34, Math.round((6 + Math.floor(f * 0.5)) * 1.4 * dens)); let planned = 0;
+        const put = (def, q, elite) => {
+            const ai = Math.floor(rng() * CAFFIX.length), af = elite ? CAFFIX[ai] : null;      // 精鋭には、特性（俊足・巨躯・爆ぜる）がつく。乱数は全員同じように使う
+            if (!spawn) return;
+            const d2 = af ? Object.assign({}, def, { name: af.n + def.name }) : def, e = spawnEnemy(d2, q.x, q.y, false, elite);
+            e.act = false; if (thm === 'swift') e.spd *= 1.25;
+            if (af) { e.affix = af.id; if (af.id === 'swift') e.spd *= 1.5; else if (af.id === 'giant') { e.hp = e.maxHp = Math.round(e.maxHp * 1.5); e.r *= 1.25; e.dmg *= 1.15; } }
+            pushOutOfRocks(e, e.r);
+        };
+        for (let g = 0; g < groups && planned < 70; g++) {
+            const cands = free.length ? free : [far]; const c = cands[RI(cands.length)];
+            const useRecent = recent.length && rng() < 0.6, pool = useRecent ? recent : avail;
+            const def = pool[RI(pool.length)] || avail[0];
+            const elite = def.arch !== 'swarm' && rng() < eliteP;
+            const n = elite ? 1 : Math.round((def.arch === 'swarm' ? 4 + RI(3) : (def.arch === 'tank' ? 1 + RI(2) : (def.arch === 'ranged' ? 2 + RI(2) : 2 + RI(3)))) * 1.4);
+            for (let i = 0; i < n; i++) { put(def, inRoom(c), elite); planned++; }
         }
         // モンスターハウス：たまに、部屋ひとつぶんの敵が詰まった部屋と、その奥の宝箱
         if (f >= 4 && rng() < 0.25 && free.length) {
             const c = free[RI(free.length)], def = avail[RI(avail.length)];
-            for (let i = 0; i < 9; i++) { const q = inRoom(c), e = spawnEnemy(def, q.x, q.y, false, false); e.act = false; pushOutOfRocks(e, e.r); }
+            for (let i = 0; i < 14; i++) put(def, inRoom(c), false);
             const p = inRoom(c); props.push({ k: 'chest', x: p.x, y: p.y, r: 20, c: c, mimic: false });
         }
+        props.forEach((q, i) => { q.i = i; });      // 添字（宝箱やミミックを、他のプレイヤーに伝えるときの番号）
     }
-    function corrNewFloor(f) {
-        CF.floor = f; CF.on = true; CF.inBoss = false; CF.exit = null;
+
+    function corrPlaceMe() {      // 参加者を、スタート地点の周りに等間隔で並べる（全員が同じ並びで計算する）
+        const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId), a = i / Math.max(1, ids.length) * Math.PI * 2, n = ids.length > 1 ? 34 : 0;
+        me.x = CF.start.x + Math.cos(a) * n; me.y = CF.start.y + Math.sin(a) * n; me.dashT = 0; me.inv = Math.max(me.inv, 1.0); pushOutOfRocks(me, me.r);
+    }
+    function corrNewFloor(f, spawn) {      // spawn=true はホスト（敵を出す）。クライアントは同じ迷路だけ作り、敵はスナップショットで受け取る
+        CF.floor = f; CF.on = true; CF.inBoss = false; CF.exit = null; CF.saved = null; CF.gateT = 0; CF.flows = new Map(); CF.portalIdx = -1;
         enemies = []; eBullets = []; telegraphs = []; myShots = []; ghostShots = []; minions = []; domains = []; fx = []; G = {};
         run.bossSpawned = false;
         corrScaleFloor(f);
-        corrGen(f);
-        me.x = CF.start.x; me.y = CF.start.y; me.dashT = 0; me.inv = Math.max(me.inv, 1.0);
+        corrGen(f, spawn !== false);
+        corrPlaceMe();
+        if (me.dead && !me.escaped) { me.dead = false; me.stg = 0; me.reviveT = 0; me.hp = Math.round(me.maxHp * 0.4); }      // 倒れていた仲間も、次の階層へは連れていける
+        if (f > 1 && !me.escaped) { run.stats.floors = f - 1; run.stats.coins += Math.round((1 + corrIlvl(f - 1) * 0.6) * 6 * (1 + A('goldPct'))); addHp(me.maxHp * 0.15); announce('🌀 地下' + f + '階　' + CF.pal.n + (CF.theme.n ? '「' + CF.theme.n + '」' : ''), 2000); if (CF.theme.d) setTimeout(() => { if (CF.floor === f) announce(CF.theme.d, 2600); }, 2100); }
         CF.fade = 0.6;
     }
-    function corrDescend() {
-        if (CF.fade > 0 || me.dead) return;
-        run.stats.floors = CF.floor;
-        const nf = CF.floor + 1;
-        run.stats.coins += Math.round((1 + corrIlvl(CF.floor) * 0.6) * 6 * (1 + A('goldPct')));
-        corrNewFloor(nf);
-        addHp(me.maxHp * 0.15);
-        announce('🌀 地下' + nf + '階', 1800);
+    function corrDescend() {       // ホスト（ソロ含む）だけが呼ぶ。クライアントは「階段に着いた」とお願いして、スナップショットで追いかける
+        if (CF.fade > 0 || !CF.on) return;
+        corrNewFloor(CF.floor + 1, true);
+    }
+    // ホストから届いた階層の状態（スナップショット）に、クライアントが合わせる
+    function corrSync(c) {
+        if (isHost || run.phase !== 'run') return;
+        const f = c[0], seed = c[1], inB = !!c[2], ex = !!c[4];
+        if (!inB) {
+            if (CF.inBoss) corrLeaveBossLocal();
+            if (f !== CF.floor || seed !== CF.seed || !CF.rc) { CF.seed = seed; corrNewFloor(f, false); }
+        } else {
+            if (!CF.inBoss && CF.rc) corrEnterBossLocal(c[3]);
+            CF.exit = ex ? { x: WORLD_W / 2, y: WORLD_H / 2, r: 34 } : null;
+        }
+    }
+    function corrEnterBossLocal(pi) {
+        CF.saved = { enemies: enemies, W: WORLD_W, H: WORLD_H, px: 0, py: 0, portal: corrProp(pi) };
+        const pr = CF.saved.portal; if (pr) { CF.saved.px = pr.x; CF.saved.py = pr.y; }
+        enemies = []; eBullets = []; telegraphs = []; myShots = []; ghostShots = []; minions = []; domains = []; fx = []; G = {};
+        CF.on = false; CF.inBoss = true; CF.exit = null; WORLD_W = 1700; WORLD_H = 1100;
+        const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId);
+        me.x = 240; me.y = WORLD_H / 2 + (i - (ids.length - 1) / 2) * 70; me.dashT = 0; me.inv = Math.max(me.inv, 1.2);
+        if (me.dead && !me.escaped) { me.dead = false; me.stg = 0; me.reviveT = 0; me.hp = Math.round(me.maxHp * 0.4); }
+        run.bossSpawned = true; CF.fade = 0.4;
+    }
+    function corrLeaveBossLocal() {
+        const sv = CF.saved; WORLD_W = sv ? sv.W : WORLD_W; WORLD_H = sv ? sv.H : WORLD_H;
+        enemies = sv && isHost ? sv.enemies : []; eBullets = []; telegraphs = []; myShots = []; ghostShots = []; minions = []; domains = []; fx = []; G = {};
+        CF.on = true; CF.inBoss = false; CF.exit = null;
+        if (sv && sv.portal) sv.portal.k = 'portal_done';
+        CF.saved = null; if (sv) { me.x = sv.px; me.y = sv.py + 48; } me.dashT = 0; me.inv = Math.max(me.inv, 1.0); pushOutOfRocks(me, me.r);
+        corrScaleFloor(CF.floor); CF.fade = 0.4; run.bossSpawned = false;
     }
     // 宝箱：武器・防具・特殊アイテムのどれかが出る
     function corrGiveItem(kind, x, y, n) {
-        n = n || 1; const d = HW.load(); HW.addItem(d, kind, n); HW.save(d);
+        n = n || 1; BAG.items[kind] = (BAG.items[kind] || 0) + n;      // 袋に入れる（脱出するまで保存されない）
         run.stats.items = run.stats.items || {}; run.stats.items[kind] = (run.stats.items[kind] || 0) + n;
         const it = HW.SPECIAL_ITEMS[kind];
         popups.push({ x: x, y: y - 14, t: 1.8, text: it.icon + ' ' + it.name + (n > 1 ? '×' + n : ''), c: it.color, big: true });
         fx.push({ k: 'ring', x: x, y: y, r: 0, max: 56, t: 0.5, life: 0.5, c: it.color });
         refreshLootLog();
     }
-    function corrPickItem() { const r = Math.random() * 100; return r < 34 ? 'slot' : (r < 58 ? 'rarity' : 'reroll'); }
+    function corrPickItem() { const r = Math.random() * 100; return r < 38 ? 'slot' : (r < 55 ? 'rarity' : 'reroll'); }      // 昇華の結晶がいちばん出にくい
     function corrChestReward(x, y) {
         const f = CF.floor, il = corrIlvl(f), pool = corrPool(il), rb = A('rarePct') + DIFF.luck + Math.min(2, f * 0.03);
         LT = { ilvl: il, id: 'infinite_corridor', mats: stage.mats, drops: pool, bossDrops: pool };
         try {
             const r = Math.random();
-            if (r < 0.5) rollLoot(pool, rb, 'magic', x, y, 'chest');
-            else if (r < 0.86) corrGiveItem(corrPickItem(), x, y, 1);
+            if (r < 0.50) rollLoot(pool, rb, 'magic', x, y, 'chest');
+            else if (r < 0.64) rollAcc(rb, 'normal', x, y);              // アクセサリー 14%
+            else if (r < 0.80) corrGiveItem(corrPickItem(), x, y, 1);      // 特殊アイテム 16%（以前は36%）
             else rollArmor(rb, 'magic', x, y, 'chest');
             run.stats.coins += Math.round((1 + il * 0.6) * 8 * (1 + A('goldPct')));
         } finally { LT = null; }
     }
     function corrOpenChest(p) {
-        p.k = 'open'; CF.st.chests++;
+        p.k = 'open'; CF.st.chests++; netSend('cho', { i: p.i });
         fx.push({ k: 'ring', x: p.x, y: p.y, r: 0, max: 70, t: 0.5, life: 0.5, c: '#ffd84a' });
         corrChestReward(p.x, p.y);
     }
     function corrWakeMimic(p) {
-        CF.props = CF.props.filter(q => q !== p); CF.st.mimics++;
+        CF.props = CF.props.filter(q => q !== p); CF.st.mimics++; netSend('cmim', { i: p.i });
         const e = spawnEnemy(CD.mimic, p.x, p.y, false, true); e.mimic = true; e.act = true; e.hp = e.maxHp = Math.round(e.maxHp * 0.9); e.spd *= 1.2;
         pushOutOfRocks(e, e.r);
         popups.push({ x: p.x, y: p.y - 30, t: 1.4, text: 'ミミックだ！', c: '#ff6a5a', big: true });
@@ -2366,18 +2706,21 @@
             rollLoot(L().bossDrops, rb + 0.8, 'rare', ev.x, ev.y, 'cboss'); rollLoot(L().bossDrops, rb + 1.2, 'epic', ev.x + 24, ev.y, 'cboss');
             if (t >= 6) rollLoot(L().bossDrops, rb + 1.6, 'epic', ev.x - 24, ev.y, 'cboss');
             rollArmor(rb + 0.8, 'rare', ev.x, ev.y - 22, 'cboss');
-            corrGiveItem('slot', ev.x - 30, ev.y + 20, t >= 5 ? 2 : 1); corrGiveItem('rarity', ev.x, ev.y + 26, t >= 8 ? 2 : 1); corrGiveItem('reroll', ev.x + 30, ev.y + 20, 2);
+            rollAcc(rb + 1.0, t >= 6 ? 'epic' : 'rare', ev.x, ev.y + 34); if (t >= 8) rollAcc(rb + 1.4, 'epic', ev.x - 36, ev.y + 34);      // ボスは、アクセサリーを必ず落とす
+            corrGiveItem('slot', ev.x - 30, ev.y + 20, t >= 8 ? 2 : 1); if (t >= 4 || Math.random() < 0.5) corrGiveItem('rarity', ev.x, ev.y + 26, t >= 9 ? 2 : 1); corrGiveItem('reroll', ev.x + 30, ev.y + 20, 1);      // ボスの特殊アイテムも控えめに
             giveOrb(true);
         } else if (ev.cm) {
-            rollLoot(L().drops, rb, 'rare', ev.x, ev.y, 'mimic'); if (Math.random() < 0.6) corrGiveItem(corrPickItem(), ev.x + 20, ev.y + 10, 1); if (Math.random() < 0.4) rollArmor(rb, 'magic', ev.x, ev.y - 16, 'mimic');
+            rollLoot(L().drops, rb, 'rare', ev.x, ev.y, 'mimic'); if (Math.random() < 0.4) rollAcc(rb, 'magic', ev.x - 14, ev.y); if (Math.random() < 0.3) corrGiveItem(corrPickItem(), ev.x + 20, ev.y + 10, 1); if (Math.random() < 0.4) rollArmor(rb, 'magic', ev.x, ev.y - 16, 'mimic');
         } else if (ev.elite) {
             if (Math.random() < 0.55 * (1 + luck)) rollLoot(L().drops, rb, 'magic', ev.x, ev.y, 'elite');
             if (Math.random() < 0.22 * (1 + luck)) rollArmor(rb, 'magic', ev.x, ev.y - 16, 'elite');
-            if (Math.random() < 0.1) corrGiveItem(corrPickItem(), ev.x + 16, ev.y + 8, 1);
+            if (Math.random() < 0.06 * (1 + luck)) rollAcc(rb, 'normal', ev.x + 12, ev.y);
+            if (Math.random() < 0.04) corrGiveItem(corrPickItem(), ev.x + 16, ev.y + 8, 1);
             if (Math.random() < 0.22 * (1 + A('orbPct'))) giveOrb(false);
         } else {
             if (Math.random() < 0.07 * (1 + luck)) rollLoot(L().drops, rb, 'normal', ev.x, ev.y, 'mob');
             if (Math.random() < 0.025 * (1 + luck)) rollArmor(rb, 'normal', ev.x, ev.y - 12, 'mob');
+            if (Math.random() < 0.006 * (1 + luck)) rollAcc(rb, 'normal', ev.x + 10, ev.y);
             if (Math.random() < 0.035 * (1 + A('orbPct'))) giveOrb(false);
         }
         if (ev.by === myId) {
@@ -2386,48 +2729,87 @@
         }
     }
     // ボス部屋：入口に入ると、壁のない広間でボスと戦う。倒すと出口が現れ、迷路の元の場所に戻れる
-    function corrEnterBoss(p) {
-        CF.saved = { enemies: enemies, W: WORLD_W, H: WORLD_H, px: p.x, py: p.y, portal: p };
-        enemies = []; eBullets = []; telegraphs = []; myShots = []; ghostShots = []; minions = []; domains = []; fx = []; G = {};
-        CF.on = false; CF.inBoss = true; CF.exit = null;
-        WORLD_W = 1700; WORLD_H = 1100; me.x = 240; me.y = WORLD_H / 2; me.dashT = 0; me.inv = Math.max(me.inv, 1.2);
+    function corrEnterBoss(p) {      // ホストだけが呼ぶ
+        if (!CF.on) return;
+        corrEnterBossLocal(p.i);
+        CF.saved.enemies = CF.saved.enemies; CF.portalIdx = p.i;
         const tier = clamp(Math.round(1 + CF.floor / 4.5 + rnd(-1.2, 1.2)), 1, 10), bd = CD.bosses[tier - 1];
-        applyScale(corrTotal() * corrMul(CF.floor) * bd.mul * 1.15, corrIlvl(CF.floor) + 4, { hp: 1, dmg: 1, spd: 1 }); SC.hpMul = 0.9 + tier * 0.06;
+        applyScale(corrPartyTotal() * corrMul(CF.floor) * bd.mul * 1.35, corrIlvl(CF.floor) + 4, { hp: 1.3, dmg: 1.3 + Math.min(1.2, CF.floor * 0.025), spd: 1.05 }); SC.hpMul = 1.2 + tier * 0.1;
         const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W - 420, WORLD_H / 2, true);
         b.bd = { name: bd.name, icon: bd.icon, color: bd.color, stand: true, patterns: ['radial'], set: bd.set }; b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null; b.cboss = tier; b.spd = 60 * PW.spd; b.t = -1.5;
         run.bossSpawned = true; run.bossDead = false;
-        announce('⚠ ' + bd.name + ' が現れた！', 2800);
+        netAnnounce('⚠ ' + bd.name + ' が現れた！', 2800);
     }
     function corrBossDown() {      // ボス部屋のボスを倒した
         CF.st.bosses++; run.bossSpawned = false;
         CF.exit = { x: WORLD_W / 2, y: WORLD_H / 2, r: 34 };
-        announce('🏆 ボスを討伐！　出口から回廊へ戻れる', 3000);
+        netAnnounce('🏆 ボスを討伐！　出口から回廊へ戻れる', 3000);
     }
-    function corrLeaveBoss() {
-        const sv = CF.saved; if (!sv) return;
-        enemies = sv.enemies; eBullets = []; telegraphs = []; myShots = []; ghostShots = []; minions = []; domains = []; fx = []; G = {};
-        WORLD_W = sv.W; WORLD_H = sv.H; CF.on = true; CF.inBoss = false; CF.exit = null; CF.saved = null;
-        sv.portal.k = 'portal_done'; me.x = sv.px; me.y = sv.py + 48; me.dashT = 0; me.inv = Math.max(me.inv, 1.0); pushOutOfRocks(me, me.r);
-        corrScaleFloor(CF.floor); CF.fade = 0.4; run.bossSpawned = false;
-    }
+    function corrLeaveBoss() { if (CF.inBoss) corrLeaveBossLocal(); }
     // 毎フレーム：階段・宝箱・入口・出口との接触
     function corrUpdate(dt) {
-        if (!CORR_ON || run.phase !== 'run') return;
-        if (CF.fade > 0) CF.fade -= dt;
-        if (me.dead) return;
+        if (!CORR_ON || run.phase !== 'run' || !CF.rc) return;
+        if (CF.fade > 0) CF.fade -= dt; if (CF.reqT > 0) CF.reqT -= dt;
+        if (isHost && CF.on) {      // ミミックは、誰かが近づいたらホストが起こす（ホストが倒れていても、仲間が近づけば動く）
+            const ps = alivePlayersPos();
+            for (const p of CF.props.slice()) if (p.k === 'chest' && p.mimic && ps.some(q => dist(q.x, q.y, p.x, p.y) < 74)) corrWakeMimic(p);
+        }
+        if (me.dead || me.escaped) { CF.gateT = 0; return; }
         if (CF.on) {
             const c = corrCellOf(me.x, me.y); CF.seen[c] = 1;
             const cx = c % CF.cols, cy = Math.floor(c / CF.cols);
             CDIR.forEach(d => { if (CF.open[c] & d[2]) { const nx = cx + d[0], ny = cy + d[1]; if (nx >= 0 && ny >= 0 && nx < CF.cols && ny < CF.rows) { const n = corrCenter(ny * CF.cols + nx); if (dist(me.x, me.y, n.x, n.y) < 330) CF.seen[ny * CF.cols + nx] = 1; } } });
+            CF.clock = (CF.clock || 0) + dt;
+            let onGate = false;
             for (const p of CF.props.slice()) {
                 const d = dist(me.x, me.y, p.x, p.y);
-                if (p.k === 'stairs' && d < p.r + 6) { corrDescend(); return; }
-                else if (p.k === 'chest') { if (p.mimic && d < 74) corrWakeMimic(p); else if (!p.mimic && d < p.r + 18) corrOpenChest(p); else if (p.mimic && d < p.r + 10) corrWakeMimic(p); }
-                else if (p.k === 'portal' && d < p.r + 6) { corrEnterBoss(p); return; }
+                if (p.k === 'trap') { const ph = (CF.clock + p.ph) % 3.2; p.on = ph > 2.5 ? 2 : (ph > 2.0 ? 1 : 0); if (p.on === 2 && d < p.r + 6) hurtMe(foeDmg('chaser', false, false) * 0.9); continue; }
+                if (p.k === 'spring' && d < p.r + 10) { p.k = 'spring_done'; netSend('cuse', { i: p.i }); addHp(me.maxHp * 0.5); me.energy = Math.min(ENERGY_MAX, me.energy + ENERGY_MAX * 0.5); popups.push({ x: p.x, y: p.y - 28, t: 1.2, text: '泉：HP回復', c: '#7aff9a', big: true }); fx.push({ k: 'ring', x: p.x, y: p.y, r: 0, max: 110, t: 0.6, life: 0.6, c: '#7aff9a' }); continue; }
+                if (p.k === 'stairs' && d < p.r + 6) { corrAsk('stairs'); return; }
+                else if (p.k === 'chest' && !p.mimic && d < p.r + 18) corrOpenChest(p);
+                else if (p.k === 'portal' && d < p.r + 6) { corrAsk('portal', p.i); return; }
+                else if (p.k === 'gate' && d < p.r) onGate = true;
             }
-        } else if (CF.inBoss && CF.exit && dist(me.x, me.y, CF.exit.x, CF.exit.y) < CF.exit.r + 6) corrLeaveBoss();
+            if (onGate) { CF.gateT += dt; if (CF.gateT >= 1.2) { CF.gateT = 0; corrEscape(); } }
+            else CF.gateT = Math.max(0, CF.gateT - dt * 2);
+        } else if (CF.inBoss && CF.exit && dist(me.x, me.y, CF.exit.x, CF.exit.y) < CF.exit.r + 6) corrAsk('exit');
     }
-    function corrRetreat() { if (run.ended || run.phase !== 'run') return; run.ended = true; finishHost(false, 'retreat'); }
+    // 袋の中身を、持ち物に反映する（脱出に成功したときだけ呼ばれる）
+    function corrCommit() {
+        const d = HW.load();
+        BAG.weapons.forEach(w => d.weapons.push(w));
+        if (window.SBArmor) BAG.armors.forEach(a => SBArmor.add(d, a));
+        if (window.SBAcc) { SBAcc.ensure(d); BAG.accs.forEach(a => d.accs.push(a)); }
+        Object.keys(BAG.items).forEach(k => HW.addItem(d, k, BAG.items[k]));
+        HW.save(d);
+        const p = getPlayerData();
+        if (p) {
+            if (!p.materials || Array.isArray(p.materials)) p.materials = {};
+            Object.keys(BAG.mats).forEach(id => { p.materials[id] = (p.materials[id] || 0) + BAG.mats[id]; });
+            if (!Array.isArray(p.orbs)) p.orbs = [];
+            BAG.orbs.forEach(o => p.orbs.push(o));
+            try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) {}
+        }
+        BAG.weapons = []; BAG.armors = []; BAG.accs = []; BAG.items = {}; BAG.mats = {}; BAG.orbs = [];
+    }
+    // 脱出ゲートの上で少し立ち止まると脱出できる。脱出すると、ここまでの報酬を持ち帰って、この冒険は終わる
+    function corrEscape() {
+        if (run.escaped || me.dead || run.phase !== 'run') return;
+        run.escaped = true; me.escaped = true;
+        netSend('esc', {});
+        const others = Object.keys(allies).some(id => !allies[id].dead && !allies[id].esc);
+        if (isHost && others) {          // ホストが先に脱出：仲間が続けられるよう、裏でゲームを動かし続ける（自分は倒れた扱いで敵に狙われない）
+            me.dead = true; me.hp = 0; me.stunT = 0; me.orb = null;
+            finish(true, { reason: 'escape', ghost: true });
+        } else if (isHost) finishHost(true, 'escape');
+        else finish(true, { reason: 'escape' });
+    }
+    function corrGiveUp() { if (run.ended || run.phase !== 'run' || run.settled) return; if (isHost && Object.keys(allies).some(id => !allies[id].dead && !allies[id].esc)) { alert('仲間が冒険を続けているので、ホストはあきらめられません。脱出ゲートから脱出してください。'); return; } if (isHost) { run.ended = true; finishHost(false, 'giveup'); } else { netSend('esc', {}); finish(false, { reason: 'giveup' }); } }
+    function corrAsk(k, i) {        // 階段・ボス部屋の入口・出口に触れた：ホストなら実行、クライアントならホストにお願いする
+        if (isHost) { if (k === 'stairs') corrDescend(); else if (k === 'portal') { const p = corrProp(i); if (p && p.k === 'portal') corrEnterBoss(p); } else if (k === 'exit') corrLeaveBoss(); }
+        else if (CF.reqT <= 0) { CF.reqT = 1.2; netSend('creq', { k: k, i: i }); }
+    }
+    function corrProp(i) { return CF.props.find(p => p.i === i) || null; }
 
     // ---------- 開始・終了 ----------
     function beginRun() {
@@ -2448,7 +2830,15 @@
             me.x = WORLD_W / 2 + Math.cos(a) * 380; me.y = WORLD_H / 2 + Math.sin(a) * 300; pushOutOfRocks(me, me.r);
             announce('⚔ 最後まで立っていた人の勝ち！（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 2600);
         } else if (RUSH_ON) announce('🏆 ボスラッシュ（' + DIFF.name + '）　フェーズ1〜5とFinal！', 2600);
-        else if (CORR_ON) { CF.seed = (Math.random() * 4294967295) >>> 0; corrNewFloor(1); announce('🌀 無限回廊　階段を探して下へ！', 2600); corrMakeRetreatBtn(); }
+        else if (CORR_ON) {
+            corrMakeRetreatBtn();
+            if (isHost) {      // 迷路はホストが決める（シード）。仲間にはスナップショットで伝わり、同じ迷路が作られる
+                CF.seed = (Math.random() * 4294967295) >>> 0;
+                const go = () => { if (run.phase === 'run' && !CF.rc) corrNewFloor(1, true); };
+                if (partyCount() > 1) setTimeout(go, 700); else go();      // マルチのときは、仲間のステータス（敵の強さの基準）が届くのを少し待つ
+            }
+            announce('🌀 無限回廊　階段を探して下へ！　持ち帰るには「脱出ゲート」から脱出', 3400);
+        }
         else announce(stage.icon + ' ' + stage.name + (PVP ? '　スパーリングボットを倒せ！' : '　敵を倒してボスを呼び出せ！'), 2600);
         if (DBG) announce('🛠 デバッグ戦闘（報酬・クリア記録なし）' + (DBG.god ? '　無敵' : '') + (DBG.hp && DBG.hp !== 1 ? '　ボスHP×' + DBG.hp : ''), 3200);
         refreshLootLog();
@@ -2456,12 +2846,20 @@
 
     function finish(win, d) {
         if (run.phase === 'end') return;
-        run.phase = 'end'; run.ended = true;
+        if (run.settled) {      // 無限回廊：ホストが先に脱出して精算を済ませている。ほんとうに終わるときは、ゲームを止めるだけ
+            run.phase = 'end'; run.ended = true; return;
+        }
+        if (!(d && d.ghost)) { run.phase = 'end'; run.ended = true; }
+        else run.settled = true;
         if (DBG) { run.stats.coins = 0; showResult(win, d || {}); return; }   // デバッグ戦闘：コインもクリア記録も反映しない
         // 報酬の反映
+        if (CORR_ON) {      // 無限回廊：脱出に成功したときだけ、袋の中身とコインを持ち帰れる。倒れたら（あきらめても）ぜんぶ失う
+            if (run.escaped) corrCommit();
+            else { run.lost = { coins: run.stats.coins, n: run.stats.loot.length, orbs: run.stats.orbs, mats: Object.keys(run.stats.mats).reduce((a, k) => a + run.stats.mats[k], 0), items: Object.assign({}, run.stats.items || {}) }; run.stats.coins = 0; }
+        }
         const p = getPlayerData();
         if (PVP && run.pvpMode) run.stats.coins += win ? 400 : 120;      // 対人戦：勝てば400、負けても120
-        if (PVP && run.pvpMode && window.SBPvpEvent) run.evGain = SBPvpEvent.award(win);   // シーズン5週目〜のPvPイベント：イベントポイント
+        if (PVP && run.pvpMode && window.SBPvpEvent) run.evGain = SBPvpEvent.award(win);   // シーズン最終週のPvPイベント：イベントポイント
         if (p) {
             p.coins = (p.coins || 0) + run.stats.coins;
             if (PVP && run.pvpMode && win) p.pvpWins = (p.pvpWins || 0) + 1;
@@ -2497,7 +2895,7 @@
         const ox = VW / 2 - cam.x, oy = VH / 2 - cam.y;
         ctx.save(); ctx.translate(ox, oy);
         // 床
-        ctx.fillStyle = stage.bg; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+        ctx.fillStyle = (CORR_ON && CF.on && CF.pal && CF.pal.floor) || stage.bg; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
         ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 1;
         ctx.beginPath(); for (let x = 0; x <= WORLD_W; x += 100) { ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); } for (let y = 0; y <= WORLD_H; y += 100) { ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); } ctx.stroke();
         ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 6; ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
@@ -2522,6 +2920,11 @@
         fx.forEach(f => drawFx(f));
         popups.forEach(p => { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = (p.big ? 'bold 18px' : 'bold 14px') + ' sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.globalAlpha = 1; });
         ctx.restore();
+        if (CORR_ON && CF.on && CF.theme && CF.theme.id === 'dark' && !me.dead) {      // 暗闇の階：自分の周りだけが見える
+            const sx = me.x - cam.x + VW / 2, sy = me.y - cam.y + VH / 2, g = ctx.createRadialGradient(sx, sy, 90, sx, sy, 330);
+            g.addColorStop(0, 'rgba(0,0,10,0)'); g.addColorStop(1, 'rgba(0,0,10,0.93)');
+            ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
+        }
         drawHUD();
     }
 
@@ -2529,9 +2932,10 @@
     function corrDrawWorld() {
         const x0 = cam.x - VW / 2 - 60, x1 = cam.x + VW / 2 + 60, y0 = cam.y - VH / 2 - 60, y1 = cam.y + VH / 2 + 60;
         if (CF.on) {
-            ctx.fillStyle = '#2b2440';
+            const pal = CF.pal || CPALS[0];
+            ctx.fillStyle = pal.wall;
             for (const r of CF.rects) { if (r[0] > x1 || r[1] > y1 || r[0] + r[2] < x0 || r[1] + r[3] < y0) continue; ctx.fillRect(r[0], r[1], r[2], r[3]); }
-            ctx.fillStyle = 'rgba(190,170,255,0.16)';
+            ctx.fillStyle = pal.hi;
             for (const r of CF.rects) { if (r[0] > x1 || r[1] > y1 || r[0] + r[2] < x0 || r[1] + r[3] < y0) continue; ctx.fillRect(r[0], r[1], r[2], 4); }
         }
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2539,6 +2943,16 @@
         if (CF.on) CF.props.forEach(p => {
             if (p.x < x0 || p.x > x1 || p.y < y0 || p.y > y1) return;
             if (p.k === 'stairs') { ctx.strokeStyle = 'rgba(255,216,74,' + (0.55 + 0.3 * Math.sin(now * 3)) + ')'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(30,20,60,0.8)'; ctx.beginPath(); ctx.arc(p.x, p.y, 26, 0, 7); ctx.fill(); ctx.font = '28px sans-serif'; ctx.fillText('🪜', p.x, p.y + 1); }
+            else if (p.k === 'gate') {      // 脱出ゲート：立ち止まると脱出できる
+                const pr = Math.min(1, CF.gateT / 1.2), near = dist(me.x, me.y, p.x, p.y) < p.r + 70;
+                ctx.strokeStyle = 'rgba(120,255,220,' + (0.55 + 0.3 * Math.sin(now * 3.4)) + ')'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, 32, 0, 7); ctx.stroke();
+                ctx.fillStyle = 'rgba(0,50,50,0.75)'; ctx.beginPath(); ctx.arc(p.x, p.y, 27, 0, 7); ctx.fill(); ctx.font = '28px sans-serif'; ctx.fillText('🌀', p.x, p.y + 1);
+                if (pr > 0) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(p.x, p.y, 38, -Math.PI / 2, -Math.PI / 2 + pr * Math.PI * 2); ctx.stroke(); }
+                if (near) { ctx.font = 'bold 13px sans-serif'; ctx.fillStyle = '#c8fff0'; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.lineWidth = 3; ctx.strokeText(pr > 0 ? '脱出中…' : '脱出ゲート（乗ると脱出）', p.x, p.y - 50); ctx.fillText(pr > 0 ? '脱出中…' : '脱出ゲート（乗ると脱出）', p.x, p.y - 50); }
+            }
+            else if (p.k === 'spring') { ctx.fillStyle = 'rgba(80,220,160,' + (0.25 + 0.12 * Math.sin(now * 2.5)) + ')'; ctx.beginPath(); ctx.arc(p.x, p.y, 34, 0, 7); ctx.fill(); ctx.font = '28px sans-serif'; ctx.fillText('⛲', p.x, p.y); }
+            else if (p.k === 'spring_done') { ctx.globalAlpha = 0.4; ctx.font = '26px sans-serif'; ctx.fillText('⛲', p.x, p.y); ctx.globalAlpha = 1; }
+            else if (p.k === 'trap') { const on = p.on | 0; ctx.fillStyle = on === 2 ? 'rgba(255,80,80,0.9)' : (on === 1 ? 'rgba(255,200,80,0.55)' : 'rgba(255,255,255,0.12)'); ctx.beginPath(); ctx.arc(p.x, p.y, on === 2 ? 26 : 22, 0, 7); ctx.fill(); if (on === 2) { ctx.font = '22px sans-serif'; ctx.fillText('▲▲', p.x, p.y); } }
             else if (p.k === 'chest') { ctx.font = '30px sans-serif'; ctx.fillText('📦', p.x, p.y); }
             else if (p.k === 'open') { ctx.globalAlpha = 0.45; ctx.font = '26px sans-serif'; ctx.fillText('📭', p.x, p.y); ctx.globalAlpha = 1; }
             else if (p.k === 'portal') { ctx.strokeStyle = 'rgba(255,70,90,' + (0.6 + 0.3 * Math.sin(now * 4)) + ')'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, 28, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(60,0,20,0.8)'; ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, 7); ctx.fill(); ctx.font = '26px sans-serif'; ctx.fillText('👹', p.x, p.y + 1); }
@@ -2551,13 +2965,13 @@
         if (!CF.on || !CF.seen) return;
         ctx.fillStyle = 'rgba(170,160,220,0.38)';
         for (let c = 0; c < CF.seen.length; c++) { if (!CF.seen[c]) continue; const cx = c % CF.cols, cy = Math.floor(c / CF.cols); ctx.fillRect(mx + (1 + cx * CELL_T) * TILE * sx, my + (1 + cy * CELL_T) * TILE * sy, CELL_T * TILE * sx, CELL_T * TILE * sy); }
-        CF.props.forEach(p => { if (!CF.seen[p.c]) return; ctx.fillStyle = p.k === 'stairs' ? '#ffd84a' : (p.k === 'portal' ? '#ff5a5a' : (p.k === 'chest' ? '#ffb347' : '')); if (ctx.fillStyle && (p.k === 'stairs' || p.k === 'portal' || p.k === 'chest')) ctx.fillRect(mx + p.x * sx - 2, my + p.y * sy - 2, 4, 4); });
+        CF.props.forEach(p => { if (!CF.seen[p.c]) return; ctx.fillStyle = p.k === 'stairs' ? '#ffd84a' : (p.k === 'portal' ? '#ff5a5a' : (p.k === 'gate' ? '#6dffe0' : (p.k === 'chest' ? '#ffb347' : ''))); if (ctx.fillStyle && (p.k === 'stairs' || p.k === 'portal' || p.k === 'chest' || p.k === 'gate')) ctx.fillRect(mx + p.x * sx - 2, my + p.y * sy - 2, 4, 4); });
     }
     function corrMakeRetreatBtn() {
         if (document.getElementById('btnRetreat')) return;
-        const b = document.createElement('button'); b.id = 'btnRetreat'; b.type = 'button'; b.textContent = '🚪 引き返す';
+        const b = document.createElement('button'); b.id = 'btnRetreat'; b.type = 'button'; b.textContent = '🏳 あきらめる';
         b.style.cssText = 'position:fixed;left:max(10px,env(safe-area-inset-left));bottom:max(10px,env(safe-area-inset-bottom));z-index:7;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.4);background:rgba(20,15,40,.75);color:#fff;font-size:.8rem;cursor:pointer';
-        b.addEventListener('click', () => { if (confirm('ここで引き返しますか？（手に入れた武器・アイテムは持ち帰れます）')) corrRetreat(); });
+        b.addEventListener('click', () => { if (confirm('あきらめますか？\n持ち帰れるのは「脱出ゲート」から脱出したときだけです。このまま終わると、ここまでの報酬はすべて失われます。')) corrGiveUp(); });
         document.body.appendChild(b);
     }
 
@@ -2670,6 +3084,7 @@
         const hp = isMe ? me.hp / me.maxHp : (p.hp / Math.max(1, p.maxHp));
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, p.y - 24, 36, 5); ctx.fillStyle = hp > 0.3 ? '#4adb6a' : '#ff5a5a'; ctx.fillRect(p.x - 18, p.y - 24, 36 * clamp(hp, 0, 1), 5);
         if (isMe && me.shield) { ctx.strokeStyle = '#9fe0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, 7); ctx.stroke(); }
+        if (isMe && pvp.parryT > 0) { ctx.strokeStyle = '#9df0ff'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, 28 + Math.sin(performance.now() / 35) * 3, 0, 7); ctx.stroke(); }
         if (p.dead) { ctx.font = '16px sans-serif'; ctx.fillText('💀', p.x, p.y + 5); }
         const orb = isMe ? me.orb : p.orb;
         if (orb && !p.dead) {
@@ -2691,6 +3106,8 @@
         else if (f.k === 'line') { ctx.strokeStyle = f.c; ctx.lineWidth = f.w || 4; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke(); }
         else if (f.k === 'ring') { const r = f.max * Math.min(1, k * 1.4); ctx.strokeStyle = f.c; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); if (f.fill) { ctx.globalAlpha *= 0.3; ctx.fillStyle = f.c; ctx.fill(); ctx.globalAlpha = Math.max(0, 1 - k); } ctx.stroke(); }
         else if (f.k === 'puff') { ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 22, 0, 7); ctx.globalAlpha *= 0.4; ctx.fill(); }
+        else if (f.k === 'bolt') { ctx.strokeStyle = f.c; ctx.lineWidth = f.w * (1.2 - k * 0.7); ctx.beginPath(); f.pts.forEach((q, i) => { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, f.w * 0.35); ctx.stroke(); ctx.globalAlpha = 1; }
+        else if (f.k === 'spark') { ctx.fillStyle = f.c; const z = f.sz * (1 - k * 0.7); ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0.5, z), 0, 7); ctx.fill(); }
         else if (f.k === 'warn') { ctx.strokeStyle = f.c; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
         ctx.globalAlpha = 1;
     }
@@ -2698,6 +3115,7 @@
     // ---------- HUD ----------
     const el = id => document.getElementById(id);
     function drawHUD() {
+        updatePvpBar();
         // ミニマップ
         const mw = VH < 520 ? 92 : 140, mh = Math.round(mw * WORLD_H / WORLD_W), mx = VW - mw - 10, my = VH < 520 ? 34 : 56;
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx, my, mw, mh);
@@ -2729,6 +3147,10 @@
             ctx.strokeText(t1, VW / 2, 92); ctx.fillStyle = run.time < SD.start ? '#cfe6ff' : (prog > 0.6 ? '#ff6a6a' : '#ffb347'); ctx.fillText(t1, VW / 2, 92);
             ctx.font = 'bold 13px sans-serif'; ctx.strokeText(t2, VW / 2, 112); ctx.fillStyle = '#fff'; ctx.fillText(t2, VW / 2, 112);
             ctx.restore();
+            const combo = pvp.combo ? ('　' + pvp.combo + ' COMBO ×' + pvpComboMul().toFixed(2)) : '';
+            ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)';
+            const combat = '必殺 ' + Math.round(pvp.ult) + '%　パリィ ' + (pvp.parryCd > 0 ? pvp.parryCd.toFixed(1) + '秒' : 'OK') + combo;
+            ctx.strokeText(combat, VW / 2, 132); ctx.fillStyle = pvp.ult >= 100 ? '#ffd84a' : '#cfe6ff'; ctx.fillText(combat, VW / 2, 132); ctx.restore();
         }
         // ボスラッシュ：幕間の表示／無限回廊：階の切り替わりの暗転
         if (RUSH_ON && run.phase === 'run' && RS.st === 2) {
@@ -2748,7 +3170,7 @@
         if (RUSH_ON && RS.st === 1) { const rl = Math.max(0, RS.limit - RS.t); el('timer').textContent = '⏱ ' + Math.floor(rl / 60) + ':' + String(Math.floor(rl % 60)).padStart(2, '0'); }
         if (CORR_ON && !run.bossSpawned) {
             let seen = 0; if (CF.seen) for (let i = 0; i < CF.seen.length; i++) seen += CF.seen[i];
-            el('prog').textContent = '🌀 地下' + CF.floor + '階　探索 ' + seen + '/' + (CF.cols * CF.rows); el('progFill').style.width = (CF.seen ? seen / (CF.cols * CF.rows) * 100 : 0) + '%'; el('bossBar').style.display = 'none';
+            const gt = CF.props.find(q => q.k === 'gate'), gOk = gt && CF.seen && CF.seen[gt.c]; el('prog').textContent = '🌀 地下' + CF.floor + '階　探索 ' + seen + '/' + (CF.cols * CF.rows) + '　脱出ゲート：' + (gOk ? '発見！' : '未発見'); el('progFill').style.width = (CF.seen ? seen / (CF.cols * CF.rows) * 100 : 0) + '%'; el('bossBar').style.display = 'none';
         } else if (!run.bossSpawned) { el('prog').textContent = '討伐 ' + Math.min(run.kills, run.need) + ' / ' + run.need; el('progFill').style.width = (Math.min(1, run.kills / run.need) * 100) + '%'; el('bossBar').style.display = 'none'; }
         else {
             el('prog').textContent = 'ボス戦'; el('progFill').style.width = '100%';
@@ -2767,6 +3189,19 @@
         }
     }
     function updateEnergyUI() { el('enFill').style.width = (me.energy / ENERGY_MAX * 100) + '%'; el('enText').textContent = 'ENERGY ' + Math.round(me.energy) + ' / ' + ENERGY_MAX; if (skillSlots.length) updateSkillBar(); }
+    function updatePvpBar() {
+        const box = el('pvpBar'); if (!box) return;
+        const active = PVP && run.pvpMode && run.phase === 'run'; box.classList.toggle('show', active);
+        if (!active) return;
+        const parry = el('btnParry'), ultimate = el('btnUltimate');
+        // drawHUD は毎フレーム呼ばれる。DOMを書き換えるのは表示値が変化した時だけにする。
+        const sig = [pvp.parryT > 0 ? 1 : 0, Math.ceil(Math.max(0, pvp.parryCd) * 10) / 10, Math.round(pvp.ult)].join(':');
+        if (box.dataset.sig === sig) return;
+        box.dataset.sig = sig;
+        parry.classList.toggle('ready', pvp.parryCd <= 0); parry.classList.toggle('active', pvp.parryT > 0);
+        parry.innerHTML = pvp.parryT > 0 ? 'パリィ中！ <small>攻撃を受け止めろ</small>' : 'パリィ <small>F / ' + (pvp.parryCd > 0 ? pvp.parryCd.toFixed(1) + '秒' : '反撃') + '</small>';
+        ultimate.classList.toggle('ready', pvp.ult >= 100); ultimate.innerHTML = '必殺技 <small>R / ゲージ ' + Math.round(pvp.ult) + '%</small>';
+    }
     let annTimer = 0;
     function announce(text, ms) { const a = el('announce'); a.textContent = text; a.classList.add('show'); clearTimeout(annTimer); annTimer = setTimeout(() => a.classList.remove('show'), ms || 2000); }
     function refreshLootLog() {
@@ -2795,18 +3230,21 @@
         if (TEAM && run.pvpMode) el('resTitle').textContent = win ? '🏆 勝利！相手チームを倒した' : (d.winnerTeam === -1 ? '🤝 引き分け' : (d.reason === 'time' ? '⌛ 時間切れ…（チームの総合ダメージ量で判定）' : '💀 敗北…相手チームに倒された'));
         if (run.evGain) el('resTitle').textContent += '　⚔PvPイベント +' + run.evGain + 'EP';
         if (RUSH_ON) { const rr = run.rushReached | 0; el('resTitle').textContent = win ? '🏆 ボスラッシュ制覇！（' + DIFF.name + '）' : ((d.reason === 'time' ? '⌛ 時間切れ…' : '💀 敗北…') + '　' + (rr > 0 ? rushPd(rr).label + 'までクリア' : 'フェーズ1で敗退') + '（' + DIFF.name + '）'); }
-        if (CORR_ON) el('resTitle').textContent = '🌀 無限回廊　地下' + CF.floor + '階まで到達' + (d.reason === 'retreat' ? '（引き返した）' : '');
-        el('resTitle').style.color = (win || (CORR_ON && d.reason === 'retreat')) ? '#ffe08a' : '#ff8a8a';
+        if (CORR_ON) el('resTitle').textContent = run.escaped ? ('🌀 脱出成功！　地下' + CF.floor + '階（報酬を持ち帰った）') : ((d.reason === 'giveup' ? '🏳 あきらめた' : '💀 力尽きた') + '…　地下' + CF.floor + '階（報酬はすべて失われた）');
+        el('resTitle').style.color = win ? '#ffe08a' : '#ff8a8a';
         el('resBody').innerHTML =
             (run.formUnlock ? '<div style="margin:0 0 10px;padding:10px;border:2px solid #c8a0ff;border-radius:10px;background:rgba(90,50,160,.3);color:#f0e0ff;font-weight:bold;text-align:center">🔓 ' + run.formUnlock + '</div>' : '') +
             (run.worldBanner ? '<div style="margin:0 0 10px;padding:10px;border:2px solid #ffc84a;border-radius:10px;background:rgba(120,80,220,.28);color:#fff0c8;font-weight:bold;text-align:center">' + run.worldBanner.t + '<br><span style="font-size:.85em;font-weight:normal">' + run.worldBanner.s + '</span></div>' : '') +
+            (CORR_ON && !run.escaped ? '<div style="margin:0 0 10px;padding:10px;border:2px solid #ff8a8a;border-radius:10px;background:rgba(120,30,40,.35);color:#ffd0d0;font-weight:bold;text-align:center">持ち帰れなかったもの（下の一覧）<br><span style="font-size:.85em;font-weight:normal">各階層の「脱出ゲート」から脱出しないと、報酬は持ち帰れません。コイン ' + ((run.lost && run.lost.coins) | 0) + ' も失われました</span></div>' : '') +
+            (CORR_ON && run.escaped && d.ghost ? '<div style="margin:0 0 10px;padding:8px;border:2px solid #9fe8ff;border-radius:10px;color:#d8f4ff;text-align:center">仲間はまだ冒険中です。ここで町に戻ると、仲間の冒険も終わります（ホストのため）</div>' : '') +
             '<div>討伐数：' + run.stats.kills + '　与ダメージ：' + Math.round(run.stats.dmg) + '</div>' +
-            '<div>コイン +' + run.stats.coins + '　オーブ +' + run.stats.orbs + '</div>' +
+            '<div>コイン +' + (CORR_ON && !run.escaped ? 0 : run.stats.coins) + '　オーブ +' + (CORR_ON && !run.escaped ? 0 : run.stats.orbs) + '</div>' +
             (CORR_ON ? '<div>宝箱 ' + CF.st.chests + '個　ミミック ' + CF.st.mimics + '体　ボス討伐 ' + CF.st.bosses + '体</div>' : '') +
             (run.stats.items ? '<div style="margin:6px 0;color:#ffd9a0">特殊アイテム：' + Object.keys(run.stats.items).map(k => (HW.SPECIAL_ITEMS[k] ? HW.SPECIAL_ITEMS[k].icon + HW.SPECIAL_ITEMS[k].name : k) + '×' + run.stats.items[k]).join('　') + '</div>' : '') +
-            '<h4>獲得した素材（' + Object.keys(run.stats.mats).reduce((n, k) => n + run.stats.mats[k], 0) + '）</h4>' +
+            '<h4>' + (CORR_ON && !run.escaped ? '失った' : '獲得した') + '素材（' + Object.keys(run.stats.mats).reduce((n, k) => n + run.stats.mats[k], 0) + '）</h4>' +
             (Object.keys(run.stats.mats).length ? '<div style="font-size:.85rem;color:#c8f7a0">' + Object.keys(run.stats.mats).map(id => escapeHtml(matName(id)) + '×' + run.stats.mats[id]).join('　') + '</div>' : '<div style="opacity:.7">なし</div>') +
-            '<h4>獲得した武器（' + loot.length + '）</h4>' +
+            (run.stats.accs && run.stats.accs.length ? '<h4>' + (CORR_ON && !run.escaped ? '失った' : '獲得した') + 'アクセサリー（' + run.stats.accs.length + '）</h4>' + run.stats.accs.map(a => '<div style="color:' + HW.rarityOf(a).color + '">✨ ' + esc(a.name) + '</div>').join('') : '') +
+            '<h4>' + (CORR_ON && !run.escaped ? '失った' : '獲得した') + '武器（' + loot.length + '）</h4>' +
             (loot.length ? loot.map(w => '<div class="lw" style="color:' + HW.rarityOf(w).color + '">' + escapeHtml(w.name) + ' <small>[' + HW.rarityOf(w).label + ' / 攻撃' + HW.pctLabel(w) + ' / 穴' + w.sockets + ']</small></div>').join('') : '<div style="opacity:.7">なし</div>');
     }
 
@@ -2860,12 +3298,26 @@
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
             else if (isHost) { updateHost(dt); } else lerpRemote(dt);
             // 位置の送信
-            posT -= dt; if (posT <= 0) { posT = 1 / 15; netSend('pos', { x: Math.round(me.x), y: Math.round(me.y), a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0 }); }
+            posT -= dt; if (posT <= 0) {
+                posT = 1 / POS_HZ;
+                // 速度を一緒に送る（受け取った側が、次の位置が届くまでの間を先読みして動かせる）。一瞬で大きく動いたとき（一閃・階層移動など）は tp=1 で「補間せず、そこへ移動」と伝える
+                const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
+                const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
+                posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
+                netSend('pos', { x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+            }
             snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { snapT = 1 / SNAP_HZ; netSend('snap', makeSnap()); }
         } else if (run.phase === 'end') { updateShots(dt); }
-        Object.keys(allies).forEach(id => { const a = allies[id]; a.x += (a.tx - a.x) * Math.min(1, dt * 14); a.y += (a.ty - a.y) * Math.min(1, dt * 14); if (a.orb) { a.orb.t -= dt; if (a.orb.t <= 0) a.orb = null; } });
-        fx.forEach(f => { f.t -= dt; }); fx = fx.filter(f => f.t > 0);
+        Object.keys(allies).forEach(id => { const a = allies[id];
+            // 仲間の位置：最後に届いた位置＋速度×経過時間（最大0.25秒ぶん）を目標にして、フレームレートに左右されない補間で近づく。離れすぎたらそこへ移動
+            const age = Math.min(0.25, Math.max(0, (performance.now() - (a.pt || 0)) / 1000)), px = a.tx + (a.vx || 0) * age, py = a.ty + (a.vy || 0) * age, kk = 1 - Math.exp(-dt * 18);
+            if (Math.hypot(px - a.x, py - a.y) > 320) { a.x = px; a.y = py; } else { a.x += (px - a.x) * kk; a.y += (py - a.y) * kk; } if (a.orb) { a.orb.t -= dt; if (a.orb.t <= 0) a.orb = null; } });
+        fx.forEach(f => { f.t -= dt; if (f.vx !== undefined) { f.x += f.vx * dt; f.y += f.vy * dt; const dmp = Math.pow(0.06, dt); f.vx *= dmp; f.vy *= dmp; } }); fx = fx.filter(f => f.t > 0);
+        const fxCap = PVP ? 220 : 600; if (fx.length > fxCap) fx.splice(0, fx.length - fxCap);
+        if (comboT > 0) { comboT -= dt; if (comboT <= 0) comboN = 0; }
+        if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeA = 0; }
         popups.forEach(p => { p.t -= dt; }); popups = popups.filter(p => p.t > 0);
+        if (popups.length > 120) popups.splice(0, popups.length - 120);
         enemies.forEach(e => { if (e.flash > 0) e.flash -= dt; });
         render();
         requestAnimationFrame(loop);
@@ -2876,6 +3328,8 @@
     el('waitLeave').addEventListener('click', () => { if (socket) socket.emit('stage:leave'); location.href = 'index.html'; });
     el('resBack').addEventListener('click', () => { if (socket) socket.emit('stage:leave'); location.href = 'index.html'; });
     el('quizToggle').addEventListener('click', toggleQuiz);
+    el('btnParry').addEventListener('pointerdown', (e) => { e.preventDefault(); doParry(); });
+    el('btnUltimate').addEventListener('pointerdown', (e) => { e.preventDefault(); doUltimate(); });
     window.addEventListener('beforeunload', () => { if (socket) socket.emit('stage:leave'); });
     if (isTouch) {
         document.documentElement.classList.add('touch');
@@ -2898,6 +3352,6 @@
     // 自動テスト用の窓口（テストページが window.__SB_TEST を用意したときだけ公開する。通常のプレイでは何も起きない）
     if (window.__SB_TEST) window.__SB_TEST.api = { run: run, me: me, RS: RS, CF: CF, get enemies() { return enemies; }, get eBullets() { return eBullets; }, get telegraphs() { return telegraphs; }, get world() { return [WORLD_W, WORLD_H]; }, get domains() { return domains; },
         killEnemy: killEnemy, onKillEvent: onKillEvent, corrDescend: corrDescend, corrEnterBoss: corrEnterBoss, corrLeaveBoss: corrLeaveBoss, corrOpenChest: corrOpenChest, corrWakeMimic: corrWakeMimic, corrTotal: corrTotal, corrMul: corrMul,
-        hurtPvp: hurtPvp, dealPvp: dealPvp, healMe: healMe, addHp: addHp, healMul: healMul, sdAtkMul: sdAtkMul, sdDefMul: sdDefMul, stunMe: stunMe, spawnEnemy: spawnEnemy, DIFF: () => DIFF, SC: SC, tally: tallyDmg, dmgOf: dmgOf, pvpHostCheck: pvpHostCheck, spawnDomain: spawnDomain, step: (dt) => { run.time += 0; } };
+        hurtPvp: hurtPvp, dealPvp: dealPvp, doParry: doParry, doUltimate: doUltimate, pvp: pvp, rushStartPhase: rushStartPhase, rushPd: rushPd, REF: () => REF_HP, hurtMe: hurtMe, healMe: healMe, addHp: addHp, healMul: healMul, sdAtkMul: sdAtkMul, sdDefMul: sdDefMul, stunMe: stunMe, spawnEnemy: spawnEnemy, DIFF: () => DIFF, SC: SC, tally: tallyDmg, dmgOf: dmgOf, pvpHostCheck: pvpHostCheck, spawnDomain: spawnDomain, accSlots: accSlots, accFire: accFire, accEvent: accEvent, rollAcc: rollAcc, BAG: BAG, corrAsk: corrAsk, corrEscape: corrEscape, corrGiveUp: corrGiveUp, corrProp: corrProp, corrGiveItem: corrGiveItem, get allies() { return allies; }, get isHost() { return isHost; }, step: (dt) => { run.time += 0; } };
     requestAnimationFrame(loop);
 })();
