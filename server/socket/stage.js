@@ -23,7 +23,7 @@
 const MAX_MEMBERS = 4;
 const MAX_BY_STAGE = { pvp_3v3: 6 };            // 3v3 は6人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
-const MAX_RELAY_BYTES = 30000;
+const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room
 const socketRoom = new Map();     // socket.id -> roomId
 
@@ -130,7 +130,7 @@ module.exports = function (io) {
         socket.on("stage:relay", (msg) => {
             const r = rooms.get(socketRoom.get(socket.id));
             if (!r || !msg || typeof msg.t !== "string" || msg.t.length > 12) return;
-            const hot = msg.t === "pos" || msg.t === "snap";   // 毎秒10回以上流れる「位置」「状態スナップショット」
+            const hot = msg.t === "pos" || msg.t === "snap" || msg.t === "mn";   // 毎秒10回以上流れる「位置」「状態スナップショット」「ミニオンの位置」
             if (!hot) {   // 高頻度メッセージは固定形式なので毎回JSON化してサイズを測る必要はない（それ自体がCPUを食う）
                 let size = 0;
                 try { size = JSON.stringify(msg.d || {}).length; } catch (e) { return; }
