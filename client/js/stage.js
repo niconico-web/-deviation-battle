@@ -47,6 +47,11 @@
     const MOB_HP_MUL = 0.6, MOB_DMG_MUL = 0.85, MOB_GROUP_MUL = 1.5;   // 雑魚の体力・攻撃は下げ、1グループの数を増やす（爽快感のため。精鋭とボスは変えない）
     // 通常攻撃もエネルギーを使う：1秒ぶん連打したときの消費量（武器の攻撃間隔に比例。重い武器ほど1振りが高い）
     const ATK_ENERGY_PER_SEC = 4;
+    // 溜め（詠唱）：この形のスキルは、ボタンを押してから発動までこの秒数のあいだ動けない（攻撃・ダッシュ・ほかのスキルもできない）。スタンされると中断
+    const CHARGE_SEC = { laser: 0.8, barrage: 1.2, domain: 1.5, summon: 1.2 };
+    const CHARGE_NAME = { laser: 'レーザー', barrage: '包囲弾幕', domain: '結界（領域）', summon: 'ミニオン召喚' };
+    // 守りの溜め：ボタンを押し続けて GUARD_CHARGE 秒溜めると、GUARD_SEC 秒のあいだ相手の攻撃を完全に防ぐバリアが張れる（そのあいだ動ける）。使ったあとは GUARD_CD 秒使えない
+    const GUARD_CHARGE = 3, GUARD_SEC = 3, GUARD_CD = 15;
     const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
     const SNAP_HZ = 16;
@@ -202,6 +207,12 @@
             rocks.push({ x: x, y: y, r: 26 + r() * 38 });
         }
     })();
+    // 移動を小さな歩幅（6px以下）に刻んで、1歩ごとに壁・岩から押し出す。
+    // 1フレームで大きく動いたとき（ダッシュ・ノックバック・処理落ち）に、薄い壁の向こうへ一気に抜けてしまうのを防ぐ
+    function moveSolid(o, dx, dy, rad) {
+        const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 6)), sx = dx / n, sy = dy / n;
+        for (let i = 0; i < n; i++) { o.x += sx; o.y += sy; pushOutOfRocks(o, rad); }
+    }
     function pushOutOfRocks(o, rad) {
         for (const k of rocks) {
             const d = dist(o.x, o.y, k.x, k.y), m = k.r + rad;
@@ -213,7 +224,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, cast: null, gch: 0, guardT: 0, guardCd: 0, gMsgT: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -242,6 +253,7 @@
         stats: { kills: 0, dmg: 0, loot: [], coins: 0, orbs: 0, mats: {} } };
     let isHost = true, room = null, socket = null;
     let spawnT = 1.5, snapT = 0, posT = 0, posSeq = 0, snapSeq = 0, lastSnapQ = -1, lastSnapAt = 0, snapAge = 0;
+    let lastHt = null;      // 直前のスナップショットのホスト側の時刻（ms）
     let snapBytes = 0, netPing = -1, netPingT = 0, netPingBusy = false;      // 直近のスナップショットの大きさ／通信の遅れ（ms）
     const posLast = { x: 0, y: 0, t: performance.now() };
 
@@ -303,7 +315,7 @@
         switch (m.t) {
             case 'pos':
                 if (a && !(d.q < a.pq)) { a.pq = d.q; a.vx = clamp(+d.vx || 0, -900, 900); a.vy = clamp(+d.vy || 0, -900, 900); a.pt = performance.now(); if (d.tp) { a.x = d.x; a.y = d.y; a.vx = 0; a.vy = 0; } }
-                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; if (d.tt > 0) a.tt = d.tt; if (d.ti !== undefined) a.ti = (window.SBAch && SBAch.isTitleText(d.ti)) ? d.ti : ''; }
+                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; a.g = !!d.g; if (d.tt > 0) a.tt = d.tt; if (d.ti !== undefined) a.ti = (window.SBAch && SBAch.isTitleText(d.ti)) ? d.ti : ''; }
                 break;
             case 'esc':     // 無限回廊：仲間が脱出した（倒れた扱いにして、敵に狙われないようにする）
                 if (a) { a.esc = true; a.dead = true; popups.push({ x: a.x, y: a.y - 30, t: 1.6, text: '脱出！', c: '#9fe8ff', big: true }); }
@@ -407,11 +419,12 @@
         if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') doDash();
         const sk = { KeyZ: 0, KeyX: 1, KeyC: 2, KeyV: 3 }[e.code]; if (sk !== undefined) castSkill(sk);
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
+        if (e.code === 'KeyB' && !e.repeat) startGuard();
         if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
         if (/^Digit[1-4]$/.test(e.code)) quizPick(parseInt(e.code.slice(5), 10) - 1);
         if (e.code.indexOf('Arrow') === 0 || e.code === 'Space') e.preventDefault();
     });
-    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'KeyB') cancelGuard(); });
     canvas.addEventListener('mousemove', (e) => { input.aimX = e.clientX; input.aimY = e.clientY; input.aimOn = true; });
     canvas.addEventListener('mousedown', (e) => { if (e.button === 2) { doDash(); return; } input.mouseDown = true; input.aimX = e.clientX; input.aimY = e.clientY; input.aimOn = true; });
     window.addEventListener('mouseup', () => { input.mouseDown = false; });
@@ -438,6 +451,8 @@
     const endPtr = (e) => { [input.stick, input.aimStick].forEach(st => { if (st.id === e.pointerId) { st.id = null; st.x = 0; st.y = 0; } }); };
     canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
     document.getElementById('btnDash').addEventListener('pointerdown', (e) => { e.preventDefault(); doDash(); });
+    const btnG = document.getElementById('btnGuard');
+    if (btnG) { btnG.addEventListener('pointerdown', (e) => { e.preventDefault(); startGuard(); }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btnG.addEventListener(ev, cancelGuard)); }
 
     // ---------- 敵生成（ホスト）----------
     // 敵の攻撃力は「基準HPに対する割合」で持つ（各プレイヤーが自分のHPに換算して受けるので、協力でも公平）
@@ -870,6 +885,7 @@
     // 相手の攻撃を受けたとき（ダメージは自分の最大HPの割合）
     function hurtPvp(f, kx, ky, st, by) {
         if (me.dead || me.invHard > 0 || run.phase !== 'run' || me.inv > 0) return;
+        if (me.guardT > 0) { guardBlock(); return; }
         if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.1; return; }
         if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.4; return; }
         let dmg = Math.max(1, Math.round(f * me.maxHp * (1 - Math.min(0.75, Math.max(-0.5, A('dr'))) * sdDefMul()) * (1 + A('dmgTaken')) * (me.stunT > 0 ? 1 - 0.4 * sdDefMul() : 1)));   // サドンデスで、ダメージ軽減（防御）の効き目が下がっていく
@@ -878,7 +894,7 @@
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (by) { const pct = +(lost / me.maxHp * 100).toFixed(2); tallyDmg(by, pct); netSend('pvpd', { by: by, p: pct }); }   // 実際に減った分を「与ダメージ」として、全員の画面で記録する
-        if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
+        if (kx || ky) { moveSolid(me, clamp(kx, -400, 400) * 0.05, clamp(ky, -400, 400) * 0.05, me.r); }
         if (me.hp <= 0 && AB('guts') && !(me.gutsT > 0)) { me.hp = 1; me.gutsT = 45; me.inv = Math.max(me.inv, 1.0); popups.push({ x: me.x, y: me.y - 40, t: 1.3, text: '根性！ HP1で耐えた', c: '#ffd84a', big: true }); }
         if (me.hp <= 0) { me.hp = 0; me.dead = true; me.stunT = 0; me.orb = null; announce('倒れた…　決着を見届けよう', 2400); }
         else if (st && st.stun) stunMe(st.stun);
@@ -1044,7 +1060,7 @@
             if (wg) setTimeout(() => announce(wg.unlock.clearText, 5200), 700);
         }
         run.stats.kills++;
-        try { if (window.SBAch) SBAch.report('kill', ev.boss ? 1 : 0); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
+        try { if (window.SBAch && !DBG) SBAch.report('kill', ev.boss ? 1 : 0); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         if (ev.rb) { rushKillReward(ev); return; }          // ボスラッシュ：専用の報酬
         { const al = A('rarePct') + DIFF.luck;      // アクセサリー：ボス・精鋭・雑魚の順に出にくい
           if (ev.boss && Math.random() < 0.45 + 0.1 * al) rollAcc(al, 'magic', ev.x + 14, ev.y); else if (ev.elite && Math.random() < 0.05 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); else if (!ev.part && !ev.boss && Math.random() < 0.004 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); }
@@ -1167,9 +1183,44 @@
         enemies.forEach(e => { if (e.hp > 0 && dist(e.x, e.y, x, y) < r + e.r) dealHit(e, dm, {}); });
     }
 
+    // ---------- 守りの溜め（バリア）----------
+    function startGuard() {
+        if (me.dead || me.stunT > 0 || run.phase !== 'run' || me.cast || me.gch > 0 || me.guardT > 0) return;
+        if (me.guardCd > 0) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'バリアはあと' + Math.ceil(me.guardCd) + '秒', c: '#ff9a9a' }); return; }
+        me.gch = 0.001; me.dashT = 0;
+    }
+    function cancelGuard() { if (me.gch > 0) { me.gch = 0; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: '溜め中断', c: '#ff9a9a' }); } }
+    // 溜め・バリアの時間を進める（updateMe の頭で毎フレーム呼ぶ）
+    function tickCharge(dt) {
+        if (me.gMsgT > 0) me.gMsgT -= dt;
+        if (me.guardCd > 0) me.guardCd -= dt;
+        if (me.dead || run.phase !== 'run') { me.cast = null; me.gch = 0; me.guardT = 0; return; }
+        if (me.guardT > 0) me.guardT -= dt;
+        if (me.stunT > 0) {
+            if (me.cast) { const sl = skillSlots[me.cast.slot]; if (sl) { me.energy = Math.min(ENERGY_MAX, me.energy + sl.cost); updateEnergyUI(); } me.cast = null; popups.push({ x: me.x, y: me.y - 30, t: 0.9, text: '溜め中断！', c: '#ff9a9a' }); }
+            me.gch = 0; return;
+        }
+        if (me.cast) {
+            me.cast.t -= dt;
+            if (me.cast.t <= 0) { const sl = me.cast.slot; me.cast = null; castSkill(sl, true); }
+        }
+        if (me.gch > 0) {
+            me.gch += dt;
+            if (me.gch >= GUARD_CHARGE) {
+                me.gch = 0; me.guardT = GUARD_SEC; me.guardCd = GUARD_CD;
+                popups.push({ x: me.x, y: me.y - 40, t: 1.1, text: '🛡 バリア展開！', c: '#8fe8ff', big: true });
+                fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 90, t: 0.4, life: 0.4, c: '#8fe8ff' });
+            }
+        }
+    }
+    function guardBlock() {      // バリア中は攻撃を完全に防ぐ（連続で当たるときは、表示を出しすぎない）
+        if (me.gMsgT <= 0) { me.gMsgT = 0.35; popups.push({ x: me.x, y: me.y - 28, t: 0.6, text: 'BLOCK', c: '#8fe8ff' }); fx.push({ k: 'ring', x: me.x, y: me.y, r: 20, max: 44, t: 0.2, life: 0.2, c: '#8fe8ff' }); }
+    }
+
     // ---------- 被ダメージ ----------
     function hurtMe(raw, opt) {
         if (me.dead || me.invHard > 0 || run.phase !== 'run') return;
+        if (me.guardT > 0) { guardBlock(); return; }
         if (me.inv > 0 && !(opt && opt.stun)) return;   // 被弾直後の無敵はスタン攻撃には効かない（小弾に隠されて不発になるのを防ぐ）
         if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.25; return; }
         if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.5; return; }
@@ -1202,6 +1253,7 @@
     // スタン：約3秒、移動・攻撃・ダッシュ・スキルがすべて使えない（クイズの回答だけは可能）
     function stunMe(sec) {
         if (me.dead || me.stunT > 0 || me.stunImm > 0) return;
+        if (me.guardT > 0) { guardBlock(); return; }
         if (AB('iron_will') && Math.random() < 0.5) { popups.push({ x: me.x, y: me.y - 40, t: 1.0, text: '耐性！', c: '#9fe0ff', big: true }); return; }   // 不動の心：状態異常を50%無効化
         if (PVP) sec = Math.min(sec, PVP_STUN_MAX);      // 対人戦のスタンは短く
         me.stunT = sec; me.dashT = 0; me.dashBlast = 0;
@@ -1385,7 +1437,7 @@
     }
 
     function doDash() {
-        if (me.dead || me.stunT > 0 || me.dashCd > 0 || run.phase !== 'run') return;
+        if (me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.dashCd > 0 || run.phase !== 'run') return;
         if (A('noDash') > 0) { if (me.noDashMsg !== true) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'ダッシュ不可', c: '#ff9a9a' }); me.noDashMsg = true; setTimeout(() => { me.noDashMsg = false; }, 1500); } return; }
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
@@ -1472,11 +1524,21 @@
         else if (key === 'barrier') { me.barrierHp = (me.barrierHp || 0) + Math.max(10, Math.round(me.maxHp * 0.25)); tag('バリア', '#7fc8ff'); }
     }
 
-    function castSkill(slot) {
+    function castSkill(slot, charged) {      // charged=true は、溜めが終わって実際に発動するとき
         const s = skillSlots[slot];
-        if (!s || me.dead || me.stunT > 0 || run.phase !== 'run' || s.cdLeft > 0) return;
-        if (me.energy < s.cost) { flashEnergy(); return; }
-        me.energy -= s.cost; s.cdLeft = s.cooldown * (1 + A('skillCdUp')); updateEnergyUI(); accEvent('skill');
+        if (!s || me.dead || me.stunT > 0 || run.phase !== 'run') return;
+        if (!charged) {
+            if (s.cdLeft > 0 || me.cast || me.gch > 0) return;
+            if (me.energy < s.cost) { flashEnergy(); return; }
+            me.energy -= s.cost; s.cdLeft = s.cooldown * (1 + A('skillCdUp')); updateEnergyUI();
+            const cs = CHARGE_SEC[s.params.form] || 0;
+            if (cs > 0) {      // 溜め開始：エネルギーとクールタイムは先に使う。発動の向きと狙いは、溜め終わりの瞬間に決まる
+                me.cast = { slot: slot, t: cs, max: cs, form: s.params.form }; me.dashT = 0; me.ang = aimAngle();
+                popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '溜め…' + (CHARGE_NAME[s.params.form] || ''), c: '#ffe08a' });
+                return;
+            }
+        }
+        accEvent('skill');
         if (GMK === 'dimension' && G.dp === 1) { if (isHost) hostReflect(me.x, me.y); else netSend('refl', { x: Math.round(me.x), y: Math.round(me.y) }); }   // スキルのタイミングで放射弾を跳ね返す
         const p = s.params, ang = aimAngle(); me.ang = ang;
         popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: s.skill.name, c: '#9df0ff' });
@@ -1879,6 +1941,7 @@
     // ---------- 更新 ----------
     function updateMe(dt) {
         accTick(dt);
+        tickCharge(dt);
         if (A('selfBleed') > 0 && !me.dead && run.phase === 'run') me.hp = Math.max(1, me.hp - me.maxHp * A('selfBleed') * dt);      // 血の契約（HP1で止まる）
         me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
         if (me.dead) {
@@ -1892,7 +1955,7 @@
             me.stunT -= dt; me.dashT = 0;
             if (me.stunT <= 0) { me.stunT = 0; me.stunImm = PVP ? PVP_STUN_IMM : STUN_IMM; popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '復帰！', c: '#9df0ff' }); }
         } else if (me.stunImm > 0) me.stunImm -= dt;
-        const stunned = me.stunT > 0;
+        const stunned = me.stunT > 0 || !!me.cast || me.gch > 0;      // 動けない（スタン・スキルの溜め・守りの溜め）
         // 移動
         let mx = (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) - (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0) + input.stick.x;
         let my = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0) + input.stick.y;
@@ -1900,9 +1963,9 @@
         input.mx = mx; input.my = my;
         const sp = P.move * (me.haste > 0 ? 1.3 : 1);
         if (me.dashT > 0) {
-            me.dashT -= dt; me.x += me.dashVX * dt; me.y += me.dashVY * dt;
+            me.dashT -= dt; moveSolid(me, me.dashVX * dt, me.dashVY * dt, me.r);
             if (me.dashT <= 0 && me.dashBlast) { const v = me.dashBlast; me.dashBlast = 0; fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 130, t: 0.3, life: 0.3, c: '#cfe8ff' }); enemies.forEach(e => { if (e.hp > 0 && dist(e.x, e.y, me.x, me.y) < 140 + e.r) dealHit(e, weapon.dmg * P.atkMul * v, { kx: (e.x - me.x) * 3, ky: (e.y - me.y) * 3 }); }); }
-        } else if (!stunned) { me.x += mx * sp * dt; me.y += my * sp * dt; }
+        } else if (!stunned) { moveSolid(me, mx * sp * dt, my * sp * dt, me.r); }
         pushOutOfRocks(me, me.r);
         if (input.aimOn && !isTouch) me.ang = Math.atan2(input.aimY - (VH / 2 + (me.y - cam.y)), input.aimX - (VW / 2 + (me.x - cam.x)));
         if (!stunned && wantsAttack() && me.atkCd <= 0 && run.phase === 'run') doAttack();
@@ -2131,7 +2194,7 @@
         if (!GMK || !run.bossSpawned || run.phase !== 'run') return;
         if (pullFx && pullFx.t > 0) {
             pullFx.t -= dt;
-            if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { me.x = clamp(me.x + dx / d * pullFx.f * dt, 20, WORLD_W - 20); me.y = clamp(me.y + dy / d * pullFx.f * dt, 20, WORLD_H - 20); pushOutOfRocks(me, me.r); } }
+            if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { moveSolid(me, dx / d * pullFx.f * dt, dy / d * pullFx.f * dt, me.r); } }
         }
         if (GMK === 'stigma') {
             if (me.stg == null) me.stg = 0;
@@ -2189,7 +2252,7 @@
             m.b = nearestN(m.b, nb, 1, 2); m.t = nearestN(m.t, nt, 1, 2); len = JSON.stringify(m).length;
         }
         if (m.b.length > nb) m.b = nearestN(m.b, nb, 1, 2);
-        m.q = ++snapSeq; snapBytes = len;
+        m.q = ++snapSeq; m.ht = Math.round(performance.now()); snapBytes = len;      // ht：ホスト側で作った時刻（受け取る側が、届く間隔のばらつきに惑わされず速度を出せるように）
         return m;
     }
     function makeSnap0() {
@@ -2205,6 +2268,7 @@
     function applySnap(s) {
         if (s.q != null) { if (s.q <= lastSnapQ && s.q > lastSnapQ - 50) return; lastSnapQ = s.q; }      // 古い・順番が入れ替わったスナップショットは捨てる
         const nowS = performance.now(), dtS = clamp((nowS - (lastSnapAt || nowS - 80)) / 1000, 0.03, 0.4); lastSnapAt = nowS; snapAge = 0;
+        const dtH = (s.ht != null && lastHt != null) ? clamp((s.ht - lastHt) / 1000, 0.03, 0.4) : dtS; if (s.ht != null) lastHt = s.ht;      // 速度は、ホストが作った間隔で割る
         run.kills = s.k; run.need = s.n; run.time = s.tm; if (s.bs && !run.bossSpawned) run.bossSpawned = true;
         if (RUSH_ON && s.rs) {      // ボスラッシュ：フェーズが進んだら、敵の強さの基準を合わせ、幕間に入ったら回復する
             const prevSt = RS.st, prevPh = RS.ph;
@@ -2217,11 +2281,11 @@
         const old = {}; enemies.forEach(e => { old[e.id] = e; });
         enemies = s.e.map(a => {
             const o = old[a[0]] || { x: a[3], y: a[4], flash: 0 };
-            let evx = 0, evy = 0; if (o.tx != null) { evx = clamp((a[3] - o.tx) / dtS, -1400, 1400); evy = clamp((a[4] - o.ty) / dtS, -1400, 1400); if (Math.hypot(a[3] - o.tx, a[4] - o.ty) > 380) { evx = evy = 0; o.x = a[3]; o.y = a[4]; } }      // 前の位置との差から速度を求めて、次が届くまで先読みする。瞬間移動は補間しない
-            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], vx: evx, vy: evy, hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
+            let evx = 0, evy = 0; if (o.sx != null) { evx = clamp((a[3] - o.sx) / dtH, -1400, 1400); evy = clamp((a[4] - o.sy) / dtH, -1400, 1400); if (o.vx != null) { evx = o.vx * 0.4 + evx * 0.6; evy = o.vy * 0.4 + evy * 0.6; } if (Math.hypot(a[3] - o.sx, a[4] - o.sy) > 380) { evx = evy = 0; o.x = a[3]; o.y = a[4]; } }      // 前の位置との差から速度を求めて、次が届くまで先読みする。瞬間移動は補間しない
+            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], sx: a[3], sy: a[4], vx: evx, vy: evy, hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
         });
         const oldB = {}; eBullets.forEach(x => { oldB[x.id] = x; });
-        eBullets = s.b.map(a => { const o = oldB[a[0]]; const bvx = o && o.tx != null ? clamp((a[1] - o.tx) / dtS, -1800, 1800) : 0, bvy = o && o.tx != null ? clamp((a[2] - o.ty) / dtS, -1800, 1800) : 0; return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], vx: bvx, vy: bvy, r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
+        eBullets = s.b.map(a => { const o = oldB[a[0]]; const bvx = o && o.sx != null ? clamp((a[1] - o.sx) / dtH, -1800, 1800) : 0, bvy = o && o.sx != null ? clamp((a[2] - o.sy) / dtH, -1800, 1800) : 0; return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], sx: a[1], sy: a[2], vx: bvx, vy: bvy, r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
         // クライアント側の弾はダメージ値を持たないので、ホストが送った値で最小限の被弾を行う（体当たり相当）
         telegraphs = s.t.map(a => ({ id: a[0], x: a[1], y: a[2], r: a[3], t: a[4], max: a[5], c: a[6], sh: a[7] || null, a: a[8], arc: a[9], ri: a[10], w: a[11], stun: !!a[12], live: !!a[13] }));
         eBullets.forEach(b => { b.dmg = foeDmg('ranged', false, false); });
@@ -2626,7 +2690,7 @@
         corrScaleFloor(f);
         corrGen(f, spawn !== false);
         corrPlaceMe();
-        try { if (window.SBAch) SBAch.report('corrFloor', f); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
+        try { if (window.SBAch && !DBG) SBAch.report('corrFloor', f); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         if (me.dead && !me.escaped) { me.dead = false; me.stg = 0; me.reviveT = 0; me.hp = Math.round(me.maxHp * 0.4); }      // 倒れていた仲間も、次の階層へは連れていける
         if (f > 1 && !me.escaped) { run.stats.floors = f - 1; run.stats.coins += Math.round((1 + corrIlvl(f - 1) * 0.6) * 6 * (1 + A('goldPct'))); addHp(me.maxHp * 0.15); announce('🌀 地下' + f + '階　' + CF.pal.n + (CF.theme.n ? '「' + CF.theme.n + '」' : ''), 2000); if (CF.theme.d) setTimeout(() => { if (CF.floor === f) announce(CF.theme.d, 2600); }, 2100); }
         CF.fade = 0.6;
@@ -2738,10 +2802,11 @@
         if (!CF.on) return;
         corrEnterBossLocal(p.i);
         CF.saved.enemies = CF.saved.enemies; CF.portalIdx = p.i;
-        const tier = clamp(Math.round(1 + CF.floor / 4.5 + rnd(-1.2, 1.2)), 1, 10), bd = CD.bosses[tier - 1];
+        const tier = (DBG && DBG.corrBoss) ? clamp(DBG.corrBoss | 0, 1, 10) : clamp(Math.round(1 + CF.floor / 4.5 + rnd(-1.2, 1.2)), 1, 10), bd = CD.bosses[tier - 1];      // デバッグ戦闘では、ボスを指定できる
         applyScale(corrPartyTotal(), corrIlvl(CF.floor) + 4, { hp: 1, dmg: 1, spd: 1.05 }); SC.hpMul = 1.2 + tier * 0.1;
         const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W - 420, WORLD_H / 2, true, false, corrPartyTotal() * corrMul(CF.floor) * bd.mul * 1.35);
         b.bd = { name: bd.name, icon: bd.icon, color: bd.color, stand: true, patterns: ['radial'], set: bd.set }; b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null; b.cboss = tier; b.spd = 60 * PW.spd; b.t = -1.5;
+        if (DBG && DBG.hp > 0 && DBG.hp !== 1) b.maxHp = b.hp = Math.max(1, Math.round(b.maxHp * DBG.hp));
         run.bossSpawned = true; run.bossDead = false;
         netAnnounce('⚠ ' + bd.name + ' が現れた！', 2800);
     }
@@ -2840,7 +2905,8 @@
             corrMakeRetreatBtn();
             if (isHost) {      // 迷路はホストが決める（シード）。仲間にはスナップショットで伝わり、同じ迷路が作られる
                 CF.seed = (Math.random() * 4294967295) >>> 0;
-                const go = () => { if (run.phase === 'run' && !CF.rc) corrNewFloor(Math.max(1, Math.min(launch.startFloor | 0 || 1, Math.max(1, hack.corridorBest | 0 || 1))), true); };      // 行ったことのある階層（最深まで）から始められる
+                const go = () => { if (run.phase === 'run' && !CF.rc && DBG && DBG.corrBoss) { const tb = clamp(DBG.corrBoss | 0, 1, 10); corrNewFloor(DBG.floor > 0 ? DBG.floor | 0 : Math.max(1, Math.round((tb - 1) * 4.5 + 1)), true); const pt = CF.props.find(q => q.k === 'portal'); corrEnterBoss({ i: pt ? pt.i : 0 }); return; }      // デバッグ戦闘：その階層を作ってすぐボス部屋へ
+                    if (run.phase === 'run' && !CF.rc) corrNewFloor(Math.max(1, Math.min(launch.startFloor | 0 || 1, Math.max(1, hack.corridorBest | 0 || 1))), true); };      // 行ったことのある階層（最深まで）から始められる
                 if (partyCount() > 1) setTimeout(go, 700); else go();      // マルチのときは、仲間のステータス（敵の強さの基準）が届くのを少し待つ
             }
             announce('🌀 無限回廊　階段を探して下へ！　持ち帰るには「脱出ゲート」から脱出', 3400);
@@ -3144,6 +3210,38 @@
     // ---------- HUD ----------
     const el = id => document.getElementById(id);
     function drawHUD() {
+        // 溜め・バリアの表示（自分の頭上のゲージ／足もとの輪）と、仲間のバリア
+        {
+            const msx = VW / 2 + (me.x - cam.x), msy = VH / 2 + (me.y - cam.y), tt = performance.now() / 1000;
+            const gauge = (frac, col, label) => {
+                const w = 64, x0 = msx - w / 2, y0 = msy - 58;
+                ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x0 - 2, y0 - 2, w + 4, 9); ctx.fillStyle = col; ctx.fillRect(x0, y0, w * Math.max(0, Math.min(1, frac)), 5);
+                ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(label, msx, y0 - 5); ctx.fillStyle = '#fff'; ctx.fillText(label, msx, y0 - 5);
+            };
+            const ring = (r, col, alpha, lw) => { ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(msx, msy, r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; };
+            if (me.cast && !me.dead) {
+                const f = 1 - me.cast.t / me.cast.max;
+                ring(60 - 40 * f, '#ffe08a', 0.35 + 0.5 * f, 3); ring(20 + 14 * Math.sin(tt * 18), '#fff2b8', 0.5, 2);
+                gauge(f, '#ffe08a', '溜め ' + (CHARGE_NAME[me.cast.form] || ''));
+            }
+            if (me.gch > 0 && !me.dead) {
+                const f = me.gch / GUARD_CHARGE;
+                ring(70 - 45 * f, '#8fe8ff', 0.3 + 0.5 * f, 3);
+                gauge(f, '#8fe8ff', '🛡 バリアを溜めている… ' + Math.max(0, GUARD_CHARGE - me.gch).toFixed(1));
+            }
+            if (me.guardT > 0 && !me.dead) {
+                const f = me.guardT / GUARD_SEC;
+                ctx.fillStyle = 'rgba(143,232,255,0.16)'; ctx.beginPath(); ctx.arc(msx, msy, 38, 0, Math.PI * 2); ctx.fill();
+                ring(38 + 2 * Math.sin(tt * 10), '#8fe8ff', 0.85, 3);
+                ctx.globalAlpha = 0.9; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(msx, msy, 44, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * f); ctx.stroke(); ctx.globalAlpha = 1;
+            }
+            Object.keys(allies).forEach(id => {
+                const a = allies[id]; if (!a.g || a.dead) return;
+                const ax = VW / 2 + (a.x - cam.x), ay = VH / 2 + (a.y - cam.y);
+                ctx.fillStyle = 'rgba(143,232,255,0.14)'; ctx.beginPath(); ctx.arc(ax, ay, 36, 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 0.8; ctx.strokeStyle = '#8fe8ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ax, ay, 36 + 2 * Math.sin(tt * 10), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+            });
+        }
         // 通信の状態（Ping と接続方式）：マルチのカクつきの原因を見分けるため、右上に小さく出す
         if (socket && room) {
             const nowP = performance.now();
@@ -3326,7 +3424,7 @@
                 const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
                 const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
                 posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
-                netSend('pos', { ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
             }
             snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { const sn = makeSnap(); snapT = 1 / (snapBytes > 11000 ? 10 : SNAP_HZ); netSend('snap', sn); }      // 大きいスナップショットのときは送る回数を減らす（回線が細い人が詰まらないように）
         } else if (run.phase === 'end') { updateShots(dt); }
