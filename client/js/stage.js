@@ -184,10 +184,7 @@
     const ctx = canvas.getContext('2d');
     let VW = 960, VH = 540, DPR = 1;
     function fit() {
-        // 高DPI端末の2倍キャンバスは、4人対戦時に描画量が4倍になる。
-        // PvPは応答性を優先し、低コア端末ではさらに軽い解像度にする。
-        const lowSpec = (navigator.hardwareConcurrency || 8) <= 4;
-        DPR = Math.min(PVP ? (lowSpec ? 1.15 : 1.5) : (lowSpec ? 1.5 : 2), window.devicePixelRatio || 1);
+        DPR = Math.min(2, window.devicePixelRatio || 1);
         VW = window.innerWidth; VH = window.innerHeight;
         canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
         canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
@@ -216,7 +213,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, dashStrike: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -245,6 +242,7 @@
         stats: { kills: 0, dmg: 0, loot: [], coins: 0, orbs: 0, mats: {} } };
     let isHost = true, room = null, socket = null;
     let spawnT = 1.5, snapT = 0, posT = 0, posSeq = 0, snapSeq = 0, lastSnapQ = -1, lastSnapAt = 0, snapAge = 0;
+    let snapBytes = 0, netPing = -1, netPingT = 0, netPingBusy = false;      // 直近のスナップショットの大きさ／通信の遅れ（ms）
     const posLast = { x: 0, y: 0, t: performance.now() };
 
     // ---------- ネットワーク ----------
@@ -254,8 +252,9 @@
 
     function setupNet() {
         if (typeof io !== 'function') return false;
-        socket = io();
+        socket = io({ transports: ['websocket', 'polling'], reconnectionDelay: 500, reconnectionDelayMax: 3000 });      // 最初から WebSocket で接続する（既定の polling 始まりだと、回線によっては切り替わらず重いままになる）
         socket.on('connect', () => {
+            netPingT = 0;
             const payload = { player: { id: myId, name: myName, wname: weapon.name, rar: weapon.rarity }, stageId: stage.id, diff: parseInt(launch.diff, 10) || 0 };
             if (launch.mode === 'create') socket.emit('stage:create', payload);
             else if (launch.mode === 'join') socket.emit('stage:join', Object.assign({ roomId: launch.roomId }, payload));
@@ -304,7 +303,7 @@
         switch (m.t) {
             case 'pos':
                 if (a && !(d.q < a.pq)) { a.pq = d.q; a.vx = clamp(+d.vx || 0, -900, 900); a.vy = clamp(+d.vy || 0, -900, 900); a.pt = performance.now(); if (d.tp) { a.x = d.x; a.y = d.y; a.vx = 0; a.vy = 0; } }
-                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; if (d.tt > 0) a.tt = d.tt; }
+                if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; if (d.tt > 0) a.tt = d.tt; if (d.ti !== undefined) a.ti = (window.SBAch && SBAch.isTitleText(d.ti)) ? d.ti : ''; }
                 break;
             case 'esc':     // 無限回廊：仲間が脱出した（倒れた扱いにして、敵に狙われないようにする）
                 if (a) { a.esc = true; a.dead = true; popups.push({ x: a.x, y: a.y - 30, t: 1.6, text: '脱出！', c: '#9fe8ff', big: true }); }
@@ -845,17 +844,7 @@
     //  ・相手は自分の画面では「敵」として扱う（pvp ダミー）ので、武器・スキル・特殊効果は今までの攻撃がそのまま使える
     //  ・ダメージはステータスに関係なく「相手の最大HPの割合」。基準の一撃（自分の素のステータスでの武器1振り）= 4.5%
     //    → 武器の％・種類・クリティカル・スキル・特殊効果の勝負になる（ステータス差で圧倒されない）
-    // PvP は成長・装備を「基準火力」に使いつつ、一撃死を防ぐ割合ダメージ方式。
-    // 従来より基礎を少し下げ、コンボ・パリィ・任意必殺でテンポと読み合いを作る。
-    const PVP_BASE = 0.036, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
-    const PVP_COMBO_WINDOW = 1.15, PVP_COMBO_MAX = 8;
-    const pvp = { combo: 0, comboT: 0 };
-    function pvpComboMul() { return 1 + Math.min(PVP_COMBO_MAX, pvp.combo) * 0.018; }
-    function pvpResetCombo() { pvp.combo = 0; pvp.comboT = 0; }
-    function pvpLandHit() {
-        pvp.combo = Math.min(PVP_COMBO_MAX, pvp.combo + 1); pvp.comboT = PVP_COMBO_WINDOW;
-        if (pvp.combo > 1) popups.push({ x: me.x, y: me.y - 44, t: 0.55, text: pvp.combo + ' COMBO', c: '#ffe08a' });
-    }
+    const PVP_BASE = 0.045, PVP_REF = HW.HIT_BASE * (0.6 + base.atk / 150);
     const pvpDummies = {};
     function syncPvpDummies() {
         const list = [];
@@ -872,10 +861,9 @@
     }
     function dealPvp(e, dmg, o) {
         // 1発のダメージ（相手の最大HPに対する割合）。上限はなし（通信の異常値だけ弾く）。サドンデスで時間とともに攻撃力が上がる
-        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul() * pvpComboMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
+        let f = PVP_BASE * dmg / PVP_REF * sdAtkMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
         popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
         run.stats.dmg += f * 100; e.flash = 0.1;
-        if (f > 0) pvpLandHit();
         const st = o.st && o.st.stun ? { stun: Math.min(PVP_STUN_MAX, typeof o.st.stun === 'number' ? o.st.stun : 1) } : null;
         netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st });
     }
@@ -888,7 +876,6 @@
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); if (dmg <= 0) { me.inv = 0.1; return; } }
         const lost = Math.min(me.hp, dmg);
         me.hp -= dmg; me.inv = 0.06; me.flash = 0.2;
-        pvpResetCombo();
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         if (by) { const pct = +(lost / me.maxHp * 100).toFixed(2); tallyDmg(by, pct); netSend('pvpd', { by: by, p: pct }); }   // 実際に減った分を「与ダメージ」として、全員の画面で記録する
         if (kx || ky) { me.x += clamp(kx, -400, 400) * 0.05; me.y += clamp(ky, -400, 400) * 0.05; pushOutOfRocks(me, me.r); }
@@ -1057,6 +1044,7 @@
             if (wg) setTimeout(() => announce(wg.unlock.clearText, 5200), 700);
         }
         run.stats.kills++;
+        try { if (window.SBAch) SBAch.report('kill', ev.boss ? 1 : 0); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         if (ev.rb) { rushKillReward(ev); return; }          // ボスラッシュ：専用の報酬
         { const al = A('rarePct') + DIFF.luck;      // アクセサリー：ボス・精鋭・雑魚の順に出にくい
           if (ev.boss && Math.random() < 0.45 + 0.1 * al) rollAcc(al, 'magic', ev.x + 14, ev.y); else if (ev.elite && Math.random() < 0.05 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); else if (!ev.part && !ev.boss && Math.random() < 0.004 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); }
@@ -1208,7 +1196,7 @@
             if (p.key === 'hurtShield') me.shield = true;
             if (p.key === 'hurtNova') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.35, life: 0.35, c: '#ffe08a' }); enemies.forEach(e => { if (dist(e.x, e.y, me.x, me.y) < 170) { const a = Math.atan2(e.y - me.y, e.x - me.x); dealHit(e, weapon.dmg * P.atkMul * 0.8, { kx: Math.cos(a) * 300, ky: Math.sin(a) * 300 }); } }); }
         });
-        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('倒れた！ 仲間が近くに来れば復活できます', 2200); }
+        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
         else if (opt && opt.stun) stunMe(STUN_SEC);
     }
     // スタン：約3秒、移動・攻撃・ダッシュ・スキルがすべて使えない（クイズの回答だけは可能）
@@ -1248,7 +1236,6 @@
         if (e.hp >= e.maxHp) dmg *= 1 + A('dmgFull');
         if (me.hp / me.maxHp < 0.5) dmg *= 1 + A('rageAtk');
         if (me.empowerT > 0) dmg *= 1.35;
-        if (me.dashStrike > 0) dmg *= 1.18; // ダッシュ直後に踏み込むと、次の一撃が強くなる
         if (!e.pvp) {
             if (AB('re_miserable')) dmg *= 1.25;                              // リ・ミゼラブル：敵のHP0.8倍と同じ
             if (AB('penetration') && (e.boss || e.elite)) dmg *= 1.15;        // 貫通：防御を半分無視
@@ -1339,10 +1326,8 @@
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         me.atkCd = cdv;
-        const dashStrike = me.dashStrike > 0; me.dashStrike = 0;
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
         spawnAtkFx(d); netSend('atk', d);
-        if (dashStrike) { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 54, t: 0.18, life: 0.18, c: '#bfe6ff' }); addShake(1.2, 0.08); }
         if (T.sup === 'heal' || T.sup === 'buff' || T.sup === 'all') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
         if (AB('dual_weapon') && ((me.atkN = (me.atkN || 0) + 1) % 3) === 0) {
@@ -1405,7 +1390,7 @@
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
         const l = Math.hypot(mx, my) || 1;
-        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.dashStrike = 0.7; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
+        me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
         fx.push({ k: 'puff', x: me.x, y: me.y, t: 0.25, life: 0.25, c: '#bfe6ff' });
         agg.procs.filter(p => p.on === 'dash').forEach(p => { me.dashBlast = p.v; });
         accEvent('dash');
@@ -1955,8 +1940,7 @@
                 ghostShots.splice(i, 1);
             }
         }
-        const ghostCap = PVP ? 120 : 300;
-        if (ghostShots.length > ghostCap) ghostShots.splice(0, ghostShots.length - ghostCap);
+        if (ghostShots.length > 300) ghostShots.splice(0, ghostShots.length - 300);
     }
     function updateShots(dt) {
         updateGhostShots(dt);
@@ -2199,13 +2183,13 @@
     }
     function makeSnap() {
         const m = makeSnap0();
-        let nb = 200, nt = 60, len = JSON.stringify(m).length;
-        while (len > 24000 && nb > 20) {      // 大きすぎるときは、遠くの弾・予告から切り捨てる
+        let nb = 150, nt = 50, len = JSON.stringify(m).length;
+        while (len > 16000 && nb > 20) {      // 大きすぎるときは、遠くの弾・予告から切り捨てる
             nb = Math.floor(nb * 0.7); nt = Math.max(16, Math.floor(nt * 0.8));
             m.b = nearestN(m.b, nb, 1, 2); m.t = nearestN(m.t, nt, 1, 2); len = JSON.stringify(m).length;
         }
         if (m.b.length > nb) m.b = nearestN(m.b, nb, 1, 2);
-        m.q = ++snapSeq;
+        m.q = ++snapSeq; snapBytes = len;
         return m;
     }
     function makeSnap0() {
@@ -2472,13 +2456,13 @@
         }
     }
     // 深さごとの景色（5階ごとに変わる）と、階層ごとの特性（毎回同じ階層にならないように）
-    const CPALS = [
-        { n: '石の回廊', wall: '#2b2440', hi: 'rgba(190,170,255,0.16)', floor: null },
-        { n: '凍てつく洞窟', wall: '#1f3347', hi: 'rgba(170,230,255,0.22)', floor: '#2b3f55' },
-        { n: '溶岩の洞窟', wall: '#4a2418', hi: 'rgba(255,170,90,0.24)', floor: '#3b231c' },
-        { n: '古代遺跡', wall: '#4a4126', hi: 'rgba(255,230,140,0.22)', floor: '#3a3524' },
-        { n: '深き森', wall: '#1f3a28', hi: 'rgba(150,255,170,0.2)', floor: '#243a2a' },
-        { n: '虚無の回廊', wall: '#221a35', hi: 'rgba(255,120,230,0.2)', floor: '#150f24' }
+    const CPALS = [      // 床は明るめ、壁はとても暗め（明るさの差を大きくして、同系色でも境目が見えるようにする）。edge は壁のふちの線の色
+        { n: '石の回廊', wall: '#0e0a18', hi: 'rgba(190,170,255,0.30)', floor: '#4b4468', edge: 'rgba(210,195,255,0.75)' },
+        { n: '凍てつく洞窟', wall: '#0a1622', hi: 'rgba(170,230,255,0.34)', floor: '#46647f', edge: 'rgba(190,240,255,0.8)' },
+        { n: '溶岩の洞窟', wall: '#1c0b06', hi: 'rgba(255,170,90,0.36)', floor: '#6a4332', edge: 'rgba(255,190,120,0.8)' },
+        { n: '古代遺跡', wall: '#1a1608', hi: 'rgba(255,230,140,0.34)', floor: '#6b6140', edge: 'rgba(255,238,160,0.8)' },
+        { n: '深き森', wall: '#07160c', hi: 'rgba(150,255,170,0.32)', floor: '#3f6a4a', edge: 'rgba(170,255,190,0.78)' },
+        { n: '虚無の回廊', wall: '#07040f', hi: 'rgba(255,120,230,0.34)', floor: '#3c2c5c', edge: 'rgba(255,150,235,0.8)' }
     ];
     const CTHEMES = [
         { id: 'normal', w: 5, n: '' },
@@ -2642,6 +2626,7 @@
         corrScaleFloor(f);
         corrGen(f, spawn !== false);
         corrPlaceMe();
+        try { if (window.SBAch) SBAch.report('corrFloor', f); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         if (me.dead && !me.escaped) { me.dead = false; me.stg = 0; me.reviveT = 0; me.hp = Math.round(me.maxHp * 0.4); }      // 倒れていた仲間も、次の階層へは連れていける
         if (f > 1 && !me.escaped) { run.stats.floors = f - 1; run.stats.coins += Math.round((1 + corrIlvl(f - 1) * 0.6) * 6 * (1 + A('goldPct'))); addHp(me.maxHp * 0.15); announce('🌀 地下' + f + '階　' + CF.pal.n + (CF.theme.n ? '「' + CF.theme.n + '」' : ''), 2000); if (CF.theme.d) setTimeout(() => { if (CF.floor === f) announce(CF.theme.d, 2600); }, 2100); }
         CF.fade = 0.6;
@@ -2704,11 +2689,13 @@
     }
     function corrOpenChest(p) {
         p.k = 'open'; CF.st.chests++; netSend('cho', { i: p.i });
+        try { if (window.SBAch) SBAch.report('chest', 0); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         fx.push({ k: 'ring', x: p.x, y: p.y, r: 0, max: 70, t: 0.5, life: 0.5, c: '#ffd84a' });
         corrChestReward(p.x, p.y);
     }
     function corrWakeMimic(p) {
         CF.props = CF.props.filter(q => q !== p); CF.st.mimics++; netSend('cmim', { i: p.i });
+        try { if (window.SBAch) SBAch.report('chest', 1); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         const e = spawnEnemy(CD.mimic, p.x, p.y, false, true, corrEnemyTotal(CD.mimic, false, true, 1.4)); e.mimic = true; e.act = true; e.hp = e.maxHp = Math.round(e.maxHp * 0.9); e.spd *= 1.2;
         pushOutOfRocks(e, e.r);
         popups.push({ x: p.x, y: p.y - 30, t: 1.4, text: 'ミミックだ！', c: '#ff6a5a', big: true });
@@ -2814,6 +2801,7 @@
     function corrEscape() {
         if (run.escaped || me.dead || run.phase !== 'run') return;
         run.escaped = true; me.escaped = true;
+        try { if (window.SBAch) SBAch.report('escape', CF.floor); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         netSend('esc', {});
         const others = Object.keys(allies).some(id => !allies[id].dead && !allies[id].esc);
         if (isHost && others) {          // ホストが先に脱出：仲間が続けられるよう、裏でゲームを動かし続ける（自分は倒れた扱いで敵に狙われない）
@@ -2900,6 +2888,7 @@
             HW.save(h);
         }
         HW.save(h);
+        try { if (window.SBAch) { if (PVP) SBAch.report('pvp', win ? 1 : 0); if (win && !PVP && !CORR_ON) SBAch.report('clear', stage.id); SBAch.evaluate(); } } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         showResult(win, d || {});
     }
 
@@ -2938,7 +2927,7 @@
         fx.forEach(f => drawFx(f));
         popups.forEach(p => { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = (p.big ? 'bold 18px' : 'bold 14px') + ' sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.globalAlpha = 1; });
         ctx.restore();
-        if (CORR_ON && CF.on && CF.theme && CF.theme.id === 'dark' && !me.dead) {      // 暗闇の階：自分の周りだけが見える
+        if (CORR_ON && CF.on && CF.theme && CF.theme.id === 'dark' && !me.dead && !(window.SBAcc && SBAcc.hasSpecial(hack, 'antidark'))) {      // 暗闇の階：自分の周りだけが見える
             const sx = me.x - cam.x + VW / 2, sy = me.y - cam.y + VH / 2, g = ctx.createRadialGradient(sx, sy, 90, sx, sy, 330);
             g.addColorStop(0, 'rgba(0,0,10,0)'); g.addColorStop(1, 'rgba(0,0,10,0.93)');
             ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
@@ -2955,6 +2944,18 @@
             for (const r of CF.rects) { if (r[0] > x1 || r[1] > y1 || r[0] + r[2] < x0 || r[1] + r[3] < y0) continue; ctx.fillRect(r[0], r[1], r[2], r[3]); }
             ctx.fillStyle = pal.hi;
             for (const r of CF.rects) { if (r[0] > x1 || r[1] > y1 || r[0] + r[2] < x0 || r[1] + r[3] < y0) continue; ctx.fillRect(r[0], r[1], r[2], 4); }
+            // 壁のふち取り：床に接している辺だけに明るい線を引く（床との境目をはっきりさせる）
+            ctx.fillStyle = pal.edge || 'rgba(255,255,255,0.6)';
+            const tx0 = Math.max(0, Math.floor(x0 / TILE)), tx1 = Math.min(CF.tw - 1, Math.floor(x1 / TILE)), ty0 = Math.max(0, Math.floor(y0 / TILE)), ty1 = Math.min(CF.th - 1, Math.floor(y1 / TILE));
+            const sol = (tx, ty) => tx < 0 || ty < 0 || tx >= CF.tw || ty >= CF.th || CF.solid[ty * CF.tw + tx] === 1;
+            for (let ty = ty0; ty <= ty1; ty++) for (let tx = tx0; tx <= tx1; tx++) {
+                if (CF.solid[ty * CF.tw + tx] !== 1) continue;
+                const px = tx * TILE, py = ty * TILE;
+                if (!sol(tx, ty - 1)) ctx.fillRect(px, py, TILE, 3);
+                if (!sol(tx, ty + 1)) ctx.fillRect(px, py + TILE - 3, TILE, 3);
+                if (!sol(tx - 1, ty)) ctx.fillRect(px, py, 3, TILE);
+                if (!sol(tx + 1, ty)) ctx.fillRect(px + TILE - 3, py, 3, TILE);
+            }
         }
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         const now = performance.now() / 1000;
@@ -2976,6 +2977,16 @@
             else if (p.k === 'portal') { ctx.strokeStyle = 'rgba(255,70,90,' + (0.6 + 0.3 * Math.sin(now * 4)) + ')'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, 28, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(60,0,20,0.8)'; ctx.beginPath(); ctx.arc(p.x, p.y, 24, 0, 7); ctx.fill(); ctx.font = '26px sans-serif'; ctx.fillText('👹', p.x, p.y + 1); }
             else if (p.k === 'portal_done') { ctx.globalAlpha = 0.4; ctx.font = '24px sans-serif'; ctx.fillText('🕳️', p.x, p.y); ctx.globalAlpha = 1; }
         });
+        if (CF.on && !CF.inBoss && window.SBAcc && SBAcc.hasSpecial(hack, 'compass') && !me.dead) {      // 記念の羅針盤：脱出ゲートの方向を示す矢印
+            const g = CF.props.find(q => q.k === 'gate');
+            if (g && dist(me.x, me.y, g.x, g.y) > 140) {
+                const an = Math.atan2(g.y - me.y, g.x - me.x), ax = me.x + Math.cos(an) * 74, ay = me.y + Math.sin(an) * 74;
+                ctx.save(); ctx.translate(ax, ay); ctx.rotate(an); ctx.globalAlpha = 0.55 + 0.3 * Math.sin(now * 4);
+                ctx.fillStyle = '#6dffe0'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-8, -9); ctx.lineTo(-4, 0); ctx.lineTo(-8, 9); ctx.closePath(); ctx.stroke(); ctx.fill();
+                ctx.restore(); ctx.globalAlpha = 1;
+            }
+        }
         if (CF.inBoss && CF.exit) { const p = CF.exit; ctx.strokeStyle = 'rgba(120,230,255,' + (0.6 + 0.3 * Math.sin(now * 4)) + ')'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, 32, 0, 7); ctx.stroke(); ctx.font = '26px sans-serif'; ctx.fillText('🚪', p.x, p.y + 1); }
         ctx.textBaseline = 'alphabetic';
     }
@@ -3098,7 +3109,8 @@
         ctx.lineWidth = 3; ctx.strokeStyle = rarC; ctx.stroke();
         const a = p.ang || 0; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(a) * 24, p.y + Math.sin(a) * 24); ctx.stroke();
         ctx.globalAlpha = 1;
-        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.name, p.x, p.y - 28); ctx.fillStyle = '#fff'; ctx.fillText(p.name, p.x, p.y - 28);
+        ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; const ttl = isMe ? ((window.SBAch && SBAch.titleText()) || '') : (p.ti || ''); if (ttl) { ctx.font = 'bold 10px sans-serif'; ctx.strokeText(ttl, p.x, p.y - 41); ctx.fillStyle = '#ffd86a'; ctx.fillText(ttl, p.x, p.y - 41); ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#fff'; }
+        ctx.strokeText(p.name, p.x, p.y - 28); ctx.fillStyle = '#fff'; ctx.fillText(p.name, p.x, p.y - 28);
         const hp = isMe ? me.hp / me.maxHp : (p.hp / Math.max(1, p.maxHp));
         ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(p.x - 18, p.y - 24, 36, 5); ctx.fillStyle = hp > 0.3 ? '#4adb6a' : '#ff5a5a'; ctx.fillRect(p.x - 18, p.y - 24, 36 * clamp(hp, 0, 1), 5);
         if (isMe && me.shield) { ctx.strokeStyle = '#9fe0ff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, 7); ctx.stroke(); }
@@ -3132,6 +3144,17 @@
     // ---------- HUD ----------
     const el = id => document.getElementById(id);
     function drawHUD() {
+        // 通信の状態（Ping と接続方式）：マルチのカクつきの原因を見分けるため、右上に小さく出す
+        if (socket && room) {
+            const nowP = performance.now();
+            if (!netPingBusy && nowP - netPingT > 3000 && socket.connected) {
+                netPingBusy = true; netPingT = nowP; const t0 = nowP;
+                try { socket.timeout(4000).emit('stage:ping', t0, (err) => { netPingBusy = false; netPing = err ? -1 : Math.round(performance.now() - t0); }); } catch (e) { netPingBusy = false; }
+            }
+            let tr = ''; try { tr = socket.io && socket.io.engine && socket.io.engine.transport ? (socket.io.engine.transport.name === 'websocket' ? 'WS' : 'poll') : ''; } catch (e) { tr = ''; }
+            ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.fillStyle = netPing < 0 ? '#ff8a8a' : (netPing < 80 ? '#8affb0' : (netPing < 160 ? '#ffe08a' : '#ff8a8a'));
+            ctx.fillText((netPing < 0 ? 'Ping --' : 'Ping ' + netPing + 'ms') + (tr ? ' ' + tr : ''), VW - 10, VH < 520 ? 28 : 48);
+        }
         // ミニマップ
         const mw = VH < 520 ? 92 : 140, mh = Math.round(mw * WORLD_H / WORLD_W), mx = VW - mw - 10, my = VH < 520 ? 34 : 56;
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx, my, mw, mh);
@@ -3163,7 +3186,6 @@
             ctx.strokeText(t1, VW / 2, 92); ctx.fillStyle = run.time < SD.start ? '#cfe6ff' : (prog > 0.6 ? '#ff6a6a' : '#ffb347'); ctx.fillText(t1, VW / 2, 92);
             ctx.font = 'bold 13px sans-serif'; ctx.strokeText(t2, VW / 2, 112); ctx.fillStyle = '#fff'; ctx.fillText(t2, VW / 2, 112);
             ctx.restore();
-            if (pvp.combo) { const combat = pvp.combo + ' COMBO ×' + pvpComboMul().toFixed(2); ctx.save(); ctx.textAlign = 'center'; ctx.font = 'bold 13px sans-serif'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(combat, VW / 2, 132); ctx.fillStyle = '#ffe08a'; ctx.fillText(combat, VW / 2, 132); ctx.restore(); }
         }
         // ボスラッシュ：幕間の表示／無限回廊：階の切り替わりの暗転
         if (RUSH_ON && run.phase === 'run' && RS.st === 2) {
@@ -3304,9 +3326,9 @@
                 const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
                 const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
                 posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
-                netSend('pos', { x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+                netSend('pos', { ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
             }
-            snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { snapT = 1 / SNAP_HZ; netSend('snap', makeSnap()); }
+            snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { const sn = makeSnap(); snapT = 1 / (snapBytes > 11000 ? 10 : SNAP_HZ); netSend('snap', sn); }      // 大きいスナップショットのときは送る回数を減らす（回線が細い人が詰まらないように）
         } else if (run.phase === 'end') { updateShots(dt); }
         Object.keys(allies).forEach(id => { const a = allies[id];
             // 仲間の位置：最後に届いた位置＋速度×経過時間（最大0.25秒ぶん）を目標にして、フレームレートに左右されない補間で近づく。離れすぎたらそこへ移動
@@ -3316,7 +3338,6 @@
         if (comboT > 0) { comboT -= dt; if (comboT <= 0) comboN = 0; }
         if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeA = 0; }
         popups.forEach(p => { p.t -= dt; }); popups = popups.filter(p => p.t > 0);
-        if (popups.length > 120) popups.splice(0, popups.length - 120);
         enemies.forEach(e => { if (e.flash > 0) e.flash -= dt; });
         render();
         requestAnimationFrame(loop);

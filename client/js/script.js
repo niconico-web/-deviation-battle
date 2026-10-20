@@ -769,6 +769,7 @@ function renderElemPanel() {
 function applyStudyRewards(seconds) {
     if (seconds < 60) { alert("勉強時間は1分以上にしてください"); return; }
     let player = getPlayerData(); if (!player) return;
+    try { if (window.SBAch) { SBAch.report('study', seconds); SBAch.evaluate(); } } catch (e) { /* 実績の記録に失敗しても勉強の報酬は渡す */ }
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
@@ -1103,7 +1104,7 @@ function startAutoSync() {
 }
 
 // ---------- データ引き継ぎ：プレイヤー以外のデータ ----------
-const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent'];
+const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
 let lastBundleAt = 0;
 // ページを開いた直後（初期化で保存データが整えられる前）のデータの指紋。同期の「この端末に変更があるか」の判定に使う
 const bootSyncHash = currentSyncHash();
