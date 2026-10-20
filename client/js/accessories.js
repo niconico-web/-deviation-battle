@@ -66,6 +66,23 @@
         if (b.fx.pct) b.fx.pct = Math.round(b.fx.pct * WEAK.heal * 100) / 100;
     });
     const BASE_BY_ID = {}; BASES.forEach(b => { BASE_BY_ID[b.id] = b; });
+    // 実績の報酬でしか手に入らない特別なアクセサリー（ドロップ抽選には混ざらない。BASES には入れない）
+    //  special: antidark = 無限回廊の「暗闇の階」の視界の制限を無効化 / compass = 無限回廊で、脱出ゲートの方向を矢印で示す
+    const SPECIAL_BASES = [
+        { id: 'ac_insomnia_lamp', name: '不眠の灯火', icon: '🏮', tier: 99, special: 'antidark', trig: { t: 'passive' }, fx: { kind: 'none' }, desc: '眠らない者の灯り。無限回廊の「暗闇の階」でも視界が狭くならない' },
+        { id: 'ac_half_compass', name: '記念の羅針盤', icon: '🧭', tier: 99, special: 'compass', trig: { t: 'passive' }, fx: { kind: 'none' }, desc: '半周年の記念品。無限回廊で、脱出ゲートのある方向を矢印で教えてくれる' }
+    ];
+    SPECIAL_BASES.forEach(b => { BASE_BY_ID[b.id] = b; });
+    function makeSpecial(baseId) {
+        const b = BASE_BY_ID[baseId]; if (!b || !b.special) return null;
+        return { id: uid(), baseId: b.id, name: b.name, rarity: 'legendary', ilvl: 46, pw: 1, source: 'achievement', locked: true, at: Date.now() };
+    }
+    function giveSpecial(d, baseId) {      // 1つだけ（すでに持っていたら何もしない）
+        ensure(d); if (d.accs.some(a => a.baseId === baseId)) return null;
+        const a = makeSpecial(baseId); if (a) d.accs.push(a); return a;
+    }
+    // 装備中のアクセサリーに、その特殊効果があるか
+    function hasSpecial(d, kind) { try { return equippedList(d).some(a => { const b = a && baseOf(a); return !!(b && b.special === kind); }); } catch (e) { return false; } }
 
     // レア度ごとの威力・間隔（レジェンドは威力2倍、間隔も2割短い）
     const PW = { normal: 1.0, magic: 1.18, rare: 1.4, epic: 1.7, legendary: 2.1 };
@@ -114,11 +131,12 @@
         if (t.t === 'hit') return '攻撃が命中したとき（' + Math.round(t.chance * 100) + '%・' + cdOf(a).toFixed(1) + '秒に1回）';
         if (t.t === 'lowhp') return 'HPが' + Math.round(t.hp * 100) + '%未満（' + cdOf(a).toFixed(0) + '秒に1回）';
         if (t.t === 'skill') return 'スキルを使ったとき（' + Math.round(t.chance * 100) + '%）';
+        if (t.t === 'passive') return '装備しているあいだ、常に効果';
         return '';
     }
     function describe(a) {
         const b = baseOf(a); if (!b) return [];
         return [b.desc, '発動：' + triggerText(a), '威力：×' + (a.pw || 1).toFixed(2) + '（' + (H().RARITIES[a.rarity] ? H().RARITIES[a.rarity].label : a.rarity) + '）'];
     }
-    window.SBAcc = { SLOTS: SLOTS, BASES: BASES, BASE_BY_ID: BASE_BY_ID, ensure: ensure, roll: roll, baseOf: baseOf, equippedList: equippedList, equip: equip, unequip: unequip, sell: sell, sellValue: sellValue, cdOf: cdOf, triggerText: triggerText, describe: describe, PW: PW };
+    window.SBAcc = { SLOTS: SLOTS, BASES: BASES, BASE_BY_ID: BASE_BY_ID, ensure: ensure, roll: roll, baseOf: baseOf, equippedList: equippedList, equip: equip, unequip: unequip, sell: sell, sellValue: sellValue, cdOf: cdOf, triggerText: triggerText, describe: describe, PW: PW, makeSpecial: makeSpecial, giveSpecial: giveSpecial, hasSpecial: hasSpecial };
 })();

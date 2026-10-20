@@ -94,7 +94,7 @@
     // 町ページで共有しているソケット(window.socket)があればそれを使い、無ければステージ用に接続する
     function getSock() {
         if (window.socket) return window.socket;
-        if (!window.sbStageSocket && typeof io === 'function') { try { window.sbStageSocket = io(); } catch (e) { window.sbStageSocket = null; } }
+        if (!window.sbStageSocket && typeof io === 'function') { try { window.sbStageSocket = io({ transports: ['websocket', 'polling'] }); } catch (e) { window.sbStageSocket = null; } }
         return window.sbStageSocket || null;
     }
     const bmEvent = n => { try { window.SbBeginner && window.SbBeginner.event(n); } catch (e) {} };   // ビギナーミッションに「行動した」と知らせる
@@ -414,7 +414,7 @@
 
         function sorted() {
             const arr = hack.weapons.filter(w => filter === 'all' || w.type === filter || (filter === 'eq' && w.id === hack.equipped));
-            return arr.sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl || b.dmg - a.dmg);
+            return arr.sort((a, b) => HW.rIdx(b.rarity) - HW.rIdx(a.rarity) || b.ilvl - a.ilvl || b.dmg - a.dmg);
         }
         function renderList() {
             const types = {}; hack.weapons.forEach(w => { types[w.type] = 1; });

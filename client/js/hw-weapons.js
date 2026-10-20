@@ -23,6 +23,9 @@
                      prefixes: ['神々の', '終焉の', '星砕きの', '世界喰らいの', '永劫の', '天啓の'] }
     };
     const RARITY_ORDER = ['normal', 'magic', 'rare', 'epic', 'legendary'];
+    // 神話：実績の報酬でしか手に入らない特別なレア度（RARITY_ORDER には入れない＝ドロップ抽選・昇華・一括売却の対象外）
+    RARITIES.mythic = { label: '神話', color: '#ff4fd8', mult: 2.8, pctMul: 2.5, orig: 0.5, forge: 1e9, sockets: [6, 6], fx: [6, 6], weight: 0, prefixes: ['永久の'] };
+    function rIdx(k) { return k === 'mythic' ? 5 : RARITY_ORDER.indexOf(k); }      // 神話は「レジェンドより上」として扱う
 
     // ---------- 武器の攻撃力は「％」で伸びる ----------
     //  ・武器そのものの攻撃力は固定値ではなく「プレイヤーの攻撃力に対する＋○％」。
@@ -450,7 +453,7 @@
     }
 
     function rollEffect(e, ilvl, rarityKey) {
-        const idx = RARITY_ORDER.indexOf(rarityKey);
+        const idx = rIdx(rarityKey);
         const scale = (1 + idx * 0.22) * (1 + Math.min(ilvl, 20) * 0.025);
         let v = rnd(e.range[0], e.range[1]) * scale;
         if (e.int) v = Math.max(1, Math.round(rnd(e.range[0], e.range[1]) * (idx >= 3 ? 2 : 1)));
@@ -661,7 +664,7 @@
         const orbs = (w.orbs || []).filter(Boolean);
         if (orbs.length && typeof applyOrbToWeapon === 'function') lw = applyOrbToWeapon(lw, orbs);
         // レア度とレベルによる底上げ
-        lw.multiplier = lw.multiplier * (1 + RARITY_ORDER.indexOf(w.rarity) * 0.04 + Math.min(w.ilvl || 1, 15) * 0.01);
+        lw.multiplier = lw.multiplier * (1 + rIdx(w.rarity) * 0.04 + Math.min(w.ilvl || 1, 15) * 0.01);
         return lw;
     }
     function syncLegacy(d, force) {
@@ -683,7 +686,7 @@
 
     function sellValue(w) {
         if (w.forgeCost) return Math.max(1, Math.round(w.forgeCost * 0.2));    // オリジナル武器は作成コストの2割
-        const idx = RARITY_ORDER.indexOf(w.rarity);
+        const idx = rIdx(w.rarity);
         return Math.max(1, Math.round((3 + w.ilvl * 1.5) * (1 + idx * 1.4)));
     }
 
@@ -760,7 +763,7 @@
     // 売却 / ソケット操作
     function sellWeapon(d, id) {
         const i = d.weapons.findIndex(w => w.id === id);
-        if (i < 0 || d.weapons[i].id === d.equipped) return 0;
+        if (i < 0 || d.weapons[i].id === d.equipped || d.weapons[i].mythicId) return 0;      // 神話の武器は売れない
         const w = d.weapons[i];
         const v = sellValue(w);
         // はめ込んであったオーブはプレイヤーのオーブ倉庫へ戻す
@@ -871,9 +874,26 @@
         return true;
     }
 
+
+    // ---------- 実績の報酬：神話の武器（他のどこからも手に入らない）----------
+    BASE_BY_ID.mythic_serenity = { id: 'mythic_serenity', name: '安寧の剣', type: 'sword', dmg: 80, tier: 99 };      // BASES には入れない（ドロップ抽選に混ざらないように）
+    function makeMythicSerenity() {
+        const pct = 0.65;
+        const w = { id: uid(), baseId: 'mythic_serenity', type: 'sword', rarity: 'mythic', prefix: '永久の', baseName: '安寧の剣', ilvl: 46,
+            pct: pct, dmg: dmgFromPct(pct), sockets: 6, orbs: new Array(6).fill(null), source: 'achievement', mythicId: 'eternal_serenity', locked: true, createdAt: Date.now(),
+            effects: [{ id: 'atk_up', v: 0.30 }, { id: 'crit_rate', v: 0.15 }, { id: 'crit_dmg', v: 0.60 }, { id: 'aspd', v: 0.18 }, { id: 'dr', v: 0.12 }, { id: 'lifesteal', v: 0.06 }] };
+        w.name = '永久の＋安寧の剣';
+        return w;
+    }
+    function giveMythic(d) {      // 1人1本だけ（すでに持っていたら何もしない）
+        if (!d || !Array.isArray(d.weapons)) return null;
+        const have = d.weapons.find(x => x.mythicId === 'eternal_serenity'); if (have) return have;
+        const w = makeMythicSerenity(); d.weapons.push(w); return w;
+    }
+
     window.HW = {
         RARITIES, RARITY_ORDER, TYPES, BASES, BASE_BY_ID, EFFECTS, EFFECT_BY_ID,
-        roll, pickRarity, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
+        roll, pickRarity, rIdx, makeMythicSerenity, giveMythic, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
         load, save, syncLegacy, getEquipped, sellValue, sellWeapon, socketOrb, unsocketOrb, returnOrbs,
         STORAGE_LIMIT, typesOfWorld,
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,

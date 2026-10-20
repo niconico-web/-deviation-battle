@@ -31,7 +31,7 @@ const pvpEvent = makeStore('pvp_event.json');
 
 const ID_RE = /^[A-Za-z0-9]{4,12}$/;
 // 引き継ぎで運べるデータ（端末ごとの設定などは運ばない）。値は localStorage の文字列そのまま
-const BUNDLE_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent'];
+const BUNDLE_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
 const MAX_VALUE = 6 * 1024 * 1024;
 
 function saveBundle(id, bundle, rev, dev) {

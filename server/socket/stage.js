@@ -143,6 +143,7 @@ module.exports = function (io) {
             (hot ? target.volatile : target).emit("stage:msg", { from: me.id, t: msg.t, d: msg.d });
         });
 
+        socket.on("stage:ping", (t, cb) => { if (typeof cb === "function") cb(t); });      // 通信の遅れ（Ping）の計測用
         socket.on("stage:leave", () => leave(socket));
         socket.on("disconnect", () => leave(socket));
     });
