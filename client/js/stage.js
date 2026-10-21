@@ -224,7 +224,7 @@
 
     // ---------- 状態 ----------
     const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
-        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, cast: null, gch: 0, guardT: 0, guardCd: 0, gMsgT: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
+        ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, cast: null, gch: 0, ult: 0, ultT: 0, guardT: 0, guardCd: 0, gMsgT: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
     let eBullets = [];
@@ -420,6 +420,7 @@
         const sk = { KeyZ: 0, KeyX: 1, KeyC: 2, KeyV: 3 }[e.code]; if (sk !== undefined) castSkill(sk);
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
         if (e.code === 'KeyB' && !e.repeat) startGuard();
+        if (e.code === 'KeyR' && !e.repeat) castUlt();
         if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
         if (/^Digit[1-4]$/.test(e.code)) quizPick(parseInt(e.code.slice(5), 10) - 1);
         if (e.code.indexOf('Arrow') === 0 || e.code === 'Space') e.preventDefault();
@@ -451,6 +452,8 @@
     const endPtr = (e) => { [input.stick, input.aimStick].forEach(st => { if (st.id === e.pointerId) { st.id = null; st.x = 0; st.y = 0; } }); };
     canvas.addEventListener('pointerup', endPtr); canvas.addEventListener('pointercancel', endPtr);
     document.getElementById('btnDash').addEventListener('pointerdown', (e) => { e.preventDefault(); doDash(); });
+    const btnU = document.getElementById('btnUlt');
+    if (btnU) btnU.addEventListener('pointerdown', (e) => { e.preventDefault(); castUlt(); });
     const btnG = document.getElementById('btnGuard');
     if (btnG) { btnG.addEventListener('pointerdown', (e) => { e.preventDefault(); startGuard(); }); ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btnG.addEventListener(ev, cancelGuard)); }
 
@@ -1185,7 +1188,7 @@
 
     // ---------- 守りの溜め（バリア）----------
     function startGuard() {
-        if (me.dead || me.stunT > 0 || run.phase !== 'run' || me.cast || me.gch > 0 || me.guardT > 0) return;
+        if (me.dead || me.stunT > 0 || run.phase !== 'run' || me.cast || me.gch > 0 || me.ultT > 0 || me.guardT > 0) return;
         if (me.guardCd > 0) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'バリアはあと' + Math.ceil(me.guardCd) + '秒', c: '#ff9a9a' }); return; }
         me.gch = 0.001; me.dashT = 0;
     }
@@ -1194,8 +1197,10 @@
     function tickCharge(dt) {
         if (me.gMsgT > 0) me.gMsgT -= dt;
         if (me.guardCd > 0) me.guardCd -= dt;
-        if (me.dead || run.phase !== 'run') { me.cast = null; me.gch = 0; me.guardT = 0; return; }
+        if (me.dead || run.phase !== 'run') { me.cast = null; me.gch = 0; me.guardT = 0; me.ultT = 0; return; }
         if (me.guardT > 0) me.guardT -= dt;
+        if (me.ultT > 0) me.ultT -= dt;
+        if (ultFlashT > 0) ultFlashT -= dt;
         if (me.stunT > 0) {
             if (me.cast) { const sl = skillSlots[me.cast.slot]; if (sl) { me.energy = Math.min(ENERGY_MAX, me.energy + sl.cost); updateEnergyUI(); } me.cast = null; popups.push({ x: me.x, y: me.y - 30, t: 0.9, text: '溜め中断！', c: '#ff9a9a' }); }
             me.gch = 0; return;
@@ -1360,6 +1365,158 @@
         }
     }
 
+
+    // ================= 必殺技（ゲージ制）=================
+    //  攻撃を当てるとゲージが溜まり、満タンで R キー（スマホは ⚡ ボタン）で、持っている武器に合った必殺技が出る。
+    //  ゲージが溜まる量は「1振りにつき1回」（大勢に当てても増えすぎない）。フィニッシャーは多く溜まる。対人戦では使えない。
+    const ULT_MAX = 100;
+    const ULT_TYPES = {      // st: slash=連続斬り / quake=衝撃波 / lance=突進して貫く / volley=矢や弾の雨 / storm=雷の雨 / nova=魔法陣の大爆発
+        sword:      { name: '剣聖の連斬', st: 'slash', n: 7, gap: 90, mult: 1.15, range: 1.35, arc: 1.9 },
+        katana:     { name: '居合・千本桜', st: 'slash', n: 9, gap: 75, mult: 1.0, range: 1.3, arc: 1.3, blink: 70 },
+        dagger:     { name: '影縫い乱舞', st: 'slash', n: 15, gap: 55, mult: 0.55, range: 1.0, arc: 2.2, blink: 40 },
+        fist:       { name: '百裂拳', st: 'slash', n: 18, gap: 50, mult: 0.5, range: 0.95, arc: 1.8 },
+        boots:      { name: '流星蹴り', st: 'slash', n: 10, gap: 80, mult: 0.75, range: 1.2, arc: 2.6, blink: 60 },
+        twinblade:  { name: '双舞・嵐刃', st: 'slash', n: 12, gap: 65, mult: 0.65, range: 1.3, arc: 2.2 },
+        scythe:     { name: '死神の刈り取り', st: 'slash', n: 4, gap: 160, mult: 1.7, range: 1.5, arc: 4.2 },
+        halberd:    { name: '龍尾・大薙ぎ', st: 'slash', n: 3, gap: 180, mult: 2.0, range: 1.5, arc: 4.4 },
+        greatsword: { name: '断罪の大地割り', st: 'quake', waves: 3, gap: 170, radius: 170, mult: 2.8, kn: 380 },
+        axe:        { name: '狂戦士の旋風', st: 'quake', waves: 6, gap: 110, radius: 125, mult: 1.3, kn: 160 },
+        hammer:     { name: '天槌・大震撃', st: 'quake', waves: 2, gap: 260, radius: 240, mult: 3.8, kn: 460 },
+        spear:      { name: '貫穿の一閃', st: 'lance', len: 380, width: 56, fan: 1, rep: 3, gap: 130, mult: 2.4 },
+        whip:       { name: '千条の鞭', st: 'lance', len: 340, width: 40, fan: 5, rep: 2, gap: 220, mult: 1.2 },
+        kusarigama: { name: '鎖の嵐', st: 'lance', len: 320, width: 46, fan: 3, rep: 3, gap: 170, mult: 1.3 },
+        bow:        { name: '星降りの矢雨', st: 'volley', n: 18, gap: 70, mult: 0.95, sky: true },
+        crossbow:   { name: '破城の連弩', st: 'volley', n: 10, gap: 110, mult: 1.7, sky: false },
+        pistol:     { name: '早撃ち乱射', st: 'volley', n: 26, gap: 45, mult: 0.55, sky: false },
+        shotgun:    { name: '散弾の嵐', st: 'volley', n: 12, gap: 90, mult: 1.1, sky: false },
+        chakram:    { name: '円月・千輪', st: 'volley', n: 9, gap: 100, mult: 1.2, sky: true },
+        cannon:     { name: '魔導砲・全力射', st: 'nova', radius: 250, mult: 6.5, waves: 1, wind: 600 },
+        wand:       { name: '天雷の魔法陣', st: 'storm', n: 8, gap: 130, mult: 2.2, wind: 500 },
+        tome:       { name: '禁書・大解放', st: 'nova', radius: 215, mult: 3.6, waves: 2, wind: 500 },
+        esper:      { name: '念動の大崩壊', st: 'nova', radius: 300, mult: 3.4, waves: 2, wind: 400 }
+    };
+    function ultDef() {
+        const u = ULT_TYPES[weapon.type]; if (u) return u;
+        const k = T.kind;
+        if (k === 'line') return { name: '貫穿の一閃', st: 'lance', len: 360, width: 52, fan: 1, rep: 3, gap: 130, mult: 2.2 };
+        if (k === 'smash') return { name: '大震撃', st: 'quake', waves: 3, gap: 180, radius: 200, mult: 2.8, kn: 320 };
+        if (k === 'proj') return { name: '一斉掃射', st: 'volley', n: 16, gap: 70, mult: 0.9, sky: false };
+        if (k === 'ring') return { name: '大崩壊', st: 'nova', radius: 280, mult: 3.2, waves: 2, wind: 450 };
+        return { name: '連斬', st: 'slash', n: 7, gap: 90, mult: 1.1, range: 1.3, arc: 1.9 };
+    }
+    let ultFlashT = 0;
+    function ultGain(n) { if (me.ultT > 0 || PVP) return; const was = me.ult || 0; me.ult = Math.min(ULT_MAX, was + n); if (was < ULT_MAX && me.ult >= ULT_MAX) { popups.push({ x: me.x, y: me.y - 46, t: 1.4, text: '⚡ 必殺技 準備完了！', c: '#ffd84a', big: true }); fx.push({ k: 'pring', x: me.x, y: me.y, r: 0, max: 70, t: 0.35, life: 0.35, c: '#ffd84a' }); } }
+    function ultTargets(maxD) { return enemies.filter(e => e.hp > 0 && e.act !== false && dist(me.x, me.y, e.x, e.y) - e.r < maxD); }
+    function ultLater(ms, fn) { setTimeout(() => { if (run.phase !== 'run' || me.dead) return; fn(); }, ms); }
+    function ultFx(d) { spawnAtkFx(d); netSend('atk', d); }      // 見た目は仲間にも送る
+    function ultHit(e, mult, kb, fin) { const h = strike(e, mult, kb || 0); hitFeel(e, { fin: !!fin, i: 1, ult: true }, h); return h; }
+    function castUlt() {
+        if (PVP || me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.ultT > 0 || run.phase !== 'run') return;
+        if ((me.ult || 0) < ULT_MAX) { popups.push({ x: me.x, y: me.y - 34, t: 0.8, text: '必殺ゲージ ' + Math.floor(me.ult || 0) + '%', c: '#ffe08a' }); return; }
+        const U = ultDef(), col = HW.rarityOf(weapon).color; me.ult = 0;
+        const dur = U.st === 'slash' ? U.n * U.gap / 1000 + 0.3 : U.st === 'quake' ? U.waves * U.gap / 1000 + 0.4 : U.st === 'lance' ? U.rep * U.gap / 1000 + 0.4 : U.st === 'volley' ? U.n * U.gap / 1000 + 0.3 : (U.wind || 400) / 1000 + (U.n ? U.n * U.gap / 1000 : U.waves * 0.25) + 0.3;
+        me.ultT = dur; me.invHard = Math.max(me.invHard || 0, dur); me.inv = Math.max(me.inv, dur); me.dashT = 0; me.ang = aimAngle();
+        ultFlashT = 0.3; addShake(4, 0.25); announce('⚡ ' + U.name, 1500);
+        fx.push({ k: 'pring', x: me.x, y: me.y, r: 0, max: 110, t: 0.4, life: 0.4, c: col, fill: true }); netSend('atk', { k: 'ring', x: me.x, y: me.y, a: me.ang, rad: 110, c: col, fin: 1 });
+        const ang0 = me.ang;
+        if (U.st === 'slash') {
+            const range = (P.range || 80) * U.range;
+            for (let i = 0; i < U.n; i++) ultLater(i * U.gap, () => {
+                const last = i === U.n - 1, tg = nearestEnemy(me.x, me.y, 340);
+                const ang = tg ? Math.atan2(tg.y - me.y, tg.x - me.x) : ang0 + (Math.random() - 0.5) * 1.2;
+                if (tg && U.blink) { const L = blinkLimit(me.x, me.y, ang, Math.min(U.blink, Math.max(0, dist(me.x, me.y, tg.x, tg.y) - tg.r - 20)), me.r); me.x += Math.cos(ang) * L; me.y += Math.sin(ang) * L; pushOutOfRocks(me, me.r); }
+                me.ang = ang; const arc = U.arc * (last ? 1.3 : 1), rg = range * (last ? 1.35 : 1);
+                ultFx({ k: 'cone', x: me.x, y: me.y, a: ang, rng: rg, arc: arc, dir: i % 2 ? -1 : 1, fin: last ? 1 : 0, c: col });
+                enemies.forEach(e => { if (e.hp <= 0 || e.act === false) return; const dd = dist(me.x, me.y, e.x, e.y); if (dd > rg + e.r) return; let da = Math.atan2(e.y - me.y, e.x - me.x) - ang; da = Math.atan2(Math.sin(da), Math.cos(da)); if (Math.abs(da) <= arc / 2 || dd < e.r + 18) ultHit(e, U.mult * (last ? 2.4 : 1), last ? 260 : 30, last); });
+                if (last) { addShake(5, 0.2); hitStop(0.08); }
+            });
+        } else if (U.st === 'quake') {
+            for (let k = 0; k < U.waves; k++) ultLater(k * U.gap, () => {
+                const r = U.radius * (1 + 0.3 * k), last = k === U.waves - 1, cx = me.x + Math.cos(ang0) * 40 * (U.waves > 2 ? 0 : 1), cy = me.y + Math.sin(ang0) * 40 * (U.waves > 2 ? 0 : 1);
+                fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: r, t: 0.35, life: 0.35, c: col, fill: true }); netSend('atk', { k: 'ring', x: cx, y: cy, a: 0, rad: r, c: col, fin: 1 });
+                enemies.forEach(e => { if (e.hp > 0 && e.act !== false && dist(cx, cy, e.x, e.y) < r + e.r) { const a2 = Math.atan2(e.y - cy, e.x - cx); const h = strike(e, U.mult * (last ? 1.5 : 1), U.kn); hitFeel(e, { fin: last, i: 1, ult: true }, h); } });
+                addShake(3 + k, 0.18); if (k === 0) hitStop(0.06);
+            });
+        } else if (U.st === 'lance') {
+            for (let r = 0; r < U.rep; r++) ultLater(r * U.gap, () => {
+                const tg = nearestEnemy(me.x, me.y, 420), base = tg ? Math.atan2(tg.y - me.y, tg.x - me.x) : ang0, last = r === U.rep - 1, ox = me.x, oy = me.y;
+                me.ang = base;
+                const sp = U.fan > 1 ? 1.5 / (U.fan - 1) : 0;
+                for (let f = 0; f < U.fan; f++) {
+                    const a = base + (U.fan > 1 ? (f - (U.fan - 1) / 2) * sp : 0), len = U.len * (last ? 1.2 : 1), x2 = ox + Math.cos(a) * len, y2 = oy + Math.sin(a) * len;
+                    ultFx({ k: 'line', x: ox, y: oy, a: a, rng: len, w: U.width * (last ? 1.5 : 1), fin: last ? 1 : 0, c: col });
+                    enemies.forEach(e => { if (e.hp > 0 && e.act !== false && distSeg(e.x, e.y, ox, oy, x2, y2) < U.width / 2 + e.r) ultHit(e, U.mult * (last ? 1.8 : 1) / Math.sqrt(U.fan), 120, last); });
+                }
+                if (U.fan === 1) { me.dashVX = Math.cos(base) * 900; me.dashVY = Math.sin(base) * 900; me.dashT = 0.12; }
+                if (last) { addShake(4, 0.18); hitStop(0.07); }
+            });
+        } else if (U.st === 'volley') {
+            for (let i = 0; i < U.n; i++) ultLater(i * U.gap, () => {
+                const ts = ultTargets(560), e = ts.length ? ts[Math.floor(Math.random() * ts.length)] : null, last = i === U.n - 1;
+                if (!e) { const a = ang0 + (Math.random() - 0.5) * 0.8; ultFx({ k: 'line', x: me.x, y: me.y, a: a, rng: 260, w: 10, fin: 0, c: col }); return; }
+                if (U.sky) ultFx({ k: 'line', x: e.x, y: e.y - 240, a: Math.PI / 2, rng: 240, w: 12, fin: last ? 1 : 0, c: col });
+                else { const a = Math.atan2(e.y - me.y, e.x - me.x); me.ang = a; ultFx({ k: 'line', x: me.x, y: me.y, a: a, rng: dist(me.x, me.y, e.x, e.y), w: 12, fin: last ? 1 : 0, c: col }); }
+                ultHit(e, U.mult * (last ? 2 : 1), 40, last); if (last) { addShake(3, 0.15); hitStop(0.05); }
+            });
+        } else if (U.st === 'storm') {
+            fx.push({ k: 'pring', x: me.x, y: me.y, r: 0, max: 150, t: (U.wind || 400) / 1000, life: (U.wind || 400) / 1000, c: col }); netSend('atk', { k: 'ring', x: me.x, y: me.y, a: 0, rad: 150, c: col, fin: 0 });
+            for (let i = 0; i < U.n; i++) ultLater((U.wind || 400) + i * U.gap, () => {
+                const ts = ultTargets(620), e = ts.length ? ts[Math.floor(Math.random() * ts.length)] : null, last = i === U.n - 1; if (!e) return;
+                ultFx({ k: 'line', x: e.x, y: e.y - 280, a: Math.PI / 2, rng: 280, w: 22, fin: 1, c: '#fff6a8' });
+                fx.push({ k: 'pring', x: e.x, y: e.y, r: 0, max: 70, t: 0.22, life: 0.22, c: col });
+                enemies.forEach(q => { if (q.hp > 0 && q.act !== false && dist(e.x, e.y, q.x, q.y) < 70 + q.r) ultHit(q, U.mult * (last ? 1.8 : 1), 60, last); });
+                addShake(1.5, 0.08);
+            });
+        } else {      // nova：魔法陣を広げて、そのあと大爆発
+            const tg = nearestEnemy(me.x, me.y, 700), cx = tg ? tg.x : me.x + Math.cos(ang0) * 240, cy = tg ? tg.y : me.y + Math.sin(ang0) * 240;
+            const wind = U.wind || 450;
+            fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: U.radius, t: wind / 1000, life: wind / 1000, c: col }); netSend('atk', { k: 'ring', x: cx, y: cy, a: 0, rad: U.radius, c: col, fin: 0 });
+            for (let k = 0; k < U.waves; k++) ultLater(wind + k * 260, () => {
+                const r = U.radius * (1 + 0.25 * k), last = k === U.waves - 1;
+                fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: r, t: 0.4, life: 0.4, c: '#ffffff', fill: true }); netSend('atk', { k: 'ring', x: cx, y: cy, a: 0, rad: r, c: col, fin: 1 });
+                enemies.forEach(e => { if (e.hp > 0 && e.act !== false && dist(cx, cy, e.x, e.y) < r + e.r) ultHit(e, U.mult * (last ? 1.4 : 1), 220, last); });
+                addShake(5, 0.25); hitStop(0.07);
+            });
+        }
+    }
+
+    // ================= 通常攻撃コンボ =================
+    //  連続で攻撃すると、段が進んで動きが変わる。最後の段（フィニッシャー）は大きく振り、強くふっ飛ばす。
+    //  m=ダメージ倍率 / r=範囲 / a=角度 / w=幅 / cd=次の攻撃までの間 / kn=ノックバック / lunge=前に踏み込む量(px) / dir=振る向き(1か-1) / fin=フィニッシャー
+    const COMBO_STYLES = {
+        blade: [{ m: 1.0, dir: 1 }, { m: 1.05, r: 1.05, dir: -1, lunge: 14 }, { m: 1.9, r: 1.25, a: 1.35, cd: 1.5, kn: 1.8, lunge: 30, dir: 1, fin: true }],
+        fast:  [{ m: 0.9, dir: 1 }, { m: 0.9, dir: -1 }, { m: 1.0, r: 1.05, dir: 1, lunge: 10 }, { m: 2.2, r: 1.3, a: 1.3, cd: 2.2, kn: 3, lunge: 26, dir: -1, fin: true }],
+        heavy: [{ m: 1.0, dir: 1 }, { m: 1.8, r: 1.2, a: 1.1, cd: 1.3, kn: 2, dir: -1, fin: true }],
+        pole:  [{ m: 1.0 }, { m: 1.05, r: 1.05, lunge: 12 }, { m: 1.9, r: 1.2, w: 1.6, cd: 1.5, kn: 2, lunge: 24, fin: true }],
+        ranged: [{ m: 1.0 }, { m: 1.0 }, { m: 1.6, cd: 1.4, fin: true }]
+    };
+    const COMBO_BY_TYPE = { dagger: 'fast', fist: 'fast', boots: 'fast', twinblade: 'fast', greatsword: 'heavy', axe: 'heavy', hammer: 'heavy', spear: 'pole', halberd: 'pole', whip: 'pole', kusarigama: 'pole' };
+    function comboStyle() { return COMBO_BY_TYPE[weapon.type] || ((T.kind === 'proj') ? 'ranged' : (T.kind === 'line' ? 'pole' : (T.kind === 'smash' ? 'heavy' : 'blade'))); }
+    function nextComboStep() {
+        const steps = COMBO_STYLES[comboStyle()], t = performance.now() / 1000;
+        if (t - (me.comboAt || 0) > (me.comboWin || 0.8)) me.comboI = 0;
+        const i = (me.comboI | 0) % steps.length, st = Object.assign({}, steps[i], { i: i, n: steps.length });
+        me.comboI = i + 1 >= steps.length ? 0 : i + 1; me.comboAt = t; me.comboWin = P.cd * (st.cd || 1) + 0.55;
+        return st;
+    }
+    let hitStopT = 0;
+    function hitStop(sec) { if (partyCount() === 1 && !PVP) hitStopT = Math.max(hitStopT, sec); }      // 当たった一瞬、動きを止める（ひとりで遊ぶときだけ。マルチでは全員の動きを止めてしまうので使わない）
+    const SHADE_CACHE = {};
+    function shade(hex, f) {      // f>0 で白に近づける／f<0 で黒に近づける
+        const key = hex + f; if (SHADE_CACHE[key]) return SHADE_CACHE[key];
+        const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return hex || '#fff';
+        const n = parseInt(m[1], 16); let r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+        const t = f > 0 ? 255 : 0, k = Math.abs(f); r = Math.round(r + (t - r) * k); g = Math.round(g + (t - g) * k); b = Math.round(b + (t - b) * k);
+        return (SHADE_CACHE[key] = 'rgb(' + r + ',' + g + ',' + b + ')');
+    }
+    function hitFeel(e, cs, h) {      // 当たった手応え：ドットの火花・画面の揺れ・ヒットストップ
+        if (!cs.ult && me.comboAt !== me.ultGainAt) { me.ultGainAt = me.comboAt; ultGain(cs.fin ? 8 : 2.5); }      // 必殺ゲージ：1振りにつき1回だけ溜まる
+        const base = Math.atan2(e.y - me.y, e.x - me.x), col = (h && h.crit) ? '#ffd84a' : HW.rarityOf(weapon).color, n = cs.fin ? 14 : 6;
+        if (fx.length < 400) for (let i = 0; i < n; i++) { const a = base + (Math.random() - 0.5) * (cs.fin ? 2.4 : 1.6), v = 160 + Math.random() * (cs.fin ? 420 : 260); fx.push({ k: 'pspark', x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, sz: Math.random() < 0.3 ? 8 : 4, t: 0.25 + Math.random() * 0.2, life: 0.45, c: Math.random() < 0.35 ? '#fff' : col }); }
+        if (cs.fin) { addShake(3.2, 0.12); hitStop(0.06); fx.push({ k: 'pring', x: e.x, y: e.y, r: 0, max: 46, t: 0.22, life: 0.22, c: col }); }
+        else { addShake(0.9, 0.05); if (cs.i >= 1) hitStop(0.025); }
+    }
+
     function strike(e, mult, kb) {
         const h = calcHit(e, mult);
         const pr = onHitProcs(e, h);
@@ -1377,8 +1534,9 @@
         me.energy -= atkCost; updateEnergyUI();
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
-        me.atkCd = cdv;
-        const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range, arc: T.arc, rad: P.radius || T.radius, w: T.width, c: HW.rarityOf(weapon).color };
+        const cs = nextComboStep(); me.atkCd = cdv * (cs.cd || 1);
+        const hit = (e, base) => { const h = strike(e, (base || 1) * cs.m, (T.knock || 0) * (cs.kn || 1)); hitFeel(e, cs, h); return h; };
+        const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range * (cs.r || 1), arc: (T.arc || 0) * (cs.a || 1), rad: (P.radius || T.radius) * (cs.r || 1), w: (T.width || 0) * (cs.w || 1), c: HW.rarityOf(weapon).color, cs: cs.i, dir: cs.dir || 1, fin: cs.fin ? 1 : 0 };
         spawnAtkFx(d); netSend('atk', d);
         if (T.sup === 'heal' || T.sup === 'buff' || T.sup === 'all') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
@@ -1389,31 +1547,32 @@
                 if (n) { fx.push({ k: 'line', x: me.x, y: me.y, x2: n.x, y2: n.y, t: 0.2, life: 0.2, c: '#ffd0ff' }); strike(n, 0.7, 40); }
             }, 120);
         }
-        if (T.lunge) { const L = blinkLimit(me.x, me.y, ang, T.lunge, me.r); me.x += Math.cos(ang) * L; me.y += Math.sin(ang) * L; pushOutOfRocks(me, me.r); }
+        const lg = cs.lunge != null ? cs.lunge : (T.lunge || 0);
+        if (lg) { const L = blinkLimit(me.x, me.y, ang, lg, me.r); me.x += Math.cos(ang) * L; me.y += Math.sin(ang) * L; pushOutOfRocks(me, me.r); }
 
         if (T.kind === 'cone') {
-            const range = P.range, arc = T.arc;
+            const range = d.rng, arc = d.arc;
             const swing = () => enemies.forEach(e => {
                 if (e.hp <= 0) return;
                 const dd = dist(me.x, me.y, e.x, e.y);
                 if (dd > range + e.r) return;
                 let da = Math.atan2(e.y - me.y, e.x - me.x) - ang; da = Math.atan2(Math.sin(da), Math.cos(da));
-                if (Math.abs(da) <= arc / 2 || dd < e.r + 18) strike(e, 1, T.knock);
+                if (Math.abs(da) <= arc / 2 || dd < e.r + 18) hit(e, 1);
             });
             swing();
             // 連続ヒットする武器（双刃など）：1振りで T.multi 回当たる
             for (let i = 1; i < (T.multi || 1); i++) setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) { spawnAtkFx(d); swing(); } }, i * 85);
         } else if (T.kind === 'line') {
-            const x2 = me.x + Math.cos(ang) * P.range, y2 = me.y + Math.sin(ang) * P.range;
-            enemies.forEach(e => { if (e.hp > 0 && distSeg(e.x, e.y, me.x, me.y, x2, y2) < (T.width || 24) / 2 + e.r) strike(e, 1, T.knock); });
+            const x2 = me.x + Math.cos(ang) * d.rng, y2 = me.y + Math.sin(ang) * d.rng;
+            enemies.forEach(e => { if (e.hp > 0 && distSeg(e.x, e.y, me.x, me.y, x2, y2) < (T.width || 24) * (cs.w || 1) / 2 + e.r) hit(e, 1); });
         } else if (T.kind === 'ring') {
-            enemies.forEach(e => { if (e.hp > 0 && dist(me.x, me.y, e.x, e.y) < P.radius + e.r) strike(e, 1, T.knock); });
+            enemies.forEach(e => { if (e.hp > 0 && dist(me.x, me.y, e.x, e.y) < d.rad + e.r) hit(e, 1); });
         } else if (T.kind === 'smash') {
             const cx = me.x + Math.cos(ang) * (T.reach || 60), cy = me.y + Math.sin(ang) * (T.reach || 60);
-            fx.push({ k: 'ring', x: cx, y: cy, r: 0, max: P.radius, t: 0.3, life: 0.3, c: '#ffcf8a', fill: true });
-            enemies.forEach(e => { if (e.hp > 0 && dist(cx, cy, e.x, e.y) < P.radius + e.r) strike(e, 1, T.knock); });
+            fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: d.rad, t: 0.3, life: 0.3, c: '#ffcf8a', fill: true });
+            enemies.forEach(e => { if (e.hp > 0 && dist(cx, cy, e.x, e.y) < d.rad + e.r) hit(e, 1); });
         } else if (T.kind === 'proj') {
-            const n = (T.spread || 1) + Math.round(A('projExtra'));
+            const n = (T.spread || 1) + Math.round(A('projExtra')) + (cs.fin && !T.spread ? 2 : 0);      // フィニッシャーは弾が増える
             const spread = T.spread ? 0.16 : 0.12;
             const sentShots = [];
             setTimeout(() => { if (sentShots.length) netSend('shot', { s: sentShots }); }, 0);   // 全部の弾が出来てからまとめて送る
@@ -1430,14 +1589,15 @@
         return dist(px, py, x1 + dx * t, y1 + dy * t);
     }
     function spawnAtkFx(d) {
-        if (d.k === 'cone') fx.push({ k: 'arc', x: d.x, y: d.y, a: d.a, rng: d.rng, arc: d.arc, t: 0.14, life: 0.14, c: d.c });
-        else if (d.k === 'line') fx.push({ k: 'line', x: d.x, y: d.y, x2: d.x + Math.cos(d.a) * d.rng, y2: d.y + Math.sin(d.a) * d.rng, t: 0.14, life: 0.14, c: d.c, w: d.w || 14 });
-        else if (d.k === 'ring') fx.push({ k: 'ring', x: d.x, y: d.y, r: 0, max: d.rad || 100, t: 0.25, life: 0.25, c: d.c });
-        else if (d.k === 'smash') fx.push({ k: 'ring', x: d.x + Math.cos(d.a) * 60, y: d.y + Math.sin(d.a) * 60, r: 0, max: d.rad || 90, t: 0.25, life: 0.25, c: d.c });
+        const L = d.fin ? 0.3 : 0.2;
+        if (d.k === 'cone') fx.push({ k: 'pslash', x: d.x, y: d.y, a: d.a, rng: d.rng, arc: d.arc, dir: d.dir || 1, fin: !!d.fin, t: L, life: L, c: d.c });
+        else if (d.k === 'line') fx.push({ k: 'pthrust', x: d.x, y: d.y, a: d.a, rng: d.rng, w: d.w || 14, fin: !!d.fin, t: L, life: L, c: d.c });
+        else if (d.k === 'ring') fx.push({ k: 'pring', x: d.x, y: d.y, r: 0, max: d.rad || 100, t: 0.25, life: 0.25, c: d.c });
+        else if (d.k === 'smash') fx.push({ k: 'pring', x: d.x + Math.cos(d.a) * 60, y: d.y + Math.sin(d.a) * 60, r: 0, max: d.rad || 90, t: 0.25, life: 0.25, c: d.c, fill: !!d.fin });
     }
 
     function doDash() {
-        if (me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.dashCd > 0 || run.phase !== 'run') return;
+        if (me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.ultT > 0 || me.dashCd > 0 || run.phase !== 'run') return;
         if (A('noDash') > 0) { if (me.noDashMsg !== true) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'ダッシュ不可', c: '#ff9a9a' }); me.noDashMsg = true; setTimeout(() => { me.noDashMsg = false; }, 1500); } return; }
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
@@ -1526,7 +1686,7 @@
 
     function castSkill(slot, charged) {      // charged=true は、溜めが終わって実際に発動するとき
         const s = skillSlots[slot];
-        if (!s || me.dead || me.stunT > 0 || run.phase !== 'run') return;
+        if (!s || me.dead || me.stunT > 0 || me.ultT > 0 || run.phase !== 'run') return;
         if (!charged) {
             if (s.cdLeft > 0 || me.cast || me.gch > 0) return;
             if (me.energy < s.cost) { flashEnergy(); return; }
@@ -1955,7 +2115,7 @@
             me.stunT -= dt; me.dashT = 0;
             if (me.stunT <= 0) { me.stunT = 0; me.stunImm = PVP ? PVP_STUN_IMM : STUN_IMM; popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '復帰！', c: '#9df0ff' }); }
         } else if (me.stunImm > 0) me.stunImm -= dt;
-        const stunned = me.stunT > 0 || !!me.cast || me.gch > 0;      // 動けない（スタン・スキルの溜め・守りの溜め）
+        const stunned = me.stunT > 0 || !!me.cast || me.gch > 0 || me.ultT > 0;      // 動けない（スタン・スキルの溜め・守りの溜め）
         // 移動
         let mx = (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) - (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0) + input.stick.x;
         let my = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0) + input.stick.y;
@@ -3194,12 +3354,65 @@
         if (!p.dead && (isMe ? me.stunT > 0 : p.stun)) { ctx.font = '20px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('💫', p.x + Math.cos(performance.now() / 120) * 8, p.y - 40); }
     }
 
+    // ---------- ドット絵風のエフェクト（4px の粒だけで描く）----------
+    const PXS = 4;
+    function pxDot(x, y) { ctx.fillRect(Math.round(x / PXS) * PXS - PXS / 2, Math.round(y / PXS) * PXS - PXS / 2, PXS, PXS); }
+    function drawPSlash(f, k) {      // 三日月型の斬撃。振り始めから振り終わりへ、弧が描かれていく
+        const head = Math.min(1, k * 2.4), fade = Math.max(0, 1 - Math.max(0, k - 0.5) * 2), sa = f.a - f.dir * f.arc / 2;
+        const cols = [shade(f.c, -0.5), f.c, shade(f.c, 0.5), '#ffffff'];
+        const passes = f.fin ? [1, 0.7] : [1];
+        passes.forEach((sc, pi) => {
+            const R = f.rng * sc, n = Math.max(10, Math.round(f.arc * R / PXS / 1.3));
+            for (let i = 0; i <= n; i++) {
+                const u = i / n; if (u > head) break;
+                const age = head - u; if (age > 0.6) continue;
+                ctx.globalAlpha = fade * (pi ? 0.65 : 1) * (1 - Math.max(0, age - 0.2) / 0.5);
+                const an = sa + f.dir * f.arc * u, cx = Math.cos(an), cy = Math.sin(an);
+                const th = R * (f.fin ? 0.5 : 0.36) * Math.pow(Math.sin(Math.PI * Math.min(1, u * 0.92 + 0.04)), 0.7), outer = R * (0.88 + 0.12 * Math.sin(Math.PI * u)), inner = outer - th;
+                for (let r = inner; r <= outer; r += PXS) {
+                    const band = (r - inner) / Math.max(1, th);
+                    ctx.fillStyle = band > 0.82 ? cols[3] : (band > 0.55 ? cols[2] : (band > 0.2 ? cols[1] : cols[0]));
+                    pxDot(f.x + cx * r, f.y + cy * r);
+                }
+            }
+        });
+        ctx.globalAlpha = 1;
+    }
+    function drawPThrust(f, k) {      // 突きの衝撃：先端が伸びていく細長い光
+        const head = Math.min(1, k * 3.2), fade = Math.max(0, 1 - Math.max(0, k - 0.45) * 1.9), cx = Math.cos(f.a), cy = Math.sin(f.a), px = -cy, py = cx;
+        const cols = [shade(f.c, -0.4), f.c, shade(f.c, 0.55), '#ffffff'];
+        for (let sd = 0; sd <= f.rng * head; sd += PXS) {
+            const u = sd / f.rng, hw = Math.max(1, Math.round((f.w * 0.32) * (1 - 0.7 * u) / PXS));
+            ctx.globalAlpha = fade * (1 - Math.max(0, head - u - 0.25) * 1.2);
+            for (let o = -hw; o <= hw; o++) {
+                const q = Math.abs(o) / Math.max(1, hw);
+                ctx.fillStyle = q > 0.75 ? cols[0] : (q > 0.4 ? cols[1] : (q > 0.1 ? cols[2] : cols[3]));
+                pxDot(f.x + cx * sd + px * o * PXS, f.y + cy * sd + py * o * PXS);
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+    function drawPRing(f, k) {      // 衝撃波：粒で描いた輪が広がる
+        const r = f.max * Math.min(1, k * 1.4), n = Math.max(12, Math.round(Math.PI * 2 * r / PXS / 1.2)), fade = Math.max(0, 1 - k);
+        ctx.globalAlpha = fade * (f.fill ? 0.28 : 0); if (f.fill) { ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); ctx.fill(); }
+        ctx.globalAlpha = fade;
+        for (let i = 0; i < n; i++) {
+            const an = i / n * Math.PI * 2; ctx.fillStyle = (i % 3 === 0) ? '#ffffff' : f.c;
+            pxDot(f.x + Math.cos(an) * r, f.y + Math.sin(an) * r); if (r > 16) { ctx.fillStyle = shade(f.c, -0.4); pxDot(f.x + Math.cos(an) * (r - PXS), f.y + Math.sin(an) * (r - PXS)); }
+        }
+        ctx.globalAlpha = 1;
+    }
+
     function drawFx(f) {
         const k = 1 - f.t / f.life;
         ctx.globalAlpha = Math.max(0, 1 - k);
         if (f.k === 'arc') { ctx.fillStyle = f.c; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.arc(f.x, f.y, f.rng, f.a - f.arc / 2, f.a + f.arc / 2); ctx.closePath(); ctx.globalAlpha *= 0.45; ctx.fill(); }
         else if (f.k === 'line') { ctx.strokeStyle = f.c; ctx.lineWidth = f.w || 4; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke(); }
         else if (f.k === 'ring') { const r = f.max * Math.min(1, k * 1.4); ctx.strokeStyle = f.c; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(f.x, f.y, r, 0, 7); if (f.fill) { ctx.globalAlpha *= 0.3; ctx.fillStyle = f.c; ctx.fill(); ctx.globalAlpha = Math.max(0, 1 - k); } ctx.stroke(); }
+        else if (f.k === 'pslash') drawPSlash(f, k);
+        else if (f.k === 'pthrust') drawPThrust(f, k);
+        else if (f.k === 'pring') drawPRing(f, k);
+        else if (f.k === 'pspark') { ctx.fillStyle = f.c; const z = f.sz * (1 - k * 0.5); ctx.fillRect(Math.round(f.x / 4) * 4 - z / 2, Math.round(f.y / 4) * 4 - z / 2, z, z); }
         else if (f.k === 'puff') { ctx.fillStyle = f.c; ctx.beginPath(); ctx.arc(f.x, f.y, 8 + k * 22, 0, 7); ctx.globalAlpha *= 0.4; ctx.fill(); }
         else if (f.k === 'bolt') { ctx.strokeStyle = f.c; ctx.lineWidth = f.w * (1.2 - k * 0.7); ctx.beginPath(); f.pts.forEach((q, i) => { if (i) ctx.lineTo(q[0], q[1]); else ctx.moveTo(q[0], q[1]); }); ctx.stroke(); ctx.strokeStyle = '#fff'; ctx.lineWidth = Math.max(1, f.w * 0.35); ctx.stroke(); ctx.globalAlpha = 1; }
         else if (f.k === 'spark') { ctx.fillStyle = f.c; const z = f.sz * (1 - k * 0.7); ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(0.5, z), 0, 7); ctx.fill(); }
@@ -3219,6 +3432,14 @@
                 ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(label, msx, y0 - 5); ctx.fillStyle = '#fff'; ctx.fillText(label, msx, y0 - 5);
             };
             const ring = (r, col, alpha, lw) => { ctx.globalAlpha = alpha; ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.beginPath(); ctx.arc(msx, msy, r, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; };
+            if (!PVP && !me.dead) {      // 必殺ゲージ（足もとの小さなバー）
+                const uf = (me.ult || 0) / ULT_MAX, w = 48, x0 = msx - w / 2, y0 = msy + 26, full = uf >= 1;
+                ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(x0 - 2, y0 - 2, w + 4, 8);
+                ctx.fillStyle = full ? (Math.floor(tt * 6) % 2 ? '#fff2a8' : '#ffd84a') : '#c9a227'; ctx.fillRect(x0, y0, w * uf, 4);
+                if (full) { ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText('R 必殺技！', msx, y0 + 18); ctx.fillStyle = '#ffd84a'; ctx.fillText('R 必殺技！', msx, y0 + 18); }
+                const bu = document.getElementById('btnUlt'); if (bu) { const txt = full ? '⚡必殺' : '⚡' + Math.floor(uf * 100) + '%'; if (bu.textContent !== txt) bu.textContent = txt; bu.style.opacity = full ? '1' : '0.55'; }
+            }
+            if (ultFlashT > 0) { ctx.globalAlpha = Math.min(0.5, ultFlashT * 1.6); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, VW, VH); ctx.globalAlpha = 1; }
             if (me.cast && !me.dead) {
                 const f = 1 - me.cast.t / me.cast.max;
                 ring(60 - 40 * f, '#ffe08a', 0.35 + 0.5 * f, 3); ring(20 + 14 * Math.sin(tt * 18), '#fff2b8', 0.5, 2);
@@ -3407,7 +3628,8 @@
     // ---------- ループ ----------
     let last = performance.now(), skillT = 0;
     function loop(now) {
-        const dt = Math.min(0.05, (now - last) / 1000); last = now;
+        let dt = Math.min(0.05, (now - last) / 1000); last = now;
+        if (hitStopT > 0) { hitStopT -= dt; dt *= 0.06; }      // ヒットストップ：当たった一瞬だけ、ほぼ止める
         if (window.SBOrientation && SBOrientation.blocking() && partyCount() === 1) { render(); requestAnimationFrame(loop); return; }
         if (run.phase === 'run') {
             run.time += dt;
