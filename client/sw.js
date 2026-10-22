@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v86';
+const CACHE_NAME = 'school-battle-cache-v93';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -14,6 +14,11 @@ const urlsToCache = [
   '/js/pvp-event.js',
   '/js/debug.js',
   '/js/armor.js',
+  '/js/accessories.js',
+  '/js/achievements.js',
+  '/js/pixel-data.js',
+  '/js/pixel.js',
+  '/js/pixel-extra.js',
   '/js/season.js',
   '/js/beginner.js',
   '/js/stage-data.js',
