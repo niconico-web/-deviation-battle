@@ -769,6 +769,7 @@ function renderElemPanel() {
 function applyStudyRewards(seconds) {
     if (seconds < 60) { alert("勉強時間は1分以上にしてください"); return; }
     let player = getPlayerData(); if (!player) return;
+    try { if (window.SBAch) { SBAch.report('study', seconds); SBAch.evaluate(); } } catch (e) { /* 実績の記録に失敗しても勉強の報酬は渡す */ }
     const subject = document.getElementById("studyFocus").value;
     const stats = getStatsFromPlayer(player);
     const gainedXp = calcStudyXp(seconds);
@@ -955,6 +956,14 @@ function syncPlayerToServer(silent) {
 // ============================================================
 const SYNC_META_KEY = 'sbSyncMeta';
 let syncManual = false, syncConflictOpen = false, syncBusyAt = 0, syncPushHash = null, syncReady = false, syncWanted = false;
+// この端末（ブラウザ）の目印。保存のたびにサーバーへ送り、「いまの版を保存したのは自分か」を判定する。
+// これが無いと、返事が届かなかった保存や、重ねて送った保存のあとで、「もう一方の端末が変更した」と取り違えて衝突の画面が出ていた
+function getDeviceId() {
+    let d = null;
+    try { d = localStorage.getItem('sbDeviceId'); if (!d) { d = 'd' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem('sbDeviceId', d); } } catch (e) { d = 'dx' + (window.__sbDx || (window.__sbDx = Math.random().toString(36).slice(2, 8))); }
+    return d;
+}
+let syncInFlight = 0, syncPushAgain = false;     // 保存の返事を待っている間は、重ねて送らない（版がずれて衝突に見えるため）
 function loadSyncMeta() { try { const m = JSON.parse(localStorage.getItem(SYNC_META_KEY) || 'null'); return m && typeof m === 'object' ? m : null; } catch (e) { return null; } }
 function saveSyncMeta(m) { try { localStorage.setItem(SYNC_META_KEY, JSON.stringify(m)); } catch (e) { /* 容量不足 */ } renderSyncStatus(); }
 function currentSyncHash() {
@@ -977,9 +986,10 @@ function runSync(manual) {            // 状態を問い合わせて、送る／
 }
 function pushSync(force) {
     const player = getPlayerData(); if (!player || !syncOnline()) return;
+    if (syncInFlight && Date.now() - syncInFlight < 20000 && !force) { syncPushAgain = true; return; }     // 返事待ち：あとでもう一度
     const meta = loadSyncMeta(), base = meta && meta.id === player.id ? (meta.rev || 0) : 0;
-    syncPushHash = currentSyncHash();
-    window.socket.emit('sync:push', { id: player.id, baseRev: base, player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
+    syncPushHash = currentSyncHash(); syncInFlight = Date.now();
+    window.socket.emit('sync:push', { id: player.id, baseRev: base, dev: getDeviceId(), player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
 }
 function applyPulled(r) {              // サーバーのデータをこの端末へ反映して、再読み込み
     if (!r || !r.ok || !r.player) return false;
@@ -1033,6 +1043,9 @@ function setupSyncHandlers() {
     if (!window.socket || window.__syncHandlers === window.socket) return; window.__syncHandlers = window.socket;
     window.socket.on('sync:status', (st) => {
         const p = getPlayerData(); if (!p || !st || st.id !== p.id) { syncManual = false; return; }
+        // いまの版を保存したのが、この端末自身なら、「もう一方の端末の変更」ではない（保存の返事が届かなかっただけ）。版の番号だけ合わせる
+        const meta0 = loadSyncMeta();
+        if (meta0 && meta0.id === p.id && st.exists && st.dev && st.dev === getDeviceId() && st.rev > (meta0.rev || 0)) saveSyncMeta(Object.assign({}, meta0, { rev: st.rev }));
         const meta = loadSyncMeta(), linked = !!(meta && meta.id === p.id);
         const dirty = !linked || currentSyncHash() !== meta.hash;
         const serverNewer = st.exists && st.rev > (linked ? meta.rev : 0);
@@ -1050,6 +1063,8 @@ function setupSyncHandlers() {
     });
     window.socket.on('sync:pushed', (r) => {
         if (!r) return;
+        syncInFlight = 0;
+        if (syncPushAgain) { syncPushAgain = false; setTimeout(() => runSync(false), 400); }      // 返事を待っている間に変更があったので、改めて同期する
         if (r.ok) {
             const p = getPlayerData() || {};
             saveSyncMeta({ id: p.id, rev: r.rev, hash: syncPushHash || currentSyncHash(), at: Date.now() });
@@ -1057,7 +1072,11 @@ function setupSyncHandlers() {
             if (r.manual && syncManual) alert('同期しました。\n（キャラクター・武器庫・防具・スキルなど）\n\nもう1台の端末に、このIDを入力して連携すると、同じデータで遊べます。\nプレイヤーID: ' + p.id);
             syncManual = false; return;
         }
-        if (r.conflict) { syncManual = false; showSyncConflict(r); return; }       // 送る直前に、もう一方の端末が先に更新した
+        if (r.conflict) {
+            const pp = getPlayerData() || {};
+            if (r.dev && r.dev === getDeviceId() && pp.id) { saveSyncMeta({ id: pp.id, rev: r.rev, hash: (loadSyncMeta() || {}).hash || '', at: Date.now() }); pushSync(false); return; }    // 先に保存したのは自分の端末：衝突ではないので、版を合わせて送り直す
+            syncManual = false; showSyncConflict(r); return;       // 送る直前に、もう一方の端末が先に更新した
+        }
         syncManual = false;
         alert(r.reason === 'size' ? '同期に失敗しました（データが大きすぎます）。' : '同期に失敗しました。しばらくしてからもう一度お試しください。');
         renderSyncStatus();
@@ -1085,7 +1104,7 @@ function startAutoSync() {
 }
 
 // ---------- データ引き継ぎ：プレイヤー以外のデータ ----------
-const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent'];
+const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
 let lastBundleAt = 0;
 // ページを開いた直後（初期化で保存データが整えられる前）のデータの指紋。同期の「この端末に変更があるか」の判定に使う
 const bootSyncHash = currentSyncHash();
@@ -1108,7 +1127,7 @@ function sendBundle(manual) {
     return true;
 }
 // 画面を閉じる・切り替えるときにも、最新の状態を送っておく（変更があるときだけ。衝突しても勝手には上書きしない）
-document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; syncPushHash = currentSyncHash(); window.socket.emit('sync:push', { id: p.id, baseRev: m.rev || 0, player: p, bundle: collectBundle(), manual: false, force: false }); } } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && getPlayerData() && syncOnline()) { const m = loadSyncMeta(), p = getPlayerData(); if (m && m.id === p.id && currentSyncHash() !== m.hash) { syncManual = false; pushSync(false); } } });
 
 function setupSocketEventHandlers() {
     if (!window.socket || socketHandlersSetup) return;
