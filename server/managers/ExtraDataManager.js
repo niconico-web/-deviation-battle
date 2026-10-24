@@ -31,13 +31,13 @@ const pvpEvent = makeStore('pvp_event.json');
 
 const ID_RE = /^[A-Za-z0-9]{4,12}$/;
 // 引き継ぎで運べるデータ（端末ごとの設定などは運ばない）。値は localStorage の文字列そのまま
-const BUNDLE_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent'];
+const BUNDLE_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
 const MAX_VALUE = 6 * 1024 * 1024;
 
-function saveBundle(id, bundle, rev) {
+function saveBundle(id, bundle, rev, dev) {
     if (!ID_RE.test(String(id || '')) || !bundle || typeof bundle !== 'object') return false;
     const old = bundles.data[String(id).toUpperCase()];
-    const clean = { at: Date.now(), rev: (rev !== undefined ? rev : ((old && old.rev) || 0)), items: {} };
+    const clean = { at: Date.now(), rev: (rev !== undefined ? rev : ((old && old.rev) || 0)), dev: String(dev || (old && old.dev) || '').slice(0, 40), items: {} };   // dev＝最後に保存した端末（同じ端末の変更を「別の端末の変更」と取り違えないため）
     let total = 0;
     for (const k of BUNDLE_KEYS) {
         const v = bundle.items && bundle.items[k];

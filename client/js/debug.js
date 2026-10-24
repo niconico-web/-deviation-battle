@@ -10,12 +10,17 @@
 //    SBDebug.keeper({ hp: 0.05 })      ボスのHPを5%にする（短時間で最後まで見る）
 //    SBDebug.keeper({ cores: 2 })      核が2つ残った状態から始める
 //    SBDebug.fight('olympus', { god: true })   好きなステージで（IDは SBDebug.list() で確認）
-//  ［URL］  index.html?debug=keeper   index.html?debug=keeper2&god=1&hp=0.1   stage.html?debug=olympus
+//    SBDebug.mythic('all')             神話の武器を全部（11本）手に入れる
+//    SBDebug.mythic('orbit')           神話の武器を1本だけ手に入れて、装備する（id か、武器の種類 halberd / sword / bow など）
+//    SBDebug.mythics()                 神話の武器の一覧（id・名前・ボスの技）
+//    SBDebug.corrBoss(5)               無限回廊のボス（1〜10）に、いきなり挑む（SBDebug.corrBosses() で一覧）
+//    SBDebug.corrBoss(10, { god: true, hp: 0.1, floor: 60 })   無敵・ボスHP10%・地下60階の強さで
+//  ［URL］  index.html?debug=corrboss&tier=5&floor=20   index.html?debug=keeper   index.html?debug=keeper2&god=1&hp=0.1   stage.html?debug=olympus
 //  オプション：god(無敵) / energy(エネルギー無限。既定はON) / hp(ボスHPの倍率) / cores(核の数 0〜6) / diff(難易度 0〜2)
 // ============================================================
 (function () {
     'use strict';
-    const ALIAS = { keeper: 'dimension_end', keeper2: 'dimension_end', reaper: 'grave_of_gears', boiler: 'boiler_heart', gravity: 'gravity_well', zeus: 'olympus', olympus: 'olympus', abyss: 'void_throne' };
+    const ALIAS = { keeper: 'dimension_end', keeper2: 'dimension_end', corrboss: 'infinite_corridor', reaper: 'grave_of_gears', boiler: 'boiler_heart', gravity: 'gravity_well', zeus: 'olympus', olympus: 'olympus', abyss: 'void_throne' };
 
     function launch(stageId, opts) {
         opts = Object.assign({ god: false, energy: true, hp: 1, cores: 6, diff: 0 }, opts || {});
@@ -29,8 +34,24 @@
         fight: launch,
         keeper: (o) => launch('dimension_end', o),
         keeper2: (o) => launch('dimension_end', Object.assign({ cores: 0 }, o || {})),
+        // 神話の武器を、実績なしで手に入れる（確認用）。武器庫に追加して、1本だけのときは装備する
+        mythic: (id, o) => {
+            if (!window.HW || !HW.MYTHICS) { console.warn('神話の武器のデータがありません'); return null; }
+            const all = Object.keys(HW.MYTHICS), key = String(id || 'all');
+            const ids = key === 'all' ? all : all.filter(k => k === key || HW.MYTHICS[k].type === key);
+            if (!ids.length) { console.warn('見つかりません: ' + key + '　（SBDebug.mythics() で一覧）'); return null; }
+            const h = HW.load(), got = ids.map(k => HW.giveMythic(h, k)).filter(Boolean);
+            if (ids.length === 1 && got[0] && !(o && o.equip === false)) h.equipped = got[0].id;
+            HW.save(h);
+            const names = got.map(w => HW.displayName ? HW.displayName(w) : w.name);
+            console.log('神話の武器を入手：' + names.join(' / ') + (ids.length === 1 ? '（装備しました。ステージを開き直してください）' : '（武器庫で装備できます）'));
+            return got;
+        },
+        mythics: () => { const l = Object.keys(HW.MYTHICS).map(k => { const m = HW.MYTHICS[k]; return k + '　' + m.prefix + '＋' + m.name + '（' + m.type + '）　' + (m.boss || '') + '：' + (m.tech || ''); }); console.log(l.join('\n')); return l; },
+        corrBoss: (tier, o) => launch('infinite_corridor', Object.assign({ corrBoss: Math.max(1, Math.min(10, tier | 0 || 1)) }, o || {})),
+        corrBosses: () => { const l = ((window.STAGE_DATA && STAGE_DATA.CORRIDOR && STAGE_DATA.CORRIDOR.bosses) || []).map(b => b.tier + '　' + b.name + '　' + (b.note || '')); console.log(l.join('\n')); return l; },
         list: () => { const l = (window.STAGE_DATA && STAGE_DATA.STAGES || []).map(s => s.id + '　' + s.name + (s.boss ? '（' + s.boss.name + '）' : '')); console.log(l.join('\n')); return l; },
-        help: () => console.log('SBDebug.keeper() / keeper2() / fight(ステージID, {god, energy, hp, cores, diff}) / list()')
+        help: () => console.log('SBDebug.mythic(\'all\' か id か武器の種類) / mythics() / SBDebug.keeper() / keeper2() / fight(ステージID, {god, energy, hp, cores, diff}) / corrBoss(1〜10, {god, hp, floor}) / corrBosses() / list()')
     };
     window.SBDebug = api;
 
@@ -44,6 +65,8 @@
             if (q.get('hp') != null) o.hp = Math.max(0.001, Math.min(10, parseFloat(q.get('hp')) || 1));
             if (q.get('cores') != null) o.cores = Math.max(0, Math.min(6, parseInt(q.get('cores'), 10) || 0));
             else if (t === 'keeper2') o.cores = 0;
+            if (t === 'mythic') { const g = q.get('id') || 'all'; setTimeout(() => api.mythic(g), 300); return; }
+            if (t === 'corrboss') { o.corrBoss = Math.max(1, Math.min(10, parseInt(q.get('tier'), 10) || 1)); if (q.get('floor') != null) o.floor = Math.max(1, Math.min(999, parseInt(q.get('floor'), 10) || 1)); }
             if (q.get('diff') != null) o.diff = Math.max(0, Math.min(2, parseInt(q.get('diff'), 10) || 0));
             const opts = Object.assign({ god: false, energy: true, hp: 1, cores: 6, diff: 0 }, o);
             localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: id, mode: 'solo', roomId: null, diff: opts.diff, debug: opts, at: Date.now() }));
