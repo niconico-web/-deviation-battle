@@ -34,6 +34,8 @@
     .touch-btn { position: fixed; z-index: 9; border-radius: 50%; border: 2px solid rgba(255,255,255,.55); background: rgba(80,160,255,.35); color: #fff; display: none; font-size: .8rem; touch-action: none; }
     html.touch .touch-btn { display: block; }
     #btnDash { right: max(16px, env(safe-area-inset-right)); bottom: 120px; width: 62px; height: 62px; }
+    #btnGuard { right: max(88px, env(safe-area-inset-right)); bottom: 120px; width: 62px; height: 62px; background: rgba(60,200,230,.35); }
+    #btnUlt { right: max(160px, env(safe-area-inset-right)); bottom: 120px; width: 62px; height: 62px; background: rgba(255,200,40,.35); }
     @keyframes pulse { to { transform: scale(1.1); } }
     #skillBar { position: fixed; z-index: 9; right: max(12px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); display: grid; grid-template-columns: repeat(4, 58px); gap: 6px; }
     .skill-btn { position: relative; height: 66px; background: rgba(28,34,51,.88); color: #fff; border: 2px solid #3a4870; border-radius: 10px; padding: 2px; font-size: .62rem; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; cursor: pointer; overflow: hidden; }
@@ -67,6 +69,8 @@
         html.touch .skill-btn { height: 52px; }
         html.touch .sk-name { font-size: .5rem; }
         html.touch #btnDash { width: 52px; height: 52px; right: max(12px, env(safe-area-inset-right)); bottom: calc(max(4px, env(safe-area-inset-bottom)) + 120px); }
+        html.touch #btnGuard { width: 52px; height: 52px; right: max(70px, env(safe-area-inset-right)); bottom: calc(max(4px, env(safe-area-inset-bottom)) + 120px); }
+        html.touch #btnUlt { width: 52px; height: 52px; right: max(128px, env(safe-area-inset-right)); bottom: calc(max(4px, env(safe-area-inset-bottom)) + 120px); }
         .panel { padding: 10px 14px; max-height: 94vh; }
         .panel h2 { font-size: 1.05rem; margin: 0 0 4px; }
         .panel button { padding: 7px 14px; font-size: .9rem; margin-top: 6px; }
@@ -105,6 +109,8 @@
 <button type="button" id="quizToggle">クイズ ▢</button>
 <div id="quiz"><div id="quizQ">読み込み中...</div><div id="quizC"></div></div>
 <button type="button" id="btnDash" class="touch-btn">ダッシュ</button>
+<button type="button" id="btnGuard" class="touch-btn">🛡 溜め</button>
+<button type="button" id="btnUlt" class="touch-btn">⚡0%</button>
 <div id="skillBar"></div>
 
 <div id="waitRoom" class="overlay" style="display:flex">
@@ -136,6 +142,11 @@
 <script src="js/hw-weapons.js"></script>
 <script src="js/elements.js"></script>
 <script src="js/armor.js"></script>
+<script src="js/accessories.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/pixel-data.js"></script>
+<script src="js/pixel.js"></script>
+<script src="js/pixel-extra.js"></script>
 <script src="js/stage-data.js"></script>
 <script src="js/season.js"></script>
 <script src="js/pvp-event.js"></script>
