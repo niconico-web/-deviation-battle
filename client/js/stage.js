@@ -3926,7 +3926,11 @@
                 const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
                 const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
                 posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
+<<<<<<< HEAD
                 netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, wm: (posSeq % 20 === 0) ? (weapon.mythicId || '') : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+=======
+                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+>>>>>>> bb9e2628b46cd9f25fbb4178a063dab34c5d5e66
             }
             snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { const sn = makeSnap(); snapT = 1 / (snapBytes > 11000 ? 10 : SNAP_HZ); netSend('snap', sn); }      // 大きいスナップショットのときは送る回数を減らす（回線が細い人が詰まらないように）
         } else if (run.phase === 'end') { updateShots(dt); }
