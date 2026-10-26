@@ -195,12 +195,19 @@
                 (un && (hack.corridorBest | 0) > 1 ? '<div class="sbl-sec">スタートする階層（行ったことのある階まで選べる）</div><div><select id="sbStartFloor" style="padding:5px;min-width:160px">' + startFloorOptions().map(f => '<option value="' + f + '"' + (f === Math.min(selStart, hack.corridorBest | 0) ? ' selected' : '') + '>地下' + f + '階' + (f === (hack.corridorBest | 0) ? '（最深）' : '') + '</option>').join('') + '</select><span style="font-size:.76rem;color:#9fb3d9;margin-left:6px">深い階から始めるほど敵は強く、報酬も良い</span></div>' : '') +
                 (un ? '<div style="margin-top:8px"><button class="sbl-btn green" id="sbSolo">ソロで潜る</button><button class="sbl-btn" id="sbCreate">部屋を作って募集</button><button class="sbl-btn orange" id="sbQuick">クイック参加</button></div>' +
                     '<div class="sbl-sec">募集中の部屋 <button class="sbl-btn gray" id="sbRefresh" style="padding:3px 8px;font-size:.75rem">更新</button></div>' +
+<<<<<<< HEAD
                     '<div id="sbRooms">' + (rooms.length ? rooms.filter(r => r.stageId === selId).map(r => { const sf = r.startFloor || 1, ok = corrRoomOk(r); return '<div class="sbl-room"><span>' + esc(r.members[0] ? r.members[0].name : '?') + ' の部屋 (' + r.members.length + '/' + r.max + ')　<b style="color:' + (ok ? '#9fe8b0' : '#ff9a9a') + '">地下' + sf + '階から</b></span>' + (ok ? '<button class="sbl-btn" data-room="' + r.id + '" style="margin:0">参加</button>' : '<button class="sbl-btn gray" data-room-locked="' + sf + '" style="margin:0">🔒 未到達</button>') + '</div>'; }).join('') || '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>' : '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>') + '</div>' : '');
             const sf = detEl.querySelector('#sbStartFloor'); if (sf) sf.addEventListener('change', () => { selStart = parseInt(sf.value, 10) || 1; hack.corrStart = selStart; HW.save(hack); });
             bindDetail(false);
         }
         // 無限回廊の部屋に入れるのは、その部屋のスタート階層まで、一度でも到達したことがある人だけ
         function corrRoomOk(r) { return (r.startFloor || 1) <= Math.max(1, hack.corridorBest | 0); }
+=======
+                    '<div id="sbRooms">' + (rooms.length ? rooms.filter(r => r.stageId === selId).map(r => '<div class="sbl-room"><span>' + esc(r.members[0] ? r.members[0].name : '?') + ' の部屋 (' + r.members.length + '/' + r.max + ')</span><button class="sbl-btn" data-room="' + r.id + '" style="margin:0">参加</button></div>').join('') || '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>' : '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>') + '</div>' : '');
+            const sf = detEl.querySelector('#sbStartFloor'); if (sf) sf.addEventListener('change', () => { selStart = parseInt(sf.value, 10) || 1; hack.corrStart = selStart; HW.save(hack); });
+            bindDetail(false);
+        }
+>>>>>>> be3fa0087d45361b4d5ac4df2e7cb05a2b46e153
         // スタート階層の選択肢：1階、5の倍数、最深
         function startFloorOptions() {
             const best = Math.max(1, hack.corridorBest | 0), out = [1];
@@ -253,7 +260,10 @@
             let useDiff = selDiff;
             if (st.rush) { if (diffLocked(st, selRush)) { alert('エクストリームは、ディメンション・キーパーを「ナイトメア」でクリアすると挑戦できます。'); return; } useDiff = selRush; }
             if (st.corridor) useDiff = 0;
+<<<<<<< HEAD
             if (st.corridor && mode === 'join') { const rm = rooms.find(x => x.id === roomId); if (rm && !corrRoomOk(rm)) { alert('この部屋は地下' + (rm.startFloor || 1) + '階からです。まだ到達していないので、参加できません。'); return; } }
+=======
+>>>>>>> be3fa0087d45361b4d5ac4df2e7cb05a2b46e153
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
