@@ -122,6 +122,9 @@ require("./socket/disconnect")(io);
 require("./socket/world")(io);
 require("./socket/chat")(io);
 require("./socket/worldboss")(io);
+require("./socket/market")(io);
+require("./socket/skillai")(io);
+require("./socket/survival")(io);
 
 app.get("/api/unique/claims", (req, res) => {
     res.json(UniqueWeaponManager.getAllClaims());

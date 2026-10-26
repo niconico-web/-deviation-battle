@@ -6,7 +6,7 @@
 //
 // イベント（クライアント → サーバー）
 //   stage:list   { stageId? }                    -> stage:rooms
-//   stage:create { player:{id,name,wname,rar}, stageId }
+//   stage:create { player:{id,name,wname,rar,best}, stageId, startFloor? }   best＝無限回廊で到達した最深の階層。startFloor＝その部屋のスタート階層
 //   stage:join   { roomId, player }
 //   stage:quick  { player, stageId }             空いている部屋に参加、無ければ作る
 //   stage:start                                  ホストだけ。出発
@@ -23,7 +23,7 @@
 const MAX_MEMBERS = 4;
 const MAX_BY_STAGE = { pvp_3v3: 6 };            // 3v3 は6人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
-const MAX_RELAY_BYTES = 30000;
+const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room
 const socketRoom = new Map();     // socket.id -> roomId
 
@@ -34,6 +34,10 @@ function cleanDiff(v) {
     const n = parseInt(v, 10);
     return n >= 0 && n <= 3 ? n : 0;   // 0〜2＝通常ステージの難易度、3＝ボスラッシュのエクストリーム
 }
+function cleanFloor(v) {      // 無限回廊の、部屋のスタート階層（1以上）
+    const n = parseInt(v, 10);
+    return n >= 1 && n <= 9999 ? n : 1;
+}
 function newRoomId() {
     let id;
     do { id = Math.random().toString(36).slice(2, 6).toUpperCase(); } while (rooms.has(id));
@@ -41,7 +45,7 @@ function newRoomId() {
 }
 function publicRoom(r) {
     return {
-        id: r.id, stageId: r.stageId, diff: r.diff || 0, hostId: r.hostId, state: r.state, max: maxOf(r),
+        id: r.id, stageId: r.stageId, diff: r.diff || 0, startFloor: r.startFloor || 1, hostId: r.hostId, state: r.state, max: maxOf(r),
         members: r.members.map(m => ({ id: m.id, name: m.name, wname: m.wname, rar: m.rar }))
     };
 }
@@ -69,6 +73,11 @@ module.exports = function (io) {
         if (!id) { socket.emit("stage:error", { message: "プレイヤー情報が不正です" }); return false; }
         if (r.members.length >= maxOf(r)) { socket.emit("stage:error", { message: "この部屋は満員です" }); return false; }
         if (r.state !== "lobby") { socket.emit("stage:error", { message: "すでに出発しています" }); return false; }
+        // 無限回廊：その階層まで、一度でも到達したことがある人だけが参加できる（到達した最深の階層は、参加する人が申告する）
+        if ((r.startFloor || 1) > 1) {
+            const best = parseInt(player && player.best, 10) || 0;
+            if (best < r.startFloor) { socket.emit("stage:error", { message: "この部屋は地下" + r.startFloor + "階からです。まだ地下" + r.startFloor + "階に到達していないので、参加できません（最深：" + (best ? "地下" + best + "階" : "未挑戦") + "）" }); return false; }
+        }
         r.members = r.members.filter(m => m.id !== id); // 同一プレイヤーの二重参加を防ぐ
         r.members.push({ sid: socket.id, id: id, name: cleanName(player.name, 16) || "名無し", wname: cleanName(player.wname, 30), rar: cleanName(player.rar, 12) });
         socket.join("stage:" + r.id);
@@ -91,7 +100,7 @@ module.exports = function (io) {
 
         socket.on("stage:create", (data) => {
             if (!data || !data.stageId) return;
-            const r = { id: newRoomId(), stageId: String(data.stageId).slice(0, 40), diff: cleanDiff(data.diff), hostId: null, state: "lobby", members: [] };
+            const r = { id: newRoomId(), stageId: String(data.stageId).slice(0, 40), diff: cleanDiff(data.diff), startFloor: cleanFloor(data.startFloor), hostId: null, state: "lobby", members: [] };
             r.hostId = cleanName(data.player && data.player.id, 60);
             rooms.set(r.id, r);
             if (!addMember(socket, r, data.player)) rooms.delete(r.id);
@@ -107,9 +116,10 @@ module.exports = function (io) {
             if (!data || !data.stageId) return;
             const sid = String(data.stageId).slice(0, 40);
             let target = null;
-            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && r.state === "lobby" && r.members.length < maxOf(r)) target = r; });
+            const wantFloor = cleanFloor(data.startFloor);
+            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && (r.startFloor || 1) === wantFloor && r.state === "lobby" && r.members.length < maxOf(r)) target = r; });      // クイック参加は、同じスタート階層の部屋だけ
             if (!target) {
-                target = { id: newRoomId(), stageId: sid, diff: cleanDiff(data.diff), hostId: cleanName(data.player && data.player.id, 60), state: "lobby", members: [] };
+                target = { id: newRoomId(), stageId: sid, diff: cleanDiff(data.diff), startFloor: wantFloor, hostId: cleanName(data.player && data.player.id, 60), state: "lobby", members: [] };
                 rooms.set(target.id, target);
                 if (!addMember(socket, target, data.player)) rooms.delete(target.id);
                 return;
@@ -130,7 +140,7 @@ module.exports = function (io) {
         socket.on("stage:relay", (msg) => {
             const r = rooms.get(socketRoom.get(socket.id));
             if (!r || !msg || typeof msg.t !== "string" || msg.t.length > 12) return;
-            const hot = msg.t === "pos" || msg.t === "snap";   // 毎秒10回以上流れる「位置」「状態スナップショット」
+            const hot = msg.t === "pos" || msg.t === "snap" || msg.t === "mn";   // 毎秒10回以上流れる「位置」「状態スナップショット」「ミニオンの位置」
             if (!hot) {   // 高頻度メッセージは固定形式なので毎回JSON化してサイズを測る必要はない（それ自体がCPUを食う）
                 let size = 0;
                 try { size = JSON.stringify(msg.d || {}).length; } catch (e) { return; }
@@ -143,6 +153,7 @@ module.exports = function (io) {
             (hot ? target.volatile : target).emit("stage:msg", { from: me.id, t: msg.t, d: msg.d });
         });
 
+        socket.on("stage:ping", (t, cb) => { if (typeof cb === "function") cb(t); });      // 通信の遅れ（Ping）の計測用
         socket.on("stage:leave", () => leave(socket));
         socket.on("disconnect", () => leave(socket));
     });

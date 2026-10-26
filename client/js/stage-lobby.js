@@ -94,7 +94,7 @@
     // 町ページで共有しているソケット(window.socket)があればそれを使い、無ければステージ用に接続する
     function getSock() {
         if (window.socket) return window.socket;
-        if (!window.sbStageSocket && typeof io === 'function') { try { window.sbStageSocket = io(); } catch (e) { window.sbStageSocket = null; } }
+        if (!window.sbStageSocket && typeof io === 'function') { try { window.sbStageSocket = io({ transports: ['websocket', 'polling'] }); } catch (e) { window.sbStageSocket = null; } }
         return window.sbStageSocket || null;
     }
     const bmEvent = n => { try { window.SbBeginner && window.SbBeginner.event(n); } catch (e) {} };   // ビギナーミッションに「行動した」と知らせる
@@ -161,6 +161,7 @@
             return out.map(o => { const m = (typeof MATERIAL_DATA !== 'undefined') ? MATERIAL_DATA[o.id] : null; return esc(m ? m.name : o.id) + (o.boss ? '<small style="display:inline;color:#ffd84a">(ボス)</small>' : ''); }).join('、 ');
         }
         function dropNames(ids) { return ids.map(id => { const b = HW.BASE_BY_ID[id]; return b ? esc(b.name) + '<small style="display:inline;color:#8a97b8">(' + (HW.TYPES[b.type] || {}).label + ')</small>' : ''; }).join('、 '); }
+        let selStart = Math.max(1, (hack.corrStart | 0) || 1);      // 無限回廊：スタートする階層（最深まで選べる）
         let selRush = Math.min(RD.length - 1, parseInt(hack.lastRushDiff, 10) || 0);
         function roomsHtml() {
             return '<div class="sbl-sec">募集中の部屋 <button class="sbl-btn gray" id="sbRefresh" style="padding:3px 8px;font-size:.75rem">更新</button></div>' +
@@ -188,11 +189,24 @@
             detEl.innerHTML =
                 '<h3 style="margin:0 0 4px">' + s.icon + ' ' + esc(s.name) + '</h3><div style="font-size:.85rem;color:#b8c4e0">' + esc(s.desc) + '</div>' +
                 (un ? '' : '<div style="margin:8px 0;padding:8px;border:2px solid #ffb86a;border-radius:8px;color:#ffd9a0;font-weight:bold">🔒 ' + esc(s.unlock.text) + '</div>') +
-                '<div class="sbl-sec">ルール</div><div style="font-size:.82rem;line-height:1.6">・階層ごとにランダムな迷路。<b>下への階段</b>を見つけて進む（深いほど敵は強い）<br>・敵の強さは<b>あなたのステータス合計</b>と階層で決まる<br>・宝箱：武器・防具・特殊アイテムが出る。<b>ミミック</b>の罠に注意<br>・ときどき<b>ボス部屋</b>の入口が現れる（行かなくてもよい。倒すと特別な報酬）<br>・手に入れた武器・アイテムは、倒れても持ち帰れる（ソロ専用）</div>' +
+                '<div class="sbl-sec">ルール</div><div style="font-size:.82rem;line-height:1.6">・階層ごとにランダムな迷路。<b>下への階段</b>を見つけて進む（深いほど敵は強い）<br>・敵の強さは<b>あなたのステータス合計</b>と階層で決まる<br>・宝箱：武器・防具・特殊アイテムが出る。<b>ミミック</b>の罠に注意<br>・ときどき<b>ボス部屋</b>の入口が現れる（行かなくてもよい。倒すと特別な報酬）<br>・<b>持ち帰れるのは「脱出ゲート」から脱出したときだけ</b>。各階層のどこかにある。<b>倒れると、手に入れた報酬はすべてゼロ</b><br>・仲間と一緒に潜れる（最大4人）。階段・ボス部屋は全員で移動。宝箱の中身は開けた人のもの。脱出は一人ずつ</div>' +
                 '<div class="sbl-sec">特殊アイテム（武器庫で使う）</div><div style="font-size:.82rem;color:#ffd9a0">' + items + '</div>' +
                 '<div class="sbl-sec">記録</div><div style="font-size:.85rem">最深：' + ((hack.corridorBest | 0) ? '地下' + (hack.corridorBest | 0) + '階' : '未挑戦') + '</div>' +
-                (un ? '<div style="margin-top:8px"><button class="sbl-btn green" id="sbSolo">潜る（ソロ）</button></div>' : '');
+                (un && (hack.corridorBest | 0) > 1 ? '<div class="sbl-sec">スタートする階層（行ったことのある階まで選べる）</div><div><select id="sbStartFloor" style="padding:5px;min-width:160px">' + startFloorOptions().map(f => '<option value="' + f + '"' + (f === Math.min(selStart, hack.corridorBest | 0) ? ' selected' : '') + '>地下' + f + '階' + (f === (hack.corridorBest | 0) ? '（最深）' : '') + '</option>').join('') + '</select><span style="font-size:.76rem;color:#9fb3d9;margin-left:6px">深い階から始めるほど敵は強く、報酬も良い</span></div>' : '') +
+                (un ? '<div style="margin-top:8px"><button class="sbl-btn green" id="sbSolo">ソロで潜る</button><button class="sbl-btn" id="sbCreate">部屋を作って募集</button><button class="sbl-btn orange" id="sbQuick">クイック参加</button></div>' +
+                    '<div class="sbl-sec">募集中の部屋 <button class="sbl-btn gray" id="sbRefresh" style="padding:3px 8px;font-size:.75rem">更新</button></div>' +
+                    '<div id="sbRooms">' + (rooms.length ? rooms.filter(r => r.stageId === selId).map(r => { const sf = r.startFloor || 1, ok = corrRoomOk(r); return '<div class="sbl-room"><span>' + esc(r.members[0] ? r.members[0].name : '?') + ' の部屋 (' + r.members.length + '/' + r.max + ')　<b style="color:' + (ok ? '#9fe8b0' : '#ff9a9a') + '">地下' + sf + '階から</b></span>' + (ok ? '<button class="sbl-btn" data-room="' + r.id + '" style="margin:0">参加</button>' : '<button class="sbl-btn gray" data-room-locked="' + sf + '" style="margin:0">🔒 未到達</button>') + '</div>'; }).join('') || '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>' : '<div style="opacity:.7;font-size:.85rem">募集中の部屋はありません</div>') + '</div>' : '');
+            const sf = detEl.querySelector('#sbStartFloor'); if (sf) sf.addEventListener('change', () => { selStart = parseInt(sf.value, 10) || 1; hack.corrStart = selStart; HW.save(hack); });
             bindDetail(false);
+        }
+        // 無限回廊の部屋に入れるのは、その部屋のスタート階層まで、一度でも到達したことがある人だけ
+        function corrRoomOk(r) { return (r.startFloor || 1) <= Math.max(1, hack.corridorBest | 0); }
+        // スタート階層の選択肢：1階、5の倍数、最深
+        function startFloorOptions() {
+            const best = Math.max(1, hack.corridorBest | 0), out = [1];
+            if (best <= 30) { for (let f = 2; f <= best; f++) out.push(f); }
+            else { for (let f = 5; f < best; f += 5) out.push(f); out.push(best); }
+            return out.filter((f, i) => out.indexOf(f) === i).sort((a, b) => a - b);
         }
         function bindDetail(rush) {
             const q = id => detEl.querySelector(id);
@@ -206,6 +220,7 @@
             if (q('#sbQuick')) q('#sbQuick').addEventListener('click', () => launch('quick'));
             if (q('#sbRefresh')) q('#sbRefresh').addEventListener('click', refreshRooms);
             detEl.querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', () => launch('join', b.dataset.room)));
+            detEl.querySelectorAll('[data-room-locked]').forEach(b => b.addEventListener('click', () => alert('この部屋は地下' + b.dataset.roomLocked + '階からです。まだ地下' + b.dataset.roomLocked + '階に到達していないので、参加できません（あなたの最深：' + ((hack.corridorBest | 0) ? '地下' + (hack.corridorBest | 0) + '階' : '未挑戦') + '）')));
         }
         function renderDetail() {
             const s = window.getStageById(selId);
@@ -237,10 +252,11 @@
             if (!stageUnlocked(st)) { alert(st.unlock.text); return; }
             let useDiff = selDiff;
             if (st.rush) { if (diffLocked(st, selRush)) { alert('エクストリームは、ディメンション・キーパーを「ナイトメア」でクリアすると挑戦できます。'); return; } useDiff = selRush; }
-            if (st.corridor) { mode = 'solo'; roomId = null; useDiff = 0; }
+            if (st.corridor) useDiff = 0;
+            if (st.corridor && mode === 'join') { const rm = rooms.find(x => x.id === roomId); if (rm && !corrRoomOk(rm)) { alert('この部屋は地下' + (rm.startFloor || 1) + '階からです。まだ到達していないので、参加できません。'); return; } }
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
-            try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), at: Date.now() })); } catch (e) {}
+            try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
             location.href = 'stage.html';
         }
         renderList(); renderDetail(); refreshRooms();
@@ -273,11 +289,11 @@
                 if (window.SBPvpEvent && SBPvpEvent.open()) { SBPvpEvent.report(sock); const p = getPlayerData(); sock.emit('pvpEvent:ranking', { seasonId: SBPvpEvent.seasonId(), id: p && p.id }); }
             }
         }
-        // ---- シーズン5週目〜のPvPイベント ----
+        // ---- シーズン最終週（SCHEDULE.pvpWeek）のPvPイベント ----
         function addCoinsEv(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
         function eventHtml() {
             const EV = window.SBPvpEvent; if (!EV) return '';
-            const st = EV.seasonState(), W = (window.SeasonSys && SeasonSys.SCHEDULE && SeasonSys.SCHEDULE.pvpWeek) || 5;
+            const st = EV.seasonState(), W = (window.SeasonSys && SeasonSys.SCHEDULE && SeasonSys.SCHEDULE.pvpWeek) || 4;
             const box = (inner, bd) => '<div style="margin:8px 0;padding:8px 10px;border:1px solid ' + (bd || '#5a4a8a') + ';border-radius:8px;background:rgba(80,50,140,.18);font-size:.85rem;line-height:1.6">' + inner + '</div>';
             if (!st) return box('⚔ <b>PvPイベント</b>は、<b>シーズンキャラ専用</b>です。シーズンの' + W + '週目から開催されます。');
             if (!EV.open()) {
@@ -350,19 +366,36 @@
     // ---------- 特殊アイテム（無限回廊の宝箱・ボス部屋で手に入る）の使用パネル ----------
     //  武器：スロット拡張／レア度上昇／効果リロール　防具：効果リロール
     function itemPanelHtml(hack, kinds, target, isWeapon) {
-        const can = { slot: isWeapon && HW.canAddSocket(target), rarity: isWeapon && HW.canUpgradeRarity(target), reroll: !!(target && target.effects && target.effects.length) };
-        const why = { slot: '最大スロットです', rarity: 'すでに最高レア度です', reroll: '追加効果がありません' };
+        const can = { slot: isWeapon && HW.canAddSocket(target), rarity: isWeapon && HW.canUseCrystal(target), reroll: !!(target && target.effects && target.effects.length) };
+        const legend = isWeapon && target && target.rarity === 'legendary';
+        const why = { slot: '最大スロットです', rarity: legend ? 'すでに最大（+' + HW.PLUS_MAX + '）です' : 'すでに最高レア度です', reroll: '追加効果がありません' };
+        const descOf = fx => { try { return isWeapon ? HW.describeEffect(fx) : SBArmor.describeEffect(fx); } catch (e) { return fx.id; } };
         return '<div class="sbl-sec">特殊アイテム（無限回廊で入手）</div>' + kinds.map(k => {
             const it = HW.SPECIAL_ITEMS[k], n = HW.itemCount(hack, k), ok = can[k] && n > 0;
-            return '<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><button class="sbl-btn" data-item="' + k + '" style="margin:0;' + (ok ? 'background:' + it.color + ';color:#000' : 'opacity:.5') + '"' + (ok ? '' : ' disabled') + '>' + it.icon + ' ' + it.name + '×' + n + '</button><span style="font-size:.74rem;color:#9fb3d9">' + esc(can[k] ? it.desc : why[k]) + '</span></div>';
+            let label = it.icon + ' ' + it.name + '×' + n, text = can[k] ? it.desc : why[k];
+            if (k === 'rarity' && legend && can.rarity) { const pl = target.plus | 0; label = '🔶 ＋' + (pl + 1) + ' に強化 ×' + n; text = '「＋N」のアップグレード：攻撃の%が少し上がる（いま＋' + pl + '／最大＋' + HW.PLUS_MAX + '）'; }
+            let html = '<div style="display:flex;gap:6px;align-items:center;margin:3px 0"><button class="sbl-btn" data-item="' + k + '" style="margin:0;' + (ok ? 'background:' + it.color + ';color:#000' : 'opacity:.5') + '"' + (ok ? '' : ' disabled') + '>' + label + '</button><span style="font-size:.74rem;color:#9fb3d9">' + esc(text) + '</span></div>';
+            if (k === 'reroll' && can.reroll) {      // どの効果を引き直すかを選べる（いくつでも）。リスキーな効果は赤で表示
+                html += '<div style="margin:2px 0 6px 8px;padding:6px;border:1px solid #3a4a78;border-radius:8px;background:rgba(40,60,110,.25)"><div style="font-size:.74rem;color:#9fb3d9;margin-bottom:3px">引き直す効果にチェック（いくつでも選べます。チェックしたものだけが変わります）</div>' +
+                    target.effects.map((fx, i) => '<label style="display:flex;gap:6px;align-items:flex-start;font-size:.8rem;padding:2px 0;cursor:pointer"><input type="checkbox" data-fx="' + i + '" style="margin-top:3px"><span style="color:' + (/^(rk_|ar_rk_)/.test(fx.id) ? '#ff9a9a' : '#e8eefc') + '">' + esc(descOf(fx)) + '</span></label>').join('') +
+                    '<div style="margin-top:3px"><button class="sbl-btn gray" data-fxall style="padding:2px 8px;font-size:.72rem;margin:0">すべて選ぶ</button> <button class="sbl-btn gray" data-fxnone style="padding:2px 8px;font-size:.72rem;margin:0">選択を外す</button></div></div>';
+            }
+            return html;
         }).join('');
     }
-    function applyItem(hack, kind, target, isWeapon) {
+    // 効果のチェック欄（data-fx）で選ばれた番号を集める
+    function pickedFx(root) { return Array.from(root.querySelectorAll('input[data-fx]:checked')).map(x => parseInt(x.dataset.fx, 10)); }
+    function bindFxPick(root) {
+        const all = root.querySelector('[data-fxall]'), none = root.querySelector('[data-fxnone]');
+        if (all) all.addEventListener('click', () => root.querySelectorAll('input[data-fx]').forEach(x => { x.checked = true; }));
+        if (none) none.addEventListener('click', () => root.querySelectorAll('input[data-fx]').forEach(x => { x.checked = false; }));
+    }
+    function applyItem(hack, kind, target, isWeapon, idxs) {
         if (HW.itemCount(hack, kind) < 1) return false;
         let ok = false;
         if (kind === 'slot') ok = isWeapon && HW.addSocket(target);
         else if (kind === 'rarity') ok = isWeapon && HW.upgradeRarity(target);
-        else if (kind === 'reroll') ok = isWeapon ? HW.rerollWeaponEffects(target) : (window.SBArmor && SBArmor.rerollEffects(target));
+        else if (kind === 'reroll') ok = isWeapon ? HW.rerollWeaponEffects(target, idxs) : (window.SBArmor && SBArmor.rerollEffects(target, idxs));
         if (ok) HW.takeItem(hack, kind);
         return !!ok;
     }
@@ -385,7 +418,7 @@
 
         function sorted() {
             const arr = hack.weapons.filter(w => filter === 'all' || w.type === filter || (filter === 'eq' && w.id === hack.equipped));
-            return arr.sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl || b.dmg - a.dmg);
+            return arr.sort((a, b) => HW.rIdx(b.rarity) - HW.rIdx(a.rarity) || b.ilvl - a.ilvl || b.dmg - a.dmg);
         }
         function renderList() {
             const types = {}; hack.weapons.forEach(w => { types[w.type] = 1; });
@@ -394,6 +427,7 @@
                 '<button class="sbl-btn gray" id="sbBulk" style="padding:4px 8px;font-size:.75rem">🗑 一括売却</button>' +
                 '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器を作る</button>' +
                 '<button class="sbl-btn green" id="sbArmorBtn" style="padding:4px 8px;font-size:.75rem">🛡 防具（頭・胴・脚）</button>' +
+                '<button class="sbl-btn orange" id="sbAccBtn" style="padding:4px 8px;font-size:.75rem">✨ アクセサリー（スキル）</button>' +
                 sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + (w.elems && w.elems.length && window.SBElem ? ' ' + SBElem.ELEMS[w.elems[0]].icon + (w.elems.length > 1 ? SBElem.ELEMS[w.elems[1]].icon : '') : '') + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
             wl.querySelector('#sbFilter').value = filter;
             wl.querySelector('#sbFilter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
@@ -401,6 +435,7 @@
             wl.querySelector('#sbBulk').addEventListener('click', openBulk);
             wl.querySelector('#sbForge').addEventListener('click', openForge);
             const ab = wl.querySelector('#sbArmorBtn'); if (ab) ab.addEventListener('click', openArmor);
+            const ac = wl.querySelector('#sbAccBtn'); if (ac) ac.addEventListener('click', openAccessory);
         }
         function addCoins(v) { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); }
 
@@ -426,11 +461,13 @@
                     '<div class="sbl-sec">武器種を変更（作成費用の1/4：' + HW.typeChangeCost(w).toLocaleString() + ' コイン）</div><div style="display:flex;gap:4px"><select id="sbTyType" style="flex:1;min-width:0;padding:5px">' + HW.availableTypes(hack).map(t => '<option value="' + t + '"' + (t === w.type ? ' selected' : '') + '>' + esc(HW.TYPES[t].label) + '</option>').join('') + '</select><button class="sbl-btn orange" id="sbTyGo">変更する</button></div><div id="sbTyMsg" style="font-size:.8rem;color:#ff9a9a;margin-top:3px"></div>' : '') +
                 itemPanelHtml(hack, ['slot', 'rarity', 'reroll'], w, true) +
                 '<div id="sbOrbPick"></div>';
+            bindFxPick(wd);
             wd.querySelectorAll('[data-item]').forEach(b => b.addEventListener('click', () => {
                 const k = b.dataset.item, it = HW.SPECIAL_ITEMS[k];
-                if (k === 'reroll' && !confirm('「' + w.name + '」の特殊効果をすべて振り直します。いまの効果は失われます。よろしいですか？')) return;
-                if (k === 'rarity' && !confirm('「' + w.name + '」のレア度を1段階上げます。よろしいですか？')) return;
-                if (applyItem(hack, k, w, true)) { HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); } else alert(it.name + 'は、この武器には使えません。');
+                let idxs;
+                if (k === 'reroll') { idxs = pickedFx(wd); if (!idxs.length) { alert('引き直す効果にチェックを入れてください。'); return; } if (!confirm('「' + w.name + '」の効果のうち、選んだ ' + idxs.length + ' 個を引き直します。いまの効果は失われます。よろしいですか？')) return; }
+                if (k === 'rarity') { if (w.rarity === 'legendary') { if (!confirm('「' + w.name + '」を ＋' + ((w.plus | 0) + 1) + ' に強化します（攻撃の%が少し上がります）。よろしいですか？')) return; } else if (!confirm('「' + w.name + '」のレア度を1段階上げます。よろしいですか？')) return; }
+                if (applyItem(hack, k, w, true, idxs)) { HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); } else alert(it.name + 'は、この武器には使えません。');
             }));
             if (w.custom) wd.querySelector('#sbTyGo').addEventListener('click', () => {
                 const msg = wd.querySelector('#sbTyMsg'), nt = wd.querySelector('#sbTyType').value;
@@ -548,6 +585,53 @@
 
     // ---------- 第二世界の解放通知（町に戻ったとき1回だけ）----------
     // ============================================================
+    // アクセサリー（装備すると、特殊なスキルが自動で使えるようになる。ステータスは上がらない）
+    // ============================================================
+    function openAccessory() {
+        if (!window.HW || !window.SBAcc) return;
+        const hack = HW.load(); SBAcc.ensure(hack);
+        let selId = null;
+        const m = modal('✨ アクセサリー（装備するとスキルが使える）', () => { try { refreshInvInfo(); if (typeof updateStatus === 'function') updateStatus(getPlayerData()); } catch (e) {} });
+        m.body.innerHTML = '<div class="sbl-col sbl-left" id="acL"></div><div class="sbl-col sbl-right" id="acR"></div>';
+        const L = m.body.querySelector('#acL'), R = m.body.querySelector('#acR');
+        const addCoins = v => { const p = getPlayerData(); if (!p) return; p.coins = (p.coins || 0) + v; localStorage.setItem('player', JSON.stringify(p)); };
+        const isEq = a => hack.accEq.indexOf(a.id) >= 0;
+        function renderList() {
+            const eq = SBAcc.equippedList(hack);
+            const arr = hack.accs.slice().sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity) || b.ilvl - a.ilvl);
+            L.innerHTML = '<div class="sbl-sec">装備中（' + SBAcc.SLOTS + '枠）</div>' +
+                eq.map((a, i) => '<div style="font-size:.82rem;padding:3px 0">' + (i + 1) + '. ' + (a ? '<span style="color:' + HW.rarityOf(a).color + '">' + SBAcc.baseOf(a).icon + ' ' + esc(a.name) + '</span> <button class="sbl-btn gray" data-off="' + a.id + '" style="padding:1px 6px;font-size:.7rem;margin:0">はずす</button>' : '<span style="color:#778">（空き）</span>') + '</div>').join('') +
+                '<div class="sbl-sec">所持アクセサリー ' + hack.accs.length + ' 個 <button class="sbl-btn gray" id="acBulk" style="padding:3px 8px;font-size:.75rem;margin-left:6px">🗑 一括売却</button></div>' +
+                (arr.length ? arr.map(a => '<div class="sbl-wl' + (a.id === selId ? ' sel' : '') + (isEq(a) ? ' eq' : '') + '" data-id="' + a.id + '"><span style="color:' + HW.rarityOf(a).color + '">' + (isEq(a) ? '【装備中】' : '') + SBAcc.baseOf(a).icon + ' ' + esc(a.name) + '</span><span style="font-size:.72rem;color:#9fb3d9">Lv' + a.ilvl + (a.locked ? ' 🔒' : '') + '</span></div>').join('') : '<div style="color:#889;font-size:.85rem;padding:6px 0">まだアクセサリーを持っていません。ボスを倒す・ボスラッシュ・無限回廊の宝箱で手に入ります。</div>');
+            L.querySelectorAll('[data-off]').forEach(b => b.addEventListener('click', () => { SBAcc.unequip(hack, b.dataset.off); HW.save(hack); renderList(); renderDetail(); }));
+            L.querySelector('#acBulk').addEventListener('click', bulk);
+            L.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
+        }
+        function renderDetail() {
+            const a = hack.accs.find(x => x.id === selId);
+            if (!a) { R.innerHTML = '<div class="sbl-sec">アクセサリーとは</div><div class="sbl-fx">◆ 装備しても、ステータスは上がりません</div><div class="sbl-fx">◆ かわりに、特殊なスキルが<b>自動で</b>発動します（範囲攻撃が中心）</div><div class="sbl-fx">◆ 3つまで同時に装備できます。発動条件が違うものを組み合わせると強力です</div><div class="sbl-fx">◆ 対人戦では使えません</div><div style="color:#889;margin-top:8px">左のリストから選んでください</div>'; return; }
+            const Rr = HW.rarityOf(a), b = SBAcc.baseOf(a);
+            R.innerHTML = '<h3 style="margin:0;color:' + Rr.color + '">' + b.icon + ' ' + esc(a.name) + '</h3>' +
+                '<div style="font-size:.82rem;color:#9fb3d9">[' + Rr.label + ']　Lv' + a.ilvl + '</div>' +
+                '<div class="sbl-sec">スキル</div>' + SBAcc.describe(a).map(l => '<div class="sbl-fx">◆ ' + esc(l) + '</div>').join('') +
+                '<div style="margin-top:8px"><button class="sbl-btn green" id="acEq"' + (!isEq(a) && hack.accEq.indexOf(null) < 0 ? ' disabled' : '') + '>' + (isEq(a) ? '外す' : (hack.accEq.indexOf(null) < 0 ? '装備枠がいっぱい' : '装備する')) + '</button>' +
+                '<button class="sbl-btn red" id="acSell"' + (isEq(a) || a.locked ? ' disabled' : '') + '>売却 (' + SBAcc.sellValue(a) + ')</button>' +
+                '<button class="sbl-btn gray" id="acLock">' + (a.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>';
+            R.querySelector('#acEq').addEventListener('click', () => { if (isEq(a)) SBAcc.unequip(hack, a.id); else SBAcc.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#acLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#acSell').addEventListener('click', () => { if (!confirm(a.name + ' を売却しますか？')) return; const v = SBAcc.sell(hack, a.id); if (v > 0) { addCoins(v); HW.save(hack); selId = null; renderList(); renderDetail(); } });
+        }
+        function bulk() {   // ノーマル・マジックで、ロックも装備もしていないものをまとめて売る
+            const t = hack.accs.filter(a => (a.rarity === 'normal' || a.rarity === 'magic') && !a.locked && !isEq(a));
+            if (!t.length) { alert('売却できるアクセサリー（ノーマル・マジックで、ロック・装備していないもの）がありません。'); return; }
+            const total = t.reduce((n, a) => n + SBAcc.sellValue(a), 0);
+            if (!confirm('ノーマル・マジックのアクセサリー ' + t.length + ' 個を売却します（+' + total + ' コイン）。よろしいですか？')) return;
+            t.forEach(a => SBAcc.sell(hack, a.id)); addCoins(total); HW.save(hack); selId = null; renderList(); renderDetail();
+        }
+        renderList(); renderDetail();
+    }
+
+    // ============================================================
     // 防具（頭・胴・脚）
     // ============================================================
     function openArmor() {
@@ -582,9 +666,11 @@
                 '<div style="margin-top:8px"><button class="sbl-btn green" id="arEq">' + (eqId(a) ? '外す' : '装備する') + '</button>' +
                 '<button class="sbl-btn red" id="arSell"' + (eqId(a) || a.locked ? ' disabled' : '') + '>売却 (' + SBArmor.sellValue(a) + ')</button>' +
                 '<button class="sbl-btn gray" id="arLock">' + (a.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>';
+            bindFxPick(R);
             R.querySelectorAll('[data-item]').forEach(b => b.addEventListener('click', () => {
-                if (!confirm('「' + a.name + '」の特殊効果をすべて振り直します。いまの効果は失われます。よろしいですか？')) return;
-                if (applyItem(hack, 'reroll', a, false)) { HW.save(hack); renderList(); renderDetail(); } else alert('この防具には使えません。');
+                const idxs = pickedFx(R); if (!idxs.length) { alert('引き直す効果にチェックを入れてください。'); return; }
+                if (!confirm('「' + a.name + '」の効果のうち、選んだ ' + idxs.length + ' 個を引き直します。いまの効果は失われます。よろしいですか？')) return;
+                if (applyItem(hack, 'reroll', a, false, idxs)) { HW.save(hack); renderList(); renderDetail(); } else alert('この防具には使えません。');
             }));
             R.querySelector('#arEq').addEventListener('click', () => { if (eqId(a)) SBArmor.unequip(hack, a.slot); else SBArmor.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
             R.querySelector('#arLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
