@@ -43,7 +43,20 @@
         { id: 'ar_gold',  key: 'goldPct',  name: '商才',   range: [0.05, 0.15],  desc: v => `獲得コイン +${pct(v)}` },
         { id: 'ar_drop',  key: 'dropPct',  name: '強運',   range: [0.04, 0.10],  desc: v => `ドロップ率 +${pct(v)}` },
         { id: 'ar_elall', key: 'elAtkAll', name: '属性解放', range: [0.06, 0.13], desc: v => `すべての属性ダメージ +${pct(v)}` }
-    ].concat(BASE_EL.map(e => ({ id: 'ar_el_' + e, key: 'elAtk:' + e, name: ELN[e] + '属性強化', range: [0.10, 0.22], desc: v => `${ELN[e]}属性ダメージ +${pct(v)}` })));
+    ].concat(BASE_EL.map(e => ({ id: 'ar_el_' + e, key: 'elAtk:' + e, name: ELN[e] + '属性強化', range: [0.10, 0.22], desc: v => `${ELN[e]}属性ダメージ +${pct(v)}` })))
+    // --- リスキー・尖った効果（強い代わりに、はっきりした代償がある）---
+    .concat([
+        { id: 'ar_rk_mad',    risk: true, key: 'rk', name: '狂乱の鎧',   range: [0.80, 1.50], mods: v => ({ dmgTaken: 0.3, thorns: v }),    desc: v => `⚠ 被ダメージ +30%／被弾時に攻撃力の${pct(v)}を反射` },
+        { id: 'ar_rk_bulwark',risk: true, key: 'rk', name: '要塞',       range: [0.18, 0.30], mods: v => ({ dr: v, moveSpd: -0.25 }),        desc: v => `⚠ 移動速度 -25%／被ダメージ -${pct(v)}` },
+        { id: 'ar_rk_glass',  risk: true, key: 'rk', name: '硝子の鎧',   range: [0.40, 0.80], mods: v => ({ hpPct: -0.4, iframe: v }),       desc: v => `⚠ 最大HP -40%／被弾後の無敵時間 +${v.toFixed(2)}秒` },
+        { id: 'ar_rk_blood',  risk: true, key: 'rk', name: '血鎧',       range: [0.12, 0.22], mods: v => ({ healDown: 0.5, dr: v }),         desc: v => `⚠ 回復効果 -50%／被ダメージ -${pct(v)}` },
+        { id: 'ar_rk_greed',  risk: true, key: 'rk', name: '強欲',       range: [0.60, 1.20], mods: v => ({ goldPct: v, hpPct: -0.2 }),      desc: v => `⚠ 最大HP -20%／獲得コイン +${pct(v)}` },
+        { id: 'ar_rk_scholar',risk: true, key: 'rk', name: '学者の代償', range: [0.50, 1.00], mods: v => ({ energyUp: v, defPct: -0.3 }),    desc: v => `⚠ 防御力 -30%／エネルギーの溜まりやすさ +${pct(v)}` },
+        { id: 'ar_rk_adren',  risk: true, key: 'rk', name: '背水の護り', range: [0.20, 0.40], mods: v => ({ lowHpDr: v, hpPct: -0.1 }),      desc: v => `⚠ 最大HP -10%／HP30%以下のあいだ被ダメージ -${pct(v)}` },
+        { id: 'ar_rk_mirror', risk: true, key: 'rk', name: '鏡の肌',     range: [0.10, 0.20], mods: v => ({ dmgTaken: 0.2, dodge: v }),      desc: v => `⚠ 被ダメージ +20%／回避率 +${pct(v)}` },
+        { id: 'ar_rk_swift',  risk: true, key: 'rk', name: '軽装の代償', range: [0.15, 0.30], mods: v => ({ moveSpd: v, defPct: -0.25 }),    desc: v => `⚠ 防御力 -25%／移動速度 +${pct(v)}` },
+        { id: 'ar_rk_will',   risk: true, key: 'rk', name: '不屈',       range: [0.30, 0.60], mods: v => ({ regen: 0.006, atkPct: -v * 0.4 }), desc: v => `⚠ 攻撃力 -${pct(v * 0.4)}／毎秒 最大HPの0.6%回復` }
+    ]);
     const EFFECT_BY_ID = {}; EFFECTS.forEach(e => { EFFECT_BY_ID[e.id] = e; });
 
     const rnd = (a, b) => a + Math.random() * (b - a);
@@ -78,27 +91,21 @@
         const nFx = rint(rar.fx[0], rar.fx[1]);
         const fxPool = EFFECTS.filter(e => !(slot !== 'legs' && e.key === 'moveSpd')).slice();   // 移動速度は脚だけ
         const effects = [];
-        for (let i = 0; i < nFx && fxPool.length; i++) {
-            const e = fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0];
-            const v = rnd(e.range[0], e.range[1]) * (1 + idx * 0.22) * (1 + Math.min(ilvl, 20) * 0.02);
-            effects.push({ id: e.id, v: Math.round(Math.min(v, e.key === 'dr' ? 0.08 : (e.key === 'critRate' || e.key === 'dodge' ? 0.15 : 9)) * 1000) / 1000 });
-        }
+        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollFx(takeFx(fxPool), idx, ilvl));
         const a = { id: uid(), kind: 'armor', slot: slot, baseId: base.id, baseName: base.name, tier: base.tier, rarity: rarityKey, prefix: pick(rar.prefixes), ilvl: ilvl,
             stats: baseStats(slot, rarityKey, base.tier), effects: effects, source: opts.source || null, createdAt: Date.now() };
         a.name = a.prefix + '＋' + a.baseName;
         return a;
     }
-    // 追加効果をすべて振り直す（個数・レア度・基礎性能はそのまま）。特殊アイテム「混沌の宝珠」用
-    function rerollEffects(a) {
-        if (!a) return false;
-        const idx = H().RARITY_ORDER.indexOf(a.rarity), n = (a.effects || []).length, ilvl = Math.max(1, a.ilvl || 1);
-        const fxPool = EFFECTS.filter(e => !(a.slot !== 'legs' && e.key === 'moveSpd')).slice(), out = [];
-        for (let i = 0; i < n && fxPool.length; i++) {
-            const e = fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0];
-            const v = rnd(e.range[0], e.range[1]) * (1 + Math.max(0, idx) * 0.22) * (1 + Math.min(ilvl, 20) * 0.02);
-            out.push({ id: e.id, v: Math.round(Math.min(v, e.key === 'dr' ? 0.08 : (e.key === 'critRate' || e.key === 'dodge' ? 0.15 : 9)) * 1000) / 1000 });
-        }
-        a.effects = out;
+    // 追加効果の振り直し：idxs（効果の番号の配列。いくつでも選べる）の効果だけを引き直す。省略すると全部。特殊アイテム「混沌の宝珠」用
+    function rerollEffects(a, idxs) {
+        if (!a || !Array.isArray(a.effects)) return false;
+        const idx = H().RARITY_ORDER.indexOf(a.rarity), ilvl = Math.max(1, a.ilvl || 1);
+        const sel = Array.isArray(idxs) ? idxs.filter(i => i >= 0 && i < a.effects.length) : a.effects.map((_, i) => i);
+        if (!sel.length) return false;
+        const keep = a.effects.filter((_, i) => sel.indexOf(i) < 0).map(f => f.id);
+        const pool = EFFECTS.filter(e => keep.indexOf(e.id) < 0 && !(a.slot !== 'legs' && e.key === 'moveSpd')).slice();
+        sel.forEach(i => { if (pool.length) a.effects[i] = rollFx(takeFx(pool), idx, ilvl); });
         return true;
     }
     function add(d, a) { ensure(d); d.armors.push(a); return a; }
@@ -122,6 +129,18 @@
         const rs = o.rarities || [], sl = o.slots || SLOT_ORDER;
         return d.armors.filter(a => rs.indexOf(a.rarity) >= 0 && sl.indexOf(a.slot) >= 0 && !a.locked && d.armorEq[a.slot] !== a.id);
     }
+    // 効果1つぶんの値を決める（レア度・レベルで伸びる。リスキーな効果は伸びすぎないよう上限あり）
+    function rollFx(e, idx, ilvl) {
+        const v = rnd(e.range[0], e.range[1]) * (1 + Math.max(0, idx) * 0.22) * (1 + Math.min(ilvl, 20) * 0.02);
+        const cap = e.risk ? e.range[1] * 1.8 : (e.key === 'dr' ? 0.08 : (e.key === 'critRate' || e.key === 'dodge' ? 0.15 : 9));
+        return { id: e.id, v: Math.round(Math.min(v, cap) * 1000) / 1000 };
+    }
+    // 候補から1つ選ぶ（リスキーな効果は約12%）
+    function takeFx(pool) {
+        const risky = pool.filter(e => e.risk), safe = pool.filter(e => !e.risk);
+        const useRisk = risky.length && (!safe.length || Math.random() < 0.12), src = useRisk ? risky : safe, e = src[Math.floor(Math.random() * src.length)];
+        pool.splice(pool.indexOf(e), 1); return e;
+    }
     function bulkSell(d, o) {
         const ts = bulkTargets(d, o); const ids = {}; let coins = 0;
         ts.forEach(a => { ids[a.id] = true; coins += sellValue(a); });
@@ -134,7 +153,7 @@
         const eq = equipped(d);
         SLOT_ORDER.forEach(s => { const a = eq[s]; if (!a) return;
             Object.keys(a.stats || {}).forEach(k => add(k, a.stats[k]));
-            (a.effects || []).forEach(fx => { const e = EFFECT_BY_ID[fx.id]; if (e) add(e.key, fx.v); });
+            (a.effects || []).forEach(fx => { const e = EFFECT_BY_ID[fx.id]; if (!e) return; if (e.mods) { const m = e.mods(fx.v); Object.keys(m).forEach(k => add(k, m[k])); } else add(e.key, fx.v); });
         });
         return st;
     }

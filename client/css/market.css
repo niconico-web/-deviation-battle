@@ -1,0 +1,24 @@
+/* 市場 */
+#section-market .mk-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.mk-note{font-size:.8rem;opacity:.75;margin:4px 0}
+.mk-tabs,.mk-subtabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.mk-tab,.mk-sub{padding:7px 12px;border-radius:999px;border:1px solid #556;background:transparent;color:inherit;cursor:pointer;font:inherit}
+.mk-tab.on,.mk-sub.on{background:#6a5acd;border-color:#6a5acd;color:#fff}
+.market-msg{min-height:1.2em;margin:6px 0;font-size:.9rem;color:#6fd38a}.market-msg.err{color:#ff7a7a}
+.mk-filter{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.mk-filter select,.mk-filter input{padding:6px;border-radius:8px;border:1px solid #556;background:rgba(0,0,0,.25);color:inherit;font:inherit}
+.mk-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mk-card{border:2px solid #888;border-radius:12px;padding:10px;background:rgba(255,255,255,.05);cursor:pointer}
+.mk-card.rsv{opacity:.55}.mk-card:hover{background:rgba(255,255,255,.1)}
+.mk-card-top{font-size:1.4rem}.mk-bundle{font-size:.7rem;margin-left:6px;padding:2px 6px;border-radius:999px;background:#c0392b;color:#fff;vertical-align:middle}
+.mk-title{font-weight:bold;margin:4px 0;word-break:break-all}.mk-seller{font-size:.78rem;opacity:.7}.mk-price{font-weight:bold;color:#ffd84a;margin-top:6px}.mk-price.big{font-size:1.2rem;margin:10px 0}
+.mk-empty{padding:20px;text-align:center;opacity:.7}.mk-pager{text-align:center;margin:10px 0}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin:8px 0}
+.mk-pick{cursor:pointer;border-radius:10px;border:2px solid transparent}.mk-pick.on{border-color:#6fd38a;background:rgba(111,211,138,.12)}
+.mk-item{display:flex;flex-direction:column;gap:2px;border:1px solid #888;border-radius:10px;padding:8px;background:rgba(0,0,0,.2)}.mk-nm{font-weight:bold;word-break:break-all}
+.mk-lines{margin:4px 0 8px 18px;padding:0;font-size:.82rem;opacity:.85}
+.mk-sellbox{position:sticky;bottom:0;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:12px;background:#1a1f3a;border:1px solid #6a5acd;margin-top:10px}
+.mk-sellbox input{padding:8px;border-radius:8px;border:1px solid #556;background:#10152b;color:#fff;font:inherit}
+.mk-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #334}
+.mk-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:12px}
+.mk-modal-box{background:#1a1f3a;color:#fff;border-radius:14px;padding:16px;max-width:460px;width:100%;max-height:85vh;overflow:auto}
+.mk-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center}

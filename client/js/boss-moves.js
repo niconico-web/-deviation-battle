@@ -592,7 +592,10 @@
     ], def('sl_trap', '無限の罠', [ring(0, 460, 1.5, 1.0, STUN)]));
 
 
-
+    // ============================================================
+    // ボスラッシュ Final：強化ディメンション・キーパー（アンダーテールのサンズ風）
+    //  ・ブラスター（標的を囲む砲口）／骨の壁（隙間をくぐる弾の壁）／重力／連続斬撃 を組み合わせた、避ける攻撃が中心
+    // ============================================================
     const beamfan = (t, n, spread, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamfan', n: n, sp: spread * D, r: len, w: w, tele: tele, dm: dm }, o);
     const beamAt  = (t, fx, fy, aDeg, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beamAt', fx: fx, fy: fy, a: aDeg * D, r: len, w: w, tele: tele, dm: dm }, o);
     const blast   = (t, n, R, len, w, tele, dm, o) => Object.assign({ t: t, k: 'blast', n: n, R: R, r: len, w: w, tele: tele, dm: dm }, o);
@@ -722,7 +725,7 @@
         def('cb9_walls', '骨牢', [wall(0, 'h', 330, 0.9), wall(1.1, 'v', 350, 0.9), wall(2.2, 'h', 370, 0.9)], { rec: 0.8 })
     ], def('cb9_seal', '魔王の封印', [blast(0, 4, 380, 1200, 66, 1.0, 0.9, { rep: 1 }), at(0.2, 140, 1.3, 0.9, STUN)]),
     { ult: def('cb9_ult', '終焉の二重回転', ultCommon(9, 'double'), { ult: true, rec: 1.5 }), ultAt: [0.8, 0.6, 0.4, 0.2] });
-    // 10. 不壊の悪魔
+    // 10. 不壊の悪魔（最強）：通常攻撃で大量のビームを常に放ち続ける。大技は壁から大量のビームを撃ち切り、逆回転でもう一度撃つ
     set('cb10', [
         def('cb10_stream', '不壊の連射', stream(10, 34), { rec: 0.08 }),
         def('cb10_stream2', '不壊の連射・奔流', stream(11, 30).concat(stream(11, 30).map(s => Object.assign({}, s, { t: s.t + 1.7, off: (s.off || 0) + 9 }))), { rec: 0.08 }),
@@ -731,7 +734,10 @@
     { ult: def('cb10_ult', '無限の壁線・逆回転', ultCommon(10, 'rev').concat(wallSweep(2 * 8 * 0.42 + 1.6, { n: 16, volleys: 4, gap: 0.8, rot0: 0, rot: 0, every: 2, w: 54, tele: 0.8, dm: 1.8 })), { ult: true, rec: 1.2 }), ultAt: [0.85, 0.65, 0.45, 0.25] });
 
 
-
+    // ============================================================
+    // 無限回廊のボスの強化：威力アップ・予告を少し短く・硬直を短く／新しい技を追加／大技を二段構えに／大技の回数を増やす
+    //  （予告は 0.45 秒を下回らない＝見てから避けられる範囲にとどめる）
+    // ============================================================
     (function buffCorridorBosses() {
         const tierOf = { cb1: 1, cb2: 2, cb3: 3, cb4: 4, cb5: 5, cb6: 6, cb7: 7, cb8: 8, cb9: 9, cb10: 10 };
         const TELE_KINDS = { line: 1, ring: 1, cone: 1, donut: 1, at: 1, rain: 1, beams: 1, beamfan: 1, beamAt: 1, blast: 1 };
