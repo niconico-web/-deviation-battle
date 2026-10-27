@@ -58,6 +58,17 @@ const WEAPON_ICON_DATA = {
         <line x1="16" y1="32" x2="42" y2="32"/>
         <path d="M42 32 L36 28 L36 36 Z" fill="currentColor" stroke="none"/>
     ` },
+    unbreakable: { color: "#ff2a4a", inner: `
+        <circle cx="32" cy="32" r="7" fill="currentColor" stroke="none"/>
+        <line x1="32" y1="25" x2="32" y2="8"/>
+        <line x1="37" y1="27" x2="50" y2="14"/>
+        <line x1="39" y1="32" x2="56" y2="32"/>
+        <line x1="37" y1="37" x2="50" y2="50"/>
+        <line x1="32" y1="39" x2="32" y2="56"/>
+        <line x1="27" y1="37" x2="14" y2="50"/>
+        <line x1="25" y1="32" x2="8" y2="32"/>
+        <line x1="27" y1="27" x2="14" y2="14"/>
+    ` },
     esper: { color: "#ff9ad1", inner: `
         <ellipse cx="32" cy="32" rx="17" ry="9" fill="none"/>
         <circle cx="32" cy="32" r="5" fill="currentColor" stroke="none"/>

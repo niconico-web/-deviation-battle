@@ -27,6 +27,8 @@
         { id: "info", section: "help", label: "案内所", icon: "❓", x: 200, y: 560, w: 120, h: 100, color: "#607d8b" },
         { id: "stagegate", label: "ステージゲート（ダンジョン＋ボス）", icon: "🚪", x: 100, y: 400, w: 150, h: 120, color: "#7b3fa0", isStageGate: true },
         { id: "library", section: "questionlists", label: "問題リスト", icon: "📚", x: 660, y: 460, w: 130, h: 100, color: "#3d5a80" },
+        { id: "rift", isRift: true, get label() { return (typeof window.isSurvivalUnlocked === "function" && window.isSurvivalUnlocked()) ? "次元の裂け目（サバイバルエリア・完全PvP）" : "次元の裂け目 🔒第二世界で解放"; }, icon: "🌀", x: 1470, y: 330, w: 100, h: 150, color: "#5b2a8c" },
+        { id: "market", section: "market", label: "市場（プレイヤー売買）", icon: "🏪", x: 1300, y: 780, w: 160, h: 110, color: "#c0392b" },
     ];
 
     // 町のNPC定義
@@ -385,6 +387,8 @@
             travelToRegion(building.to);
         } else if (building.isStageGate) {
             if (typeof window.openStageGate === "function") window.openStageGate();
+        } else if (building.isRift) {
+            if (typeof window.openSurvival === "function") window.openSurvival();
         } else if (building.isArmory) {
             if (typeof window.openArmory === "function") window.openArmory();
         } else if (building.isBossGate) {
@@ -603,10 +607,22 @@
         // マップの外側（画面がマップより広いとき）は暗くして、マップ内だけ地域の色で塗る
         ctx.fillStyle = "#05070a";
         ctx.fillRect(0, 0, viewportW, viewportH);
-        ctx.fillStyle = (REGIONS[currentRegionId] && REGIONS[currentRegionId].bg) || "#2f5233";
+        const regionBg = (REGIONS[currentRegionId] && REGIONS[currentRegionId].bg) || "#2f5233";
+        ctx.fillStyle = regionBg;
         const gx = Math.max(0, -cam.x), gy = Math.max(0, -cam.y);
         const gw = Math.min(viewportW, currentWorldW - cam.x) - gx;
         const gh = Math.min(viewportH, currentWorldH - cam.y) - gy;
+        if (window.SBPix && SBPix.on() && SBPix.pattern) {      // ドット絵の地面：地域の色から種類（草・土・石・砂・雪…）を決めてタイルを敷く
+            const rk = SBPix.kindOfColor(regionBg);
+            if (gw > 0 && gh > 0) {
+                ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(-cam.x, -cam.y);
+                ctx.fillStyle = SBPix.pattern(ctx, rk, regionBg); ctx.fillRect(cam.x + gx, cam.y + gy, gw, gh);
+                SBPix.drawScatter(ctx, rk, regionBg, cam.x + gx, cam.y + gy, cam.x + gx + gw, cam.y + gy + gh, currentWorldW, currentWorldH, String(currentRegionId).length * 733 + 5, null);
+                for (const b of BUILDINGS) SBPix.drawPathPatch(ctx, b.x + b.w / 2, b.y + b.h + 18, 54, 18);      // 建物の前の道
+                ctx.restore();
+            }
+            return;
+        }
         if (gw > 0 && gh > 0) ctx.fillRect(gx, gy, gw, gh);
 
         // 簡易的な地面のタイル模様
@@ -641,6 +657,13 @@
             const y = b.y - cam.y;
             if (x + b.w < 0 || x > viewportW || y + b.h < 0 || y > viewportH) continue;
 
+            if (window.SBPix && SBPix.on() && SBPix.drawBuilding) {      // ドット絵の建物（家・門・道しるべ）
+                const kind = (b.isStageGate || b.isBossGate) ? 'gate' : (b.isExit ? 'sign' : 'house');
+                SBPix.drawBuilding(ctx, x, y, b.w, b.h, b.color, kind);
+                ctx.font = (kind === 'house' ? 22 : 18) + "px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(b.icon, x + b.w / 2, y + (kind === 'house' ? b.h * 0.27 : (kind === 'sign' ? b.h * 0.16 : b.h * 0.6)));
+                ctx.textBaseline = "alphabetic";
+            } else {
             ctx.fillStyle = b.color;
             roundRect(x, y, b.w, b.h, 10);
             ctx.fill();
@@ -652,6 +675,7 @@
             ctx.font = "28px sans-serif";
             ctx.textAlign = "center";
             ctx.fillText(b.icon, x + b.w / 2, y + b.h / 2 + 10);
+            }
 
             ctx.font = "bold 12px sans-serif";
             ctx.fillStyle = "#ffffff";
@@ -673,6 +697,10 @@
             ctx.ellipse(x, y + 16, 14, 5, 0, 0, Math.PI * 2);
             ctx.fill();
             
+            if (window.SBPix && SBPix.on() && SBPix.npcAvatar) {      // ドット絵の町の人（名前から見た目が決まる）
+                SBPix.drawPerson(ctx, x, y + 10, { avatar: SBPix.npcAvatar(npc.name), scale: 2, left: false, moving: false });
+                ctx.font = "16px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(npc.icon, x + 16, y - 14);
+            } else {
             // NPC本体
             ctx.fillStyle = "#FFC107";
             ctx.beginPath();
@@ -687,6 +715,7 @@
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(npc.icon, x, y);
+            }
             
             // 名前
             ctx.font = "bold 11px sans-serif";
@@ -715,6 +744,14 @@
     function drawPlayer(x, y, color, name, level, dir, isMe, avatar = null) {
         ctx.save();
         
+        const pxMe = !!(window.SBPix && SBPix.on() && SBPix.drawPerson);
+        if (pxMe) {      // ドット絵のキャラ（アバターカスタマイズの内容が反映される）
+            ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(x, y + 16, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = isMe ? "#ffffff" : color; ctx.lineWidth = 2; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.ellipse(x, y + 14, 15, 6, 0, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1;
+            const key = isMe ? "__me" : name; const mv = isMe ? local.moving : (drawPlayer._m && drawPlayer._m[key] ? performance.now() - drawPlayer._m[key].t < 160 : false);
+            if (!isMe) { drawPlayer._m = drawPlayer._m || {}; const pm = drawPlayer._m[key] || (drawPlayer._m[key] = { x: x, y: y, t: 0 }); if (Math.hypot(pm.x - x, pm.y - y) > 0.4) pm.t = performance.now(); pm.x = x; pm.y = y; }
+            SBPix.drawPerson(ctx, x, y + 10, { avatar: SBPix.cleanAvatar(avatar) || SBPix.npcAvatar(name), left: dir === "left", moving: !!mv, scale: 2 });
+        } else
         // アバターデータがある場合はアバターを描画
         if (avatar && typeof getAvatarSVG === 'function') {
             // 影
