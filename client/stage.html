@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>School Battle - ステージ</title>
+<title>学習支援ツール - 練習問題</title>
 <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { margin: 0; height: 100%; background: #0b0d12; color: #eee; font-family: "Hiragino Sans", "Meiryo", sans-serif; overflow: hidden; touch-action: none; user-select: none; }
@@ -98,18 +98,18 @@
 <div id="top" class="hud">
     <div id="info"><span id="stageName"></span><span id="wpnName"></span><span id="timer">⏱ 0:00</span></div>
     <div class="bar"><div id="hpFill" class="fill"></div><span id="hpText"></span></div>
-    <div class="bar" id="enBar"><div id="enFill" class="fill"></div><span id="enText">ENERGY 0</span></div>
-    <div class="bar"><div id="progFill" class="fill"></div><span id="prog">討伐 0 / 0</span></div>
+    <div class="bar" id="enBar"><div id="enFill" class="fill"></div><span id="enText">精神力 0</span></div>
+    <div class="bar"><div id="progFill" class="fill"></div><span id="prog">解答 0 / 0</span></div>
 </div>
 <div id="bossBar"><div id="bossName"></div><div class="bar"><div id="bossFill" class="fill"></div></div></div>
 <div id="announce"></div>
 <div id="lootLog"></div>
-<div class="hint">WASD移動 / マウス or Space 攻撃 / Shift or 右クリック ダッシュ / Z X C V スキル / 1〜4 クイズ / Tab クイズ表示切替</div>
+<div class="hint">WASD移動 / マウス or Space 回答 / Shift or 右クリック スキップ / Z X C V 特技 / 1〜4 問題 / Tab 問題表示切替</div>
 
-<button type="button" id="quizToggle">クイズ ▢</button>
+<button type="button" id="quizToggle">問題 ▢</button>
 <div id="quiz"><div id="quizQ">読み込み中...</div><div id="quizC"></div></div>
-<button type="button" id="btnDash" class="touch-btn">ダッシュ</button>
-<button type="button" id="btnGuard" class="touch-btn">🛡 溜め</button>
+<button type="button" id="btnDash" class="touch-btn">スキップ</button>
+<button type="button" id="btnGuard" class="touch-btn">🛡 集中</button>
 <button type="button" id="btnUlt" class="touch-btn">⚡0%</button>
 <div id="skillBar"></div>
 
