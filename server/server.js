@@ -1,20 +1,20 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
-// 最初に、Supabase から保存データを復元する（各機能がJSONファイルを読む前に終わらせる。未設定なら何もしない）
+// 最初に、Supabase から保存データを復�?する?��各機�?�がJSONファイルを読む前に終わらせる。未設定なら何もしな�??�?
 require("./managers/SupabaseSync").restoreOnBootSync();
 const UniqueWeaponManager = require("./managers/UniqueWeaponManager");
 
 const app = express();
-// 配信の圧縮（HTML/JS/CSS/JSONをgzip）。questions.js などの大きなファイルを毎回そのまま送っていたぶんの帯域とCPU待ちを減らす。
-// パッケージが入っていない環境でもサーバーが落ちないよう、読み込みに失敗したら圧縮なしで動く。
-try { app.use(require("compression")()); } catch (e) { console.warn("[server] compression が入っていないため圧縮なしで起動します（npm install で有効化）"); }
+// 配信の圧縮?�?HTML/JS/CSS/JSONをgzip?��。questions.js などの大きなファイルを毎回そ�?�まま送って�?た�?�ん�?�帯域とCPU�?ちを減らす�?
+// パッケージが�?�って�?な�?環�?でもサーバ�?�が落ちな�?よう、読み込みに失敗したら圧縮なしで動く�?
+try { app.use(require("compression")()); } catch (e) { console.warn("[server] compression が�?�って�?な�?ため圧縮なしで起動します�?npm install で有効化�?"); }
 app.use(express.json());
-// シーズンの週・解放の判定に使うサーバー時刻（端末の時計をいじっても早まらないように）
+// シーズンの週・解放の判定に使�?サーバ�?�時刻?��端末の時計を�?じっても早まらな�?ように?�?
 app.get("/api/time", (req, res) => { res.set("Cache-Control", "no-store"); res.json({ now: Date.now() }); });
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 20 * 1024 * 1024,   // 引き継ぎデータ（武器庫など）は1MBを超えることがある。既定の1MBだと、保存しようとした瞬間に接続が切れていた
+    maxHttpBufferSize: 20 * 1024 * 1024,   // 引き継ぎ�?ータ?��武器庫など?���?�1MBを�?えることがある。既定�?�1MB�?と、保存しようとした瞬間に接続が�?れて�?�?
     pingInterval: 25000,
     pingTimeout: 60000,
     transports: ["websocket", "polling"],
@@ -28,18 +28,18 @@ const io = new Server(server, {
     }
 });
 
-// server/socket/*.js は各ファイルが独自に io.on("connection", ...) を登録するため、
-// 機能追加のたびにリスナー数が増えていく。デフォルト上限(10)を超えると
-// MaxListenersExceededWarningが出るだけで実害はないが、上限を引き上げて黙らせておく。
+// server/socket/*.js は�?ファイルが独自に io.on("connection", ...) を登録するため�?
+// 機�?�追�?のた�?�にリスナ�?�数が増えて�?く。デフォルト上限(10)を�?えると
+// MaxListenersExceededWarningが�?�るだけで実害はな�?が、上限を引き上げて黙らせておく�?
 io.setMaxListeners(20);
 
 const path = require("path");
 const fs = require("fs");
 
-// ---- トップページ：OGP（共有時のプレビュー）用に絶対URLを差し込んで返す ----
-// client/index.html 内の %%SITE_URL%% を、実際にアクセスされたドメインに置き換える。
-// X・LINE・Discordなどは og:image に絶対URLを要求するため。
-// 独自ドメインに変えてもコード修正は不要（環境変数 SITE_URL を設定すればそちらを優先）。
+// ---- トップ�?��?�ジ?��OGP?���?�有時のプレビュー?��用に絶対URLを差し込んで返す ----
+// client/index.html �?の %%SITE_URL%% を、実際にアクセスされたドメインに置き換える�?
+// X・LINE・Discordなどは og:image に絶対URLを要求するため�?
+// 独自ドメインに変えてもコード修正は不�??��環�?変数 SITE_URL を設定すれ�?�そちらを優先）�?
 const INDEX_HTML_PATH = path.join(__dirname, "../client/index.html");
 
 function getSiteBaseUrl(req) {
@@ -77,8 +77,8 @@ app.use(express.static(path.join(__dirname, "../client"), {
         if (filePath.endsWith(".html") || filePath.endsWith(".js") || filePath.endsWith(".css")) {
             res.setHeader("Content-Type", `${getContentType(filePath)}; charset=utf-8`);
             // Avoid stale CDN/browser assets after redeploys.
-            // no-store だと毎回ファイル全体を再ダウンロードさせてしまう。no-cache は「毎回サーバーに確認するが、
-            // 変わっていなければ(ETagが同じなら) 304 で中身は送らない」ので、更新の即時反映を保ったまま転送量だけ減らせる。
+            // no-store �?と毎回ファイル全体を再ダウンロードさせてしま�?。no-cache は「毎回サーバ�?�に確認するが�?
+            // 変わって�?なければ(ETagが同じな�?) 304 で中身は送らな�?」�?�で、更新の即時反�?を保ったまま転�?量だけ減らせる�?
             res.setHeader("Cache-Control", "no-cache, must-revalidate");
         }
     }
@@ -127,7 +127,7 @@ require("./socket/worldboss")(io);
 require("./socket/market")(io);
 require("./socket/skillai")(io);
 require("./socket/survival")(io);
-require("./managers/SupabaseSync").start();      // 以降、ファイルが変わるたびに Supabase へ保存する（全機能を読み込んだあとに呼ぶ）
+require("./managers/SupabaseSync").start();      // 以降、ファイルが変わるたびに Supabase へ保存する（�?�機�?�を読み込んだあとに呼ぶ?�?
 
 app.get("/api/unique/claims", (req, res) => {
     res.json(UniqueWeaponManager.getAllClaims());

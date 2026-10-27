@@ -50,9 +50,6 @@ try {
     sb.window = sb; vm.createContext(sb);
     vm.runInContext(fs.readFileSync(path.join(__dirname, "..", "..", "client", "js", "hw-weapons.js"), "utf8"), sb);
     if (sb.HW && sb.HW.TYPES) { TYPES = sb.HW.TYPES; PCT_CAP = sb.HW.PCT_CAP || 0.5; MYTHIC_IDS = Object.keys(sb.HW.MYTHICS || {}); }
-} catch (e) { console.warn("[Survival] weapon table fallback:", e.message); }
-
-// ---------- 調整できる数値 ----------
 const C = {
     TICK_MS: 50, MAX_PLAYERS: 60, MAX_MONSTERS: 420, AOI: 1300, PLAYER_R: 14,
     BASE_SPEED: 240, REGEN_DELAY: 5, REGEN_PCT: 0.02, RESPAWN_S: 5, INVULN_S: 3, COMBAT_S: 8,
@@ -66,10 +63,7 @@ const C = {
     MAX_CARRY: 16, STEAL_PAIR_CD_S: 120   // 持ち込める点数／同じ相手から続けて奪えない時間
 };
 const MON = {
-    // tier: [{ name, icon, hp(攻撃の回数の目安), dmg(最大HPに対する割合), spd, r, aggro, range, ranged, cd, coins:[min,max] }]
     1: [
-        { name: "はぐれスライム", icon: "🟢", hp: 3, dmg: 0.05, spd: 110, r: 16, aggro: 320, range: 26, cd: 1.2, coins: [5, 10] },
-        { name: "荒野のウルフ", icon: "🐺", hp: 5, dmg: 0.06, spd: 175, r: 16, aggro: 420, range: 28, cd: 1.0, coins: [8, 14] },
         { name: "ゴブリン弓兵", icon: "🏹", hp: 4, dmg: 0.05, spd: 120, r: 15, aggro: 480, range: 360, ranged: true, cd: 1.8, coins: [8, 14] }
     ],
     2: [
@@ -596,5 +590,5 @@ function snapshot(t) {
     });
 }
 
-function stats() { return { players: players.size, monsters: monsters.size, projectiles: projs.length }; }
-module.exports = { init, join, leave, disconnect, input, stats, CONFIG: C, TYPES: () => TYPES, _players: players, _monsters: monsters, _tick: tick };
+function stats() { return { players: players.size, monsters: monsters.size, projectiles: projs.length }};
+module.exports = { init, join, leave, disconnect, input, stats, CONFIG: C, TYPES: () => TYPES, _players: players, _monsters: monsters, _tick: tick};

@@ -424,7 +424,6 @@ module.exports = function(io){
         // -----------------------------
 
         socket.on("saveData", (player) => {
-            if (player && player.id && ExtraDataManager.hasPassword(player.id)) { socket.emit("dataError", "このIDはパスワードで保護されています。アプリを最新にして、「いますぐ同期」から連携してください。"); return; }
             if (player && player.id) {
                 console.log(`[Data] Saving data for player ID: ${player.id}`);
                 const success = PlayerDataManager.savePlayer(player);
@@ -482,7 +481,6 @@ module.exports = function(io){
         });
 
         socket.on("loadData", (playerId) => {
-            if (ExtraDataManager.hasPassword(playerId)) { socket.emit("dataError", "このIDはパスワードで保護されています。アプリを最新にして、連携から読み込んでください。"); return; }
             if (playerId) {
                 console.log(`[Data] Loading data for player ID: ${playerId}`);
                 const player = PlayerDataManager.getPlayer(playerId);
