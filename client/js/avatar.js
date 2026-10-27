@@ -124,6 +124,9 @@ function showAvatarCustomizationUI() {
     `;
     
     document.body.appendChild(modal);
+    // .modal は「show」クラスが付くまで非表示（display:none）なので、表示する。これが無いと、ボタンを押しても何も起きないように見える
+    modal.classList.add('show');
+    modal.style.display = 'flex'; modal.style.alignItems = 'center'; modal.style.justifyContent = 'center';
     
     // 選択肢を生成
     renderAvatarOptions('hairStyleOptions', AVATAR_CUSTOMIZATION.hairStyles, currentAvatar.hairStyle, 'hairStyle');
@@ -191,6 +194,15 @@ function drawAvatarPreview(avatar) {
     
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // ドット絵が使えるときは、ゲーム内と同じドット絵のキャラで表示する（髪型・髪色・肌・服・アクセサリーがそのまま反映される）
+    if (window.SBPix && SBPix.avatarCanvas && SBPix.on()) {
+        const pv = SBPix.avatarCanvas(avatar, 7);
+        ctx.imageSmoothingEnabled = false;
+        ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, canvas.height - 18, canvas.width, 18);
+        ctx.drawImage(pv, Math.round((canvas.width - pv.width) / 2), Math.round((canvas.height - pv.height) / 2));
+        return;
+    }
     
     // 色設定を取得
     const hairColor = AVATAR_CUSTOMIZATION.hairColors.find(c => c.id === avatar.hairColor)?.color || '#333333';

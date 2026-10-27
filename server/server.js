@@ -1,6 +1,8 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+// 最初に、Supabase から保存データを復元する（各機能がJSONファイルを読む前に終わらせる。未設定なら何もしない）
+require("./managers/SupabaseSync").restoreOnBootSync();
 const UniqueWeaponManager = require("./managers/UniqueWeaponManager");
 
 const app = express();
@@ -122,6 +124,10 @@ require("./socket/disconnect")(io);
 require("./socket/world")(io);
 require("./socket/chat")(io);
 require("./socket/worldboss")(io);
+require("./socket/market")(io);
+require("./socket/skillai")(io);
+require("./socket/survival")(io);
+require("./managers/SupabaseSync").start();      // 以降、ファイルが変わるたびに Supabase へ保存する（全機能を読み込んだあとに呼ぶ）
 
 app.get("/api/unique/claims", (req, res) => {
     res.json(UniqueWeaponManager.getAllClaims());

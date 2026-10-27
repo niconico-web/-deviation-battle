@@ -23,6 +23,9 @@
                      prefixes: ['神々の', '終焉の', '星砕きの', '世界喰らいの', '永劫の', '天啓の'] }
     };
     const RARITY_ORDER = ['normal', 'magic', 'rare', 'epic', 'legendary'];
+    // 神話：実績の報酬でしか手に入らない特別なレア度（RARITY_ORDER には入れない＝ドロップ抽選・昇華・一括売却の対象外）
+    RARITIES.mythic = { label: '神話', color: '#ff4fd8', mult: 2.8, pctMul: 2.5, orig: 0.5, forge: 1e9, sockets: [6, 6], fx: [6, 6], weight: 0, prefixes: ['永久の'] };
+    function rIdx(k) { return k === 'mythic' ? 5 : RARITY_ORDER.indexOf(k); }      // 神話は「レジェンドより上」として扱う
 
     // ---------- 武器の攻撃力は「％」で伸びる ----------
     //  ・武器そのものの攻撃力は固定値ではなく「プレイヤーの攻撃力に対する＋○％」。
@@ -54,6 +57,9 @@
         wand:       { label: '魔法の杖',   kind: 'proj',  speed: 320, radius: 12, cd: 0.58, mult: 1.1,  range: 640, homing: true },
         shotgun:    { label: '散弾銃',     kind: 'proj',  speed: 700, radius: 6,  cd: 0.85, mult: 0.5,  range: 420, spread: 5 },
         esper:      { label: '念動',       kind: 'ring',  radius: 100, cd: 0.65, mult: 0.95, knock: 110 },
+        // ---- 専用武器種：神話「Legend of Unbreakable」だけが持つ（通常のドロップや工房には出ない：world 99）----
+        //  lasers：自分の周りから count 本のレーザーを出して、近くの敵へオートエイムで当てる（range 内の敵に1本ずつ。敵が少ないときは同じ敵に重ねて当たる）
+        unbreakable: { label: '不壊',      kind: 'lasers', range: 520, count: 7, cd: 0.62, mult: 0.3, knock: 20, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
         twinblade:  { label: '双刃',       kind: 'cone',  range: 64,  arc: 1.8, cd: 0.30, mult: 0.62, knock: 20, multi: 2, crit: 0.08, world: 2 },
@@ -348,11 +354,34 @@
         { id: 'kill_energy',kind: 'proc', on: 'kill',  key: 'killEnergy', name: '知の収穫', range: [0.15, 0.30], desc: v => `敵撃破時${pct(v)}でエネルギー+8` },
         { id: 'hurt_shield',kind: 'proc', on: 'hurt',  key: 'hurtShield', name: '護りの光', range: [0.15, 0.30], desc: v => `被弾時${pct(v)}でバリア（次の被ダメージ無効）` },
         { id: 'hurt_nova',  kind: 'proc', on: 'hurt',  key: 'hurtNova', name: '報復波',   range: [0.20, 0.40], desc: v => `被弾時${pct(v)}で周囲を吹き飛ばす` },
-        { id: 'dash_blast', kind: 'proc', on: 'dash',  key: 'dashBlast', name: '衝撃脚',  range: [0.50, 1.00], desc: v => `ダッシュ終点で衝撃波（攻撃力の${pct(v)}）` }
+        { id: 'dash_blast', kind: 'proc', on: 'dash',  key: 'dashBlast', name: '衝撃脚',  range: [0.50, 1.00], desc: v => `ダッシュ終点で衝撃波（攻撃力の${pct(v)}）` },
+        // --- リスキー・尖った効果（強い代わりに、はっきりした代償がある）。mods が「実際にかかる効果」の一覧 ---
+        { id: 'rk_glass',   kind: 'risk', risk: true, key: 'rk_glass',   name: '脆き砲台',   range: [0.40, 0.80], mods: v => ({ atkPct: v, hpHalf: 1 }),          desc: v => `⚠ 最大HPの上限が50%で固定／攻撃力 +${pct(v)}` },
+        { id: 'rk_blood',   kind: 'risk', risk: true, key: 'rk_blood',   name: '血の契約',   range: [0.30, 0.60], mods: v => ({ atkPct: v, selfBleed: 0.015 }),   desc: v => `⚠ 毎秒 最大HPの1.5%を失う（HP1で止まる）／攻撃力 +${pct(v)}` },
+        { id: 'rk_reckless',kind: 'risk', risk: true, key: 'rk_reckless',name: '無防備',     range: [0.30, 0.55], mods: v => ({ atkPct: v, dmgTaken: 0.4 }),      desc: v => `⚠ 被ダメージ +40%／攻撃力 +${pct(v)}` },
+        { id: 'rk_berserk', kind: 'risk', risk: true, key: 'rk_berserk', name: '狂戦士',     range: [0.50, 1.00], mods: v => ({ berserk: v }),                    desc: v => `⚠ HPが50%を超えていると攻撃力 -25%／HP50%以下で攻撃力 +${pct(v)}` },
+        { id: 'rk_noheal',  kind: 'risk', risk: true, key: 'rk_noheal',  name: '渇望',       range: [0.40, 0.80], mods: v => ({ atkPct: v, noHeal: 1 }),          desc: v => `⚠ HPがいっさい回復しない／攻撃力 +${pct(v)}` },
+        { id: 'rk_lone',    kind: 'risk', risk: true, key: 'rk_lone',    name: '孤高',       range: [0.35, 0.70], mods: v => ({ loneWolf: v }),                   desc: v => `⚠ 仲間がいると攻撃力 -30%／ソロだと攻撃力 +${pct(v)}` },
+        { id: 'rk_frail',   kind: 'risk', risk: true, key: 'rk_frail',   name: '紙の速さ',   range: [0.25, 0.50], mods: v => ({ aspd: v, hpPct: -0.3 }),          desc: v => `⚠ 最大HP -30%／攻撃速度 +${pct(v)}` },
+        { id: 'rk_skill',   kind: 'risk', risk: true, key: 'rk_skill',   name: '魔力暴走',   range: [0.40, 0.90], mods: v => ({ skillPct: v, skillCdUp: 0.6 }),   desc: v => `⚠ スキルのクールダウン +60%／スキルの威力 +${pct(v)}` },
+        { id: 'rk_lamp',    kind: 'risk', risk: true, key: 'rk_lamp',    name: '命の灯火',   range: [0.30, 0.60], mods: v => ({ hpPct: v, atkPct: -0.3 }),        desc: v => `⚠ 攻撃力 -30%／最大HP +${pct(v)}` },
+        { id: 'rk_still',   kind: 'risk', risk: true, key: 'rk_still',   name: '不動',       range: [0.30, 0.60], mods: v => ({ atkPct: v, noDash: 1 }),          desc: v => `⚠ ダッシュが使えない／攻撃力 +${pct(v)}` },
+        { id: 'rk_titan',   kind: 'risk', risk: true, key: 'rk_titan',   name: '鈍重の巨人', range: [0.35, 0.70], mods: v => ({ atkPct: v, moveSpd: -0.35 }),     desc: v => `⚠ 移動速度 -35%／攻撃力 +${pct(v)}` },
+        { id: 'rk_onehit',  kind: 'risk', risk: true, key: 'rk_onehit',  name: '一撃必殺',   range: [0.80, 1.60], mods: v => ({ atkPct: v, aspd: -0.4 }),         desc: v => `⚠ 攻撃速度 -40%／攻撃力 +${pct(v)}` },
+        { id: 'rk_edge',    kind: 'risk', risk: true, key: 'rk_edge',    name: '諸刃',       range: [0.20, 0.40], mods: v => ({ critRate: v, nonCritDown: 0.3 }), desc: v => `⚠ クリティカルでない攻撃のダメージ -30%／クリティカル率 +${pct(v)}` },
+        { id: 'rk_drain',   kind: 'risk', risk: true, key: 'rk_drain',   name: '消耗',       range: [0.30, 0.60], mods: v => ({ atkPct: v, energyUp: -0.5 }),     desc: v => `⚠ クイズで得るエネルギー -50%／攻撃力 +${pct(v)}` },
+        { id: 'rk_vamp',    kind: 'risk', risk: true, key: 'rk_vamp',    name: '呪われた吸血', range: [0.06, 0.12], mods: v => ({ lifesteal: v, dmgTaken: 0.25 }), desc: v => `⚠ 被ダメージ +25%／与ダメージの${pct(v)}をHP回復` }
     ];
     const EFFECT_BY_ID = {};
     EFFECTS.forEach(e => { EFFECT_BY_ID[e.id] = e; });
 
+    function takeFx(pool) { const e = pickFx(pool); pool.splice(pool.indexOf(e), 1); return e; }
+    // 効果の候補から1つ選ぶ。リスキーな効果は出にくい（約12%）
+    function pickFx(pool) {
+        const risky = pool.filter(e => e.risk), safe = pool.filter(e => !e.risk);
+        const useRisk = risky.length && (!safe.length || Math.random() < 0.12), src = useRisk ? risky : safe;
+        return src[Math.floor(Math.random() * src.length)];
+    }
     // ---------- 乱数ユーティリティ ----------
     const rnd = (a, b) => a + Math.random() * (b - a);
     const rint = (a, b) => Math.floor(rnd(a, b + 1));
@@ -402,7 +431,7 @@
         const fxPool = EFFECTS.slice();
         const effects = [];
         for (let i = 0; i < nFx && fxPool.length; i++) {
-            const e = fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0];
+            const e = takeFx(fxPool);
             effects.push(rollEffect(e, ilvl, rarityKey));
         }
         const w = {
@@ -427,17 +456,18 @@
     }
 
     function rollEffect(e, ilvl, rarityKey) {
-        const idx = RARITY_ORDER.indexOf(rarityKey);
+        const idx = rIdx(rarityKey);
         const scale = (1 + idx * 0.22) * (1 + Math.min(ilvl, 20) * 0.025);
         let v = rnd(e.range[0], e.range[1]) * scale;
         if (e.int) v = Math.max(1, Math.round(rnd(e.range[0], e.range[1]) * (idx >= 3 ? 2 : 1)));
         else v = Math.round(v * 1000) / 1000;
         if (e.kind === 'proc' || e.key === 'critRate' || e.key === 'dodge') v = Math.min(v, e.kind === 'proc' ? 0.85 : 0.5);
+        if (e.risk) v = Math.min(v, Math.round(e.range[1] * 2.2 * 1000) / 1000);
         return { id: e.id, v: v };
     }
 
     function displayName(w) {
-        return w.prefix + '＋' + w.baseName;
+        return (w.prefix ? w.prefix + '＋' : '') + w.baseName + ((w.plus | 0) > 0 ? '+' + (w.plus | 0) : '');
     }
 
     function describeEffect(fx) {
@@ -519,7 +549,8 @@
         (w.effects || []).forEach(fx => {
             const e = EFFECT_BY_ID[fx.id];
             if (!e) return;
-            if (e.kind === 'stat') addStat(e.key, fx.v);
+            if (e.mods) { const m = e.mods(fx.v); Object.keys(m).forEach(k => addStat(k, m[k])); }
+            else if (e.kind === 'stat') addStat(e.key, fx.v);
             else agg.procs.push({ key: e.key, on: e.on, v: fx.v });
         });
         (w.orbs || []).forEach(orb => {
@@ -535,7 +566,12 @@
         return agg;
     }
 
-    function rarityOf(w) { return RARITIES[(w && w.rarity) || 'normal'] || RARITIES.normal; }
+    const RCOL = {};
+    function rarityOf(w) {
+        const r = RARITIES[(w && w.rarity) || 'normal'] || RARITIES.normal;
+        if (w && w.mcolor) { return RCOL[w.mcolor] || (RCOL[w.mcolor] = Object.assign({}, r, { color: w.mcolor })); }      // 神話は、武器ごとの色
+        return r;
+    }
 
     // ---------- 保存 / 読み込み（localStorage "sbHack"）----------
     const KEY = 'sbHack';
@@ -636,7 +672,7 @@
         const orbs = (w.orbs || []).filter(Boolean);
         if (orbs.length && typeof applyOrbToWeapon === 'function') lw = applyOrbToWeapon(lw, orbs);
         // レア度とレベルによる底上げ
-        lw.multiplier = lw.multiplier * (1 + RARITY_ORDER.indexOf(w.rarity) * 0.04 + Math.min(w.ilvl || 1, 15) * 0.01);
+        lw.multiplier = lw.multiplier * (1 + rIdx(w.rarity) * 0.04 + Math.min(w.ilvl || 1, 15) * 0.01);
         return lw;
     }
     function syncLegacy(d, force) {
@@ -658,7 +694,7 @@
 
     function sellValue(w) {
         if (w.forgeCost) return Math.max(1, Math.round(w.forgeCost * 0.2));    // オリジナル武器は作成コストの2割
-        const idx = RARITY_ORDER.indexOf(w.rarity);
+        const idx = rIdx(w.rarity);
         return Math.max(1, Math.round((3 + w.ilvl * 1.5) * (1 + idx * 1.4)));
     }
 
@@ -721,7 +757,7 @@
         const sockets = rint(rar.sockets[0], rar.sockets[1]);
         const nFx = rint(rar.fx[0], rar.fx[1]);
         const fxPool = EFFECTS.slice(), effects = [];
-        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], ilvl, rk));
+        for (let i = 0; i < nFx && fxPool.length; i++) effects.push(rollEffect(takeFx(fxPool), ilvl, rk));
         // 選んだ属性（最大2つ。elements.js にある属性だけ）
         const elems = [];
         ((o && o.elems) || []).forEach(id => { if (window.SBElem && SBElem.ELEMS[id] && elems.indexOf(id) < 0 && elems.length < 2) elems.push(id); });
@@ -735,7 +771,7 @@
     // 売却 / ソケット操作
     function sellWeapon(d, id) {
         const i = d.weapons.findIndex(w => w.id === id);
-        if (i < 0 || d.weapons[i].id === d.equipped) return 0;
+        if (i < 0 || d.weapons[i].id === d.equipped || d.weapons[i].mythicId) return 0;      // 神話の武器は売れない
         const w = d.weapons[i];
         const v = sellValue(w);
         // はめ込んであったオーブはプレイヤーのオーブ倉庫へ戻す
@@ -784,8 +820,8 @@
     const MAX_SOCKETS = 6;
     const SPECIAL_ITEMS = {
         slot:   { name: '宝珠の拡張石', icon: '💠', color: '#7fd8ff', desc: '武器のオーブスロットを1つ増やす（最大' + MAX_SOCKETS + '）' },
-        rarity: { name: '昇華の結晶',   icon: '🔶', color: '#ffb347', desc: '武器のレア度を1段階上げる（レジェンドまで）' },
-        reroll: { name: '混沌の宝珠',   icon: '🌀', color: '#c077ff', desc: '武器・防具の追加効果をすべて振り直す' }
+        rarity: { name: '昇華の結晶',   icon: '🔶', color: '#ffb347', desc: '武器のレア度を1段階上げる。レジェンド武器には「＋N」のアップグレード（攻撃の%が少し上がる。最大+100）' },
+        reroll: { name: '混沌の宝珠',   icon: '🌀', color: '#c077ff', desc: '武器・防具の追加効果のうち、選んだもの（いくつでも）を引き直す' }
     };
     const SPECIAL_ORDER = ['slot', 'rarity', 'reroll'];
     function itemCount(d, k) { return Math.max(0, (d && d.items && d.items[k]) | 0); }
@@ -799,44 +835,124 @@
         while (w.orbs.length < w.sockets) w.orbs.push(null);
         return true;
     }
+    // レア度を上げる。すでにレジェンドなら「＋N」アップグレード（攻撃の%がすこしずつ上がる。最大 +100）
+    const PLUS_MAX = 100, PLUS_STEP = 0.006;       // 1回ごとに、元の攻撃の%の 0.6% ぶん（＋100で元の1.6倍）
     function canUpgradeRarity(w) { const i = RARITY_ORDER.indexOf(w && w.rarity); return i >= 0 && i < RARITY_ORDER.length - 1; }
+    function canUpgradePlus(w) { return !!w && w.rarity === 'legendary' && (w.plus | 0) < PLUS_MAX; }
+    function canUseCrystal(w) { return canUpgradeRarity(w) || canUpgradePlus(w); }
+    function upgradePlus(w) {
+        if (!canUpgradePlus(w)) return false;
+        if (w.pct0 == null) w.pct0 = w.pct || 0;
+        w.plus = (w.plus | 0) + 1;
+        w.pct = Math.round(w.pct0 * (1 + PLUS_STEP * w.plus) * 10000) / 10000;       // ＋の強化は、レア度の上限(PCT_CAP)を超えてよい
+        w.dmg = dmgFromPct(w.pct);
+        if (!w.custom) w.name = displayName(w);
+        return true;
+    }
     function upgradeRarity(w) {
+        if (canUpgradePlus(w)) return upgradePlus(w);
         if (!canUpgradeRarity(w)) return false;
         const old = w.rarity, nk = RARITY_ORDER[RARITY_ORDER.indexOf(old) + 1], ro = RARITIES[old], rn = RARITIES[nk];
         const ratio = w.custom ? rn.orig / ro.orig : rn.pctMul / ro.pctMul;
         w.rarity = nk;
         w.pct = Math.round(Math.min(PCT_CAP, (w.pct || 0) * ratio) * 10000) / 10000;
         w.dmg = dmgFromPct(w.pct);
-        // 効果の強さ：レア度が上がるぶんだけ伸ばす（個数が最低数に足りなければ足す）
         const io = RARITY_ORDER.indexOf(old), ratioFx = (1 + (io + 1) * 0.22) / (1 + io * 0.22);
         (w.effects || []).forEach(f => {
             const e = EFFECT_BY_ID[f.id]; if (!e || e.int) return;
             let v = f.v * ratioFx; if (e.kind === 'proc' || e.key === 'critRate' || e.key === 'dodge') v = Math.min(v, e.kind === 'proc' ? 0.85 : 0.5);
+            if (e.risk) v = Math.min(v, e.range[1] * 2.2);
             f.v = Math.round(v * 1000) / 1000;
         });
         w.effects = w.effects || [];
         const used = w.effects.map(f => f.id), fxPool = EFFECTS.filter(e => used.indexOf(e.id) < 0);
-        while (w.effects.length < rn.fx[0] && fxPool.length) w.effects.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], w.ilvl || 1, nk));
-        // スロットの最低数
+        while (w.effects.length < rn.fx[0] && fxPool.length) w.effects.push(rollEffect(takeFx(fxPool), w.ilvl || 1, nk));
         const minS = rn.sockets[0]; if ((w.sockets | 0) < minS) { w.sockets = minS; w.orbs = Array.isArray(w.orbs) ? w.orbs.slice() : []; while (w.orbs.length < w.sockets) w.orbs.push(null); }
         if (!w.custom) { w.prefix = pick(rn.prefixes); w.name = displayName(w); }
         return true;
     }
-    function rerollWeaponEffects(w) {
-        if (!w) return false;
-        const n = (w.effects || []).length, fxPool = EFFECTS.slice(), out = [];
-        for (let i = 0; i < n && fxPool.length; i++) out.push(rollEffect(fxPool.splice(Math.floor(Math.random() * fxPool.length), 1)[0], w.ilvl || 1, w.rarity || 'normal'));
-        w.effects = out;
+    // 追加効果の振り直し：idxs（効果の番号の配列。いくつでも選べる）の効果だけを、別の効果に引き直す。省略すると全部
+    function rerollWeaponEffects(w, idxs) {
+        if (!w || !Array.isArray(w.effects) || w.mythicId) return false;      // 神話の武器の効果は、作り直せない
+        const sel = Array.isArray(idxs) ? idxs.filter(i => i >= 0 && i < w.effects.length) : w.effects.map((_, i) => i);
+        if (!sel.length) return false;
+        const keepIds = w.effects.filter((_, i) => sel.indexOf(i) < 0).map(f => f.id);
+        const pool = EFFECTS.filter(e => keepIds.indexOf(e.id) < 0);
+        sel.forEach(i => { if (!pool.length) return; w.effects[i] = rollEffect(takeFx(pool), w.ilvl || 1, w.rarity || 'normal'); });
         return true;
+    }
+
+
+    // ---------- 実績の報酬：神話の武器（他のどこからも手に入らない）----------
+    //  神話は、レジェンドとは別次元の強さ：基礎ダメージが約2倍（レジェンドの上限は pct 0.5。神話は 2.0〜）、
+    //  効果は通常の武器の数倍の値を8〜9個、スロットは6つ。さらに、武器ごとに固有の通常攻撃コンボと必殺技がある（stage.js の MYTHIC_COMBO / MYTHIC_ULT）。
+    //  ドロップ・ショップ・作成・昇華・売却のどれからも手に入らない。実績の報酬でだけ手に入る（achievements.js）。
+    const MYTHIC_PCT = 2.0;
+    const MYTHICS = {
+        eternal_serenity: { name: '安寧の剣', prefix: '永久の', type: 'sword', color: '#ff4fd8', ilvl: 50, tag: '永久の安寧を保つもの', boss: 'ゲートキーパー', tech: 'ゲートキーパーの剣／万象開門・千剣',
+            desc: '5連の斬撃が剣気を飛ばし、最後は大地を割る。必殺技「永久の安寧」は、画面全体を白で満たして敵を一掃し、体力を回復して3秒間の結界を張る',
+            fx: [['atk_up', 0.85], ['crit_rate', 0.25], ['crit_dmg', 1.1], ['aspd', 0.30], ['dr', 0.20], ['lifesteal', 0.08], ['regen', 0.012], ['hp_up', 0.5]] },
+        twin_sirius: { name: '双牙', prefix: '天狼の', type: 'twinblade', color: '#4fe8ff', ilvl: 50, tag: '天狼', boss: '次元狼フェンリル・ゼロ', tech: '牙の三連撃／瞬影突進／次元の咆哮',
+            desc: '次元狼フェンリルの牙を宿す双刃。「牙の三連撃」のような高速コンボ。必殺技「次元の咆哮・瞬影連牙」は、影のように30回切り抜けたあと、咆哮の衝撃波で薙ぎ払う',
+            fx: [['atk_up', 0.65], ['aspd', 0.55], ['crit_rate', 0.30], ['crit_dmg', 0.9], ['move_up', 0.2], ['dodge', 0.12], ['bleed', 0.6]] },
+        orbit: { name: 'オルビット', prefix: '聖なる', type: 'halberd', color: '#ffe9a0', ilvl: 50, tag: '星降らす聖者', boss: '星砕きの巨神／熾天使ケルビム', tech: '流星群／光輪の舞',
+            desc: '神聖な薙刀。刃のまわりを光の玉が回り、振るたびに光輪が広がる。必殺技「聖星墜天・流星群」は、天から無数の隕石を敵に降らせる',
+            fx: [['atk_up', 0.75], ['range_up', 0.45], ['aoe_up', 0.6], ['crit_dmg', 0.8], ['dmg_swarm', 0.6], ['knock_up', 0.5], ['lifesteal', 0.06], ['regen', 0.01]] },
+        grandia: { name: '大剣グランディア', prefix: '覇王の', type: 'greatsword', color: '#ffb347', ilvl: 50, tag: '覇王', boss: 'オークの戦将', tech: '戦斧の連撃／突撃の号令',
+            desc: 'オークの戦将の戦斧を宿す大剣。一撃ごとに地面が割れる。必殺技「突撃の号令・覇王の進軍」は、6連の衝撃波と最後の大地割りで全てをなぎ倒す',
+            fx: [['atk_up', 1.1], ['dmg_boss', 0.8], ['knock_up', 0.8], ['crit_dmg', 1.0], ['hp_up', 0.6], ['def_up', 0.5], ['iframe', 0.3]] },
+        muMyou_katana: { name: '太刀・朧', prefix: '無明の', type: 'katana', color: '#ff5a5a', ilvl: 50, tag: '無明', boss: '血の伯爵', tech: '鮮血の十字斬／血の渦',
+            desc: '血の伯爵の刃を宿す太刀。必殺技「鮮血の十字斬・血の渦」は、敵ひとりひとりに十字の斬撃を刻み、最後に血の渦で弱った敵を刈り取る',
+            fx: [['atk_up', 0.6], ['crit_rate', 0.35], ['crit_dmg', 1.4], ['aspd', 0.35], ['dmg_low', 0.8], ['dash_cdr', 0.4], ['dodge', 0.15]] },
+        brionac: { name: '天槍ブリューナク', prefix: '雷霆の', type: 'spear', color: '#fff04f', ilvl: 50, tag: '雷霆', boss: '雷神ガルーダ', tech: '雷光の急降下／落雷の連鎖',
+            desc: '雷神ガルーダの雷を宿す槍。必殺技「雷光の急降下・落雷の連鎖」は、3本の雷槍で貫き、最後は落雷を連鎖させる',
+            fx: [['atk_up', 0.8], ['range_up', 0.35], ['dmg_boss', 0.6], ['crit_rate', 0.25], ['crit_dmg', 0.9], ['dmg_full', 0.6], ['shock', 0.6]] },
+        freikugel: { name: '魔弾フライクーゲル', prefix: '射手の', type: 'pistol', color: '#7dffb0', ilvl: 50, tag: '魔弾の射手', boss: 'メカ・タイタン', tech: 'ガトリング',
+            desc: 'メカ・タイタンのガトリングを宿す魔弾の銃。撃つたびに魔弾が増えて追尾する。必殺技「ガトリング・魔弾掃射」は、48発を撃ち尽くす',
+            fx: [['atk_up', 0.6], ['aspd', 0.4], ['crit_rate', 0.30], ['crit_dmg', 1.0], ['dmg_swarm', 0.5], ['proj_extra', 2], ['pierce', 2]] },
+        asura_fist: { name: '神拳', prefix: '阿修羅の', type: 'fist', color: '#ff8a3d', ilvl: 50, tag: '阿修羅', boss: '鍛冶神ヘパイストス', tech: '火花の連打／神鉄の大槌',
+            desc: '鍛冶神ヘパイストスの火花を宿す拳。必殺技「火花の連打・千手観音」は、44連打のあと体力を大きく回復する',
+            fx: [['atk_up', 0.9], ['aspd', 0.6], ['lifesteal', 0.10], ['dr', 0.25], ['knock_up', 0.6], ['crit_rate', 0.25], ['stun', 0.25]] },
+        thanatos: { name: '冥府の大鎌', prefix: 'タナトスの', type: 'scythe', color: '#9a5aff', ilvl: 50, tag: '終焉の収穫者', boss: '深淵ヲ廻ルモノ', tech: '死神の三連鎌／廻転断ち',
+            desc: '深淵ヲ廻ルモノの鎌を宿す大鎌。必殺技「廻転断ち・死神の三連鎌」は、全周を5度刈り取り、弱った敵を即座に刈る',
+            fx: [['atk_up', 0.8], ['lifesteal', 0.15], ['dmg_low', 1.0], ['crit_dmg', 1.0], ['regen', 0.015], ['poison', 0.6], ['dmg_swarm', 0.4]] },
+        artemis: { name: '流星弓', prefix: 'アルテミスの', type: 'bow', color: '#7dffea', ilvl: 50, tag: '星の射手', boss: '渦の巫女ギャラクシア', tech: '星珠の舞',
+            desc: '渦の巫女ギャラクシアの星を宿す弓。必殺技「星珠の舞・星々の裁き」は、40本の矢を星の雨として降らせ、最後に流星を落とす',
+            fx: [['atk_up', 0.7], ['range_up', 0.5], ['crit_rate', 0.30], ['crit_dmg', 1.1], ['aspd', 0.30], ['dmg_boss', 0.5], ['proj_extra', 2], ['pierce', 3]] },
+        // 不壊の悪魔（無限回廊の最強ボス／サバイバルエリアの巣のボス）を倒すと手に入る、専用の神話武器。武器種は「不壊」だけ
+        legend_unbreakable: { name: 'Legend of Unbreakable', prefix: '', type: 'unbreakable', color: '#ff2a4a', ilvl: 50, tag: '不壊', boss: '不壊の悪魔', tech: '不壊の連射／不壊の怒り・全方位照射', source: 'unbreakable',
+            desc: '不壊の悪魔の力を宿す、剣でも銃でもない専用の武器。通常攻撃は、自分の周りから7本のレーザーを放ち、近くの敵へ自動で狙いを定めて当てる。必殺技「不壊の怒り・全方位照射」は、自分のまわりのかなり広い範囲に、不壊の悪魔の大技（ぐるりと並んだ砲門から降りそそぐ大量のビーム。撃ち切ったあと、逆回転でもう一度）を放つ',
+            fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['range_up', 0.4], ['dmg_swarm', 0.7], ['dr', 0.15], ['energy_up', 0.5]] },
+        yggdrasil: { name: '世界樹の杖', prefix: 'ユグドラシルの', type: 'wand', color: '#6dff8a', ilvl: 50, tag: '世界樹', boss: '嘆きの樹母', tech: '這う根／若木の呼び声',
+            desc: '嘆きの樹母の根を宿す杖。必殺技「若木の呼び声・世界樹の根」は、足もとから根を突き上げ、体力も癒やす',
+            fx: [['atk_up', 0.9], ['aoe_up', 0.8], ['energy_up', 0.8], ['regen', 0.02], ['hp_up', 0.5], ['crit_dmg', 0.8], ['burn', 0.5], ['freeze', 0.4], ['proj_extra', 1]] }
+    };
+    Object.keys(MYTHICS).forEach(id => { const m = MYTHICS[id]; BASE_BY_ID['mythic_' + id] = { id: 'mythic_' + id, name: m.name, type: m.type, dmg: 80, tier: 99 }; });      // BASES には入れない（ドロップ抽選に混ざらないように）
+    BASE_BY_ID.mythic_serenity = BASE_BY_ID.mythic_eternal_serenity;
+    function makeMythic(id) {
+        const m = MYTHICS[id || 'eternal_serenity']; if (!m) return null;
+        const w = { id: uid(), baseId: 'mythic_' + (id || 'eternal_serenity'), type: m.type, rarity: 'mythic', prefix: m.prefix, baseName: m.name, ilvl: m.ilvl,
+            pct: MYTHIC_PCT, dmg: dmgFromPct(MYTHIC_PCT), sockets: 6, orbs: new Array(6).fill(null), source: 'achievement', mythicId: id || 'eternal_serenity', mcolor: m.color, locked: true, createdAt: Date.now(),
+            effects: m.fx.map(e => ({ id: e[0], v: e[1] })) };
+        w.name = m.prefix ? m.prefix + '＋' + m.name : m.name;
+        if (m.source) w.source = m.source;
+        return w;
+    }
+    const makeMythicSerenity = () => makeMythic('eternal_serenity');      // 以前の呼び名（残してある）
+    function giveMythic(d, id) {      // 1種類につき1本だけ（すでに持っていたら何もしない）
+        id = id || 'eternal_serenity';
+        if (!d || !Array.isArray(d.weapons) || !MYTHICS[id]) return null;
+        const have = d.weapons.find(x => x.mythicId === id); if (have) return have;
+        const w = makeMythic(id); d.weapons.push(w); return w;
     }
 
     window.HW = {
         RARITIES, RARITY_ORDER, TYPES, BASES, BASE_BY_ID, EFFECTS, EFFECT_BY_ID,
-        roll, pickRarity, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
+        roll, pickRarity, rIdx, MYTHICS, MYTHIC_PCT, makeMythic, makeMythicSerenity, giveMythic, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
         load, save, syncLegacy, getEquipped, sellValue, sellWeapon, socketOrb, unsocketOrb, returnOrbs,
         STORAGE_LIMIT, typesOfWorld,
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal, typeChangeCost, changeType,
-        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, upgradeRarity, rerollWeaponEffects
+        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP
     };
 })();

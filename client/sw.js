@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v86';
+const CACHE_NAME = 'school-battle-cache-v98';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -10,10 +10,21 @@ const urlsToCache = [
   '/action-battle.html',
   '/stage.html',
   '/js/hw-weapons.js',
+  '/js/market.js',
+  '/js/survival.js',
+  '/js/survival-world.js',
+  '/js/skill-ai.js',
+  '/css/market.css',
+  '/css/survival.css',
   '/js/elements.js',
   '/js/pvp-event.js',
   '/js/debug.js',
   '/js/armor.js',
+  '/js/accessories.js',
+  '/js/achievements.js',
+  '/js/pixel-data.js',
+  '/js/pixel.js',
+  '/js/pixel-extra.js',
   '/js/season.js',
   '/js/beginner.js',
   '/js/stage-data.js',

@@ -494,7 +494,14 @@
         bossDrops: ['dimension_edge', 'sing_omega', 'orb_omega']
     });
 
-
+    // ============================================================
+    // ボスラッシュ（ディメンション・キーパーを倒すと解放）
+    //  ・フェーズ1〜5＋Final の6フェーズ。フェーズNでは第N世界のボスから4体が厳選されて一気に出てくる
+    //  ・ボスは「第四世界のボス並」まで強化され、フェーズが進むごとに一段ずつ強くなる（RUSH.phases の req / pw）
+    //  ・Final は強化ディメンション・キーパー（サンズ風の弾幕）
+    //  ・難易度は イージー／ハード／ナイトメア／エクストリーム（RUSH_DIFFS）
+    //    エクストリームは、ディメンション・キーパーをナイトメアでクリアしていないと入れない
+    // ============================================================
     add({
         id: 'boss_rush', world: 5, rush: true, bossOnly: true, power: { hp: 1, dmg: 1, spd: 1 }, reqOverride: 22000,
         name: 'ボスラッシュ', icon: '🏆', ilvl: 46, bg: '#1c1030', bg2: '#10081e',
@@ -684,7 +691,7 @@
     //  perBossHp : 4体同時なので、1体あたりのHPは通常のボスより少なめにする
     const RUSH = {
         unlockStage: 'dimension_end', extremeNeed: { stageId: 'dimension_end', diff: 2 },
-        perBossHp: 0.42, bossCount: 4, intermission: 6,
+        perBossHp: 0.42, perBossDmg: 0.8, bossCount: 4, intermission: 6,
         phases: [
             { n: 1, label: 'フェーズ1', world: 1, ilvl: 34, req: 22000,  pw: { hp: 2.7, dmg: 1.9, spd: 1.14 }, lootWorld: 4 },
             { n: 2, label: 'フェーズ2', world: 2, ilvl: 38, req: 50000,  pw: { hp: 3.1, dmg: 2.1, spd: 1.16 }, lootWorld: 5 },

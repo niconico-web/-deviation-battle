@@ -1,0 +1,28 @@
+/* サバイバルエリア */
+#section-survival{padding:0}
+.sv-wrap{position:relative;width:100%;height:calc(100vh - 70px);min-height:420px;background:#0b0714;overflow:hidden;border-radius:10px;touch-action:none;user-select:none;-webkit-user-select:none}
+#svCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:crosshair}
+.sv-tl{position:absolute;top:8px;left:8px;width:min(260px,52vw);color:#fff;font-size:.8rem;text-shadow:0 1px 2px #000;pointer-events:none}
+.sv-hp{height:16px;border-radius:8px;background:rgba(0,0,0,.6);overflow:hidden;position:relative;border:1px solid #fff4}
+#svHpFill{height:100%;width:100%;background:linear-gradient(#5fe28a,#2fae5e);transition:width .1s}
+#svHpText{position:absolute;inset:0;text-align:center;font-size:.72rem;line-height:16px}
+.sv-tr{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#svMini{width:130px;height:130px;border-radius:8px;background:#000a;border:1px solid #fff5}
+#svLeave{padding:6px 12px;border-radius:8px;border:1px solid #fff6;background:#000a;color:#fff;font:inherit;font-size:.8rem;cursor:pointer}
+#svFeed{position:absolute;top:8px;left:50%;transform:translateX(-50%);max-width:46vw;font-size:.75rem;color:#fff;text-align:center;text-shadow:0 1px 2px #000;pointer-events:none}
+#svCombat{display:none;position:absolute;top:58px;left:50%;transform:translateX(-50%);padding:3px 10px;border-radius:999px;background:#c0392bcc;color:#fff;font-size:.75rem}
+#svLag{display:none;position:absolute;top:84px;left:50%;transform:translateX(-50%);padding:3px 10px;border-radius:999px;background:#555d;color:#fff;font-size:.75rem}
+#svDead{display:none;position:absolute;inset:0;background:rgba(80,0,0,.55);color:#fff;align-items:center;justify-content:center;flex-direction:column;font-size:1.3rem;gap:6px;pointer-events:none}
+#svDead b{font-size:2.4rem}
+.sv-msg{position:absolute;bottom:150px;left:50%;transform:translateX(-50%);max-width:80%;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-size:.85rem;pointer-events:none}
+.sv-msg.err{color:#ff9a9a}
+#svStickZone{position:absolute;left:0;bottom:0;width:48%;height:48%}
+#svStick{position:absolute;left:28px;bottom:28px;width:110px;height:110px;border-radius:50%;background:#fff2;border:2px solid #fff5;display:flex;align-items:center;justify-content:center}
+#svStickKnob{width:50px;height:50px;border-radius:50%;background:#fffa}
+#svAtkBtn{position:absolute;right:26px;bottom:34px;width:96px;height:96px;border-radius:50%;border:3px solid #fff8;background:#e0452fcc;color:#fff;font-size:2rem;display:none}
+@media (pointer:coarse){#svStick,#svAtkBtn{display:flex}#svCanvas{cursor:default}}
+.sv-help{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.7rem;color:#fff9;pointer-events:none;text-align:center}
+@media (pointer:coarse){.sv-help{display:none}}
+#svPrompt{display:none;position:absolute;bottom:130px;left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:999px;background:#000b;color:#ffe9a0;font-size:.85rem;border:1px solid #ffd84a88;pointer-events:none;white-space:nowrap}
+#svUseBtn{position:absolute;right:26px;bottom:142px;width:70px;height:70px;border-radius:50%;border:3px solid #fff8;background:#d8a21fcc;color:#fff;font-size:1.6rem;display:none}
+@media (pointer:coarse){#svUseBtn{display:block}}
