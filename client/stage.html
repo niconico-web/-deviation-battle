@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="学習支援ツール - 練習問題を通して学習効率を向上させる教育アプリ">
+<meta name="keywords" content="学習,教育,練習問題,勉強,学習支援">
 <title>学習支援ツール - 練習問題</title>
 <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -93,7 +95,7 @@
 </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+<canvas id="practiceCanvas"></canvas>
 
 <div id="top" class="hud">
     <div id="info"><span id="stageName"></span><span id="wpnName"></span><span id="timer">⏱ 0:00</span></div>
@@ -101,7 +103,7 @@
     <div class="bar" id="enBar"><div id="enFill" class="fill"></div><span id="enText">精神力 0</span></div>
     <div class="bar"><div id="progFill" class="fill"></div><span id="prog">解答 0 / 0</span></div>
 </div>
-<div id="bossBar"><div id="bossName"></div><div class="bar"><div id="bossFill" class="fill"></div></div></div>
+<div id="challengeBar"><div id="challengeName"></div><div class="bar"><div id="challengeFill" class="fill"></div></div></div>
 <div id="announce"></div>
 <div id="lootLog"></div>
 <div class="hint">WASD移動 / マウス or Space 回答 / Shift or 右クリック スキップ / Z X C V 特技 / 1〜4 問題 / Tab 問題表示切替</div>
@@ -135,7 +137,7 @@
 <script src="js/orientation.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/stats.js"></script>
-<script src="js/weapons.js"></script>
+<script src="js/tools.js"></script>
 <script src="js/materials.js"></script>
 <script src="js/questions.js"></script>
 <script src="js/action-skills.js"></script>
@@ -152,6 +154,6 @@
 <script src="js/pvp-event.js"></script>
 <script src="js/boss-moves.js"></script>
 <script src="js/debug.js"></script>
-<script src="js/stage.js"></script>
+<script src="js/practice.js"></script>
 </body>
 </html>
