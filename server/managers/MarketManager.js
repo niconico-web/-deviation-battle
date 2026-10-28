@@ -309,4 +309,12 @@ function returnItems(pid, items, note) {
     schedule(); return true;
 }
 
-module.exports = { validateItem, escrowedIds, returnItems, CONFIG, EQUIP_MIN, ORB_MIN, minPriceOfItem, list, cancel, browse, mine, reserve, ack, release, pendingFor, mailbox, mailDone, info, flushNow };
+// 国の店の売上・解散した国庫の返還など、他の機能がコインを「受け取り箱」へ入れる窓口
+function pushCoinsMail(pid, amount, note) {
+    amount = Math.floor(Number(amount));
+    if (!isPid(pid) || !(amount > 0)) return false;
+    pushMail(pid, { type: "coins", amount: amount, note: note || "コインが届きました" });
+    schedule(); return true;
+}
+
+module.exports = { validateItem, escrowedIds, returnItems, pushCoinsMail, CONFIG, EQUIP_MIN, ORB_MIN, minPriceOfItem, list, cancel, browse, mine, reserve, ack, release, pendingFor, mailbox, mailDone, info, flushNow };

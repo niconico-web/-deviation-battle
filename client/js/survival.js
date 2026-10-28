@@ -17,8 +17,23 @@
     const roster = new Map(), ents = { p: new Map(), m: new Map() };
     let projs = [], floats = [], feedLines = [], online = 1, lastSnapAt = 0, shake = 0;
     const keys = {}, mouse = { x: 0, y: 0, on: false }, stick = { x: 0, y: 0, id: null, ox: 0, oy: 0 }, touchAtk = { on: false }, touchUse = { on: false };
-    let chests = [];
+    let chests = [], plots = [], nTable = {}, nCells = {}, shopNear = null;
     const TIER_COL = { 1: '#8fe08f', 2: '#ffd84a', 3: '#ff8aff' };
+
+    // ---------- 国（色・味方判定・領地） ----------
+    const hexA = (h, a) => { const n = parseInt(String(h || '#888888').slice(1), 16) || 0x888888; return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')'; };
+    const nCol = (nid) => (nTable[nid] && nTable[nid].color) || '#bbbbbb';
+    const isAlly = (nid) => !!(nid && me.nid && nid !== me.nid && nTable[me.nid] && nTable[me.nid].allies.indexOf(nid) >= 0);
+    const isFriendNid = (nid) => !!(nid && me.nid && (nid === me.nid || isAlly(nid)));
+    const isWarNid = (nid) => !!(nid && me.nid && nTable[me.nid] && (nTable[me.nid].wars || []).indexOf(nid) >= 0);
+    function relColor(nid, isMe) { if (isMe) return '#9fffb5'; if (!nid) return '#ffffff'; if (nid === me.nid) return '#9fffb5'; if (isAlly(nid)) return '#7fc8ff'; if (isWarNid(nid)) return '#ff8080'; return '#ffffff'; }
+    const nTag = (nid) => (nid && nTable[nid] ? '【' + nTable[nid].name + '】' : '');
+    // 自動照準で狙ってよい相手（味方・中立の衛兵は狙わない。貿易船は襲える）
+    function wantFoe(e) { if (!e.nid) return true; if (isFriendNid(e.nid)) return false; if (e.kind === 'ship') return true; return isWarNid(e.nid); }
+    window.SBSurvival = {
+        pos: () => ({ x: pred.x, y: pred.y }), nid: () => me.nid || 0, table: () => nTable, running: () => joined,
+        nearShop: () => (shopNear ? shopNear[0] : null), refreshView: () => {}, toast: (t) => toast(t), msg: (t, e) => msg(t, e)
+    };
 
     function playerData() { try { return typeof getPlayerData === 'function' ? getPlayerData() : null; } catch (e) { return null; } }
     function unlocked() { try { return !!(window.HW && window.HW.load().world2); } catch (e) { return false; } }
@@ -86,6 +101,7 @@
             if (err || !res) { failEnter('参加できませんでした（通信エラー）'); return; }
             if (!res.ok) { failEnter(res.reason === 'full' ? 'いまは満員です（最大' + res.max + '人）。少し待ってからもう一度' : res.reason === 'already' ? 'まだ前回の戦闘の余韻が残っています。少し待ってからもう一度' : 'うまく参加できませんでした'); return; }
             joined = true; myEid = res.me.eid; roster.clear(); res.roster.forEach((r) => roster.set(r.eid, r));
+            if (res.nation) { nTable = res.nation.table || {}; nCells = res.nation.cells || {}; }
             if (res.carried && res.carried.length) removeCarried(res.carried);        // 預かりが確定してから、手元から外す
             attach(); lastT = performance.now(); raf = requestAnimationFrame(frame);
             sendTimer = setInterval(sendInput, SEND_MS);
@@ -122,6 +138,8 @@
         const s = window.socket; if (!s || s.__sv) return; s.__sv = true;
         s.on('survival:snap', onSnap);
         s.on('survival:joined', (r) => roster.set(r.eid, r));
+        s.on('nation:view', (v) => { nTable = v.table || {}; nCells = v.cells || {}; });
+        s.on('nation:note', (t) => { feedLines.push({ t: t, at: performance.now() }); if (feedLines.length > 6) feedLines.shift(); msg(t); });
         s.on('survival:left', (r) => { roster.delete(r.eid); ents.p.delete(r.eid); });
         s.on('survival:feed', (t) => { feedLines.push({ t: t, at: performance.now() }); if (feedLines.length > 6) feedLines.shift(); });
         s.on('survival:reward', (r) => {
@@ -156,11 +174,11 @@
         else { pred.x += (me.x - pred.x) * 0.12; pred.y += (me.y - pred.y) * 0.12; }
         serverMe = me;
         const seenP = new Set(), seenM = new Set();
-        d.p.forEach((a) => { seenP.add(a[0]); const e = ents.p.get(a[0]) || { x: a[1], y: a[2] }; e.tx = a[1]; e.ty = a[2]; e.dir = a[3]; e.hp = a[4]; e.fl = a[5]; ents.p.set(a[0], e); });
-        d.m.forEach((a) => { seenM.add(a[0]); const e = ents.m.get(a[0]) || { x: a[2], y: a[3] }; e.icon = a[1]; e.tx = a[2]; e.ty = a[3]; e.hp = a[4]; e.boss = a[5]; e.r = a[6]; e.name = a[7]; ents.m.set(a[0], e); });
+        d.p.forEach((a) => { seenP.add(a[0]); const e = ents.p.get(a[0]) || { x: a[1], y: a[2] }; e.tx = a[1]; e.ty = a[2]; e.dir = a[3]; e.hp = a[4]; e.fl = a[5]; e.nid = a[8] | 0; ents.p.set(a[0], e); });
+        d.m.forEach((a) => { seenM.add(a[0]); const e = ents.m.get(a[0]) || { x: a[2], y: a[3] }; e.icon = a[1]; e.tx = a[2]; e.ty = a[3]; e.hp = a[4]; e.boss = a[5]; e.r = a[6]; e.name = a[7]; e.nid = a[9] | 0; e.kind = a[10] || ''; e.rx = a[11]; e.ry = a[12]; e.cargo = a[13] | 0; ents.m.set(a[0], e); });
         ents.p.forEach((_, k) => { if (!seenP.has(k)) ents.p.delete(k); });
         ents.m.forEach((_, k) => { if (!seenM.has(k)) ents.m.delete(k); });
-        projs = d.b; chests = d.c || [];
+        projs = d.b; chests = d.c || []; plots = d.st || [];
         d.ev.forEach((e) => {
             if (e[0] === 'h') floats.push({ x: e[1], y: e[2], text: '' + e[3], col: e[4] ? '#ff6a6a' : '#ffffff', at: performance.now() });
             else if (e[0] === 'd') floats.push({ x: e[1], y: e[2], text: '✨', col: '#ffd84a', at: performance.now() });
@@ -180,8 +198,8 @@
     }
     function nearestFoe(maxD) {
         let best = null, bd = maxD;
-        ents.m.forEach((e) => { const d = Math.hypot(e.x - pred.x, e.y - pred.y); if (d < bd) { bd = d; best = e; } });
-        ents.p.forEach((e) => { if (e.fl & 1) return; const d = Math.hypot(e.x - pred.x, e.y - pred.y); if (d < bd) { bd = d; best = e; } });
+        ents.m.forEach((e) => { if (!wantFoe(e)) return; const d = Math.hypot(e.x - pred.x, e.y - pred.y); if (d < bd) { bd = d; best = e; } });
+        ents.p.forEach((e) => { if ((e.fl & 1) || isFriendNid(e.nid)) return; const d = Math.hypot(e.x - pred.x, e.y - pred.y); if (d < bd) { bd = d; best = e; } });
         return best;
     }
     function aimAngle() {
@@ -247,6 +265,8 @@
             const z = SW.zoneAt(gx + T / 2, gy + T / 2); ctx.fillStyle = z.color; ctx.fillRect(gx, gy, T, T);
             ctx.fillStyle = z.dot; for (let i = 0; i < 4; i++) { const hx = gx + ((gx * 7 + gy * 13 + i * 61) % T), hy = gy + ((gx * 11 + gy * 5 + i * 97) % T); ctx.fillRect(hx, hy, 3, 3); }
         }
+        // 領地（国ごとの色）と、城・城下町
+        drawTerritory(x0, y0, x1, y1, now);
         // 安全地帯の輪
         ctx.strokeStyle = 'rgba(160,140,255,.55)'; ctx.lineWidth = 4; ctx.setLineDash([14, 10]); ctx.beginPath(); ctx.arc(SW.CX, SW.CY, SW.SAFE_R, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
         ctx.font = '700 22px sans-serif'; ctx.fillStyle = 'rgba(190,175,255,.9)'; ctx.textAlign = 'center'; ctx.fillText('🛡 安全地帯（PvP不可）', SW.CX, SW.CY - SW.SAFE_R - 12);
@@ -270,16 +290,30 @@
             if (!c[4]) { ctx.fillStyle = 'rgba(255,216,74,.18)'; ctx.beginPath(); ctx.arc(c[1], c[2], 26 + Math.sin(now / 300) * 3, 0, 6.2832); ctx.fill(); }
             ctx.globalAlpha = c[4] ? 0.35 : 1; ctx.font = (c[5] ? 34 : 28) + 'px sans-serif'; ctx.fillText(c[4] ? '📭' : '📦', c[1], c[2]); ctx.globalAlpha = 1;
         });
-        // 敵
+        // 国の建物（拠点・店）
+        plots.forEach((pl) => {
+            ctx.font = '40px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText(pl[1] ? '🏪' : '🏠', pl[2], pl[3]);
+            ctx.fillStyle = nCol(pl[4]); ctx.fillRect(pl[2] - 14, pl[3] + 26, 28, 5);
+            ctx.font = '700 13px sans-serif'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.fillStyle = '#fff'; ctx.strokeText(pl[5], pl[2], pl[3] + 46); ctx.fillText(pl[5], pl[2], pl[3] + 46);
+        });
+        // 貿易船の航路
+        ents.m.forEach((e) => { if (e.kind === 'ship' && e.rx) { ctx.strokeStyle = hexA(nCol(e.nid), 0.55); ctx.lineWidth = 3; ctx.setLineDash([12, 12]); ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.rx, e.ry); ctx.stroke(); ctx.setLineDash([]); } });
+        // 敵・国の衛兵・貿易船
         ents.m.forEach((e) => {
             ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.7, e.r, e.r * 0.4, 0, 0, 6.2832); ctx.fill();
+            if (e.nid) { ctx.strokeStyle = nCol(e.nid); ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.7, e.r * 1.1, e.r * 0.5, 0, 0, 6.2832); ctx.stroke(); }
             ctx.font = Math.round(e.r * 2.3) + 'px sans-serif'; ctx.fillText(e.icon, e.x, e.y);
-            bar(e.x, e.y - e.r - 12, e.r * 2, e.hp, e.boss ? '#ff4a4a' : '#e05555');
+            bar(e.x, e.y - e.r - 12, e.r * 2, e.hp, e.nid ? (isFriendNid(e.nid) ? '#4adf7a' : '#ff9a3a') : (e.boss ? '#ff4a4a' : '#e05555'));
+            if (e.nid) {
+                ctx.font = '700 13px sans-serif'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.fillStyle = relColor(e.nid, false);
+                const lb = nTag(e.nid) + e.name + (e.kind === 'ship' ? '（積荷 ' + e.cargo.toLocaleString('ja-JP') + '）' : '');
+                ctx.strokeText(lb, e.x, e.y - e.r - 18); ctx.fillText(lb, e.x, e.y - e.r - 18);
+            }
             if (e.boss) { ctx.font = '700 16px sans-serif'; ctx.fillStyle = '#ffb0b0'; ctx.fillText(e.name, e.x, e.y - e.r - 26); }
         });
         // 他のプレイヤー
-        ents.p.forEach((e, id) => drawPerson(e.x, e.y, e.dir, roster.get(id) || { name: '???', level: 1 }, e.hp, e.fl, false, now));
-        drawPerson(pred.x, pred.y, me.dead ? 0 : (attacking() ? aimAngle() : lastDir), { name: (playerData() || {}).name || '自分', level: (playerData() || {}).level || 1, avatar: (playerData() || {}).avatar }, Math.round(me.hp / Math.max(1, me.mhp) * 100), (me.dead ? 1 : 0) | (me.inv ? 2 : 0), true, now);
+        ents.p.forEach((e, id) => drawPerson(e.x, e.y, e.dir, Object.assign({}, roster.get(id) || { name: '???', level: 1 }, { nid: e.nid }), e.hp, e.fl, false, now));
+        drawPerson(pred.x, pred.y, me.dead ? 0 : (attacking() ? aimAngle() : lastDir), { name: (playerData() || {}).name || '自分', level: (playerData() || {}).level || 1, avatar: (playerData() || {}).avatar, nid: me.nid }, Math.round(me.hp / Math.max(1, me.mhp) * 100), (me.dead ? 1 : 0) | (me.inv ? 2 : 0), true, now);
         // 弾
         projs.forEach((b) => { ctx.fillStyle = b[3] ? '#ff5a5a' : '#8fe0ff'; ctx.beginPath(); ctx.arc(b[0], b[1], b[2], 0, 6.2832); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 1.5; ctx.stroke(); });
         // ダメージ数字
@@ -288,6 +322,43 @@
         floats.forEach((f) => { const a = 1 - (now - f.at) / 900; ctx.globalAlpha = a; ctx.font = '700 ' + (f.big ? 22 : 16) + 'px sans-serif'; ctx.fillStyle = f.col; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; const y = f.y - (1 - a) * 36; ctx.strokeText(f.text, f.x, y); ctx.fillText(f.text, f.x, y); ctx.globalAlpha = 1; });
         ctx.restore();
         hud(now);
+    }
+    function drawTerritory(x0, y0, x1, y1, now) {
+        const CELL = SW.CELL, GN = SW.GN;
+        const cx0 = Math.max(0, Math.floor(x0 / CELL)), cx1 = Math.min(GN - 1, Math.floor(x1 / CELL)), cy0 = Math.max(0, Math.floor(y0 / CELL)), cy1 = Math.min(GN - 1, Math.floor(y1 / CELL));
+        const own = (cx, cy) => (cx < 0 || cy < 0 || cx >= GN || cy >= GN) ? 0 : (nCells[cy * GN + cx] | 0);
+        ctx.lineWidth = 5;
+        for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+            const o = own(cx, cy); if (!o) continue;
+            const x = cx * CELL, y = cy * CELL, col = nCol(o);
+            ctx.fillStyle = hexA(col, 0.14); ctx.fillRect(x, y, CELL, CELL);
+            ctx.strokeStyle = hexA(col, 0.75);
+            if (own(cx, cy - 1) !== o) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + CELL, y); ctx.stroke(); }
+            if (own(cx, cy + 1) !== o) { ctx.beginPath(); ctx.moveTo(x, y + CELL); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
+            if (own(cx - 1, cy) !== o) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + CELL); ctx.stroke(); }
+            if (own(cx + 1, cy) !== o) { ctx.beginPath(); ctx.moveTo(x + CELL, y); ctx.lineTo(x + CELL, y + CELL); ctx.stroke(); }
+        }
+        // 城と城下町（建国前の土地は「建国できる土地」）
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        SW.SITES.forEach((st) => {
+            if (st.x < x0 - 400 || st.x > x1 + 400 || st.y < y0 - 400 || st.y > y1 + 400) return;
+            const o = own(Math.floor(st.x / CELL), Math.floor(st.y / CELL)); const nat = nTable[Object.keys(nTable).find((k) => nTable[k].site === st.id)];
+            const nid = Number(Object.keys(nTable).find((k) => nTable[k].site === st.id)) || 0;
+            if (!nid) {
+                ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 3; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.arc(st.x, st.y, SW.TOWN_R, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+                ctx.font = '48px sans-serif'; ctx.fillText('🏕️', st.x, st.y);
+                ctx.font = '700 18px sans-serif'; ctx.fillStyle = '#e6e6e6'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; const l = st.name + '（未開の地：建国できる）'; ctx.strokeText(l, st.x, st.y - 70); ctx.fillText(l, st.x, st.y - 70);
+                return;
+            }
+            const col = nCol(nid);
+            ctx.fillStyle = hexA(col, 0.18); ctx.beginPath(); ctx.arc(st.x, st.y, SW.TOWN_R, 0, 6.2832); ctx.fill();
+            ctx.strokeStyle = hexA(col, 0.8); ctx.lineWidth = 4; ctx.stroke();
+            for (let i = 0; i < 10; i++) { const a = i / 10 * 6.2832 + st.id, r = SW.TOWN_R * (0.62 + (i % 3) * 0.12); ctx.font = '30px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText(i % 4 === 0 ? '🏪' : '🏠', st.x + Math.cos(a) * r, st.y + Math.sin(a) * r); }
+            ctx.font = '96px sans-serif'; ctx.fillStyle = '#fff'; ctx.fillText('🏰', st.x, st.y - 6);
+            ctx.fillStyle = col; ctx.fillRect(st.x - 3, st.y - 92, 6, 6);
+            ctx.font = '700 22px sans-serif'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.fillStyle = col; const nm = '🚩 ' + (nat ? nat.name : '？'); ctx.strokeText(nm, st.x, st.y - 84); ctx.fillText(nm, st.x, st.y - 84);
+        });
+        ctx.textBaseline = 'middle';
     }
     function bar(x, y, w, pct, col) { ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(x - w / 2, y, w, 5); ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * Math.max(0, Math.min(100, pct)) / 100, 5); }
     function drawPerson(x, y, dir, info, hpPct, fl, isMe, now) {
@@ -299,9 +370,10 @@
             try { SBPix.drawPerson(ctx, x, y + 10, { avatar: SBPix.cleanAvatar(info.avatar) || SBPix.npcAvatar(info.name || ''), left: Math.cos(dir) < 0, moving: true, scale: 2 }); } catch (e) { circle(x, y, isMe); }
         } else circle(x, y, isMe);
         ctx.globalAlpha = 1;
-        bar(x, y - 34, 40, hpPct, isMe ? '#4adf7a' : '#ff7a4a');
-        ctx.font = '700 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = isMe ? '#9fffb5' : '#ffffff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
-        const label = 'Lv' + (info.level || 1) + ' ' + (info.name || ''); ctx.strokeText(label, x, y - 40); ctx.fillText(label, x, y - 40);
+        const friend = isMe || isFriendNid(info.nid);
+        bar(x, y - 34, 40, hpPct, friend ? '#4adf7a' : '#ff7a4a');
+        ctx.font = '700 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = relColor(info.nid, isMe); ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+        const label = nTag(info.nid) + 'Lv' + (info.level || 1) + ' ' + (info.name || ''); ctx.strokeText(label, x, y - 40); ctx.fillText(label, x, y - 40);
     }
     function circle(x, y, isMe) { ctx.fillStyle = isMe ? '#4adf7a' : '#e0864a'; ctx.beginPath(); ctx.arc(x, y, PR, 0, 6.2832); ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
 
@@ -312,6 +384,22 @@
         $('svHpText').textContent = Math.max(0, me.hp) + ' / ' + me.mhp;
         $('svZone').textContent = (safe ? '🛡 ' : '⚠ ') + z.name + (z.tier ? '（危険度 ' + z.tier + '）' : '');
         $('svStats').textContent = '⚔ キル ' + me.kills + '　💀 死亡 ' + me.deaths + '　💰 +' + me.coins + '　🎒 ' + (me.cr || 0) + '点　👥 ' + online + '人';
+        const ci = me.ci || { o: 0, iv: 0, by: 0, lk: 0 }, tt = $('svTerr');
+        if (tt) {
+            let tx = '', tc = '#fff';
+            if (ci.o) {
+                const nm = nTable[ci.o] ? nTable[ci.o].name : '？';
+                if (ci.o === me.nid) { tx = '🏰 自国の領地（' + nm + '）'; tc = '#9fffb5'; }
+                else if (isAlly(ci.o)) { tx = '🤝 同盟国の領地（' + nm + '）'; tc = '#7fc8ff'; }
+                else { tx = (isWarNid(ci.o) ? '⚔ 敵国の領地（' + nm + '）' : '🚩 ' + nm + 'の領地'); tc = isWarNid(ci.o) ? '#ff8080' : '#ffe9a0'; }
+                if (ci.iv > 0) tx += '　侵略度 ' + ci.iv + '%' + (ci.by === me.nid ? '（占領中！）' : (ci.o === me.nid || isAlly(ci.o) ? '（奪われかけている！）' : ''));
+                else if (ci.lk && isWarNid(ci.o)) tx += '　首都は最後まで落ちません';
+            }
+            tt.textContent = tx; tt.style.color = tc; tt.style.display = tx ? 'block' : 'none';
+        }
+        // 近くの店
+        shopNear = null; plots.forEach((pl) => { if (pl[1] && !me.dead && Math.hypot(pl[2] - pred.x, pl[3] - pred.y) < 200) shopNear = pl; });
+        const sb = $('svShopBtn'); if (sb) { sb.style.display = shopNear ? 'block' : 'none'; if (shopNear) sb.textContent = '🛒 ' + shopNear[5] + ' を見る'; }
         const cb = $('svCombat'); cb.style.display = (me.cb > 0 && !me.dead) ? 'block' : 'none'; cb.textContent = '戦闘中 ' + me.cb + 's（離脱不可）';
         const dead = $('svDead'); dead.style.display = me.dead ? 'flex' : 'none'; if (me.dead) dead.querySelector('b').textContent = me.rs;
         const near = chestNear(), pr = $('svPrompt');
@@ -324,6 +412,9 @@
         SW.ZONES.slice().reverse().forEach((zz, i, arr) => { mctx.fillStyle = zz.color; mctx.beginPath(); mctx.arc(S / 2, S / 2, Math.min(zz.max, SW.SIZE * 0.7) * sc, 0, 6.2832); mctx.fill(); });
         mctx.strokeStyle = 'rgba(255,255,255,.4)'; mctx.strokeRect(0.5, 0.5, S - 1, S - 1);
         SW.RUINS.forEach((r) => { mctx.fillStyle = TIER_COL[r.tier]; mctx.fillRect(r.x * sc - 3, r.y * sc - 3, 6, 6); });
+        { const GN = SW.GN, c = S / GN; Object.keys(nCells).forEach((k) => { const i = Number(k); mctx.fillStyle = hexA(nCol(nCells[k]), 0.55); mctx.fillRect((i % GN) * c, Math.floor(i / GN) * c, c + 0.5, c + 0.5); }); }
+        SW.SITES.forEach((st) => { mctx.fillStyle = '#fff'; mctx.fillRect(st.x * sc - 2, st.y * sc - 2, 4, 4); });
+        mctx.fillStyle = '#ffe066'; ents.m.forEach((e) => { if (e.kind === 'ship') mctx.fillRect(e.x * sc - 2, e.y * sc - 2, 4, 4); });
         mctx.fillStyle = '#ff5a5a'; SW.NESTS.forEach((n) => mctx.fillRect(n.x * sc - 2, n.y * sc - 2, 4, 4));
         mctx.fillStyle = '#ffb04a'; ents.p.forEach((e) => mctx.fillRect(e.x * sc - 2, e.y * sc - 2, 4, 4));
         mctx.fillStyle = '#4adf7a'; mctx.beginPath(); mctx.arc(pred.x * sc, pred.y * sc, 3.5, 0, 6.2832); mctx.fill();

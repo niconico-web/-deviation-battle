@@ -21,7 +21,7 @@ const TABLE = process.env.SUPABASE_KV_TABLE || "kv_store";
 const ENABLED = !!(URL_BASE && KEY);
 // 問題・ボスなどの「素材ファイル」はコードと一緒に配られるので、保存対象にしない
 const STATIC = new Set(["bosses.json", "questions.json", "quests.json", "boss_rewards.json", "boss_questions.json"]);
-const FAST = new Set(["market.json", "survival.json"]);      // 預かり中のアイテムを含むので、短い間隔で送る
+const FAST = new Set(["market.json", "survival.json", "nations.json"]);      // 預かり中のアイテムを含むので、短い間隔で送る
 const NAME_OK = /^[A-Za-z0-9_.-]+\.json$/;
 const FAST_MS = 3000, SLOW_MS = 15000;
 

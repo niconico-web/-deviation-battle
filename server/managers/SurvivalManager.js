@@ -15,6 +15,7 @@ const path = require("path");
 const SW = require("../../client/js/survival-world.js");
 const Market = require("./MarketManager");
 const Loot = require("./LootGenerator");
+const Nations = require("./NationManager");
 
 // ---------- 預かり中の装備の保存（サーバーが落ちても、持ち主へ返せるように） ----------
 const SESS_FILE = path.join(__dirname, "..", "data", "survival.json");
@@ -306,6 +307,9 @@ function unitPower(P) {
 
 function init(ioServer) {
     io = ioServer;
+    // 国のしくみとつなぐ（国は半永久。国が1つでもあれば、誰もいなくても世界は動き続ける＝貿易船が航行する）
+    Nations.init({ players, monsters, io, spawnUnit, feed, giveCoins: payCoins, inCombat: (P) => now() < P.lastCombat + C.COMBAT_S });
+    if (Nations.count() > 0 && !loop) loop = setInterval(tick, C.TICK_MS);
 }
 
 // ---------- 参加・退出 ----------
@@ -406,6 +410,7 @@ function join(socket, data) {
 
     // 持ち込み装備：サーバーが預かる
     const taken = new Set(Market.escrowedIds());
+    Nations.stockedIds().forEach(id => taken.add(id));
 
     players.forEach(O => {
         O.carry.forEach(it => taken.add(it.data.id));
@@ -440,6 +445,9 @@ function join(socket, data) {
     P.atkStat = clamp(num(st.atk, 10), 1, 1e7);
     P.hp = P.maxHp;
 
+    Nations.onJoin(P);
+    P.prov = {};
+
     players.set(socket.id, P);
     saveSessions();
 
@@ -453,6 +461,7 @@ function join(socket, data) {
         me: roster(P),
         roster: allRoster(),
         world: { size: SW.SIZE, seed: SW.SEED },
+        nation: { table: Nations.tableForClient(), cells: Nations.cellsForClient() },
         tick: C.TICK_MS,
         carried: P.carry.map(it => it.data.id)
     };
@@ -473,7 +482,8 @@ function roster(P) {
         name: P.name,
         level: P.level,
         avatar: P.avatar,
-        weapon: P.wname
+        weapon: P.wname,
+        nid: P.nid || 0
     };
 }
 
@@ -495,14 +505,14 @@ function remove(sid) {
     saveSessions();
 
     if (!players.size) {
-        monsters.clear();
+        monsters.forEach(M => { if (!M.nid) monsters.delete(M.id); });   // 国の兵・貿易船は残す
         projs.length = 0;
         nests.forEach(n => {
             n.alive = false;
             n.mid = 0;
         });
 
-        if (loop) {
+        if (loop && !Nations.count()) {
             clearInterval(loop);
             loop = null;
         }
@@ -613,13 +623,14 @@ function playerAttack(P, t) {
         const foes = [];
 
         monsters.forEach(M => {
+            if (M.nid && (Nations.friendlyUnit(P, M.nid) || (M.kind === "guard" && !M.escort && !Nations.hostileTo(M.nid, P, t)))) return;
             const d = dist(P, M) - M.r;
             if (d < R) foes.push({ m: M, d: d });
         });
 
         if (!SW.inSafe(P.x, P.y)) {
             players.forEach(O => {
-                if (O !== P && !O.dead && !SW.inSafe(O.x, O.y)) {
+                if (O !== P && !O.dead && !SW.inSafe(O.x, O.y) && !Nations.friendly(P, O)) {
                     const d = dist(P, O) - C.PLAYER_R;
                     if (d < R) foes.push({ p: O, d: d });
                 }
@@ -771,6 +782,8 @@ function damagePlayer(O, dmg, byPlayer, byMonster) {
 
     if (O.dead || t < O.invuln || SW.inSafe(O.x, O.y)) return;
     if (byPlayer && SW.inSafe(byPlayer.x, byPlayer.y)) return;
+    if (byPlayer && Nations.friendly(byPlayer, O)) return;              // 同じ国・同盟国は味方
+    if (byPlayer && O.nid) Nations.provoke(byPlayer, O.nid, t);          // 国民に手を出すと、その国の衛兵に狙われる
 
     dmg = Math.max(1, Math.round(dmg));
 
@@ -1003,12 +1016,21 @@ function giveItems(P, specs, src, ready) {
 }
 
 function giveCoins(P, coins, text) {
+    payCoins(P, coins, text);
+}
+
+// コインを渡す。国民なら、所属する国の国税（国王が決めた税率）を引いて国庫へ
+function payCoins(P, coins, text) {
     if (coins <= 0) return;
 
-    P.coinsGained += coins;
+    const tax = Nations.taxOf(P, coins);
+    const net = coins - tax;
+    if (net <= 0 && !tax) return;
+
+    P.coinsGained += net;
 
     const s = io && io.sockets.sockets.get(P.sid);
-    if (s) s.emit("survival:reward", { coins: coins, text: text });
+    if (s) s.emit("survival:reward", { coins: net, text: text + (tax ? "（国税 " + tax + "）" : "") });
 }
 
 function openChest(P, ch, t) {
@@ -1155,6 +1177,12 @@ function stealOne(K, V, t) {
 
 function damageMonster(M, units, P) {
     if (M.dead) return;
+    if (M.nid) {
+        if (Nations.friendlyUnit(P, M.nid)) return;                      // 味方の衛兵・貿易船は傷つかない
+        // 城・城下町の衛兵は、戦争中の国の人か、その国に手を出した人だけが倒せる（うっかり巻き込まない）
+        if (M.kind === "guard" && !M.escort && !Nations.hostileTo(M.nid, P, now())) return;
+        Nations.provoke(P, M.nid, now());                                // 襲うと、その国の衛兵が敵とみなす
+    }
 
     M.hp -= units;
     M.dmgBy[P.eid] = (M.dmgBy[P.eid] || 0) + units;
@@ -1178,6 +1206,11 @@ function killMonster(M) {
 
     events.push(["d", Math.round(M.x), Math.round(M.y)]);
 
+    if (M.nid) {                                                         // 国の衛兵・貿易船：宝は落とさず、国のしくみで処理する
+        Nations.unitKilled(M);
+        return;
+    }
+
     const total = Object.values(M.dmgBy).reduce((a, b) => a + b, 0) || 1;
 
     const coinsAll = M.boss
@@ -1189,16 +1222,7 @@ function killMonster(M) {
         if (share < 0.1) return;
 
         const coins = Math.max(1, Math.round(coinsAll * share));
-        P.coinsGained += coins;
-
-        const s = io && io.sockets.sockets.get(P.sid);
-
-        if (s) {
-            s.emit("survival:reward", {
-                coins: coins,
-                text: M.name + " を倒した！"
-            });
-        }
+        payCoins(P, coins, M.name + " を倒した！");
 
         if (M.demon) {
             const w = Loot.makeMythic("legend_unbreakable");
@@ -1371,6 +1395,7 @@ function freeSpot(cx, cy) {
 
         if (x < 80 || y < 80 || x > SW.SIZE - 80 || y > SW.SIZE - 80) continue;
         if (SW.zoneAt(x, y).tier === 0) continue;
+        if (Nations.cellOwnerAt(x, y)) continue;                         // 国の領地には野生の敵は湧かない
 
         if (
             SW.obstaclesNear(x, y, 50).some(
@@ -1412,7 +1437,7 @@ function director(t) {
 
     // 遠すぎる敵は消す
     monsters.forEach(M => {
-        if (M.boss) return;
+        if (M.boss || M.nid) return;
 
         let closest = 1e9;
 
@@ -1589,6 +1614,8 @@ function demonAttack(M, T, t) {
 }
 
 function monsterAI(M, dt, t) {
+    if (M.nid) { nationUnitAI(M, dt, t); return; }
+
     const T = nearestTarget(M, M.boss ? M.aggro : M.aggro);
 
     if (M.demon) demonAttack(M, T, t);
@@ -1752,9 +1779,10 @@ function tick() {
             if (t >= P.respawnAt && !P.ghost) {
                 const a = Math.random() * 6.28;
                 const rr = Math.random() * SW.SAFE_R * 0.6;
+                const rp = Nations.respawnPoint(P);                      // 国民は、自分の拠点／首都の城で復活する
 
-                P.x = SW.CX + Math.cos(a) * rr;
-                P.y = SW.CY + Math.sin(a) * rr;
+                P.x = rp ? rp.x : SW.CX + Math.cos(a) * rr;
+                P.y = rp ? rp.y : SW.CY + Math.sin(a) * rr;
                 P.hp = P.maxHp;
                 P.dead = false;
                 P.invuln = t + C.INVULN_S;
@@ -1860,6 +1888,7 @@ function tick() {
                 monsters.forEach(M => {
                     if (
                         !dead &&
+                        !(M.nid && Nations.friendlyUnit(owner, M.nid)) &&
                         !b.hit.has("m" + M.id) &&
                         Math.hypot(M.x - b.x, M.y - b.y) < M.r + b.r
                     ) {
@@ -1876,6 +1905,7 @@ function tick() {
                             !dead &&
                             O !== owner &&
                             !O.dead &&
+                            !Nations.friendly(owner, O) &&
                             !b.hit.has("p" + O.eid) &&
                             Math.hypot(O.x - b.x, O.y - b.y) < C.PLAYER_R + b.r
                         ) {
@@ -1914,6 +1944,8 @@ function tick() {
         director(t);
     }
 
+    Nations.tick(t, dt);
+
     snapshot(t);
     events = [];
 }
@@ -1948,7 +1980,8 @@ function snapshot(t) {
                         (t < O.invuln ? 2 : 0) |
                         (O.ghost ? 4 : 0),
                     O.wtype,
-                    O.wmythic || ""
+                    O.wmythic || "",
+                    O.nid || 0
                 ]);
             }
         });
@@ -1964,7 +1997,12 @@ function snapshot(t) {
                     (M.boss || M.ruinBoss) ? 1 : 0,
                     M.r,
                     (M.boss || M.ruinBoss) ? M.name : "",
-                    +(M.face).toFixed(2)
+                    +(M.face).toFixed(2),
+                    M.nid || 0,
+                    M.kind || "",
+                    M.kind === "ship" ? Math.round(M.tx) : 0,
+                    M.kind === "ship" ? Math.round(M.ty) : 0,
+                    M.kind === "ship" ? (M.cargo | 0) : 0
                 ]);
             }
         });
@@ -2029,17 +2067,149 @@ function snapshot(t) {
                 cb: Math.max(0, Math.ceil(P.lastCombat + C.COMBAT_S - t)),
                 ch: P.chan
                     ? Math.min(1, (t - P.chan.start) / C.CHEST_CHANNEL_S)
-                    : 0
+                    : 0,
+                nid: P.nid || 0,
+                ci: Nations.cellInfo(P)
             },
 
             p: ps,
             m: ms,
             b: bs,
             c: cs,
+            st: Nations.plotsNear(P.x, P.y, C.AOI),
             ev: ev,
             online: players.size
         });
     });
+}
+
+// ---------- 国の兵・貿易船（CPU） ----------
+const UNIT = {
+    castle: { name: "城の衛兵", icon: "🛡️", hp: 45, dmg: 0.12, spd: 150, r: 20, aggro: 520, range: 36, cd: 1.0 },
+    town: { name: "城下町の衛兵", icon: "💂", hp: 30, dmg: 0.10, spd: 140, r: 18, aggro: 480, range: 34, cd: 1.0 },
+    escort: { name: "護衛兵", icon: "🗡️", hp: 35, dmg: 0.10, spd: 95, r: 17, aggro: 420, range: 34, cd: 1.0 },
+    ship: { name: "貿易船", icon: "🚢", hp: 70, dmg: 0, spd: 55, r: 34, aggro: 0, range: 0, cd: 1 }
+};
+
+function spawnUnit(kind, nid, x, y, o) {
+    o = o || {};
+    const def = kind === "guard" ? (o.post === "castle" ? UNIT.castle : UNIT.town) : UNIT[kind];
+    if (!def) return null;
+
+    const hp = kind === "ship" ? def.hp + Math.min(130, (o.cargo || 0) / 2000) : def.hp;
+    const id = nextMid++;
+
+    const M = {
+        id: id, name: def.name, icon: def.icon, tier: 2, boss: false, demon: false, big: null,
+        nextBig: 0, nextBeam: 0, nest: null,
+        x: x, y: y, homeX: o.hx != null ? o.hx : x, homeY: o.hy != null ? o.hy : y, r: def.r,
+        hp: hp, maxHp: hp, dmg: def.dmg, spd: def.spd, aggro: def.aggro, range: def.range,
+        ranged: false, cd: def.cd, coins: [0, 0],
+        nextAtk: 0, nextShot: 0, ring: 0, dmgBy: {}, face: 0, dead: false, target: 0,
+        wander: 0, wx: x, wy: y,
+        nid: nid, kind: kind === "escort" ? "guard" : kind, escort: kind === "escort",
+        post: kind === "escort" ? "escort" : o.post, shipId: o.shipId, cargo: o.cargo, tx: o.tx, ty: o.ty,
+        movedAt: 0
+    };
+
+    monsters.set(id, M);
+    return M;
+}
+
+function stepTo(M, tx, ty, speed, dt) {
+    const dx = tx - M.x, dy = ty - M.y, d = Math.hypot(dx, dy);
+    if (d < 4) return;
+
+    const r = SW.resolve(M.x + dx / d * speed * dt, M.y + dy / d * speed * dt, M.r);
+    M.x = r.x;
+    M.y = r.y;
+}
+
+function nationUnitAI(M, dt, t) {
+    // 貿易船：目的地まで一直線に進む（障害物は無視する）
+    if (M.kind === "ship") {
+        const dx = M.tx - M.x, dy = M.ty - M.y, d = Math.hypot(dx, dy);
+        M.face = Math.atan2(dy, dx);
+
+        if (d < 40) { Nations.shipArrived(M); return; }
+
+        M.x += dx / d * M.spd * dt;
+        M.y += dy / d * M.spd * dt;
+
+        if (t - M.movedAt > 20) { M.movedAt = t; Nations.shipMoved(M); }
+        return;
+    }
+
+    // 衛兵：持ち場の近くで見張り、敵を見つけたら追う
+    let ax = M.homeX, ay = M.homeY, leash = M.post === "castle" ? 420 : 640;
+
+    if (M.escort) {
+        let ship = null;
+        monsters.forEach(S => { if (S.kind === "ship" && S.shipId === M.shipId) ship = S; });
+        if (!ship) { monsters.delete(M.id); return; }                    // 船がなくなったら護衛も解散
+        ax = ship.x; ay = ship.y; leash = 150;
+    }
+
+    let T = null, bd = M.aggro;
+
+    players.forEach(P => {
+        if (P.dead || P.ghost || SW.inSafe(P.x, P.y)) return;
+        if (!Nations.hostileTo(M.nid, P, t)) return;
+
+        const d = dist(P, M);
+        if (d < bd) { bd = d; T = P; }
+    });
+
+    let W = null;
+    if (!T) {
+        let wd = Math.min(M.aggro, 320);
+        monsters.forEach(X => {
+            if (X.nid || X.dead) return;
+            const d = dist(X, M) - X.r;
+            if (d < wd) { wd = d; W = X; }
+        });
+    }
+
+    const tgt = T || W;
+    const home = Math.hypot(M.x - ax, M.y - ay);
+
+    if (tgt && home < leash) {
+        const d = dist(tgt, M);
+        M.face = Math.atan2(tgt.y - M.y, tgt.x - M.x);
+
+        if (d > M.range * 0.8) stepTo(M, tgt.x, tgt.y, M.spd, dt);
+
+        if (d <= M.range + (T ? C.PLAYER_R : tgt.r) && t >= M.nextAtk) {
+            M.nextAtk = t + M.cd;
+
+            if (T) {
+                damagePlayer(T, T.maxHp * M.dmg * (1 - reduction(T.def)), null, M);
+            } else {
+                tgt.hp -= 1.2;
+                events.push(["h", Math.round(tgt.x), Math.round(tgt.y - tgt.r - 6), 12, 0]);
+                if (tgt.hp <= 0 && !tgt.dead) killMonster(tgt);
+            }
+        }
+        return;
+    }
+
+    if (home > leash * 0.6) {                                           // 持ち場から離れすぎたら戻る
+        stepTo(M, ax, ay, M.spd, dt);
+        return;
+    }
+
+    if (dist({ x: M.x, y: M.y }, { x: M.wx, y: M.wy }) < 12 || t > M.wander) {
+        M.wander = t + 3 + Math.random() * 4;
+        const a = Math.random() * 6.28, d = Math.random() * (M.escort ? 90 : leash * 0.5);
+        M.wx = ax + Math.cos(a) * d;
+        M.wy = ay + Math.sin(a) * d;
+    }
+
+    stepTo(M, M.wx, M.wy, M.spd * (M.escort ? 1.1 : 0.45), dt);
+}
+
+function playerOf(socket) {
+    return players.get(socket.id) || null;
 }
 
 function stats() {
@@ -2058,6 +2228,7 @@ module.exports = {
     disconnect,
     input,
     stats,
+    playerOf,
     CONFIG: C,
     TYPES: () => TYPES,
     _players: players,

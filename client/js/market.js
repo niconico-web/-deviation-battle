@@ -330,6 +330,6 @@
         const hook = () => { if (window.socket && !window.socket.__mk) { window.socket.__mk = true; window.socket.on('connect', () => setTimeout(sync, 1500)); if (window.socket.connected) setTimeout(sync, 3000); } };
         hook(); setTimeout(hook, 2000); setTimeout(hook, 6000);
     }
-    window.SBMarket = { open: open, claimMail: claimMail };
+    window.SBMarket = { open: open, claimMail: claimMail, inventory: inventory, removeLocal: removeLocal, nameOf: nameOf, detailLines: detailLines, rarColor: rarColor, getInfo: function () { return info; }, setInfo: function (i) { if (i) info = i; } };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();

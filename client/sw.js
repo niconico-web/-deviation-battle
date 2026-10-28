@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v98';
+const CACHE_NAME = 'school-battle-cache-v101';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -13,6 +13,7 @@ const urlsToCache = [
   '/js/market.js',
   '/js/survival.js',
   '/js/survival-world.js',
+  '/js/nation-ui.js',
   '/js/skill-ai.js',
   '/css/market.css',
   '/css/survival.css',

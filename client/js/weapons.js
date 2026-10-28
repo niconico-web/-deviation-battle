@@ -1,0 +1,2096 @@
+// ============================================
+// 武器システム
+// ============================================
+
+// 禁止ワードリスト（差別用語、暴言、下ネタなど）
+const BANNED_WORDS = [
+    // 差別用語
+    "ニガー", "nigger", "nigga", "negro", "にがー", "ニガー", "ニガァ", "にがぁ",
+    "イエローモンキー", "yellowmonkey", "yellow monkey", "いえろーもんきー", "イエローモンキー",
+    "ジャップ", "jap", "じゃっぷ", "ジャップ",
+    "チンク", "chink", "ちんく", "チンク",
+    "ゴック", "gook", "ごっく", "ゴック",
+    "外人", "gaijin", "がいじん", "ガイジン",
+    "土人", "dojin", "どじん", "ドジン",
+    "原住民", "げんじゅうみん", "ゲンジュウミン",
+    "野蛮人", "やばんじん", "ヤバンジン",
+    "未開人", "みかいじん", "ミカイジン",
+    "劣等人種", "れっとうじんしゅ", "レットウジンシュ",
+    "優生学", "ゆうせいがく", "ユウセイガク",
+    "民族浄化", "みんぞくじょうか", "ミンゾクジョウカ",
+    "ホロコースト", "holocaust", "ほろこーすと", "ホロコースト",
+    
+    // 暴言・脅迫
+    "死ね", "shine", "しね", "シネ", "死ねぇ", "しねぇ",
+    "殺す", "korosu", "kill", "ころす", "コロス", "殺すぞ", "ころすぞ", "コロスゾ",
+    "消えろ", "kiero", "きえろ", "キエロ",
+    "失せろ", "usero", "うせろ", "ウセロ",
+    "氏ね", "shine", "しね", "シネ",
+    "自殺", "jisatsu", "suicide", "じさつ", "ジサツ", "自殺しろ", "じさつしろ", "ジサツシロ",
+    "死にたい", "しにたい", "シニタイ",
+    "お前ら死ね", "おまらしね", "オマラシネ",
+    "お前ら消えろ", "おまらきえろ", "オマラキエロ",
+    "うざい", "uzai", "annoying", "うざい", "ウザイ", "うざいんだよ", "ウザインダヨ",
+    "うっせぇ", "うっせえ", "ウッセェ",
+    "キモい", "kimoii", "gross", "きもい", "キモイ", "キモいんだよ", "キモインダヨ",
+    "気持ち悪い", "きもちわるい", "キモチワルイ",
+    "キショい", "きしょい", "キショイ", "キショいんだよ", "キショインダヨ",
+    "汚い", "kitanai", "きたない", "キタナイ",
+    "デブ", "debu", "fat", "でぶ", "デブ", "デブ野郎", "でぶやろう", "デブヤロウ",
+    "ブス", "busu", "ugly", "ぶす", "ブス", "ブス野郎", "ぶすやろう", "ブスヤロウ",
+    "ブス女", "ぶすおんな", "ブスオンナ",
+    "ブス男", "ぶすおとこ", "ブスオトコ",
+    "障害", "shougai", "しょうがい", "ショウガイ",
+    "障害者", "しょうがいしゃ", "ショウガイシャ",
+    "カス", "kasu", "trash", "かす", "カス", "カス野郎", "かすやろう", "カスヤロウ",
+    "クズ", "kuzu", "scum", "くず", "クズ", "クズ野郎", "くずやろう", "クズヤロウ",
+    "ゴミ", "gomi", "garbage", "ごみ", "ゴミ", "ゴミ野郎", "ごみやろう", "ゴミヤロウ",
+    "虫けら", "むしけら", "ムシケラ",
+    "害虫", "がいちゅう", "ガイチュウ", "害虫野郎", "がいちゅうやろう", "ガイチュウヤロウ",
+    "豚野郎", "ぶたやろう", "ブタヤロウ", "豚", "ぶた", "ブタ",
+    "猿野郎", "さるやろう", "サルヤロウ", "猿", "さる", "サル",
+    "犬野郎", "いぬやろう", "イヌヤロウ", "犬", "いぬ", "イヌ",
+    "畜生", "ちくしょう", "チクショウ", "畜生",
+    "チクショー", "ちくしょう", "チクショウ", "チッ",
+    "糞", "kuso", "shit", "くそ", "クソ", "クソ野郎", "くそやろう", "クソヤロウ",
+    "ファック", "fuck", "ふぁっく", "ファック",
+    "ファッキング", "fucking", "ふぁっきんぐ", "ファッキング",
+    "アホ", "aho", "あほ", "アホ", "アホ野郎", "あほやろう", "アホヤロウ",
+    "バカ", "baka", "ばか", "バカ", "バカ野郎", "ばかやろう", "バカヤロウ",
+    "馬鹿", "ばか", "バカ", "馬鹿野郎", "ばかやろう", "バカヤロウ",
+    "阿呆", "あほう", "アホウ", "阿呆野郎", "あほうやろう", "アホウヤロウ",
+    "タコ", "tako", "たこ", "タコ", "タコ野郎", "たこやろう", "タコヤロウ",
+    "ヘイタイ", "へいたい", "ヘイタイ", "ヘイタイ野郎", "へいたいやろう", "ヘイタイヤロウ",
+    "デタラメ", "でたらめ", "デタラメ",
+    "適当", "てきとう", "テキトウ", "適当野郎", "てきとうやろう", "テキトウヤロウ",
+    "無能", "むのう", "ムノウ", "無能野郎", "むのうやろう", "ムノウヤロウ",
+    "能なし", "のうなし", "ノウナシ", "能なしだよ", "のうなしだよ", "ノウナシダヨ",
+    "役立たず", "やくたたず", "ヤクタタズ", "役立たず野郎", "やくたたずやろう", "ヤクタタズヤロウ",
+    "無駄飯食らい", "むだめしくらい", "ムダメシクライ",
+    "社会的に死ぬ", "しゃかいてきにしぬ", "シャカイテキニシヌ",
+    "社会的死刑", "しゃかいてきしけい", "シャカイテキシケイ",
+    "炎上", "えんじょう", "エンジョウ", "炎上しろ", "えんじょうしろ", "エンジョウシロ",
+    "晒し上げ", "さらしあげ", "サラシアゲ",
+    "晒し", "さらし", "サラシ",
+    "人権", "じんけん", "ジンケン", "人権ない", "じんけんない", "ジンケンナイ",
+    "人権なし", "じんけんなし", "ジンケンナシ",
+    "人権侵害", "じんけんしんがい", "ジンケンシンガイ",
+    "誹謗中傷", "ひぼうちゅうしょう", "ヒボウチュウショウ",
+    "中傷", "ちゅうしょう", "チュウショウ",
+    "脅迫", "きょうはく", "キョウハク",
+    "ストーカー", "stalker", "すとーかー", "ストーカー野郎", "すとーかーやろう", "ストーカーヤロウ",
+    "ガイジ", "gaiji", "がいじ", "ガイジ", "ガイジ野郎", "がいじやろう", "ガイジヤロウ",
+    
+    // 下ネタ・性的表現
+    "ちんこ", "chinko", "ちんこ", "チンコ", "ちんちん", "chinchin", "チンチン",
+    "ちんぽ", "chinpo", "ちんぽ", "チンポ",
+    "ペニス", "penis", "ぺにす", "ペニス",
+    "まんこ", "manko", "まんこ", "マンコ", "おまんこ", "omanko", "おまんこ", "オマンコ",
+    "膣", "ちつ", "チツ",
+    "性器", "せいき", "セイキ", "性器野郎", "せいきやろう", "セイキヤロウ",
+    "セックス", "sex", "せっくす", "セックス",
+    "エロ", "ero", "えろ", "エロ", "エロい", "えろい", "エロイ", "エロ野郎", "えろやろう", "エロヤロウ",
+    "ポルノ", "porno", "ぽるの", "ポルノ",
+    "アダルト", "adult", "あだると", "アダルト",
+    "AV", "えーぶい", "エービー",
+    "エロ動画", "えろどうが", "エロドウガ",
+    "ポルノ動画", "ぽるのどうが", "ポルノドウガ",
+    "痴漢", "chikan", "ちかん", "チカン", "痴漢野郎", "ちかんやろう", "チカンヤロウ",
+    "盗撮", "とうさつ", "トウサツ", "盗撮野郎", "とうさつやろう", "トウサツヤロウ",
+    "レイプ", "rape", "れいぷ", "レイプ",
+    "強姦", "ごうかん", "ゴウカン", "強姦野郎", "ごうかんやろう", "ゴウカンヤロウ",
+    "性的暴行", "せいてきぼうこう", "セイテキボウコウ",
+    "セクハラ", "せくはら", "セクハラ", "セクハラ野郎", "せくはらやろう", "セクハラヤロウ",
+    "フェラ", "fera", "ふぇら", "フェラ",
+    "フェラチオ", "ふぉらちお", "フェラチオ",
+    "クンニ", "くんに", "クンニ",
+    "クンニリングス", "くんにりんぐす", "クンニリングス",
+    "精液", "せいえき", "セイエキ",
+    "ザーメン", "ざーめん", "ザーメン",
+    "射精", "しゃせい", "シャセイ",
+    "オナニー", "onani", "おなにー", "オナニー", "オナニー野郎", "おなにーやろう", "オナニーヤロウ",
+    "自慰", "じい", "ジイ",
+    "自慰行為", "じいこうい", "ジイコウイ",
+    "手淫", "しゅいん", "シュイン",
+    "指淫", "しいん", "シイン",
+    "交尾", "こうび", "コウビ",
+    "性交", "せいこう", "セイコウ",
+    "コンドーム", "こんどーむ", "コンドーム",
+    "避妊", "ひにん", "ヒニン",
+    "中出し", "なかだし", "ナカダシ",
+    "孕ませ", "はらませ", "ハラマセ",
+    "孕む", "はらむ", "ハラム",
+    "妊娠", "にんしん", "ニンシン",
+    "堕胎", "だたい", "ダタイ",
+    "中絶", "ちゅうぜつ", "チュウゼツ",
+    "売春", "ばいしゅん", "バイシュン",
+    "売春婦", "ばいしゅんふ", "バイシュンフ",
+    "ソープ", "そーぷ", "ソープ",
+    "風俗", "ふうぞく", "フウゾク",
+    "デリヘル", "でりへる", "デリヘル",
+    "ヘルス", "へるす", "ヘルス",
+    "イメクラ", "いめくら", "イメクラ",
+    "性感マッサージ", "かんせいまっさーじ", "カンセイマッサージ",
+    "モーション", "もーしょん", "モーション",
+    "本番", "ほんばん", "ホンバン",
+    "生", "なま", "ナマ",
+    "生姦", "なまかん", "ナマカン",
+    "無修正", "むしゅうせい", "ムシュウセイ", "無修正野郎", "むしゅうせいやろう", "ムシュウセイヤロウ",
+    "裏", "うら", "ウラ",
+    "裏ビデオ", "うらびでお", "ウラビデオ",
+    "裏画像", "うらがぞう", "ウラガゾウ",
+    "エロ画像", "えろがぞう", "エロガゾウ",
+    "エロビデオ", "えろびでお", "エロビデオ",
+    "エロ漫画", "えろまんが", "エロマンガ",
+    "エロ小説", "えろしょうせつ", "エロショウセツ",
+    "官能小説", "かんのうしょうせつ", "カンノウショウセツ",
+    "ポルノ雑誌", "ぽるのざっし", "ポルノザッシ",
+    "エロ雑誌", "えろざっし", "エロザッシ",
+    "ヌード", "ぬーど", "ヌード",
+    "全裸", "ぜんら", "ゼンラ",
+    "裸", "はだか", "ハダカ",
+    "裸体", "らたい", "ラタイ",
+    "脱衣", "だつい", "ダツイ", "脱衣野郎", "だついやろう", "ダツイヤロウ",
+    "下着", "したぎ", "シタギ", "下着泥棒", "したぎどろぼう", "シタギドロボウ",
+    "ブラ", "ぶら", "ブラ",
+    "ブラジャー", "ぶらじゃー", "ブラジャー",
+    "パンティ", "ぱんてぃ", "パンティ",
+    "パンツ", "ぱんつ", "パンツ",
+    "ショーツ", "しょーつ", "ショーツ",
+    "ブラパン", "ぶらぱん", "ブラパン",
+    "ランジェリー", "らんじぇりー", "ランジェリー",
+    "水着", "みずぎ", "ミズギ",
+    "ビキニ", "びきに", "ビキニ",
+    "微乳", "びにゅう", "ビニュウ",
+    "貧乳", "ひんにゅう", "ヒンニュウ",
+    "爆乳", "ばくにゅう", "バクニュウ",
+    "巨乳", "きょにゅう", "キョニュウ",
+    "おっぱい", "oppai", "おっぱい", "オッパイ",
+    "胸", "むね", "ムネ",
+    "お尻", "oshiri", "おしり", "オシリ",
+    "尻", "しり", "シリ",
+    "ケツ", "けつ", "ケツ",
+    "アナル", "あなる", "アナル",
+    "肛門", "こうもん", "コウモン",
+    "尻穴", "しりあな", "シリアナ",
+    "ケツ穴", "けつあな", "ケツアナ",
+    "アナルセックス", "あなるせっくす", "アナルセックス",
+    "尻フェチ", "しりふぇち", "シリフェチ",
+    "スカトロ", "すかとろ", "スカトロ",
+    "スカトロジー", "すかとろじー", "スカトロジー",
+    "排泄", "はいせつ", "ハイセツ",
+    "排泄物", "はいせつぶつ", "ハイセツブツ",
+    "糞便", "ふんべん", "フンベン",
+    "尿", "にょう", "ニョウ",
+    "小便", "しょうべん", "ショウベン",
+    "大便", "だいべん", "ダイベン",
+    "おしっこ", "おしっこ", "オシッコ",
+    "うんち", "うんち", "ウンチ",
+    "便所", "べんじょ", "ベンジョ", "便所野郎", "べんじょやろう", "ベンジョヤロウ",
+    "トイレ", "といれ", "トイレ", "トイレ野郎", "といれやろう", "トイレヤロウ",
+    "小便野郎", "しょうべんやろう", "ショウベンヤロウ",
+    "大便野郎", "だいべんやろう", "ダイベンヤロウ",
+    
+    // その他不快な言葉
+    "テロ", "terror", "てろ", "テロ",
+    "テロリスト", "terrorist", "てろりすと", "テロリスト",
+    "爆弾", "ばくだん", "バクダン",
+    "爆撃", "ばくげき", "バクゲキ",
+    "殺戮", "さつりく", "サツリク",
+    "虐殺", "ぎゃくさつ", "ギャクサツ",
+    "大量殺人", "たいりょうさつじん", "タイリョウサツジン",
+    "連続殺人", "れんぞくさつじん", "レンゾクサツジン",
+    "殺人鬼", "さつじんき", "サツジンキ",
+    "狂人", "きょうじん", "キョウジン",
+    "精神病", "せいしつびょう", "セイシツビョウ",
+    "精神異常", "せいしんいじょう", "セイシンイジョウ",
+    "頭おかしい", "あたまおかしい", "アタマオカシイ",
+    "頭悪い", "あたまわるい", "アタマワルイ",
+    "頭大丈夫", "あたまだいじょうぶ", "アタマダイジョウブ",
+    "頭壊れてる", "あたまこわれてる", "アタマコワレテル",
+    "脳みそ", "のうみそ", "ノウミソ",
+    "脳みそない", "のうみそない", "ノウミソナイ",
+    "脳みそ腐ってる", "のうみそくさってる", "ノウミソクサッテル",
+    "脳みそ大丈夫", "のうみそだいじょうぶ", "ノウミソダイジョウブ",
+    "知的障害", "ちてきしょうがい", "チテキショウガイ",
+    "知的障害者", "ちてきしょうがいしゃ", "チテキショウガイシャ",
+    "精神障害", "せいしんしょうがい", "セイシンショウガイ",
+    "精神障害者", "せいしんしょうがいしゃ", "セイシンショウガイシャ",
+    "発達障害", "はったつしょうがい", "ハッタツショウガイ",
+    "発達障害者", "はったつしょうがいしゃ", "ハッタツショウガイシャ",
+    "自閉症", "じへいしょう", "ジヘイショウ", "自閉症野郎", "じへいしょうやろう", "ジヘイショウヤロウ",
+    "アスペルガー", "あすぺるがー", "アスペルガー","アスペ","あすぺ",
+    "ADHD", "えーでぃえいちでぃ", "ADHD",
+    "障害を持つ", "しょうがいをもつ", "ショウガイオモツ",
+    "障害児", "しょうがいじ", "ショウガイジ", "障害児野郎", "しょうがいじやろう", "ショウガイジヤロウ",
+    "身体障害", "しんたいしょうがい", "シンタイショウガイ",
+    "身体障害者", "しんたいしょうがいしゃ", "シンタイショウガイシャ", "身体障害者野郎", "しんたいしょうがいしゃやろう", "シンタイショウガイシャヤロウ",
+    "車椅子", "くるまいす", "クルマイス", "車椅子野郎", "くるまいすやろう", "クルマイスヤロウ",
+    "盲人", "もうじん", "モウジン", "盲人野郎", "もうじんやろう", "モウジンヤロウ",
+    "聾者", "ろうしゃ", "ロウシャ", "聾者野郎", "ろうしゃやろう", "ロウシャヤロウ",
+    "唖者", "あしゃ", "アシャ", "唖者野郎", "あしゃやろう", "アシャヤロウ",
+    
+    // 英語の不快な言葉
+    "bitch",
+    "bastard",
+    "asshole",
+    "dick",
+    "pussy",
+    "cunt",
+    "whore",
+    "slut",
+    "faggot",
+    "retard",
+    "idiot",
+    "stupid",
+    "dumb",
+    "moron",
+    "imbecile",
+    "loser",
+    "hater",
+    "troll",
+    "douche",
+    "douchebag",
+    "jackass",
+    "dumbass",
+    "shithead",
+    "dickhead",
+    "prick",
+    "cock",
+    "cock sucker",
+    "motherfucker",
+    "son of a bitch",
+    "wanker",
+    "twat",
+    "arse",
+    "arsehole",
+    "bullshit",
+    "crap",
+    "damn",
+    "hell",
+    "suck",
+    "sucks",
+    "blowjob",
+    "blow job",
+    "handjob",
+    "hand job",
+    "boobs",
+    "tits",
+    "titties",
+    "ass",
+    "butt",
+    "butthole",
+    "rape",
+    "molest",
+    "molester",
+    "pedophile",
+    "necrophilia",
+    "bestiality",
+    "incest",
+    "orgy",
+    "prostitute",
+    "hooker",
+    "stripper",
+    "pimp",
+    "drug",
+    "drugs",
+    "cocaine",
+    "heroin",
+    "meth",
+    "marijuana",
+    "weed",
+    "lsd",
+    "ecstasy",
+    "overdose",
+    "suicide",
+    "murder",
+    "kill",
+    "die",
+    "death",
+    "dead",
+    "torture",
+    "abuse",
+    "abusive",
+    "violence",
+    "violent",
+    "hate",
+    "hateful",
+    "racist",
+    "racism",
+    "discrimination",
+    "nazi",
+    "hitler",
+    "kkk",
+    "isis",
+    "al qaeda",
+    "taliban"
+];
+
+/**
+ * 名前が禁止ワードを含んでいるかチェック
+ * @param {string} name - チェックする名前
+ * @returns {object} - { valid: boolean, reason: string }
+ */
+function validateName(name) {
+    if (!name || typeof name !== 'string') {
+        return { valid: false, reason: '名前が無効です' };
+    }
+
+    const normalized = name.toLowerCase().trim();
+    
+    // 空文字チェック
+    if (normalized.length === 0) {
+        return { valid: false, reason: '名前を入力してください' };
+    }
+
+    // 長さチェック（長すぎる名前を禁止）
+    if (normalized.length > 20) {
+        return { valid: false, reason: '名前は20文字以内にしてください' };
+    }
+
+    // 禁止ワードチェック
+    for (const bannedWord of BANNED_WORDS) {
+        if (normalized.includes(bannedWord.toLowerCase())) {
+            return { valid: false, reason: '不適切な言葉が含まれています' };
+        }
+    }
+
+    // 禁止ワードの部分一致チェック（文字を分けて入力する回避策対策）
+    const spacedName = normalized.replace(/\s+/g, '').replace(/[\s\u3000]/g, '');
+    for (const bannedWord of BANNED_WORDS) {
+        if (spacedName.includes(bannedWord.toLowerCase())) {
+            return { valid: false, reason: '不適切な言葉が含まれています' };
+        }
+    }
+
+    // 類似文字置換チェック
+    const similarReplaced = normalized
+        .replace(/[†‡※]/g, '')
+        .replace(/[0-9]/g, '')
+        .replace(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/g, '');
+    
+    for (const bannedWord of BANNED_WORDS) {
+        if (similarReplaced.includes(bannedWord.toLowerCase())) {
+            return { valid: false, reason: '不適切な言葉が含まれています' };
+        }
+    }
+
+    return { valid: true, reason: '' };
+}
+
+// オリジナル武器設定
+const ORIGINAL_WEAPON_COST = 30; // 作成コスト
+const ORIGINAL_WEAPON_UPGRADE_COST = 3; // 強化コスト
+const ORIGINAL_WEAPON_UPGRADE_INCREMENT = 0.002; // 強化ごとの倍率増加
+const ORIGINAL_WEAPON_MAX_MULTIPLIER = 2.0; // 最大倍率（通常）
+const ORIGINAL_WEAPON_MAX_MULTIPLIER_WITH_TIER4 = 10.0; // Tier4オーブ使用時の最大倍率
+const ORIGINAL_WEAPON_BASE_MULTIPLIER = 1.05; // 基礎倍率（tier1相当）
+// オリジナル武器の限界突破設定
+const ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER = "tier4"; // コストとなるオーブのティア
+const ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT = 0.5; // 1回あたりの上限倍率の増加量
+const ORIGINAL_WEAPON_MAX_LIMIT_BREAK = 16; // 最大限界突破回数
+
+// 必殺技システム
+const ULTIMATE_GAUGE_MAX = 100; // 必殺技ゲージ最大値
+const ULTIMATE_GAUGE_PER_CORRECT = 20; // 正解ごとのゲージ増加量
+const ULTIMATE_DAMAGE_MULTIPLIER = 1.5; // 必殺技発動時のダメージ倍率
+
+// ============================================
+// オーブシステム
+// ============================================
+
+const ORB_TIERS = {
+    tier1: { name: "ティア1", dropRate: 0.50, statRange: [0.05, 0.10] },
+    tier2: { name: "ティア2", dropRate: 0.30, statRange: [0.10, 0.15] },
+    tier3: { name: "ティア3", dropRate: 0.15, statRange: [0.15, 0.20] },
+    tier4: { name: "ティア4", dropRate: 0.05, statRange: [0.15, 0.20] },
+    // ティア5：通常のドロップ・合成では入手できない（dropRate 0）。
+    // オーブ工房で「刻印の結晶」を使ったときに、ごくまれにTier4オーブが変化して出現する。
+    tier5: { name: "ティア5", dropRate: 0, statRange: [0.22, 0.30] }
+};
+
+const ORB_DROP_THRESHOLD_SECONDS = 25 * 60; // 25分
+const ORB_DROP_CHANCE = 0.50; // 50%（戦闘勝利時）
+
+const ORB_UNIQUE_ABILITIES = {
+    life_drain: {
+        name: "ライフドレイン",
+        description: "相手に攻撃したとき、その時与えたダメージの20%分自分のHPを回復できる",
+        effect: "life_drain"
+    },
+    overwhelming_growth: {
+        name: "圧倒的成長性",
+        description: "勉強タイマー使用時のステータスの上り幅が2倍になる",
+        effect: "double_study_growth"
+    },
+    re_miserable: {
+        name: "リ・ミゼラブル",
+        description: "戦闘時相手の全ステータスを0.8倍",
+        effect: "enemy_stat_debuff"
+    },
+    penetration: {
+        name: "貫通",
+        description: "相手の防御ステータスを50%減らす",
+        effect: "ignore_def_half"
+    },
+    iron_wall: {
+        name: "鉄壁",
+        description: "相手からの攻撃のダメージ50%カット",
+        effect: "damage_cut_half"
+    },
+    sure_hit: {
+        name: "必中",
+        description: "相手の回避率を無視して相手に絶対攻撃をあてられる",
+        effect: "ignore_evasion"
+    },
+    critical_hit: {
+        name: "必殺",
+        description: "クリティカル率が30%まで上昇する（通常は常に5%）",
+        effect: "critical_damage"
+    },
+    guts: {
+        name: '根性',
+        description: '即死のダメージを食らってもHPを1残して耐えることができる。HPが１の状態では攻撃力が3倍になる。',
+        effect: 'guts'
+    },
+    dual_weapon: {
+        name: 'デュアルウェポン',
+        description: 'これを使って武器を作るとき、もう一つ武器の種類を選択できる。その選んだ武器の種類のバフ、デバフの倍率がその武器に乗るようになる。（例：大剣を作成し、デュアルウェポンで双剣を選択すると、大剣に双剣のバフ・デバフ効果も付与される）',
+        effect: 'dual_weapon'
+    },
+    berserker_state: {
+        name: '大器晩成',
+        description: 'HPが50%以下の時、攻撃力が1.3倍になる',
+        effect: 'berserker_state'
+    },
+    focus_strike: {
+        name: '会心の一撃',
+        description: 'クリティカル発生時のダメージ倍率が2.2倍になる（通常は1.5倍）',
+        effect: 'crit_damage_boost'
+    },
+    swift_wind: {
+        name: '疾風',
+        description: '自分の素早さを1.25倍として計算する',
+        effect: 'speed_boost'
+    },
+    thorn_armor: {
+        name: '棘の鎧',
+        description: '相手から攻撃を受けた時、受けたダメージの15%を相手に反射する',
+        effect: 'damage_reflect'
+    },
+    venomous_strike: {
+        name: '猛毒の一撃',
+        description: '攻撃がヒットした時、必ず相手に3ターンの毒（毎ターン最大HPの3%のダメージ）を付与する',
+        effect: 'poison_on_hit'
+    },
+    blazing_strike: {
+        name: '灼熱の一撃',
+        description: '攻撃がヒットした時、必ず相手に3ターンの火傷（毎ターン最大HPの5%のダメージ）を付与する',
+        effect: 'burn_on_hit'
+    },
+    afterimage: {
+        name: '残像',
+        description: '自分の回避率が15%上昇する',
+        effect: 'self_evasion_boost'
+    },
+    awakening: {
+        name: '覚醒',
+        description: '必殺技のダメージ倍率が2.0倍になる（通常は1.5倍）',
+        effect: 'ultimate_boost'
+    },
+    first_strike: {
+        name: '会心の初撃',
+        description: '戦闘の最初の攻撃は必ずクリティカルになる',
+        effect: 'first_strike_crit'
+    },
+    natural_healing: {
+        name: '自然治癒',
+        description: '毎ターン、自分の最大HPの3%を自動で回復する',
+        effect: 'hp_regen'
+    },
+    iron_will: {
+        name: '不動の心',
+        description: '相手から受けるステータスデバフ（能力低下）を50%の確率で無効化する',
+        effect: 'debuff_resist'
+    }
+};
+
+// ティア5オーブ専用の固有能力。Tier4の固有能力（ORB_UNIQUE_ABILITIES）とは別のオブジェクトにしてあるのは、
+// Tier4オーブ作成・ボス武器生成・ヘルプ表示がORB_UNIQUE_ABILITIES全体を走査するため、
+// ここに混ぜるとTier5専用能力が他の入手経路にも漏れてしまうため。
+// バランス：Tier4の能力を「一段上」にした程度に抑えてある（倍率は控えめ、無敵・即死級の効果は無い）。
+const ORB_TIER5_ABILITIES = {
+    god_slayer: {
+        name: "神殺し",
+        description: "相手の防御を完全に無視し、与えるダメージが1.25倍になる",
+        effect: "god_slayer"
+    },
+    absolute_barrier: {
+        name: "絶対障壁",
+        description: "相手から受けるダメージを60%カットする（鉄壁は50%）",
+        effect: "absolute_barrier"
+    },
+    overlord_presence: {
+        name: "覇王の威圧",
+        description: "戦闘開始時、相手の全ステータスを0.65倍にする（リ・ミゼラブルは0.8倍）",
+        effect: "enemy_stat_crush"
+    },
+    phoenix_blessing: {
+        name: "不死鳥の加護",
+        description: "1回の戦闘中に1度だけ、HPが0になってもHP50%で復活する",
+        effect: "phoenix_blessing"
+    },
+    apex_wisdom: {
+        name: "叡智の頂",
+        description: "勉強タイマー使用時のステータスの上り幅が2.5倍になる（圧倒的成長性は2倍）",
+        effect: "study_growth_x2_5"
+    }
+};
+
+const ORB_STAT_TYPES = ["atk", "def", "speed", "maxHp", "special"];
+
+const ORB_STAT_LABELS = {
+    atk: "攻撃",
+    def: "防御",
+    speed: "速さ",
+    maxHp: "HP",
+    special: "特殊"
+};
+
+// ============================================
+// レア度（ハクスラ要素：見た目の可視化）
+// ============================================
+// オーブのtier、および宝箱のアイテム報酬（stat_reallocator等がrarity: 'legendary'/'mythic'を
+// 既に使っている）の両方をこの同じキー体系で表示できるようにする。
+const RARITY_INFO = {
+    common: { label: "コモン", colorVar: "--text-secondary" },
+    rare: { label: "レア", colorVar: "--accent-blue" },
+    epic: { label: "エピック", colorVar: "--accent-purple" },
+    legendary: { label: "レジェンダリー", colorVar: "--accent-orange" },
+    mythic: { label: "神話", colorVar: "--accent-red" }
+};
+
+const ORB_TIER_RARITY_KEY = {
+    tier1: "common",
+    tier2: "rare",
+    tier3: "epic",
+    tier4: "legendary",
+    tier5: "mythic"
+};
+
+function getRarityInfo(rarityKey) {
+    return RARITY_INFO[rarityKey] || RARITY_INFO.common;
+}
+
+function getOrbRarityKey(orb) {
+    if (!orb) return "common";
+    return orb.rarity || ORB_TIER_RARITY_KEY[orb.tier] || "common";
+}
+
+/** レア度のラベルを色付きの<span>で返す（inventoryやワークショップのinnerHTMLにそのまま埋め込める）。 */
+function getRarityBadgeHtml(rarityKey) {
+    const info = getRarityInfo(rarityKey);
+    return `<span class="rarity-badge rarity-${rarityKey}" style="color: var(${info.colorVar})">${info.label}</span>`;
+}
+
+// ============================================
+// ダンジョン産オーブの付与効果（アフィックス）システム（ハクスラ要素）
+// ============================================
+// ディアブロ/PoEのような「メインステータス＋ランダムな追加ステータス（アフィックス）」を、
+// ダンジョンの宝箱から出るオーブだけに追加する。既存のオーブ経済（勉強・通常戦闘勝利の
+// ドロップ、オーブ工房の合成・厳選）には一切影響しない別関数（createDungeonOrb）として実装。
+// 付与効果は既存のORB_STAT_TYPES（atk/def/speed/maxHp/special）への追加ボーナスとして
+// applyOrbToWeapon()の集計にそのまま乗るため、新しい戦闘ロジックを増やさずに機能する。
+// tierが高いほど（＝レア度が高いほど）本数・数値の幅が大きくなる。
+const DUNGEON_AFFIX_CONFIG = {
+    tier1: { count: 0, range: [0, 0] },
+    tier2: { count: 1, range: [0.02, 0.05] },
+    tier3: { count: 2, range: [0.03, 0.07] },
+    tier4: { count: 3, range: [0.04, 0.09] }
+    // tier5はダンジョンの宝箱からは出現しない（オーブ工房の刻印の結晶専用のため対象外）
+};
+
+const AFFIX_STAT_LABEL_PREFIX = {
+    atk: "剛力の",
+    def: "堅牢の",
+    speed: "俊敏の",
+    maxHp: "生命の",
+    special: "秘奥の"
+};
+
+// 各入手経路での付与効果（アフィックス）発生確率（ダンジョン以外は「たまに付く」程度に抑える）
+const MATERIAL_ORB_AFFIX_CHANCE = 0.15;      // 素材からのオーブ作成
+const SYNTHESIS_ORB_AFFIX_CHANCE = 0.20;     // オーブ工房でのオーブ合成
+const WORKSHOP_CHAOS_AFFIX_CHANCE = 0.15;    // オーブ工房：カオス結晶（ステータス種類ごと変更）
+const WORKSHOP_DIVINE_AFFIX_CHANCE = 0.20;   // オーブ工房：ディバイン結晶（数値のみ再抽選）
+const ORIGINAL_WEAPON_AFFIX_CHANCE = 0.15;   // オリジナル武器作成
+
+/** tierとメインステータス（重複させない）を基に、ランダムな付与効果の配列を生成する。 */
+function generateDungeonOrbAffixes(tier, excludeStatType) {
+    const config = DUNGEON_AFFIX_CONFIG[tier];
+    if (!config || config.count <= 0) return [];
+
+    const pool = ORB_STAT_TYPES.filter(s => s !== excludeStatType);
+    const shuffled = pool.slice().sort(() => Math.random() - 0.5);
+    const count = Math.min(config.count, shuffled.length);
+    const [min, max] = config.range;
+
+    return shuffled.slice(0, count).map(statType => {
+        const bonus = Math.round((min + Math.random() * (max - min)) * 1000) / 1000;
+        return {
+            statType,
+            bonus,
+            label: `${AFFIX_STAT_LABEL_PREFIX[statType] || ""}${ORB_STAT_LABELS[statType] || statType}`
+        };
+    });
+}
+
+/**
+ * ダンジョンの宝箱専用のオーブ生成。通常のcreateOrb()の結果に、
+ * レア度情報（rarity）とランダム付与効果（affixes）を追加して返す。
+ */
+function createDungeonOrb(tier) {
+    const orb = createOrb(tier);
+    if (!orb) return null;
+
+    orb.rarity = ORB_TIER_RARITY_KEY[tier] || "common";
+    orb.affixes = generateDungeonOrbAffixes(tier, orb.statType);
+    orb.dungeonDrop = true;
+
+    return orb;
+}
+
+/**
+ * 汎用のランダム付与効果（アフィックス）ロール。ダンジョンの宝箱（tierに応じて確定）以外の
+ * 入手経路（オーブ工房の結晶・オーブ合成・素材からのオーブ作成・オリジナル武器作成）で、
+ * 低確率でハクスラ要素の付与効果を発生させるために使う。
+ * @param {string} tier ORB_TIERSのキー（tier1〜tier5）。本数・数値幅の基準に使う。
+ * @param {string} excludeStatType メインステータスと重複させたくない場合に指定。
+ * @param {number} chance 0〜1。この確率で発生し、外れた場合は空配列（既存の付与効果には触れない）。
+ */
+function rollBonusAffixes(tier, excludeStatType, chance) {
+    if (Math.random() >= chance) return [];
+    return generateDungeonOrbAffixes(tier, excludeStatType);
+}
+
+function createOrb(tier) {
+    const tierConfig = ORB_TIERS[tier];
+    if (!tierConfig) return null;
+    
+    const statType = ORB_STAT_TYPES[Math.floor(Math.random() * ORB_STAT_TYPES.length)];
+    const minBonus = tierConfig.statRange[0];
+    const maxBonus = tierConfig.statRange[1];
+    const bonus = minBonus + Math.random() * (maxBonus - minBonus);
+    
+    const id = `orb_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    
+    const orb = {
+        id,
+        tier,
+        statType,
+        bonus: Math.round(bonus * 1000) / 1000, // 小数点3桁まで
+        uniqueAbility: null
+    };
+    
+    // Tier5はTier5専用の固有能力から1つ付与する
+    if (tier === "tier5") {
+        const t5Keys = Object.keys(ORB_TIER5_ABILITIES);
+        const t5Key = t5Keys[Math.floor(Math.random() * t5Keys.length)];
+        orb.uniqueAbility = {
+            key: t5Key,
+            ...ORB_TIER5_ABILITIES[t5Key]
+        };
+    }
+
+    // Tier4のみユニーク能力を付与（ボス能力を除外）
+    if (tier === "tier4") {
+        const abilityKeys = Object.keys(ORB_UNIQUE_ABILITIES).filter(key => !key.startsWith("boss_"));
+        const abilityKey = abilityKeys[Math.floor(Math.random() * abilityKeys.length)];
+        orb.uniqueAbility = {
+            key: abilityKey,
+            ...ORB_UNIQUE_ABILITIES[abilityKey]
+        };
+    }
+    
+    return orb;
+}
+
+function rollOrbDrop(dropChance = ORB_DROP_CHANCE) {
+    if (Math.random() > dropChance) return null;
+    
+    const rand = Math.random();
+    let cumulative = 0;
+    
+    for (const [tier, config] of Object.entries(ORB_TIERS)) {
+        if (!config.dropRate) continue; // Tier5などドロップしないティアは対象外
+        cumulative += config.dropRate;
+        if (rand < cumulative) {
+            return createOrb(tier);
+        }
+    }
+    
+    return null;
+}
+
+function getOrbDisplayName(orb) {
+    if (!orb) return "不明なオーブ";
+    const tierName = ORB_TIERS[orb.tier]?.name || orb.tier;
+    const statLabel = ORB_STAT_LABELS[orb.statType] || orb.statType;
+    const bonusPercent = Math.round(orb.bonus * 100);
+    const rarityLabel = getRarityInfo(getOrbRarityKey(orb)).label;
+
+    let name = `[${rarityLabel}] ${tierName}オーブ (${statLabel}+${bonusPercent}%)`;
+
+    if (Array.isArray(orb.affixes) && orb.affixes.length > 0) {
+        const affixText = orb.affixes
+            .map(a => `${a.label}+${Math.round(a.bonus * 1000) / 10}%`)
+            .join("、");
+        name += ` <${affixText}>`;
+    }
+
+    if (orb.uniqueAbility) {
+        name += ` [${orb.uniqueAbility.name}]`;
+    }
+    
+    return name;
+}
+
+// オーブのティアごとの倍率係数（武器作成時・オーブスロット拡張チケット使用時の両方で使う）
+const ORB_TIER_MULTIPLIER_FACTORS = { tier1: 1.02, tier2: 1.05, tier3: 1.08, tier4: 1.12, tier5: 1.20 };
+
+function applyOrbToWeapon(weapon, orbs) {
+    if (!weapon || !orbs || orbs.length === 0) return weapon;
+
+    const newWeapon = { ...weapon };
+    const totalBonus = {};
+
+    // オーブの補正を集計（メインステータス＋ダンジョン産オーブのランダム付与効果=アフィックス）
+    for (const orb of orbs) {
+        if (!totalBonus[orb.statType]) {
+            totalBonus[orb.statType] = 0;
+        }
+        totalBonus[orb.statType] += orb.bonus;
+
+        if (Array.isArray(orb.affixes)) {
+            for (const affix of orb.affixes) {
+                if (!affix || !affix.statType) continue;
+                if (!totalBonus[affix.statType]) {
+                    totalBonus[affix.statType] = 0;
+                }
+                totalBonus[affix.statType] += affix.bonus;
+            }
+        }
+    }
+
+    // ステータス補正を再計算する。
+    // ボーナス素材による補正（materialBonuses）は武器作成時に別枠で保持しているので、
+    // オーブを組み込み直してもボーナス素材の効果が消えないよう、ここで合算する。
+    newWeapon.materialBonuses = weapon.materialBonuses || {};
+    newWeapon.bonusMaterials = weapon.bonusMaterials || [];
+    newWeapon.statBonuses = mergeStatBonuses(totalBonus, newWeapon.materialBonuses);
+
+    // ユニーク能力を適用（Tier4オーブから）
+    const uniqueAbilities = orbs
+        .filter(orb => orb.uniqueAbility)
+        .map(orb => orb.uniqueAbility);
+
+    if (uniqueAbilities.length > 0) {
+        newWeapon.uniqueAbilities = uniqueAbilities;
+    } else {
+        newWeapon.uniqueAbilities = []; // ユニーク能力をリセット
+    }
+
+    // オーブの合計倍率を計算
+    let orbMultiplier = 1.0;
+    for (const orb of orbs) {
+        const tierMult = ORB_TIER_MULTIPLIER_FACTORS[orb.tier] || 1.0;
+        orbMultiplier *= tierMult;
+    }
+
+    newWeapon.multiplier = ORIGINAL_WEAPON_BASE_MULTIPLIER * orbMultiplier; // 基礎倍率から再計算
+    newWeapon.orbs = orbs.map(orb => orb.id); // 使用したオーブのIDを記録
+    newWeapon.upgradeCount = 0; // 強化回数をリセット
+
+
+    return newWeapon;
+}
+
+// ユニーク能力を適用したステータス計算
+function applyUniqueAbilitiesToStats(baseStats, weapon, isEnemy = false) {
+    if (!weapon || !weapon.uniqueAbilities) return baseStats;
+
+    const stats = { ...baseStats };
+
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "enemy_stat_debuff": // リ・ミゼラブル
+                if (isEnemy) {
+                    stats.atk = Math.floor(stats.atk * 0.8);
+                    stats.def = Math.floor(stats.def * 0.8);
+                    stats.speed = Math.floor(stats.speed * 0.8);
+                    stats.maxHp = Math.floor(stats.maxHp * 0.8);
+                }
+                break;
+            case "ignore_def_half": // 貫通
+                if (isEnemy) {
+                    stats.def = Math.floor(stats.def * 0.5);
+                }
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                if (!isEnemy) {
+                    stats.atk = Math.floor(stats.atk * 1.20);
+                    stats.def = Math.floor(stats.def * 1.20);
+                    stats.speed = Math.floor(stats.speed * 1.20);
+                    stats.maxHp = Math.floor(stats.maxHp * 1.20);
+                }
+                break;
+            // 他の能力はダメージ計算時に処理
+        }
+    }
+
+    return stats;
+}
+
+// ユニーク abilityによるダメージ計算
+function calculateDamageWithAbilities(baseDamage, attacker, defender, weapon) {
+    if (!weapon || !weapon.uniqueAbilities) return baseDamage;
+
+    let damage = baseDamage;
+
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "critical_damage": // 必殺
+                // 基礎5% + 必殺能力25% = 最大30%
+                if (Math.random() < 0.30) {
+                    damage = Math.floor(damage * 1.5);
+                }
+                break;
+            case "life_drain": // ライフドレイン
+                // ダメージ計算後に回復処理を行うため、ここではフラグのみ設定
+                break;
+            case "damage_cut_half": // 鉄壁
+                // 防御側の処理
+                break;
+            // Boss theme abilities
+            case "boss_atk_boost_multi_hit": // オーク軍団の猛攻
+                damage = Math.floor(damage * 1.35); // ATK boost 35%
+                if (Math.random() < 0.20) {
+                    damage = Math.floor(damage * 2); // 2連撃
+                }
+                break;
+            case "boss_poison_on_hit_strong": // 影蛇の毒牙
+                if (Math.random() < 0.50) {
+                    // 猛毒付与（戦闘システムで処理）
+                    weapon.pendingPoison = { turns: 4, damage: 0.08 };
+                }
+                break;
+            case "boss_burn_on_hit_strong": // 炎龍の息吹
+                if (Math.random() < 0.40) {
+                    // 大火傷付与（戦闘システムで処理）
+                    weapon.pendingBurn = { turns: 5, damage: 0.05 };
+                }
+                break;
+            case "boss_low_hp_atk_boost_crit": // 深淵騎士の闘気
+                if (attacker && attacker.hp / attacker.maxHp <= 0.5) {
+                    damage = Math.floor(damage * 1.50); // ATK boost 50%
+                    if (Math.random() < 0.15) {
+                        damage = Math.floor(damage * 1.5); // クリティカル率15%
+                    }
+                }
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 1.20); // 全ステータス20%上昇
+                if (Math.random() < 0.25) {
+                    // 防御破壊（戦闘システムで処理）
+                    weapon.pendingDefBreak = { turns: 2, reduction: 0.30 };
+                }
+                break;
+        }
+    }
+
+    return damage;
+}
+
+// 防御側のダメージ軽減計算
+function calculateDefenseWithAbilities(baseDamage, defender, weapon) {
+    if (!weapon || !weapon.uniqueAbilities) return baseDamage;
+
+    let damage = baseDamage;
+
+    for (const ability of weapon.uniqueAbilities) {
+        switch (ability.effect) {
+            case "damage_cut_half": // 鉄壁
+                damage = Math.floor(damage * 0.5);
+                break;
+            // Boss theme defensive abilities
+            case "boss_damage_reduction_freeze": // 氷の巨人の鎧
+                damage = Math.floor(damage * 0.70); // 30%軽減
+                if (Math.random() < 0.30) {
+                    // 凍結付与（戦闘システムで処理）
+                    weapon.pendingFreeze = true;
+                }
+                break;
+            case "boss_hp_regen_damage_reduction": // 天界守護者の加護
+                damage = Math.floor(damage * 0.85); // 15%軽減
+                // HP回復は戦闘システムのターン開始時に処理
+                weapon.hasHpRegen = true;
+                weapon.hpRegenAmount = 0.08;
+                break;
+            case "boss_all_stat_boost_damage_reduction_def_break": // 深淵の守護者
+                damage = Math.floor(damage * 0.75); // 25%軽減
+                break;
+        }
+    }
+
+    return damage;
+}
+
+const WEAPON_TYPES = {
+    sword_shield: { name: "片手剣＋盾", primary: ["def", "atk"], secondary: ["special"], debuff: {} },
+    spear:        { name: "長槍",       primary: ["atk", "speed"], secondary: ["special"], debuff: {}, debugBonus: { bonusMult: 2.0, primary: ["atk", "speed", "def", "maxHp", "special"] } },
+    greatsword:   { name: "大剣",       primary: ["atk"], secondary: ["special"], debuff: { def: 0.85, speed: 0.85 }, bonusMult: 1.3 },
+    dual_swords:  { name: "双剣",       primary: ["speed", "atk"], secondary: ["special"], debuff: {} },
+    scythe:       { name: "鎌",         primary: ["maxHp", "atk", "def", "speed", "special"], secondary: [], debuff: {}, bonusMult: 1.1 },
+    pistol:       { name: "ピストル",   primary: ["speed", "maxHp", "special"], secondary: ["atk"], debuff: {} },
+    katana:       { name: "刀",         primary: ["def", "speed"], secondary: ["special"], debuff: {} },
+    magic_wand:   { name: "魔法の杖",   primary: ["special", "maxHp"], secondary: ["atk", "def"], debuff: { speed: 0.9 } },
+    gloves:       { name: "グローブ",   primary: ["atk", "speed"], secondary: ["special"], debuff: { def: 0.9 } },
+    shoes:        { name: "シューズ",   primary: ["speed", "def"], secondary: ["special"], debuff: { atk: 0.9 } },
+    bow:          { name: "弓",         primary: ["speed", "atk"], secondary: ["special"], debuff: { def: 0.9 } },
+    esper:        { name: "超能力",     primary: ["special", "def"], secondary: ["maxHp"], debuff: { atk: 0.9 } },
+    // 六尺杖（ろくしゃくじょう）：約1.8m（六尺）の長い棒を使う棒術の武器。
+    // 守りの構えから長い間合いで相手を制する耐久型。魔法の杖の「物理版」にあたる構成で、
+    // 防御・HPを主に、攻撃・速さにも補正がかかる代わりに、特殊は少し低下する。
+    rokushaku_staff: { name: "六尺杖、薙刀", primary: ["def", "maxHp"], secondary: ["atk", "speed"], debuff: { special: 0.9 } }
+};
+
+// ============================================================
+// サモンズロッドの有効/無効スイッチ
+// いったん無効化（六尺杖への置き換え）していたが、依頼により復活させたため現在はtrue（有効）。
+//   ・false：武器種（ショップ・オリジナル武器作成・ボスドロップ等）から外れ、
+//            配下の召喚UIも追加攻撃も動かない。
+//   ・true ：下のsummons_rodが武器種に復活し、召喚UI・追加攻撃も元通りに動く
+//            （index.htmlの2か所の<select>にも、コメントアウトしてあるoptionを戻すこと）。
+// 所持している武器や契約済みのモンスターのデータは一切消していないので、
+// trueに戻せばそのまま使える。
+// ============================================================
+const SUMMONS_ROD_ENABLED = true;
+if (SUMMONS_ROD_ENABLED) {
+    // サモンズロッド：他の武器種と違い、ステータスは一切上昇しない（primary/secondaryが空）。
+    // その代わり、素材を消費してモンスターを配下にでき、正解するたびに配下が追加攻撃を行う
+    // （具体的な召喚・攻撃処理はsummons.jsとbattle.js側で行う）。
+    WEAPON_TYPES.summons_rod = { name: "サモンズロッド", primary: [], secondary: [], debuff: {}, isSummonsRod: true };
+}
+
+// 現在は武器種として存在しない（無効化された）武器種の表示名。
+// すでに持っている武器の種類名が、内部ID（summons_rodなど）のまま表示されるのを防ぐ。
+const LEGACY_WEAPON_TYPE_LABELS = {
+    summons_rod: "サモンズロッド（現在使用不可）"
+};
+
+const TIER_MULT = { tier1: 1.05, tier2: 1.12, tier3: 1.20 };
+const UNIQUE_MULT = 1.65; // tier3(1.20) × 1.375 ≒ 1.65
+
+// デュアルウェポン（サブ武器種）の恩恵は、メインの武器種の半分の強さにする。
+// 以前はサブ武器種のprimary/secondary/debuffを武器種にそのまま完全マージしており、
+// メインと全く同じ強さの恩恵を「サブ」なのに得られてしまっていた。
+const SUB_WEAPON_TYPE_EFFECT_RATIO = 0.5;
+
+const TIER_PRICES = { tier1: 30, tier2: 50, tier3: 100 };
+
+const WEAPON_CATALOG = {
+    sword_shield: {
+        tier1: { name: "鉄の盾剣", ultimate: "シールドバッシュ" },
+        tier2: { name: "騎士の盾剣", ultimate: "ホーリーガード" },
+        tier3: { name: "聖騎士の盾剣", ultimate: "ディバインプロテクション" },
+        unique: { name: "神盾剣ゼウス・ヘカテー", ultimate: "神々の裁き" }
+    },
+    spear: {
+        tier1: { name: "木の槍", ultimate: "突撃" },
+        tier2: { name: "鋼の長槍", ultimate: "雷撃突き" },
+        tier3: { name: "ドラゴンスレイヤー", ultimate: "ドラゴンスレイヤー" },
+        unique: { name: "神槍　天照", ultimate: "天照の神光" },
+        debug: { name: "デバッガーランス", isDebug: true, ultimate: "デバッグ斬撃" }
+    },
+    greatsword: {
+        tier1: { name: "錆びた大剣", ultimate: "大切断" },
+        tier2: { name: "黒鉄の大剣", ultimate: "鉄斬り" },
+        tier3: { name: "覇王の大剣", ultimate: "覇王斬" },
+        unique: { name: "ベルゼバブ", ultimate: "地獄の業火" }
+    },
+    dual_swords: {
+        tier1: { name: "錆びた双剣", ultimate: "双斬" },
+        tier2: { name: "疾風の双剣", ultimate: "疾風双斬" },
+        tier3: { name: "幻影の双剣", ultimate: "幻影乱舞" },
+        unique: { name: "巨狼　オルトロス", ultimate: "双頭狼の連撃" }
+    },
+    scythe: {
+        tier1: { name: "農夫の鎌", ultimate: "収穫" },
+        tier2: { name: "死神の鎌", ultimate: "死神の鎌" },
+        tier3: { name: "冥府の鎌", ultimate: "冥府への誘い" },
+        unique: { name: "グリム・リーパー", ultimate: "死神の最期" }
+    },
+    pistol: {
+        tier1: { name: "古式ピストル", ultimate: "一発" },
+        tier2: { name: "連射ピストル", ultimate: "ラピッドファイア" },
+        tier3: { name: "マグナム", ultimate: "マグナムバースト" },
+        unique: { name: "九頭蛇　ヒュドラ", ultimate: "九頭の猛毒" }
+    },
+    katana: {
+        tier1: { name: "錆びた刀", ultimate: "居合斬り" },
+        tier2: { name: "業物", ultimate: "一閃" },
+        tier3: { name: "名刀「村正」", ultimate: "妖刀の呪い" },
+        unique: { name: "天雲　スサノオ", ultimate: "天叢雲剣" }
+    },
+    magic_wand: {
+        tier1: { name: "木の杖", ultimate: "小魔法" },
+        tier2: { name: "魔術師の杖", ultimate: "ファイアボール" },
+        tier3: { name: "賢者の杖", ultimate: "メテオストライク" },
+        unique: { name: "魔導書　グリモワール", ultimate: "禁断の魔法" }
+    },
+    gloves: {
+        tier1: { name: "布の拳当て", ultimate: "連撃" },
+        tier2: { name: "闘士の籠手", ultimate: "乱打拳" },
+        tier3: { name: "覇拳の籠手", ultimate: "百裂拳" },
+        unique: { name: "金剛の拳　ヴァジュラ", ultimate: "金剛連牙拳" }
+    },
+    shoes: {
+        tier1: { name: "布の靴", ultimate: "疾走蹴り" },
+        tier2: { name: "疾風のブーツ", ultimate: "旋風脚" },
+        tier3: { name: "俊足の神靴", ultimate: "光速蹴撃" },
+        unique: { name: "風神の脚甲　フウジン", ultimate: "神速の一撃" }
+    },
+    bow: {
+        tier1: { name: "木の弓", ultimate: "速射" },
+        tier2: { name: "鋼の弓", ultimate: "貫通矢" },
+        tier3: { name: "精霊の弓", ultimate: "百裂矢" },
+        unique: { name: "神弓　アルテミス", ultimate: "月光の一矢" }
+    },
+    esper: {
+        tier1: { name: "念動リング", ultimate: "念力弾" },
+        tier2: { name: "精神増幅器", ultimate: "サイコバースト" },
+        tier3: { name: "第三の眼", ultimate: "マインドクラッシュ" },
+        unique: { name: "全能の意識体　アカシャ", ultimate: "アカシックレコード" }
+    },
+    // 六尺杖：ショップに並ぶのはtier1〜3。ユニークは神話の如意棒（孫悟空の武器）がモチーフ。
+    rokushaku_staff: {
+        tier1: { name: "樫の六尺杖", ultimate: "払い打ち" },
+        tier2: { name: "鉄芯の薙刀", ultimate: "旋風打ち" },
+        tier3: { name: "羅漢の六尺杖", ultimate: "羅漢乱舞" },
+        unique: { name: "神棒　如意金箍棒", ultimate: "如意伸縮撃" }
+    },
+    // サモンズロッド：現在は無効（SUMMONS_ROD_ENABLED参照）。武器種（WEAPON_TYPES）から外れているため
+    // ショップには並ばないが、すでに持っている武器の必殺技名などを引けるよう、カタログ自体は残している。
+    summons_rod: {
+        tier1: { name: "ぼろい杖", ultimate: "スライム召喚" },
+        tier2: { name: "召喚術の杖", ultimate: "ゴーレム召喚" },
+        tier3: { name: "サモナーロッド", ultimate: "ドラゴン召喚" },
+        unique: { name: "マモノヲスベルモノ", ultimate: "魔王召喚" }
+    }
+};
+
+const DEBUG_UNIQUE_WINS = 1; // デバッグ用ユニーク武器は1勝で入手可能
+const UNIQUE_QUEST_WINS = 500; // 通常のユニーク武器は500勝で入手可能
+
+// デバッグ用: テスト用に勝利数を減らす
+const TEST_UNIQUE_WINS = 3; // テスト用に3勝に設定（本番は500に戻す）
+const COIN_BATTLE_WIN = 15;
+// const COIN_STUDY_30MIN = 20;
+const COIN_STUDY_30MIN = 20;
+const STUDY_COIN_THRESHOLD = 30 * 60; // 30分
+
+function getWeaponMultiplier(weapon) {
+    if (!weapon) return 1;
+    if (weapon.isOriginal) return weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+    if (weapon.isUnique) return UNIQUE_MULT;
+    return TIER_MULT[weapon.tier] || 1;
+}
+
+/**
+ * 複数のステータスボーナスオブジェクトを合算する。
+ * 例: mergeStatBonuses({ atk: 0.05 }, { atk: 0.1, def: 0.05 }) => { atk: 0.15, def: 0.05 }
+ * @param {...object} bonusObjects - { atk, def, speed, maxHp, special } 形式のオブジェクト群
+ * @returns {object} 合算されたボーナスオブジェクト
+ */
+function mergeStatBonuses(...bonusObjects) {
+    const merged = {};
+    for (const bonusObj of bonusObjects) {
+        if (!bonusObj) continue;
+        for (const [stat, value] of Object.entries(bonusObj)) {
+            if (!value) continue;
+            merged[stat] = (merged[stat] || 0) + value;
+        }
+    }
+    return merged;
+}
+
+/**
+ * ステータスボーナスオブジェクトを「攻撃+12%, 防御+8%」のような表示用テキストに変換する。
+ * @param {object} bonusObj - { atk, def, speed, maxHp, special } 形式のオブジェクト
+ * @returns {string} 表示用テキスト（ボーナスが無い場合は空文字）
+ */
+function formatStatBonusSummary(bonusObj) {
+    if (!bonusObj) return '';
+    const parts = [];
+    for (const [stat, value] of Object.entries(bonusObj)) {
+        if (!value) continue;
+        const label = ORB_STAT_LABELS[stat] || stat;
+        const percent = Math.round(value * 100);
+        parts.push(`${label}${percent >= 0 ? '+' : ''}${percent}%`);
+    }
+    return parts.join(', ');
+}
+
+function createOriginalWeapon(name, type, statBonuses, ultimateName, bonusMaterialIds) {
+    // 武器名のバリデーション
+    const validation = validateName(name);
+    if (!validation.valid) {
+        return { error: validation.reason };
+    }
+
+    // ボーナス素材からステータスボーナスを計算する
+    // （素材のレア度が高いほど倍率が上がり、上昇するステータスは素材ごとに異なる）
+    let materialBonuses = {};
+    if (bonusMaterialIds && bonusMaterialIds.length > 0 && typeof calculateWeaponMaterialBonus === 'function') {
+        materialBonuses = calculateWeaponMaterialBonus(bonusMaterialIds);
+    }
+
+    const id = `original_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    return {
+        id,
+        name: name || "オリジナル武器",
+        type,
+        isOriginal: true,
+        multiplier: ORIGINAL_WEAPON_BASE_MULTIPLIER,
+        // { atk: 0.5, def: -0.3, speed: 0.2 } 等。手動指定分とボーナス素材分を合算する
+        statBonuses: mergeStatBonuses(statBonuses, materialBonuses),
+        // ボーナス素材によるステータスボーナスは、後からオーブを組み込んでも消えないよう別枠で保持する
+        materialBonuses,
+        bonusMaterials: bonusMaterialIds ? [...bonusMaterialIds] : [],
+        upgradeCount: 0,
+        ultimateName: ultimateName || null // オリジナル武器の必殺技名
+    };
+}
+
+function getWeaponMaxMultiplier(weapon) {
+    return (weapon && weapon.maxMultiplier != null) ? weapon.maxMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function getWeaponBaseMultiplierForProgress(weapon) {
+    return (weapon && weapon.baseMultiplier != null) ? weapon.baseMultiplier : ORIGINAL_WEAPON_BASE_MULTIPLIER;
+}
+
+// 武器の「限界突破・強化・オーブスロット拡張・合成前」の素の上限倍率を返す。
+// ボス武器は生成時にmaxMultiplier===baseMultiplierで始まる（限界突破するまで強化不可）ため、
+// baseMultiplierがそのまま素の上限になる。通常のオリジナル武器はORIGINAL_WEAPON_MAX_MULTIPLIERが
+// 素の上限。baseMultiplierが記録されていない古い武器データはORIGINAL_WEAPON_MAX_MULTIPLIERに
+// フォールバックする（ベストエフォート）。
+function getWeaponPristineMaxMultiplier(weapon) {
+    if (!weapon) return ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    if (weapon.sourceBossId) {
+        return weapon.baseMultiplier != null ? weapon.baseMultiplier : ORIGINAL_WEAPON_MAX_MULTIPLIER;
+    }
+    return ORIGINAL_WEAPON_MAX_MULTIPLIER;
+}
+
+function upgradeOriginalWeapon(weapon) {
+    if (!weapon.isOriginal) return weapon;
+    const max = getWeaponMaxMultiplier(weapon);
+    if (weapon.multiplier >= max) return weapon;
+
+    const newMultiplier = Math.min(
+        max,
+        weapon.multiplier + ORIGINAL_WEAPON_UPGRADE_INCREMENT
+    );
+
+    let updated = {
+        ...weapon,
+        multiplier: newMultiplier,
+        upgradeCount: weapon.upgradeCount + 1
+    };
+
+    // ボス武器が「4回限界突破＋上限まで強化」を満たしたら、tier4固有能力を付与する
+    if (typeof checkAndGrantBossTier4Ability === "function") {
+        updated = checkAndGrantBossTier4Ability(updated);
+    }
+
+    return updated;
+}
+
+function canUpgradeOriginalWeapon(weapon) {
+    return weapon.isOriginal && weapon.multiplier < getWeaponMaxMultiplier(weapon);
+}
+
+function getOriginalWeaponUpgradeCost(weapon) {
+    return ORIGINAL_WEAPON_UPGRADE_COST;
+}
+
+function createWeapon(type, tier, isUnique) {
+    const catalog = WEAPON_CATALOG[type];
+    if (!catalog) return null;
+    const tierKey = isUnique ? "unique" : tier;
+    const info = catalog[tierKey];
+    if (!info) return null;
+    return {
+        id: `${type}_${tierKey}`,
+        type,
+        tier: isUnique ? "unique" : tier,
+        name: info.name,
+        isUnique: !!isUnique,
+        isDebug: info.isDebug || false,
+        isDebugWeapon: tierKey === "debug"
+    };
+}
+
+function getAllShopWeapons() {
+    const list = [];
+    for (const type of Object.keys(WEAPON_TYPES)) {
+        for (const tier of ["tier1", "tier2", "tier3"]) {
+            list.push(createWeapon(type, tier, false));
+        }
+    }
+    return list;
+}
+
+function applyWeaponStats(baseStats, weapon) {
+    if (!weapon) return { ...baseStats };
+    
+    // オリジナル武器の場合
+    if (weapon.isOriginal) {
+        const result = { ...baseStats };
+        let typeConf = WEAPON_TYPES[weapon.type];
+        
+        // 基本倍率を取得（武器種のbonusMultは適用しない）
+        let mult = weapon.multiplier || ORIGINAL_WEAPON_BASE_MULTIPLIER;
+
+        // デュアルウェポン能力による武器種情報のマージ。
+        // サブ武器種（secondaryType）の恩恵は、メインの武器種に比べて弱め
+        // （SUB_WEAPON_TYPE_EFFECT_RATIO倍）にする。以前はメインと全く同じ強さで
+        // マージしており、「サブ」武器種の意味が無くなってしまっていた。
+        // メインの武器種に既にあるステータスはメイン側の倍率のままとし、
+        // サブ武器種だけが持つステータスにのみ、弱めた倍率を追加で適用する。
+        let subOnlyPrimary = [];
+        let subOnlySecondary = [];
+        let subOnlyDebuff = {};
+        if (weapon.uniqueAbilities && weapon.uniqueAbilities.some(a => a.effect === 'dual_weapon') && weapon.secondaryType) {
+            const dualWeaponInfo = WEAPON_TYPES[weapon.secondaryType];
+            if (typeConf && dualWeaponInfo) {
+                const mainStats = new Set([...typeConf.primary, ...typeConf.secondary]);
+                subOnlyPrimary = (dualWeaponInfo.primary || []).filter(s => !mainStats.has(s));
+                subOnlySecondary = (dualWeaponInfo.secondary || []).filter(s => !mainStats.has(s) && !subOnlyPrimary.includes(s));
+                Object.entries(dualWeaponInfo.debuff || {}).forEach(([stat, mult]) => {
+                    if (typeConf.debuff[stat] === undefined) {
+                        subOnlyDebuff[stat] = mult;
+                    }
+                });
+            }
+        }
+        
+        // カスタム補正を考慮した倍率計算
+        const statMultipliers = { atk: mult, def: mult, speed: mult, maxHp: mult, special: mult };
+        
+        // カスタム補正を倍率に反映
+        if (weapon.statBonuses) {
+            for (const [stat, bonus] of Object.entries(weapon.statBonuses)) {
+                if (statMultipliers[stat] !== undefined) {
+                    statMultipliers[stat] = statMultipliers[stat] * (1 + bonus);
+                }
+            }
+        }
+        
+        // 武器種の設定を適用（bonusMultを除く）
+        if (typeConf) {
+            // プライマリステータスに倍率適用
+            for (const stat of typeConf.primary) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * statMultipliers[stat]);
+                }
+            }
+            
+            // セカンダリステータスに倍率適用（0.85倍）
+            for (const stat of typeConf.secondary) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * (statMultipliers[stat] * 0.85));
+                }
+            }
+            
+            // デバフ適用
+            if (typeConf.debuff) {
+                for (const [stat, debuffMult] of Object.entries(typeConf.debuff)) {
+                    if (result[stat] !== undefined) {
+                        result[stat] = Math.floor(result[stat] * debuffMult);
+                    }
+                }
+            }
+
+            // サブ武器種だけが持つステータス（弱めた倍率で追加適用）
+            for (const stat of subOnlyPrimary) {
+                if (result[stat] !== undefined) {
+                    const fullBonus = statMultipliers[stat] - 1;
+                    result[stat] = Math.floor(result[stat] * (1 + fullBonus * SUB_WEAPON_TYPE_EFFECT_RATIO));
+                }
+            }
+            for (const stat of subOnlySecondary) {
+                if (result[stat] !== undefined) {
+                    const fullBonus = (statMultipliers[stat] * 0.85) - 1;
+                    result[stat] = Math.floor(result[stat] * (1 + fullBonus * SUB_WEAPON_TYPE_EFFECT_RATIO));
+                }
+            }
+            for (const [stat, debuffMult] of Object.entries(subOnlyDebuff)) {
+                if (result[stat] !== undefined) {
+                    const fullReduction = 1 - debuffMult;
+                    result[stat] = Math.floor(result[stat] * (1 - fullReduction * SUB_WEAPON_TYPE_EFFECT_RATIO));
+                }
+            }
+        } else {
+            // 武器種がない場合は全ステータスに基本倍率適用
+            for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
+                if (result[stat] !== undefined) {
+                    result[stat] = Math.floor(result[stat] * statMultipliers[stat]);
+                }
+            }
+        }
+        
+        // 最小値を保証（最低でも基礎ステータス以上）
+        for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
+            if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+                result[stat] = baseStats[stat];
+            }
+        }
+        
+        return result;
+    }
+    
+    const typeConf = WEAPON_TYPES[weapon.type];
+    if (!typeConf) return { ...baseStats };
+    
+    // デバッグ武器の場合は特別ボーナスを適用
+    if (weapon.isDebugWeapon && typeConf.debugBonus) {
+        const result = { ...baseStats };
+        const debugBonus = typeConf.debugBonus;
+        const mult = debugBonus.bonusMult || 2.0;
+        
+        // デバッグ武器専用のプライマリステータスに倍率適用
+        for (const stat of debugBonus.primary) {
+            result[stat] = Math.floor(result[stat] * mult);
+        }
+        
+        // 最小値を保証（最低でも基礎ステータス以上）
+        for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
+            if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+                result[stat] = baseStats[stat];
+            }
+        }
+        
+        return result;
+    }
+    
+    // 基本倍率を取得（bonusMultがあれば使用、なければデフォルト倍率）
+    let mult = getWeaponMultiplier(weapon);
+    if (typeConf.bonusMult) {
+        mult = mult * typeConf.bonusMult;
+    }
+    
+    const result = { ...baseStats };
+    
+    // プライマリステータスに倍率適用
+    for (const stat of typeConf.primary) {
+        result[stat] = Math.floor(result[stat] * mult);
+    }
+    
+    // セカンダリステータスに倍率適用（0.85倍）
+    for (const stat of typeConf.secondary) {
+        result[stat] = Math.floor(result[stat] * (mult * 0.85));
+    }
+    
+    // デバフ適用
+    if (typeConf.debuff) {
+        for (const [stat, debuffMult] of Object.entries(typeConf.debuff)) {
+            if (result[stat] !== undefined) {
+                result[stat] = Math.floor(result[stat] * debuffMult);
+            }
+        }
+    }
+    
+    // 最小値を保証（最低でも基礎ステータス以上）
+    for (const stat of ['atk', 'def', 'speed', 'maxHp', 'special']) {
+        if (result[stat] !== undefined && result[stat] < baseStats[stat]) {
+            result[stat] = baseStats[stat];
+        }
+    }
+    
+    return result;
+}
+
+function playerOwnsWeapon(player, weaponId) {
+    return (player.weapons || []).some(w => w.id === weaponId);
+}
+
+// ============================================
+// デバッグ用「必中・即死」武器
+// 開発中の動作確認用。ブラウザのコンソールから
+// giveDebugInstantKillWeapon() を実行すると、現在のプレイヤーに
+// 追加・装備される（script.js からグローバル公開）。
+// ============================================
+
+const DEBUG_INSTANT_KILL_WEAPON_ID = "debug_instant_kill_weapon";
+
+/**
+ * 必中・一撃必殺のデバッグ用武器を生成する。
+ * battle.js側で weapon.debugInstantKill を見て、回避判定を無視し
+ * 確実にトドメを刺す処理をしている。
+ * @returns {object}
+ */
+function createDebugInstantKillWeapon() {
+    return {
+        id: DEBUG_INSTANT_KILL_WEAPON_ID,
+        type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
+        name: "【デバッグ】絶対撃破の剣",
+        isOriginal: true,
+        isDebugWeapon: true,
+        debugInstantKill: true, // battle.js: 必中・確定撃破フラグ
+        multiplier: 1,
+        baseMultiplier: 1,
+        maxMultiplier: 1,
+        statBonuses: {},
+        upgradeCount: 0,
+        uniqueAbilities: [],
+        ultimateName: "デバッグ・絶対撃破"
+    };
+}
+
+/**
+ * デバッグ用の必中即死武器を、現在のプレイヤーに追加して装備する。
+ * ブラウザのコンソールから `giveDebugInstantKillWeapon()` として実行する想定。
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugInstantKillWeapon(player) {
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    let updated = p;
+    if (!playerOwnsWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID)) {
+        updated = addWeaponToPlayer(updated, createDebugInstantKillWeapon());
+    }
+    const equipResult = equipWeapon(updated, DEBUG_INSTANT_KILL_WEAPON_ID);
+    if (equipResult.ok) {
+        updated = equipResult.player;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log("[Debug] 必中即死のデバッグ武器を装備しました。ページを再読み込みすると反映されます。");
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
+// デバッグ用「任意のTier4固有能力」武器
+// 開発中の動作確認用。ブラウザのコンソールから
+// listTier4Abilities() で使えるキーの一覧を確認し、
+// giveDebugTier4AbilityWeapon("好きなキー") を実行すると、
+// そのTier4固有能力だけを持つ武器が現在のプレイヤーに追加・装備される
+// （script.js からグローバル公開）。
+// ============================================
+
+/**
+ * ORB_UNIQUE_ABILITIESから、指定した文字列に対応する能力を探す。
+ * オブジェクトのキー（例: "natural_healing"）でも、内部のeffect文字列
+ * （例: "hp_regen"）でも見つけられるようにする（どちらで呼ばれても動くように）。
+ * @param {string} input
+ * @returns {{key: string, ability: object}|null}
+ */
+function findTier4AbilityEntry(input) {
+    if (!input) return null;
+    if (ORB_UNIQUE_ABILITIES[input]) {
+        return { key: input, ability: ORB_UNIQUE_ABILITIES[input] };
+    }
+    const foundKey = Object.keys(ORB_UNIQUE_ABILITIES).find(
+        key => ORB_UNIQUE_ABILITIES[key].effect === input
+    );
+    if (foundKey) {
+        return { key: foundKey, ability: ORB_UNIQUE_ABILITIES[foundKey] };
+    }
+    // Tier5専用の固有能力もデバッグ武器で試せるようにする
+    if (ORB_TIER5_ABILITIES[input]) {
+        return { key: input, ability: ORB_TIER5_ABILITIES[input] };
+    }
+    const foundT5Key = Object.keys(ORB_TIER5_ABILITIES).find(
+        key => ORB_TIER5_ABILITIES[key].effect === input
+    );
+    if (foundT5Key) {
+        return { key: foundT5Key, ability: ORB_TIER5_ABILITIES[foundT5Key] };
+    }
+    return null;
+}
+
+/**
+ * 指定したキーのTier4固有能力だけを持つデバッグ用武器を生成する。
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列（例: "natural_healing" / "hp_regen"）
+ * @returns {object|null}
+ */
+function createDebugTier4AbilityWeapon(abilityKey) {
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) return null;
+    const { key, ability } = entry;
+
+    return {
+        id: "debug_tier4_weapon_" + key,
+        type: (typeof WEAPON_TYPES !== 'undefined' ? Object.keys(WEAPON_TYPES)[0] : "剣"),
+        name: `【デバッグ】${ability.name}の武器`,
+        isOriginal: true,
+        isDebugWeapon: true,
+        multiplier: 1,
+        baseMultiplier: 1,
+        maxMultiplier: 1,
+        statBonuses: {},
+        upgradeCount: 0,
+        uniqueAbilities: [ability],
+        ultimateName: `デバッグ・${ability.name}`
+    };
+}
+
+/**
+ * 指定したTier4固有能力を持つデバッグ用武器を、現在のプレイヤーに追加して装備する。
+ * ブラウザのコンソールから `giveDebugTier4AbilityWeapon("natural_healing")` または
+ * `giveDebugTier4AbilityWeapon("hp_regen")` のように実行する想定（どちらでも動く）。
+ * 使えるキーが分からない場合は `listTier4Abilities()` を先に実行すると一覧が表示される。
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugTier4AbilityWeapon(abilityKey, player) {
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) {
+        console.error(`[Debug] 不明な固有能力キーです: "${abilityKey}"。listTier4Abilities() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const weapon = createDebugTier4AbilityWeapon(abilityKey);
+    let updated = p;
+    if (!playerOwnsWeapon(updated, weapon.id)) {
+        updated = addWeaponToPlayer(updated, weapon);
+    }
+    const equipResult = equipWeapon(updated, weapon.id);
+    if (equipResult.ok) {
+        updated = equipResult.player;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] 「${weapon.name}」（固有能力: ${entry.ability.name}）を装備しました。ページを再読み込みすると反映されます。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+/**
+ * ブラウザのコンソールで使えるTier4固有能力のキー一覧を表示する。
+ * オブジェクトキー・effect文字列のどちらでもgiveDebugTier4AbilityWeapon()に渡せることを明記する。
+ * @returns {string[]} キーの配列
+ */
+function listTier4Abilities() {
+    const keys = Object.keys(ORB_UNIQUE_ABILITIES);
+    keys.forEach(key => {
+        const ability = ORB_UNIQUE_ABILITIES[key];
+        console.log(`${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
+    });
+    const t5Keys = Object.keys(ORB_TIER5_ABILITIES);
+    t5Keys.forEach(key => {
+        const ability = ORB_TIER5_ABILITIES[key];
+        console.log(`[Tier5] ${key} (${ability.effect}) : ${ability.name} - ${ability.description}`);
+    });
+    return keys.concat(t5Keys);
+}
+
+// ============================================
+// デバッグ用「既存の武器へのTier4固有能力付与」（データ修復用）
+// 武器オーブスロット拡張チケットには過去、オーブが消費されるだけでtier4固有能力が
+// 付与されない不具合があった。修正前にチケットを使ってしまった武器は、当時どの
+// 固有能力だったかという情報自体が失われており自動では復元できないため、
+// プレイヤー自身がブラウザのコンソールから手動で能力を付け直すためのコマンド。
+// listTier4Abilities() でキー一覧を確認し、
+// giveDebugWeaponUniqueAbility("武器名（部分一致可）", "キー") のように実行する。
+// ============================================
+
+/**
+ * 既存の武器（id完全一致、または名前の部分一致）に、指定したTier4固有能力を直接付与する。
+ * @param {string} weaponNameOrId - 武器のid、または名前（部分一致で検索）
+ * @param {string} abilityKey - ORB_UNIQUE_ABILITIESのキー、またはeffect文字列
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugWeaponUniqueAbility(weaponNameOrId, abilityKey, player) {
+    const entry = findTier4AbilityEntry(abilityKey);
+    if (!entry) {
+        console.error(`[Debug] 不明な固有能力キーです: "${abilityKey}"。listTier4Abilities() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const weapons = p.weapons || [];
+    const targetWeapon = weapons.find(w => w.id === weaponNameOrId)
+        || weapons.find(w => w.name === weaponNameOrId)
+        || weapons.find(w => w.name && w.name.includes(weaponNameOrId));
+    if (!targetWeapon) {
+        console.error(`[Debug] 武器が見つかりません: "${weaponNameOrId}"`);
+        return null;
+    }
+
+    const existingAbilities = targetWeapon.uniqueAbilities || [];
+    const alreadyHas = existingAbilities.some(a => a && a.effect === entry.ability.effect);
+    const updatedWeapon = {
+        ...targetWeapon,
+        uniqueAbilities: alreadyHas
+            ? existingAbilities
+            : [...existingAbilities, { key: entry.key, ...entry.ability }]
+    };
+
+    const updatedWeapons = weapons.map(w => (w.id === targetWeapon.id ? updatedWeapon : w));
+    const updated = { ...p, weapons: updatedWeapons };
+    if (updated.equippedWeapon && updated.equippedWeapon.id === targetWeapon.id) {
+        updated.equippedWeapon = updatedWeapon;
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] 「${targetWeapon.name}」に固有能力「${entry.ability.name}」を付与しました。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
+// デバッグ用「ダンジョン報酬」付与
+// 開発中の動作確認用。ブラウザのコンソールから
+// listDebugDungeonRewards() で使えるキー一覧を確認し、
+// giveDebugDungeonReward("キー", 個数) を実行すると、
+// そのダンジョン宝箱報酬（オーブ or 各種チケット）が
+// 現在のプレイヤーに追加される（script.js からグローバル公開）。
+// サーバー側のDUNGEON_CHEST_TABLE（server/data/monsters-data.js）に
+// 対応するキーを揃えている。
+// ============================================
+
+const DEBUG_DUNGEON_REWARD_TABLE = {
+    tier1_orb: { type: 'orb', tier: 'tier1', label: 'Tier1オーブ' },
+    tier2_orb: { type: 'orb', tier: 'tier2', label: 'Tier2オーブ' },
+    tier3_orb: { type: 'orb', tier: 'tier3', label: 'Tier3オーブ' },
+    tier4_orb: { type: 'orb', tier: 'tier4', label: 'Tier4オーブ' },
+    stat_reallocator: { type: 'item', itemId: 'stat_reallocator', label: 'ステータス再分配チケット', rarity: 'legendary' },
+    extra_orb_slot: { type: 'item', itemId: 'extra_orb_slot', label: '武器オーブスロット拡張チケット', rarity: 'mythic' },
+    weapon_synthesis_ticket: { type: 'item', itemId: 'weapon_synthesis_ticket', label: '武器合成チケット', rarity: 'mythic' }
+};
+
+/**
+ * ブラウザのコンソールで使えるダンジョン報酬のキー一覧を表示する。
+ * @returns {string[]} キーの配列
+ */
+function listDebugDungeonRewards() {
+    const keys = Object.keys(DEBUG_DUNGEON_REWARD_TABLE);
+    keys.forEach(key => {
+        const entry = DEBUG_DUNGEON_REWARD_TABLE[key];
+        console.log(`${key} : ${entry.label}`);
+    });
+    return keys;
+}
+
+/**
+ * 指定したダンジョン報酬（オーブ or チケット）を、現在のプレイヤーに指定個数付与する。
+ * ブラウザのコンソールから `giveDebugDungeonReward("weapon_synthesis_ticket")` や
+ * `giveDebugDungeonReward("extra_orb_slot", 3)` のように実行する想定。
+ * 使えるキーが分からない場合は `listDebugDungeonRewards()` を先に実行すると一覧が表示される。
+ * @param {string} rewardKey - DEBUG_DUNGEON_REWARD_TABLEのキー
+ * @param {number} [count=1] - 付与する個数（1以上の整数に丸められる）
+ * @param {object} [player] - 省略時はlocalStorageから読み込む。
+ * @returns {object|null} 更新後のプレイヤーオブジェクト。
+ */
+function giveDebugDungeonReward(rewardKey, count = 1, player) {
+    const entry = DEBUG_DUNGEON_REWARD_TABLE[rewardKey];
+    if (!entry) {
+        console.error(`[Debug] 不明なキーです: "${rewardKey}"。listDebugDungeonRewards() で一覧を確認してください。`);
+        return null;
+    }
+
+    let p = player;
+    let fromLocalStorage = false;
+    if (!p) {
+        const raw = localStorage.getItem("player");
+        if (!raw) {
+            console.error("[Debug] プレイヤーデータが見つかりません。");
+            return null;
+        }
+        p = JSON.parse(raw);
+        fromLocalStorage = true;
+    }
+
+    const n = Math.max(1, Math.floor(count) || 1);
+    const updated = { ...p };
+
+    if (entry.type === 'orb') {
+        updated.orbs = [...(updated.orbs || [])];
+        for (let i = 0; i < n; i++) {
+            const orb = createOrb(entry.tier);
+            if (orb) updated.orbs.push(orb);
+        }
+    } else if (entry.type === 'item') {
+        updated.dungeonItems = [...(updated.dungeonItems || [])];
+        for (let i = 0; i < n; i++) {
+            updated.dungeonItems.push({
+                id: entry.itemId,
+                name: entry.label,
+                rarity: entry.rarity || null,
+                obtainedAt: Date.now()
+            });
+        }
+    }
+
+    if (fromLocalStorage) {
+        localStorage.setItem("player", JSON.stringify(updated));
+        console.log(`[Debug] ${entry.label} を ${n}個 付与しました。`);
+        if (typeof updateStatus === "function") updateStatus(updated);
+        if (typeof renderOriginalWeapons === "function") renderOriginalWeapons();
+        if (typeof renderInventory === "function") renderInventory();
+        if (typeof renderOrbInventory === "function") renderOrbInventory();
+    }
+
+    return updated;
+}
+
+// ============================================
+// 素材・限界突破システム
+// ============================================
+
+function getMaterialCount(player, materialId) {
+    return (player && player.materials && player.materials[materialId]) || 0;
+}
+
+function addMaterialToPlayer(player, materialId, amount = 1) {
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = (materials[materialId] || 0) + amount;
+    return { ...player, materials };
+}
+
+/**
+ * プレイヤーが作成したオリジナル武器が限界突破可能か判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakOriginalWeapon(weapon) {
+    // ボス武器ではなく、純粋なオリジナル武器であること
+    if (!weapon || !weapon.isOriginal || weapon.sourceBossId) {
+        return false;
+    }
+    const level = weapon.originalLimitBreakLevel || 0;
+    const max = weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK;
+    return level < max;
+}
+
+/**
+ * Tier4オーブを1つ消費して、オリジナル武器の上限倍率を伸ばす。
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakOriginalWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) {
+        return { ok: false, message: "武器を所持していません" };
+    }
+    if (!canLimitBreakOriginalWeapon(weapon)) {
+        return { ok: false, message: "この武器は限界突破できません" };
+    }
+
+    // Tier4オーブを探す
+    const tier4OrbIndex = (player.orbs || []).findIndex(orb => orb.tier === ORIGINAL_WEAPON_LIMIT_BREAK_COST_ORB_TIER);
+    if (tier4OrbIndex === -1) {
+        return { ok: false, message: "限界突破に必要なTier4オーブを所持していません" };
+    }
+
+    // オーブを消費
+    const orbs = [...player.orbs];
+    orbs.splice(tier4OrbIndex, 1);
+
+    // 武器を更新
+    const updatedWeapon = {
+        ...weapon,
+        originalLimitBreakLevel: (weapon.originalLimitBreakLevel || 0) + 1,
+        maxMultiplier: (getWeaponMaxMultiplier(weapon) || ORIGINAL_WEAPON_MAX_MULTIPLIER) + ORIGINAL_WEAPON_LIMIT_BREAK_INCREMENT,
+        maxOriginalLimitBreak: weapon.maxOriginalLimitBreak != null ? weapon.maxOriginalLimitBreak : ORIGINAL_WEAPON_MAX_LIMIT_BREAK
+    };
+
+    // プレイヤーの武器リストを更新
+    const weapons = player.weapons.map(w => (w.id === weaponId ? updatedWeapon : w));
+
+    // プレイヤーオブジェクトを更新
+    let updatedPlayer = { ...player, weapons, orbs };
+
+    // 装備中の武器も更新
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
+}
+
+/**
+ * ボス武器が限界突破可能か（上限回数に達していないか）を判定する。
+ * @param {object} weapon
+ * @returns {boolean}
+ */
+function canLimitBreakWeapon(weapon) {
+    if (!weapon || !weapon.sourceBossId) return false;
+    const level = weapon.limitBreakLevel || 0;
+    const max = weapon.maxLimitBreak != null ? weapon.maxLimitBreak : 4;
+    return level < max;
+}
+
+/**
+ * 限界突破素材を1個消費して、対象武器の上限倍率を0.5伸ばす。
+ * （実際の倍率を上限まで伸ばすには、別途「強化」を行う必要がある）
+ * @param {object} player
+ * @param {string} weaponId
+ * @returns {{ok:boolean, message?:string, player?:object, weapon?:object}}
+ */
+function limitBreakWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (!weapon.sourceBossId) return { ok: false, message: "この武器は限界突破できません" };
+    if (!canLimitBreakWeapon(weapon)) return { ok: false, message: "既に限界突破の上限に達しています" };
+
+    const materialId = getBossLimitBreakMaterialId(weapon.sourceBossId);
+    const have = getMaterialCount(player, materialId);
+    if (have < 1) return { ok: false, message: "限界突破素材が足りません" };
+
+    const materials = { ...(player.materials || {}) };
+    materials[materialId] = have - 1;
+
+    let updatedWeapon = {
+        ...weapon,
+        limitBreakLevel: (weapon.limitBreakLevel || 0) + 1,
+        maxMultiplier: getWeaponMaxMultiplier(weapon) + BOSS_WEAPON_LIMIT_BREAK_INCREMENT
+    };
+
+    // ボス武器が「4回限界突破＋上限まで強化」を満たしたら、tier4固有能力を付与する
+    if (typeof checkAndGrantBossTier4Ability === "function") {
+        updatedWeapon = checkAndGrantBossTier4Ability(updatedWeapon);
+    }
+
+    const weapons = player.weapons.map(w => w.id === weaponId ? updatedWeapon : w);
+    let updatedPlayer = { ...player, weapons, materials };
+    if (updatedPlayer.equippedWeapon && updatedPlayer.equippedWeapon.id === weaponId) {
+        updatedPlayer.equippedWeapon = updatedWeapon;
+    }
+    return { ok: true, player: updatedPlayer, weapon: updatedWeapon };
+}
+
+function addWeaponToPlayer(player, weapon) {
+    if (!weapon) return player;
+    const weapons = player.weapons || [];
+    if (weapons.some(w => w.id === weapon.id)) return player;
+    return { ...player, weapons: [...weapons, weapon] };
+}
+
+function removeWeaponFromPlayer(player, weaponId) {
+    const weapons = (player.weapons || []).filter(w => w.id !== weaponId);
+    const equippedWeapon = player.equippedWeapon?.id === weaponId ? null : player.equippedWeapon;
+    return { ...player, weapons, equippedWeapon };
+}
+
+function discardWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    if (player.equippedWeapon?.id === weaponId) return { ok: false, message: "装備中の武器は捨てられません" };
+    
+    const updated = removeWeaponFromPlayer(player, weaponId);
+    return { ok: true, player: updated, weapon };
+}
+
+function buyWeapon(player, type, tier) {
+    const price = TIER_PRICES[tier];
+    if (!price) return { ok: false, message: "無効な武器です" };
+    const weapon = createWeapon(type, tier, false);
+    if (!weapon) return { ok: false, message: "武器が見つかりません" };
+    if (playerOwnsWeapon(player, weapon.id)) return { ok: false, message: "既に所持しています" };
+    const coins = player.coins || 0;
+    if (coins < price) return { ok: false, message: `コインが足りません（必要: ${price}、所持: ${coins}）` };
+    const updated = addWeaponToPlayer({ ...player, coins: coins - price }, weapon);
+    return { ok: true, player: updated, weapon };
+}
+
+function equipWeapon(player, weaponId) {
+    const weapon = (player.weapons || []).find(w => w.id === weaponId);
+    if (!weapon) return { ok: false, message: "武器を所持していません" };
+    
+    // 武器装備時にHPを調整
+    const baseStats = getStatsFromPlayer(player);
+    const newStats = applyWeaponStats(baseStats, weapon);
+    const hpRatio = player.hp / player.maxHp;
+    const newHp = Math.floor(newStats.maxHp * hpRatio);
+    
+    return { ok: true, player: { ...player, equippedWeapon: weapon, hp: newHp } };
+}
+
+function unequipWeapon(player) {
+    return { ...player, equippedWeapon: null };
+}
+
+function addCoins(player, amount) {
+    return { ...player, coins: (player.coins || 0) + amount };
+}
+
+function incrementWeaponWin(player) {
+    if (!player.equippedWeapon) {
+        console.log(`[Weapons] incrementWeaponWin: No equipped weapon - no count added`);
+        return player;
+    }
+    const type = player.equippedWeapon.type;
+    const weaponWins = { ...(player.weaponWins || {}) };
+    weaponWins[type] = (weaponWins[type] || 0) + 1;
+    console.log(`[Weapons] incrementWeaponWin: weaponName=${player.equippedWeapon.name}, type=${type}, newCount=${weaponWins[type]}`);
+    console.log(`[Weapons] All weaponWins:`, weaponWins);
+    return { ...player, weaponWins };
+}
+
+function getWeaponWinCount(player, type) {
+    return (player.weaponWins || {})[type] || 0;
+}
+
+function canClaimUniqueQuest(player, type) {
+    const typeConf = WEAPON_TYPES[type];
+    // テスト用: 3勝に設定（本番は500に戻す）
+    const requiredWins = TEST_UNIQUE_WINS;
+    return getWeaponWinCount(player, type) >= requiredWins;
+}
+
+function canClaimDebugWeapon(player, type) {
+    return getWeaponWinCount(player, type) >= 1;
+}
+
+function getWeaponDisplayName(weapon) {
+    if (!weapon) return "なし";
+    if (weapon.isOriginal) return weapon.name;
+    const tierLabel = weapon.isUnique ? "★ユニーク" : weapon.tier?.toUpperCase() || "";
+    return `${weapon.name} [${tierLabel}]`;
+}
+
+function getWeaponTypeLabel(type) {
+    return WEAPON_TYPES[type]?.name || LEGACY_WEAPON_TYPE_LABELS[type] || type;
+}
+
+// 必殺技名を取得
+function getWeaponUltimateName(weapon) {
+    if (!weapon) return "なし";
+    
+    // オリジナル武器の場合
+    if (weapon.isOriginal) {
+        return weapon.ultimateName || "カスタム必殺技";
+    }
+    
+    // 通常武器の場合
+    const catalog = WEAPON_CATALOG[weapon.type];
+    if (!catalog) {
+        console.warn("No catalog found for weapon type:", weapon.type);
+        return "なし";
+    }
+    
+    const tierKey = weapon.isUnique ? "unique" : weapon.tier;
+    const weaponInfo = catalog[tierKey];
+    
+    if (!weaponInfo) {
+        console.warn("No weapon info found for tierKey:", tierKey, "in type:", weapon.type);
+        return "なし";
+    }
+    
+    return weaponInfo.ultimate || "なし";
+}
+
+// 必殺技ゲージを初期化
+function initializeUltimateGauge() {
+    return {
+        current: 0,
+        max: ULTIMATE_GAUGE_MAX
+    };
+}
+
+// 必殺技ゲージを増加
+function increaseUltimateGauge(gauge, amount = ULTIMATE_GAUGE_PER_CORRECT) {
+    const newCurrent = Math.min(gauge.max, gauge.current + amount);
+    return {
+        ...gauge,
+        current: newCurrent
+    };
+}
+
+// 必殺技ゲージが最大かチェック
+function isUltimateReady(gauge) {
+    return gauge.current >= gauge.max;
+}
+
+// 必殺技ゲージを消費
+function consumeUltimateGauge(gauge) {
+    return {
+        ...gauge,
+        current: 0
+    };
+}
+
+// オリジナル武器の必殺技名を設定
+function setOriginalWeaponUltimateName(weapon, ultimateName) {
+    if (!weapon || !weapon.isOriginal) {
+        return { error: "オリジナル武器ではありません" };
+    }
+    
+    // 必殺技名のバリデーション
+    const validation = validateName(ultimateName);
+    if (!validation.valid) {
+        return { error: validation.reason };
+    }
+    
+    return {
+        ...weapon,
+        ultimateName: ultimateName || "カスタム必殺技"
+    };
+}
