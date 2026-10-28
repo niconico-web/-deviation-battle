@@ -395,7 +395,9 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                     <div id="svCombat"></div>
                     <div id="svPrompt"></div>
                     <div id="svLag">通信が不安定です…</div>
-                    <div class="sv-tr"><canvas id="svMini" width="130" height="130"></canvas><button type="button" id="svLeave">🚪 町へ戻る</button></div>
+                    <div id="svTerr"></div>
+                    <button type="button" id="svShopBtn">🛒 店を見る</button>
+                    <div class="sv-tr"><canvas id="svMini" width="130" height="130"></canvas><button type="button" id="svNation">🏰 国</button><button type="button" id="svLeave">🚪 町へ戻る</button></div>
                     <div id="svDead"><span>💀 倒された…</span><span><b>5</b> 秒後に復活（安全地帯）</span></div>
                     <div class="sv-msg" id="svMsg"></div>
                     <div class="sv-help">移動：WASD/矢印　攻撃：クリック / Space（マウスの向きに攻撃）　宝箱：E（押し続ける）　※ここは完全PvPです</div>
@@ -786,6 +788,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/market.js"></script>
     <script src="js/survival-world.js"></script>
     <script src="js/survival.js"></script>
+    <script src="js/nation-ui.js"></script>
     <script src="js/achievements.js"></script>
     <script src="js/pixel-data.js"></script>
     <script src="js/pixel.js"></script>
