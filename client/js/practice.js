@@ -59,7 +59,7 @@
     const BM = window.BOSS_MOVES || null;
     const STUN_SEC = (BM && BM.STUN_SECONDS) || 3.0;     // スタンの長さ（動けない・攻撃も回避もできない）
     const STUN_IMM = (BM && BM.STUN_IMMUNE) || 3.5;      // スタンから復帰したあとの耐性時間（連続スタン防止）
-    const PVP_STUN_MAX = 0.6;                            // 対人戦：プレイヤーへのスタンの長さの上限（秒）。ステージ（ボス戦）では STUN_SEC のまま
+    const PVP_STUN_MAX = 0.6;                            // 対人戦：プレイヤーへのスタンの長さの上限（秒）。ステージ（最終問題）では STUN_SEC のまま
     const PVP_STUN_IMM = 1.2;                            // 対人戦：スタンから復帰したあとの耐性時間（秒）
     let PW = stage.power || { hp: 1, dmg: 1, spd: 1 };  // 第二世界など、ステージごとの敵の強化倍率
 
@@ -185,7 +185,7 @@
     const myName = pdata.name || 'あなた';
 
     // ---------- キャンバス ----------
-    const canvas = document.getElementById('game');
+    const canvas = document.getElementById('practiceCanvas');
     const ctx = canvas.getContext('2d');
     let VW = 960, VH = 540, DPR = 1;
     function fit() {
@@ -3844,19 +3844,19 @@
         if (RUSH_ON && RS.st === 1) { const rl = Math.max(0, RS.limit - RS.t); el('timer').textContent = '⏱ ' + Math.floor(rl / 60) + ':' + String(Math.floor(rl % 60)).padStart(2, '0'); }
         if (CORR_ON && !run.bossSpawned) {
             let seen = 0; if (CF.seen) for (let i = 0; i < CF.seen.length; i++) seen += CF.seen[i];
-            const gt = CF.props.find(q => q.k === 'gate'), gOk = gt && CF.seen && CF.seen[gt.c]; el('prog').textContent = '🌀 地下' + CF.floor + '階　探索 ' + seen + '/' + (CF.cols * CF.rows) + '　脱出ゲート：' + (gOk ? '発見！' : '未発見'); el('progFill').style.width = (CF.seen ? seen / (CF.cols * CF.rows) * 100 : 0) + '%'; el('bossBar').style.display = 'none';
-        } else if (!run.bossSpawned) { el('prog').textContent = '討伐 ' + Math.min(run.kills, run.need) + ' / ' + run.need; el('progFill').style.width = (Math.min(1, run.kills / run.need) * 100) + '%'; el('bossBar').style.display = 'none'; }
+            const gt = CF.props.find(q => q.k === 'gate'), gOk = gt && CF.seen && CF.seen[gt.c]; el('prog').textContent = '🌀 地下' + CF.floor + '階　探索 ' + seen + '/' + (CF.cols * CF.rows) + '　脱出ゲート：' + (gOk ? '発見！' : '未発見'); el('progFill').style.width = (CF.seen ? seen / (CF.cols * CF.rows) * 100 : 0) + '%'; el('challengeBar').style.display = 'none';
+        } else if (!run.bossSpawned) { el('prog').textContent = '解答 ' + Math.min(run.kills, run.need) + ' / ' + run.need; el('progFill').style.width = (Math.min(1, run.kills / run.need) * 100) + '%'; el('challengeBar').style.display = 'none'; }
         else {
-            el('prog').textContent = 'ボス戦'; el('progFill').style.width = '100%';
+            el('prog').textContent = '最終問題'; el('progFill').style.width = '100%';
             if (RUSH_ON) { const bs0 = enemies.filter(x => x.boss && !x.echo); let hp0 = 0, mh0 = 0; bs0.forEach(x => { hp0 += Math.max(0, x.hp); mh0 += x.maxHp; }); el('prog').textContent = '🏆 ' + rushPd(Math.max(1, RS.ph)).label + '　' + DIFF.name; el('progFill').style.width = (mh0 ? hp0 / mh0 * 100 : 0) + '%'; }
-            else if (CORR_ON) el('prog').textContent = '👹 ボス部屋　地下' + CF.floor + '階';
+            else if (CORR_ON) el('prog').textContent = '👹 チャレンジ部屋　地下' + CF.floor + '階';
             const bs = enemies.filter(e => e.boss), b = bs.find(x => !x.echo) || bs[0];
             if (b) {
-                el('bossBar').style.display = 'block'; el('bossName').textContent = (b.def.name || stage.boss.name) + (SE ? '　弱点' + SE.ELEMS[SE.weakOf(b.def.name).weak].icon + ' 耐性' + SE.ELEMS[SE.weakOf(b.def.name).resist].icon : ''); el('bossFill').style.width = (clamp(b.hp / b.maxHp, 0, 1) * 100) + '%';
+                el('challengeBar').style.display = 'block'; el('challengeName').textContent = (b.def.name || stage.boss.name) + (SE ? '　弱点' + SE.ELEMS[SE.weakOf(b.def.name).weak].icon + ' 耐性' + SE.ELEMS[SE.weakOf(b.def.name).resist].icon : ''); el('challengeFill').style.width = (clamp(b.hp / b.maxHp, 0, 1) * 100) + '%';
                 const ex = bs.filter(x => x !== b).map(x => '<div style="font-size:.7rem;margin-top:3px;text-shadow:0 0 4px #000">' + (x.echo ? '🚪 ' : '') + x.def.name + '<div style="height:5px;background:rgba(0,0,0,.6);border-radius:3px;overflow:hidden"><div style="height:100%;width:' + Math.round(clamp(x.hp / x.maxHp, 0, 1) * 100) + '%;background:' + (x.echo ? '#7fffd4' : '#ff5a8a') + '"></div></div></div>').join('');
-                let bx = document.getElementById('bossExtra'); if (!bx) { bx = document.createElement('div'); bx.id = 'bossExtra'; el('bossBar').appendChild(bx); }
+                let bx = document.getElementById('challengeExtra'); if (!bx) { bx = document.createElement('div'); bx.id = 'challengeExtra'; el('challengeBar').appendChild(bx); }
                 if (bx.dataset.sig !== ex) { bx.dataset.sig = ex; bx.innerHTML = ex; }
-            } else el('bossBar').style.display = 'none';
+            } else el('challengeBar').style.display = 'none';
             const gt = gmHudText(); let gh = document.getElementById('gmHud');
             if (!gh) { gh = document.createElement('div'); gh.id = 'gmHud'; gh.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 52px);left:50%;transform:translateX(-50%);z-index:6;pointer-events:none;font-weight:bold;font-size:.82rem;color:#fff;background:rgba(20,10,30,.72);border:1px solid #c090ff;border-radius:8px;padding:4px 10px;text-shadow:0 0 4px #000;white-space:nowrap;display:none'; document.body.appendChild(gh); }
             gh.style.display = gt ? 'block' : 'none'; if (gt && gh.textContent !== gt) gh.textContent = gt;

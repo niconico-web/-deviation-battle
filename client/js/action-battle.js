@@ -52,7 +52,7 @@ function action () {
     const num = (v, d) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Number(v) : d);
     const monsterData = enemyRaw.monsterData || {};
 
-    const canvas = document.getElementById('game');
+    const canvas = document.getElementById('practiceCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = W; canvas.height = H;
     // 描画の「見える範囲」。通常(full)は戦闘フィールド全体(960x540)をそのまま表示する。
