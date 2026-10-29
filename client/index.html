@@ -40,6 +40,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <link rel="stylesheet" href="css/ui-settings.css">
     <link rel="stylesheet" href="css/market.css">
     <link rel="stylesheet" href="css/survival.css">
+<link rel="stylesheet" href="css/study-manager.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -177,6 +178,15 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                     <div class="study-buttons">
                         <button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
                         <button type="button" id="studyStop" class="btn btn-danger" disabled>やめる（報酬なし）</button>
+                    </div>
+                </div>
+
+                <div class="setting-box">
+                    <h3>学習管理</h3>
+                    <p class="study-desc">学習履歴、統計、目標設定、カレンダーを確認できます。</p>
+                    <div class="study-buttons">
+                        <button type="button" id="studyStatsBtn" class="btn btn-primary">学習統計を表示</button>
+                        <button type="button" id="reviewListBtn" class="btn btn-info">復習リストを表示</button>
                     </div>
                 </div>
             </section>
@@ -771,6 +781,9 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/pvp.js"></script>
     <script src="js/worldboss.js"></script>
     <script src="js/study-enhanced.js"></script>
+    <script src="js/questions-expanded.js"></script>
+    <script src="js/review-system.js"></script>
+    <script src="js/study-manager.js"></script>
     <script src="js/script.js"></script>
     <script src="js/orientation.js"></script>
     <script src="js/season.js"></script>

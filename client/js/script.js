@@ -860,8 +860,21 @@ function applyStudyRewards(seconds) {
         lastLoginDate: player.lastLoginDate,
         loginStreak: player.loginStreak,
         questionLists: player.questionLists || [],
-        craftCurrency: craftGrant ? craftGrant.currency : player.craftCurrency
+        craftCurrency: craftGrant ? craftGrant.currency : player.craftCurrency,
+        reviewList: player.reviewList || [],
+        studyHistory: player.studyHistory || [],
+        studyGoals: player.studyGoals || [],
+        streak: player.streak || { current: 0, best: 0, lastStudyDate: null }
     });
+
+    // 学習管理システムに統合
+    if (typeof getStudyManager === 'function') {
+        const studyManager = getStudyManager();
+        if (studyManager) {
+            // 学習履歴を記録（問題数は仮に0、正解数も0とする）
+            studyManager.recordStudy(subject, seconds, 0, 0);
+        }
+    }
 
     // オーブを追加
     if (droppedOrb) {
@@ -1803,6 +1816,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (studyFocusSelect) {
             studyFocusSelect.addEventListener('change', updateStatGrowthInfo);
             updateStatGrowthInfo(); // 初期表示
+        }
+
+        // 学習管理ボタン
+        const studyStatsBtn = document.getElementById("studyStatsBtn");
+        if (studyStatsBtn) {
+            studyStatsBtn.addEventListener('click', () => {
+                if (typeof showStudyStatsUI === 'function') {
+                    showStudyStatsUI();
+                }
+            });
+        }
+
+        const reviewListBtn = document.getElementById("reviewListBtn");
+        if (reviewListBtn) {
+            reviewListBtn.addEventListener('click', () => {
+                if (typeof showReviewUI === 'function') {
+                    showReviewUI();
+                }
+            });
         }
 
         // アプリが完全終了→再起動された直後(=フレッシュな読み込み)でも
