@@ -749,67 +749,103 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="js/i18n.js"></script>
-    <script src="js/icons.js"></script>
-    <script src="js/avatar.js"></script>
-    <script src="js/stats.js"></script>
-    <script src="js/materials.js"></script>
-    <script src="js/weapons.js"></script>
-    <script src="js/orbWorkshop.js"></script>
-    <script src="js/skillTree.js"></script>
-    <script src="js/mission.js"></script>
-    <script src="js/loginBonus.js"></script>
-    <script src="js/shop.js"></script>
-    <script src="js/boss.js"></script>
-    <script src="js/party.js"></script>
-    <script src="js/social.js"></script>
-    <script src="js/ranking.js"></script>
-    <script src="js/monster-stats.js"></script>
-    <script src="js/monsters.js"></script>
-    <script src="js/online.js"></script>
-    <script src="js/summons.js"></script>
-    <script src="js/help.js"></script>
-    <script src="js/dungeon.js"></script>
-    <script src="js/dungeons.js"></script>
-    <script src="js/tutorial-topics.js"></script>
-    <script src="js/questionLists.js"></script>
-    <script src="js/share.js"></script>
-    <script src="js/ui-settings.js"></script>
-    <script src="js/joystick.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/quests.js"></script>
-    <script src="js/pvp.js"></script>
-    <script src="js/worldboss.js"></script>
-    <script src="js/study-enhanced.js"></script>
-    <script src="js/script.js"></script>
-    <script src="js/questions-expanded.js"></script>
-    <script src="js/review-system.js"></script>
-    <script src="js/study-manager.js"></script>
-    <script src="js/orientation.js"></script>
-    <script src="js/season.js"></script>
-    <script src="js/hw-weapons.js"></script>
-    <script src="js/pvp-event.js"></script>
-    <script src="js/debug.js"></script>
+    <script src="js/i18n.js" defer></script>
+    <script src="js/icons.js" defer></script>
+    <script src="js/avatar.js" defer></script>
+    <script src="js/stats.js" defer></script>
+    <script src="js/materials.js" defer></script>
+    <script src="js/weapons.js" defer></script>
+    <script src="js/orbWorkshop.js" defer></script>
+    <script src="js/skillTree.js" defer></script>
+    <script src="js/mission.js" defer></script>
+    <script src="js/loginBonus.js" defer></script>
+    <script src="js/shop.js" defer></script>
+    <script src="js/boss.js" defer></script>
+    <script src="js/party.js" defer></script>
+    <script src="js/social.js" defer></script>
+    <script src="js/ranking.js" defer></script>
+    <script src="js/monster-stats.js" defer></script>
+    <script src="js/monsters.js" defer></script>
+    <script src="js/online.js" defer></script>
+    <script src="js/summons.js" defer></script>
+    <script src="js/help.js" defer></script>
+    <script src="js/dungeon.js" defer></script>
+    <script src="js/dungeons.js" defer></script>
+    <script src="js/tutorial-topics.js" defer></script>
+    <script src="js/questionLists.js" defer></script>
+    <script src="js/share.js" defer></script>
+    <script src="js/ui-settings.js" defer></script>
+    <script src="js/joystick.js" defer></script>
+    <script src="js/chat.js" defer></script>
+    <script src="js/quests.js" defer></script>
+    <script src="js/pvp.js" defer></script>
+    <script src="js/worldboss.js" defer></script>
+    <script src="js/study-enhanced.js" defer></script>
+    <script src="js/script.js" defer></script>
+    <script src="js/orientation.js" defer></script>
+
+    <!-- 勉強関連は動的読み込み -->
+    <script>
+        function loadStudyScripts() {
+            if (!window.questionsExpandedLoaded) {
+                const script = document.createElement('script');
+                script.src = 'js/questions-expanded.js';
+                script.onload = () => { window.questionsExpandedLoaded = true; };
+                document.head.appendChild(script);
+            }
+            if (!window.reviewSystemLoaded) {
+                const script = document.createElement('script');
+                script.src = 'js/review-system.js';
+                script.onload = () => { window.reviewSystemLoaded = true; };
+                document.head.appendChild(script);
+            }
+            if (!window.studyManagerLoaded) {
+                const script = document.createElement('script');
+                script.src = 'js/study-manager.js';
+                script.onload = () => { window.studyManagerLoaded = true; };
+                document.head.appendChild(script);
+            }
+        }
+
+        // 勉強セクションが開かれたときに読み込む
+        document.addEventListener('DOMContentLoaded', () => {
+            const studySection = document.getElementById('section-study');
+            if (studySection) {
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        if (mutation.target.style.display === 'block' || mutation.target.classList.contains('active')) {
+                            loadStudyScripts();
+                        }
+                    });
+                });
+                observer.observe(studySection, { attributes: true, attributeFilter: ['style', 'class'] });
+            }
+        });
+    </script>
+    <script src="js/season.js" defer></script>
+    <script src="js/hw-weapons.js" defer></script>
+    <script src="js/pvp-event.js" defer></script>
+    <script src="js/debug.js" defer></script>
 
 
 
 
 
-    <script src="js/elements.js"></script>
-    <script src="js/armor.js"></script>
-    <script src="js/accessories.js"></script>
-    <script src="js/market.js"></script>
-    <script src="js/survival-world.js"></script>
-    <script src="js/survival.js"></script>
-    <script src="js/nation-ui.js"></script>
-    <script src="js/achievements.js"></script>
-    <script src="js/pixel-data.js"></script>
-    <script src="js/pixel.js"></script>
-    <script src="js/pixel-extra.js"></script>
-    <script src="js/stage-data.js"></script>
-    <script src="js/stage-lobby.js"></script>
-    <script src="js/beginner.js"></script>
-    <script src="js/world.js"></script>
+    <script src="js/elements.js" defer></script>
+    <script src="js/armor.js" defer></script>
+    <script src="js/accessories.js" defer></script>
+    <script src="js/market.js" defer></script>
+    <script src="js/survival-world.js" defer></script>
+    <script src="js/survival.js" defer></script>
+    <script src="js/nation-ui.js" defer></script>
+    <script src="js/achievements.js" defer></script>
+    <script src="js/pixel-data.js" defer></script>
+    <script src="js/pixel.js" defer></script>
+    <script src="js/pixel-extra.js" defer></script>
+    <script src="js/stage-data.js" defer></script>
+    <script src="js/stage-lobby.js" defer></script>
+    <script src="js/beginner.js" defer></script>
+    <script src="js/world.js" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
