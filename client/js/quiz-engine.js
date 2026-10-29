@@ -2249,6 +2249,26 @@ function handleATBAnswer(selectedOption) {
     const isCorrect = currentQuestion && selectedOption.trim() === currentQuestion.answer;
     const answerTime = Date.now() - questionStartTime;
     const correctAnswerText = currentQuestion ? currentQuestion.answer : null;
+
+    // 復習システムに統合
+    if (typeof getReviewSystem === 'function' && currentQuestion) {
+        const reviewSystem = getReviewSystem();
+        if (reviewSystem && !isCorrect) {
+            // 間違えた問題を復習リストに追加
+            reviewSystem.addWrongQuestion({
+                id: currentQuestion.id || 'custom_' + Date.now(),
+                question: currentQuestion.question,
+                answer: currentQuestion.answer,
+                subject: currentQuestion.subject || 'unknown',
+                level: currentQuestion.level || 'unknown',
+                grade: currentQuestion.grade || 'unknown',
+                difficulty: currentQuestion.difficulty || 'basic',
+                tags: currentQuestion.tags || [],
+                explanation: currentQuestion.explanation || ''
+            });
+        }
+    }
+
     currentQuestion = null;
     atbPlayerActionPending = false;
 
