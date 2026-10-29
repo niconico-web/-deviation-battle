@@ -8,7 +8,7 @@ const urlsToCache = [
   '/result.html',
   '/help.html',
   '/action-battle.html',
-  '/stage.html',
+  '/lesson.html',
   '/js/hw-weapons.js',
   '/js/market.js',
   '/js/survival.js',

@@ -257,7 +257,7 @@
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
-            location.href = 'stage.html';
+            location.href = 'lesson.html';
         }
         renderList(); renderDetail(); refreshRooms();
     }
@@ -272,7 +272,7 @@
     function launchPvp(mode, roomId, stageId) {
         if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: stageId || 'pvp_arena', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
-        location.href = 'stage.html';
+        location.href = 'lesson.html';
     }
     function openPvpArena() {
         bmEvent('pvp');

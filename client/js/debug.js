@@ -15,7 +15,7 @@
 //    SBDebug.mythics()                 神話の武器の一覧（id・名前・ボスの技）
 //    SBDebug.corrBoss(5)               無限回廊のボス（1〜10）に、いきなり挑む（SBDebug.corrBosses() で一覧）
 //    SBDebug.corrBoss(10, { god: true, hp: 0.1, floor: 60 })   無敵・ボスHP10%・地下60階の強さで
-//  ［URL］  index.html?debug=corrboss&tier=5&floor=20   index.html?debug=keeper   index.html?debug=keeper2&god=1&hp=0.1   stage.html?debug=olympus
+//  ［URL］  index.html?debug=corrboss&tier=5&floor=20   index.html?debug=keeper   index.html?debug=keeper2&god=1&hp=0.1   lesson.html?debug=olympus
 //  オプション：god(無敵) / energy(エネルギー無限。既定はON) / hp(ボスHPの倍率) / cores(核の数 0〜6) / diff(難易度 0〜2)
 // ============================================================
 (function () {
@@ -27,7 +27,7 @@
         const st = typeof window.getStageById === 'function' ? window.getStageById(stageId) : null;
         if (typeof window.getStageById === 'function' && !st) { console.warn('[SBDebug] ステージが見つかりません:', stageId, '→ SBDebug.list() でIDを確認してください'); return false; }
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: stageId, mode: 'solo', roomId: null, diff: opts.diff | 0, debug: opts, at: Date.now() })); } catch (e) { return false; }
-        if (!/stage\.html$/.test(location.pathname)) location.href = 'stage.html'; else location.reload();
+        if (!/lesson\.html$/.test(location.pathname)) location.href = 'lesson.html'; else location.reload();
         return true;
     }
     const api = {
@@ -70,7 +70,7 @@
             if (q.get('diff') != null) o.diff = Math.max(0, Math.min(2, parseInt(q.get('diff'), 10) || 0));
             const opts = Object.assign({ god: false, energy: true, hp: 1, cores: 6, diff: 0 }, o);
             localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: id, mode: 'solo', roomId: null, diff: opts.diff, debug: opts, at: Date.now() }));
-            if (!/stage\.html$/.test(location.pathname)) location.replace('stage.html');   // stage.html の場合は、そのまま続けて起動する
+            if (!/lesson\.html$/.test(location.pathname)) location.replace('lesson.html');   // lesson.html の場合は、そのまま続けて起動する
         }
     } catch (e) { /* URL が読めなければ何もしない */ }
 })();
