@@ -34,9 +34,12 @@ const CONFIG = {
 //  武器・防具・アクセサリーは同じ表（作成コストの半額が目安：ノーマル100→50 … レジェンド100000→50000）
 const EQUIP_MIN = { normal: 50, magic: 500, rare: 2500, epic: 12500, legendary: 50000 };
 const ORB_MIN = { tier1: 30, tier2: 200, tier3: 1000, tier4: 6000, tier5: 40000 };
-const KINDS = ["weapon", "armor", "acc", "orb"];
+const KINDS = ["weapon", "armor", "acc", "orb", "material"];
+const MAT_MAX_COUNT = 999;               // 素材は同じ種類をまとめて出せる（個数つき）
+const MAT_MIN_EACH = 5;                  // 素材1個あたりの最低価格
 
 function minPriceOfItem(kind, data) {
+    if (kind === "material") return MAT_MIN_EACH * (data.count || 1);
     if (kind === "orb") return ORB_MIN[data.tier] || 0;
     return EQUIP_MIN[data.rarity] || 0;
 }
@@ -71,6 +74,13 @@ function cleanItem(raw, allowMythic) {
     if (!json || json.length > CONFIG.MAX_ITEM_BYTES || json.indexOf("__proto__") !== -1) return null;
     const data = JSON.parse(json);
     if (typeof data.id !== "string" || !data.id || data.id.length > 80) return null;
+    if (raw.kind === "material") {
+        // 素材：{ id: 出品ごとの一意ID, mat: 素材ID, count: 個数 }。mat は英数字と _ だけ
+        if (typeof data.mat !== "string" || !/^[a-z0-9_]{2,40}$/.test(data.mat)) return null;
+        data.count = Math.floor(Number(data.count));
+        if (!(data.count >= 1) || data.count > MAT_MAX_COUNT) return null;
+        return { kind: "material", data: { id: data.id, mat: data.mat, count: data.count, name: String(data.name || data.mat).replace(/[<>&"]/g, "").slice(0, 20) }, min: minPriceOfItem("material", data) };
+    }
     const mythic = data.rarity === "mythic" || !!data.mythicId;
     if (mythic) { if (!allowMythic || raw.kind !== "weapon") return null; }       // 神話は市場には出せない（サバイバルの預かりだけ、許可して通す）
     else if (data.locked) return null;                                           // ロック中（実績の報酬など）は出せない
@@ -86,7 +96,7 @@ function escrowedIds() {
 
 function itemName(it) {
     const d = it.data;
-    return String(d.name || d.baseName || (it.kind === "orb" ? ("オーブ(" + (d.tier || "") + ")") : "アイテム")).slice(0, 30);
+    return String(it.kind === "material" ? (d.name || d.mat) + "×" + d.count : (d.name || d.baseName) || (it.kind === "orb" ? ("オーブ(" + (d.tier || "") + ")") : "アイテム")).slice(0, 30);
 }
 
 function pushMail(pid, mail) {
@@ -297,7 +307,7 @@ function mailDone(m) {
 }
 
 function info() {
-    return { feeRate: CONFIG.FEE_RATE, maxItems: CONFIG.MAX_ITEMS_PER_LISTING, maxPrice: CONFIG.MAX_PRICE, equipMin: EQUIP_MIN, orbMin: ORB_MIN, maxActive: CONFIG.MAX_ACTIVE_PER_SELLER };
+    return { feeRate: CONFIG.FEE_RATE, maxItems: CONFIG.MAX_ITEMS_PER_LISTING, maxPrice: CONFIG.MAX_PRICE, equipMin: EQUIP_MIN, orbMin: ORB_MIN, matMinEach: MAT_MIN_EACH, matMax: MAT_MAX_COUNT, maxActive: CONFIG.MAX_ACTIVE_PER_SELLER };
 }
 
 // ---- サバイバルエリアなど、他の機能が「預かり・返却」に使う窓口 ----

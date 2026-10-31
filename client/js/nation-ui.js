@@ -13,14 +13,14 @@
         no_coins: (r) => 'コインが足りません' + (r.need ? '（必要 ' + fmt(r.need) + '）' : ''), no_treasury: (r) => '国庫が足りません' + (r.need ? '（必要 ' + fmt(r.need) + '）' : ''),
         bad_name: () => '国名は2〜12文字で入力してください（使えない言葉があります）', name_taken: () => 'その国名はすでに使われています', no_land: () => 'もう空いている土地がありません', dead: () => '倒れている間は移動できません', travel_cd: (r) => 'あと ' + r.sec + ' 秒待ってください', in_combat: () => '戦闘中は移動できません', need_safe_zone: () => '安全地帯（地図の中心）にいるときだけ使えます', need_friendly_land: () => '自国・同盟国の領地にいるときだけ使えます', bad_type: () => '不正な操作です',
         already_member: () => 'すでに国に所属しています', closed: () => 'この国は国民を受け付けていません', not_ruler: () => '国王だけができる操作です', no_nation: () => '国に所属していません',
-        ruler_must_transfer: () => '国王は、先に他の国民へ王位を譲ってください（1人だけなら解散できます）', not_my_land: () => '自分の国の領地の中でだけ建てられます', too_close_castle: () => '城に近すぎます',
+        ruler_must_transfer: () => '国王は、先に他の国民へ王位を譲ってください（1人だけなら解散できます）', base_nation_only: () => '拠点は、自分の国の領地の中にだけ建てられます', not_my_land: () => '他の国の領地には建てられません。自分の国の領地か、どの国にも属さない土地に建てます', reserved_land: () => '建国候補地の周り（将来、国の領地になる場所）には建てられません。もっと外の、何もない土地へ', too_close_castle: () => '城に近すぎます',
         plot_limit: (r) => '1人が建てられるのは ' + r.max + ' か所までです', too_near: () => '他の建物に近すぎます', blocked: () => '障害物があって建てられません（空いた場所に移動してください）',
         protected: () => '建国直後の国には宣戦布告できません（3時間の保護期間）', allied: () => '同盟国には宣戦布告できません。先に同盟を破棄してください', already: () => 'すでに申し込み済み／成立済みです',
         at_war: () => '戦争中の国とは結べません', not_at_war: () => '戦争中ではありません', max: () => 'これ以上は雇えません', too_far: () => '店から遠すぎます。近づいてください', gone: () => '売り切れました',
         own: () => '自分の店の商品は買えません', nothing: () => '出せる商品がありませんでした（ロック中・神話・すでに別の場所に出品中など）', forbidden: () => '権限がありません', not_found: () => '見つかりません',
-        price_changed: (r) => '値段が変わりました（いまは ' + fmt(r.price) + ' コイン）。もう一度確認してください', bad_price: () => '値段を正しく入力してください（1コイン以上）', rate_limit: () => '操作が速すぎます。少し待ってください', not_in_area: () => 'サバイバルエリアに入っているときだけ使えます', offline: () => 'サーバーに接続できません', timeout: () => '通信がタイムアウトしました', server_error: () => 'サーバーでエラーが起きました'
+        price_changed: (r) => '値段が変わりました（いまは ' + fmt(r.price) + ' コイン）。もう一度確認してください', bad_price: () => '値段を正しく入力してください（1コイン以上）', closed_game: () => 'この遊びは今やっていません', bad_bet: (r) => '賭け金は ' + fmt(r.min) + '〜' + fmt(r.max) + ' コインです', bank_short: () => '店の元手が足りないため、受けられません', not_wanted: () => 'いまは扱っていません', bad_count: (r) => '個数が多すぎます（最大 ' + r.max + '）', bad_amount: () => '金額を正しく入力してください', rate_limit: () => '操作が速すぎます。少し待ってください', not_in_area: () => 'サバイバルエリアに入っているときだけ使えます', offline: () => 'サーバーに接続できません', timeout: () => '通信がタイムアウトしました', server_error: () => 'サーバーでエラーが起きました'
     };
-    let S = null, tab = '', shop = null, busy = false, mkInfo = null;
+    let S = null, tab = '', shop = null, plotV = null, busy = false, mkInfo = null;
 
     const sock = () => window.socket;
     const player = () => { try { return typeof getPlayerData === 'function' ? getPlayerData() : null; } catch (e) { return null; } };
@@ -45,25 +45,26 @@
     // ---------- 開閉 ----------
     function open() {
         const w = $('nbOverlay'); if (!w) return;
-        w.style.display = 'flex'; shop = null; refresh();
+        w.style.display = 'flex'; shop = null; plotV = null; refresh();
     }
-    function close() { const w = $('nbOverlay'); if (w) w.style.display = 'none'; shop = null; }
+    function close() { const w = $('nbOverlay'); if (w) w.style.display = 'none'; shop = null; plotV = null; }
     async function refresh() {
         const r = await call('nation:state', {});
         if (!r.ok) { $('nbBody').innerHTML = '<div class="nb-empty">' + esc(reasonText(r)) + '</div>'; return; }
         S = r;
-        if (!tab || (!S.mine && ['found', 'join'].indexOf(tab) < 0) || (S.mine && ['found', 'join'].indexOf(tab) >= 0)) tab = S.mine ? 'home' : 'found';
+        if (!tab || (!S.mine && ['found', 'join', 'build', 'arts'].indexOf(tab) < 0) || (S.mine && ['found', 'join'].indexOf(tab) >= 0)) tab = S.mine ? 'home' : 'found';
         if (window.SBSurvival && window.SBSurvival.refreshView) window.SBSurvival.refreshView();
         render();
     }
     function render() {
         if (!S) return;
+        if (plotV) { renderPlot(); return; }
         if (shop) { renderShop(); return; }
-        const tabs = S.mine ? [['home', '🏰 国'], ['rule', '👑 国政'], ['diplo', '🤝 外交'], ['guard', '🛡 護衛'], ['build', '🏠 建築']] : [['found', '🏰 建国'], ['join', '👥 入国']];
+        const tabs = (S.mine ? [['home', '🏰 国'], ['rule', '👑 国政'], ['diplo', '🤝 外交'], ['guard', '🛡 護衛'], ['build', '🏠 建築']] : [['found', '🏰 建国'], ['join', '👥 入国'], ['build', '🏪 店を開く']]).concat([['arts', '🌟 神器']]);
         $('nbTabs').innerHTML = tabs.map((t) => '<button type="button" class="nb-tab' + (tab === t[0] ? ' on' : '') + '" data-t="' + t[0] + '">' + t[1] + '</button>').join('');
         $('nbTabs').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.t; note(''); render(); }));
         const body = $('nbBody'); body.scrollTop = 0;
-        ({ found: renderFound, join: renderJoin, home: renderHome, rule: renderRule, diplo: renderDiplo, guard: renderGuard, build: renderBuild }[tab] || renderHome)(body);
+        ({ found: renderFound, join: renderJoin, home: renderHome, rule: renderRule, diplo: renderDiplo, guard: renderGuard, build: renderBuild, arts: renderArts }[tab] || renderHome)(body);
     }
     const guardBusy = async (fn) => { if (busy) return; busy = true; try { await fn(); } finally { busy = false; } };
 
@@ -71,7 +72,7 @@
     function renderFound(el) {
         const cost = S.cfg.FOUND_COST;
         el.innerHTML = '<div class="nb-card"><h3>🏰 国を建てる</h3>' +
-            '<p>建国費用は <b>' + fmt(cost) + ' コイン</b>。領地（約11〜13区画）は自動で割り振られ、その中心に城と城下町ができます。<br>建国すると、税率・同盟・貿易・戦争・衛兵の雇用などを自分で決められます。</p>' +
+            '<p>建国費用は <b>' + fmt(cost) + ' コイン</b>。領地（約60区画ぶん。広大な城と城下町つき）は自動で割り振られ、その中心に城と城下町ができます。<br>建国すると、税率・同盟・貿易・戦争・衛兵の雇用などを自分で決められます。</p>' +
             '<p>空いている土地：<b>' + S.freeSites + '</b> / ' + S.totalSites + '　／　所持コイン：<b>' + fmt(coins()) + '</b></p>' +
             '<label>国名（2〜12文字）<input id="nbName" maxlength="12" placeholder="例：ミライ王国"></label>' +
             '<div class="nb-colors">' + PALETTE.map((c, i) => '<button type="button" class="nb-col' + (i === 0 ? ' on' : '') + '" data-c="' + c + '" style="background:' + c + '"></button>').join('') + '</div>' +
@@ -191,23 +192,38 @@
 
     // ---------- 建築（拠点・店） ----------
     function renderBuild(el) {
-        const m = S.mine, mine = m.plots.filter((p) => p.owner === S.pid);
+        const m = S.mine, tax = m ? m.shopTax : 0, mine = S.myPlots || [], K = S.cfg.PLOT_KINDS, C = S.cfg.PLOT_COSTS;
+        const desc = { base: '倒されたとき、ここで復活できる（国民のみ）', shop: '手持ちの装備・素材を並べて売る（値段・割引は自由）', casino: 'コイントス・サイコロ・スロット。元手を入れて開く（店側が少し有利）', buyback: '素材を買い取る。買い取る素材と値段を決める', inn: '泊まると HP・精神力が全回復。宿泊代は自由', tavern: '一時的に強くなる酒を出す。値段は自由' };
+        const kinds = Object.keys(K).filter((k) => m || k !== 'base');
         el.innerHTML = '<div class="nb-card"><h3>🏗 ここに建てる</h3>' +
-            '<p>自分の国の領地の中で、建てたい場所に立って押します。<b>' + fmt(S.cfg.PLOT_COST) + ' コイン</b>（国庫に入ります）。1人 ' + S.cfg.MAX_PLOTS_PER_PLAYER + ' か所まで。</p>' +
-            '<ul class="nb-ul"><li>🏠 拠点：倒されたとき、ここで復活できる</li><li>🏪 店：自分の装備を並べて、他のプレイヤーに売れる（売上は受け取り箱へ。営業税 ' + m.shopTax + '% が国庫へ）</li></ul>' +
+            '<p>' + (m ? '自分の国の領地の中、または <b>どの国にも属さない土地</b>（国の領地の外）に建てられます。国の領地の中なら、費用は国庫に入り、営業税 ' + tax + '% が売上から引かれます。' : '<b>国に所属していなくても</b>、どの国にも属さない土地（国の領地の外・建国候補地から離れた場所）に店を開けます。税金はかかりません。') + ' 1人 ' + S.cfg.MAX_PLOTS_PER_PLAYER + ' か所まで。</p>' +
             '<label>名前<input id="nbPName" maxlength="16" placeholder="任意"></label>' +
-            '<div class="nb-line"><button type="button" class="nb-btn" data-b="base">🏠 拠点を建てる</button><button type="button" class="nb-btn" data-b="shop">🏪 店を建てる</button></div></div>' +
-            '<div class="nb-card"><h3>🏘 自分の建物（' + mine.length + '）</h3>' + (mine.length ? mine.map((p) => '<div class="nb-line"><span>' + (p.kind === 'shop' ? '🏪' : '🏠') + ' ' + esc(p.name) + (p.kind === 'shop' ? '（商品 ' + p.stock + '）' : '') + '</span><span>' + (p.kind === 'shop' ? '<button type="button" class="nb-btn sm" data-shop="' + esc(p.id) + '">店を開く</button> ' : '') + '<button type="button" class="nb-btn sm danger" data-del="' + esc(p.id) + '">取り壊し</button></span></div>').join('') : '<div class="nb-empty">まだありません</div>') + '</div>';
+            kinds.map((k) => '<div class="nb-line"><span><b>' + K[k] + '</b><br><small>' + desc[k] + '</small></span><button type="button" class="nb-btn sm" data-b="' + k + '">' + fmt(C[k]) + ' で建てる</button></div>').join('') + '</div>' +
+            '<div class="nb-card"><h3>🏘 自分の建物（' + mine.length + '）</h3>' + (mine.length ? mine.map((p) => '<div class="nb-line"><span>' + esc(K[p.kind] || p.kind) + (p.free ? '（無所属）' : '') + '：' + esc(p.name) + (p.kind === 'shop' ? '（商品 ' + p.stock + '）' : '') + (p.bank != null && p.kind !== 'shop' && p.kind !== 'base' ? '（元手 ' + fmt(p.bank) + '）' : '') + '</span><span>' + (p.kind !== 'base' ? '<button type="button" class="nb-btn sm" data-plot="' + esc(p.id) + '">開く</button> ' : '') + '<button type="button" class="nb-btn sm danger" data-del="' + esc(p.id) + '">取り壊し</button></span></div>').join('') : '<div class="nb-empty">まだありません</div>') + '</div>';
         el.querySelectorAll('[data-b]').forEach((b) => b.addEventListener('click', () => guardBusy(async () => {
             const r = await call('nation:build', { kind: b.dataset.b, name: $('nbPName').value, coins: coins() });
             if (!r.ok) { note(reasonText(r), true); return; }
-            spend(r.cost); note('建てました！'); await refresh();
+            spend(r.cost); note('建てました！' + (r.free ? '（無所属の店）' : '')); await refresh();
         })));
-        el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => guardBusy(async () => { if (!window.confirm('取り壊します（返金はありません。店の在庫は受け取り箱に戻ります）。よろしいですか？')) return; const r = await call('nation:demolish', { id: b.dataset.del }); note(r.ok ? '取り壊しました' : reasonText(r), !r.ok); if (r.ok && window.SBMarket) window.SBMarket.claimMail(true).catch(() => {}); await refresh(); })));
-        el.querySelectorAll('[data-shop]').forEach((b) => b.addEventListener('click', () => openShop(b.dataset.shop)));
+        el.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => guardBusy(async () => { if (!window.confirm('取り壊します（返金はありません。在庫・元手は受け取り箱に戻ります）。よろしいですか？')) return; const r = await call('nation:demolish', { id: b.dataset.del }); note(r.ok ? '取り壊しました' : reasonText(r), !r.ok); if (r.ok && window.SBMarket) window.SBMarket.claimMail(true).catch(() => {}); await refresh(); })));
+        el.querySelectorAll('[data-plot]').forEach((b) => b.addEventListener('click', () => openPlot(b.dataset.plot)));
+    }
+    // ---------- 神器 ----------
+    function renderArts(el) {
+        const st = { shrine: '神殿に安置されている（守護者を倒すと手に入る）', held: '持ち主あり', dropped: '地面に落ちている！', vault: '国宝として奉納' };
+        el.innerHTML = '<div class="nb-card"><h3>🌟 神器（全7つ・世界に1つずつ）</h3><small>サバイバルエリアでだけ使える、とても強い武器です。持っていると R キーで撃てます。持ち主が倒されると落とし、ログアウトすると神殿へ戻ります。自分の国の城の近くで E を押すと「国宝」として奉納できます。国宝を持つ国は、保護期間が無視され、費用なしで宣戦布告されます——戦争のきっかけになります。</small></div>' +
+            (S.arts || []).map((a) => '<div class="nb-card"><b>' + a.icon + ' ' + esc(a.name) + '</b><br><small>' + esc(a.desc) + '（再使用 ' + a.cd + '秒）</small><br><span class="nb-tag' + (a.state === 'vault' ? ' trade' : a.state === 'held' ? ' war' : '') + '">' + st[a.state] + '</span> ' + (a.state === 'held' ? esc(a.holder) + (a.nid ? '（' + esc(nName(a.nid)) + '）' : '') : '') + (a.state === 'vault' ? esc(nName(a.nid)) : '') + '</div>').join('');
     }
 
     // ---------- 店 ----------
+    async function openPlot(id) {
+        const w = $('nbOverlay'); if (!w) return; w.style.display = 'flex';
+        const r = await call('nation:plotView', { id: id });
+        if (!r.ok) { note(reasonText(r), true); if (!S) { $('nbBody').innerHTML = '<div class="nb-empty">' + esc(reasonText(r)) + '</div>'; } return; }
+        if (!S) { const st = await call('nation:state', {}); if (st.ok) S = st; }
+        if (r.kind === 'shop') { plotV = null; return openShop(id); }
+        shop = null; plotV = r; renderPlot();
+    }
     async function openShop(id) {
         const w = $('nbOverlay'); if (!w) return;
         w.style.display = 'flex';
@@ -217,7 +233,7 @@
         shop = r; if (!S) { const st = await call('nation:state', {}); if (st.ok) S = st; }
         renderShop();
     }
-    const sugg = (kind, d) => { const m = ((kind === 'orb' ? (mkInfo || {}).orbMin : (mkInfo || {}).equipMin) || {})[kind === 'orb' ? d.tier : d.rarity] || 100; return Math.max(1, m * 2); };   // 値付けの目安（市場の最低価格の2倍）
+    const sugg = (kind, d) => { if (kind === 'material') return Math.max(5, 5 * (d.count || 1)) * 3; const m = ((kind === 'orb' ? (mkInfo || {}).orbMin : (mkInfo || {}).equipMin) || {})[kind === 'orb' ? d.tier : d.rarity] || 100; return Math.max(1, m * 2); };   // 値付けの目安（市場の最低価格の2倍）
     function itemRow(it, right) {
         const M = window.SBMarket; let name = '?', col = '#ccc', lines = [];
         try { name = M.nameOf(it.kind, it.data); col = M.rarColor(it.kind, it.data); lines = M.detailLines(it.kind, it.data); } catch (e) { /* 表示だけ */ }
@@ -226,7 +242,7 @@
     const effOf = (price, sale, shopSale) => Math.max(1, Math.floor(price * (100 - Math.max(sale || 0, shopSale || 0)) / 100));
     function renderShop() {
         const s = shop; $('nbTabs').innerHTML = '<button type="button" class="nb-tab on" id="nbBack">← 戻る</button>';
-        $('nbBack').addEventListener('click', () => { shop = null; if (S && S.mine) render(); else close(); });
+        $('nbBack').addEventListener('click', () => { shop = null; plotV = null; if (S) render(); else close(); });
         const body = $('nbBody'); body.scrollTop = 0;
         let h = '<div class="nb-card"><h3>🏪 ' + esc(s.name) + (s.sale ? ' <span class="nb-tag war">全品 ' + s.sale + '%OFF</span>' : '') + '</h3><small>店主：' + esc(s.owner) + '（' + esc(s.nation) + '）／ 営業税 ' + s.tax + '%　所持コイン：' + fmt(coins()) + '</small></div>';
         if (s.mine) {
@@ -242,7 +258,7 @@
             return itemRow(it, (off ? '<s class="nb-old">' + fmt(it.price) + '</s> <span class="nb-tag war">' + Math.round((1 - it.eff / it.price) * 100) + '%OFF</span><br>' : '') + '<b>' + fmt(it.eff) + '</b> 💰<br><button type="button" class="nb-btn sm" data-buy="' + esc(it.id) + '" data-p="' + it.eff + '">買う</button>');
         }).join('') : '<div class="nb-empty">商品はありません</div>') + '</div>';
         if (s.mine) {
-            let inv = []; try { const I = window.SBMarket.inventory(); inv = [].concat(I.weapon, I.armor, I.acc, I.orb); } catch (e) { /* 取得できない */ }
+            let inv = []; try { const I = window.SBMarket.inventory(); inv = [].concat(I.weapon, I.armor, I.acc, I.orb, I.material || []); } catch (e) { /* 取得できない */ }
             h += '<div class="nb-card"><h3>➕ 商品を並べる（自分の持ち物から）</h3><small>手持ちのアイテムを選んで、値段と割引を自由に決められます。装備中・ロック中・神話は並べられません。並べたアイテムは手元から店に移り、売れるまで引き上げられます。</small>' +
                 (inv.length ? inv.slice(0, 60).map((it, i) => itemRow(it, '<div class="nb-pr">定価 <input class="nb-mini" type="number" id="nbPr' + i + '" value="' + sugg(it.kind, it.data) + '" min="1"></div><div class="nb-pr">割引 <input class="nb-mini s" type="number" id="nbSl' + i + '" value="0" min="0" max="90"> %</div><button type="button" class="nb-btn sm" data-add="' + i + '">並べる</button>')).join('') : '<div class="nb-empty">並べられるアイテムがありません</div>') + '</div>';
             body.innerHTML = h;
@@ -256,7 +272,8 @@
                 note(r.ok ? '更新しました' : reasonText(r), !r.ok); await openShop(s.id);
             })));
             body.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => guardBusy(async () => {
-                const i = Number(b.dataset.add), it = inv[i], price = Math.floor(Number($('nbPr' + i).value)), sale = Math.floor(Number($('nbSl' + i).value) || 0);
+                const i = Number(b.dataset.add); let it = inv[i]; const price = Math.floor(Number($('nbPr' + i).value)), sale = Math.floor(Number($('nbSl' + i).value) || 0);
+                if (it.kind === 'material') { const v = window.prompt('何個並べますか？（持っている数：' + it.data.count + '）', String(it.data.count)), n = Math.floor(Number(v)); if (v == null) return; if (!(n >= 1) || n > it.data.count) { note('個数を正しく入力してください', true); return; } it = { kind: 'material', data: Object.assign({}, it.data, { id: 'mat_' + it.data.mat + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), count: n }) }; }
                 if (!(price >= 1)) { note('定価を入力してください', true); return; }
                 const r = await call('nation:shopStock', { id: s.id, items: [{ kind: it.kind, data: it.data, price: price, sale: sale }] });
                 if (!r.ok) { note(reasonText(r), true); return; }
@@ -274,6 +291,75 @@
         }
     }
 
+    // ---------- ギャンブル場・買取所・宿屋・酒場 ----------
+    const myMats = () => { try { const p = player() || {}; const m = (p.materials && !Array.isArray(p.materials)) ? p.materials : {}; return Object.keys(m).filter((k) => m[k] > 0).map((k) => ({ id: k, n: m[k] })); } catch (e) { return []; } };
+    const matName = (id) => { try { return (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[id] && MATERIAL_DATA[id].name) || id; } catch (e) { return id; } };
+    function renderPlot() {
+        const v = plotV, body = $('nbBody'); body.scrollTop = 0;
+        $('nbTabs').innerHTML = '<button type="button" class="nb-tab on" id="nbBack">← 戻る</button>';
+        $('nbBack').addEventListener('click', () => { plotV = null; if (S) render(); else close(); });
+        const K = (S && S.cfg.PLOT_KINDS) || {};
+        let h = '<div class="nb-card"><h3>' + esc(K[v.kind] || v.kind) + '：' + esc(v.name) + '</h3><small>店主：' + esc(v.owner) + '（' + esc(v.nation) + '）／ 営業税 ' + v.tax + '%　所持コイン：' + fmt(coins()) + '</small></div>';
+        const bankBox = () => (v.mine && v.bank != null) ? '<div class="nb-card"><h3>💰 元手：' + fmt(v.bank) + '</h3><small>' + (v.kind === 'casino' ? '勝った人への賞金はここから払われます。負けた人の賭け金はここに入ります。' : '素材を買い取る代金はここから払われます。') + '</small><div class="nb-line"><input id="nbBk" type="number" min="1" placeholder="コイン"><button type="button" class="nb-btn sm" id="nbBkIn">入れる</button><button type="button" class="nb-btn sm" id="nbBkOut">引き出す</button></div></div>' : '';
+        if (v.kind === 'casino') {
+            if (v.mine) {
+                h += bankBox() + '<div class="nb-card"><h3>⚙ 遊びの設定</h3>' + Object.keys(v.games).map((g) => '<div class="nb-line"><label class="nb-check"><input type="checkbox" id="nbG' + g + '"' + (v.games[g].on ? ' checked' : '') + '> ' + esc(v.names[g]) + '</label><span>最低 <input class="nb-mini" type="number" id="nbGm' + g + '" value="' + v.games[g].min + '"> 最高 <input class="nb-mini" type="number" id="nbGM' + g + '" value="' + v.games[g].max + '"></span></div>').join('') + '<div class="nb-line"><button type="button" class="nb-btn" id="nbCfg">💾 保存</button></div></div>';
+            } else {
+                h += '<div class="nb-card"><h3>🎰 遊ぶ（元手：' + fmt(v.bank) + '）</h3><small>賭けすぎに注意。結果はサーバーが決めます。</small><div id="nbRes" class="nb-res"></div>' + Object.keys(v.games).filter((g) => v.games[g].on).map((g) => '<div class="nb-card"><b>' + esc(v.names[g]) + '</b>　<small>賭け金 ' + fmt(v.games[g].min) + '〜' + fmt(v.games[g].max) + '</small>' +
+                    (g === 'coin' ? '<div class="nb-line"><span>表か裏か（当たれば2倍）</span><select id="nbPk' + g + '"><option value="heads">表</option><option value="tails">裏</option></select></div>' : g === 'dice' ? '<div class="nb-line"><span>出る目を当てる（当たれば5.7倍）</span><select id="nbPk' + g + '">' + [1, 2, 3, 4, 5, 6].map((i) => '<option>' + i + '</option>').join('') + '</select></div>' : '<div class="nb-line"><span>3つそろえば大当たり（最大25倍）</span></div>') +
+                    '<div class="nb-line"><input id="nbBet' + g + '" type="number" min="' + v.games[g].min + '" max="' + v.games[g].max + '" value="' + v.games[g].min + '"><button type="button" class="nb-btn" data-bet="' + g + '">賭ける</button></div></div>').join('') + '</div>';
+            }
+        } else if (v.kind === 'buyback') {
+            const offers = Object.keys(v.offers || {});
+            if (v.mine) {
+                const mine = myMats();
+                h += bankBox() + '<div class="nb-card"><h3>♻️ 買い取る素材</h3><small>素材ごとに、1個の買い取り値段と、最大で何個買うかを決めます。買い取った素材は受け取り箱に届きます。</small>' +
+                    (offers.length ? offers.map((m) => '<div class="nb-line"><span>' + esc(matName(m)) + '：1個 ' + fmt(v.offers[m].price) + '／残り ' + v.offers[m].max + ' 個</span><button type="button" class="nb-btn sm danger" data-rm="' + esc(m) + '">やめる</button></div>').join('') : '<div class="nb-empty">まだありません</div>') +
+                    '<h4>追加する</h4><div class="nb-line"><input id="nbOm" list="nbMl" placeholder="素材"><datalist id="nbMl">' + mine.map((m) => '<option value="' + esc(m.id) + '">' + esc(matName(m.id)) + '</option>').join('') + '</datalist><input class="nb-mini" id="nbOp" type="number" placeholder="1個の値段"><input class="nb-mini" id="nbOx" type="number" placeholder="最大個数"><button type="button" class="nb-btn sm" id="nbOadd">追加</button></div><small>素材の名前の代わりに、候補の素材ID（英数字）を入れます。</small></div>';
+            } else {
+                const mine = myMats(), have = {}; mine.forEach((m) => { have[m.id] = m.n; });
+                h += '<div class="nb-card"><h3>♻️ 素材を売る（店の元手：' + fmt(v.bank) + '）</h3>' + (offers.length ? offers.map((m) => '<div class="nb-line"><span>' + esc(matName(m)) + '：1個 ' + fmt(v.offers[m].price) + '（あと ' + v.offers[m].max + ' 個まで／持っている ' + (have[m] || 0) + '）</span><span><input class="nb-mini s" type="number" id="nbSc' + esc(m) + '" value="' + Math.min(have[m] || 0, v.offers[m].max) + '" min="1"><button type="button" class="nb-btn sm" data-sell="' + esc(m) + '"' + (have[m] ? '' : ' disabled') + '>売る</button></span></div>').join('') : '<div class="nb-empty">いま買い取っている素材はありません</div>') + '</div>';
+            }
+        } else if (v.kind === 'inn') {
+            h += v.mine ? '<div class="nb-card"><h3>🛏 宿泊代</h3><div class="nb-line"><input id="nbIp" type="number" min="0" value="' + v.price + '"><button type="button" class="nb-btn" id="nbIcfg">💾 保存</button></div><small>0にすると無料。売上は営業税を引いて受け取り箱へ。</small></div>' :
+                '<div class="nb-card"><h3>🛏 泊まる</h3><p>HP と精神力が全回復します（戦闘中は不可）。</p><button type="button" class="nb-btn big" id="nbRest">' + (v.price > 0 ? fmt(v.price) + ' コインで泊まる' : '無料で泊まる') + '</button></div>';
+        } else if (v.kind === 'tavern') {
+            const D = v.drinks;
+            h += v.mine ? '<div class="nb-card"><h3>🍶 メニューの値段</h3><small>0にすると出しません。</small>' + Object.keys(D).map((k) => '<div class="nb-line"><span>' + D[k].icon + ' ' + esc(D[k].name) + '（' + D[k].secs + '秒）</span><input class="nb-mini" type="number" id="nbTp' + k + '" value="' + v.prices[k] + '"></div>').join('') + '<div class="nb-line"><button type="button" class="nb-btn" id="nbTcfg">💾 保存</button></div></div>' :
+                '<div class="nb-card"><h3>🍶 飲む</h3>' + Object.keys(D).filter((k) => v.prices[k] > 0).map((k) => '<div class="nb-line"><span>' + D[k].icon + ' ' + esc(D[k].name) + '<br><small>' + ({ regen: 'HPがじわじわ回復', power: 'スキルの火力アップ', guard: '受けるダメージ軽減', speed: '移動が速くなる' }[k]) + '（' + D[k].secs + '秒）</small></span><button type="button" class="nb-btn sm" data-drink="' + k + '">' + fmt(v.prices[k]) + '</button></div>').join('') + '</div>';
+        }
+        if (v.mine) h += '<div class="nb-card"><label>名前<input id="nbPn" maxlength="16" value="' + esc(v.name) + '"></label><div class="nb-line"><button type="button" class="nb-btn sm" id="nbPnSave">名前を変える</button></div></div>';
+        body.innerHTML = h;
+        const refreshPlot = () => openPlot(v.id);
+        const act = (sel, fn) => body.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => guardBusy(async () => { await fn(b); })));
+        const one = (id, fn) => { const b = $(id); if (b) b.addEventListener('click', () => guardBusy(fn)); };
+        one('nbPnSave', async () => { const r = await call('nation:plotConfig', { id: v.id, name: $('nbPn').value }); note(r.ok ? '変えました' : reasonText(r), !r.ok); await refreshPlot(); });
+        one('nbBkIn', async () => { const a = Math.floor(Number($('nbBk').value)); const r = await call('nation:plotDeposit', { id: v.id, amount: a, coins: coins() }); if (!r.ok) { note(reasonText(r), true); return; } spend(r.cost); note('元手に入れました'); await refreshPlot(); });
+        one('nbBkOut', async () => { const a = Math.floor(Number($('nbBk').value)); const r = await call('nation:plotWithdraw', { id: v.id, amount: a }); if (!r.ok) { note(reasonText(r), true); return; } if (window.SBMarket) await window.SBMarket.claimMail(true); note('引き出しました（' + fmt(r.amount) + '）'); await refreshPlot(); });
+        one('nbCfg', async () => { const games = {}; Object.keys(v.games).forEach((g) => { games[g] = { on: $('nbG' + g).checked, min: Number($('nbGm' + g).value), max: Number($('nbGM' + g).value) }; }); const r = await call('nation:plotConfig', { id: v.id, games: games }); note(r.ok ? '保存しました' : reasonText(r), !r.ok); await refreshPlot(); });
+        act('[data-bet]', async (b) => {
+            const g = b.dataset.bet, pick = $('nbPk' + g) ? $('nbPk' + g).value : null, bet = Math.floor(Number($('nbBet' + g).value));
+            const r = await call('nation:casinoBet', { id: v.id, game: g, bet: bet, pick: pick, coins: coins() }); if (!r.ok) { note(reasonText(r), true); return; }
+            spend(-r.net);                                                  // 勝てば増え、負ければ減る
+            const faces = g === 'slot' ? r.result.reels.join(' ') : g === 'coin' ? (r.result.face === 'heads' ? '表' : '裏') : '目：' + r.result.face;
+            $('nbRes').innerHTML = '<b style="font-size:1.2rem">' + esc(faces) + '</b>　' + (r.net > 0 ? '<span style="color:#9fffb5">🎉 勝ち！ +' + fmt(r.net) + '</span>' : r.net === 0 ? '引き分け' : '<span style="color:#ff9a9a">負け -' + fmt(-r.net) + '</span>');
+            v.bank = r.bank; note('所持コイン：' + fmt(coins()));
+        });
+        one('nbOadd', async () => { const o = {}; Object.keys(v.offers || {}).forEach((k) => { o[k] = v.offers[k]; }); const m = $('nbOm').value.trim(); if (!m) { note('素材IDを入れてください', true); return; } o[m] = { price: Number($('nbOp').value), max: Number($('nbOx').value) }; const r = await call('nation:plotConfig', { id: v.id, offers: o }); note(r.ok ? '追加しました' : reasonText(r), !r.ok); await refreshPlot(); });
+        act('[data-rm]', async (b) => { const o = {}; Object.keys(v.offers || {}).forEach((k) => { if (k !== b.dataset.rm) o[k] = v.offers[k]; }); const r = await call('nation:plotConfig', { id: v.id, offers: o }); note(r.ok ? 'やめました' : reasonText(r), !r.ok); await refreshPlot(); });
+        act('[data-sell]', async (b) => {
+            const m = b.dataset.sell, n = Math.floor(Number($('nbSc' + m).value)), have = (myMats().find((x) => x.id === m) || {}).n || 0;
+            if (!(n >= 1) || n > have) { note('持っている数を超えています', true); return; }
+            const r = await call('nation:buybackSell', { id: v.id, mat: m, count: n, name: matName(m) }); if (!r.ok) { note(reasonText(r), true); return; }
+            if (window.SBMarket) window.SBMarket.removeLocal([{ kind: 'material', data: { id: 'x', mat: m, count: n } }]);      // 素材を手元から外す
+            spend(-r.gain); note('売りました！ +' + fmt(r.gain) + ' コイン'); await refreshPlot();
+        });
+        one('nbIcfg', async () => { const r = await call('nation:plotConfig', { id: v.id, price: Number($('nbIp').value) }); note(r.ok ? '保存しました' : reasonText(r), !r.ok); await refreshPlot(); });
+        one('nbRest', async () => { const r = await call('nation:innRest', { id: v.id, coins: coins() }); if (!r.ok) { note(reasonText(r), true); return; } spend(r.cost); note('ぐっすり眠った。HP・精神力が全回復！'); });
+        one('nbTcfg', async () => { const pr = {}; Object.keys(v.drinks).forEach((k) => { pr[k] = Number($('nbTp' + k).value); }); const r = await call('nation:plotConfig', { id: v.id, prices: pr }); note(r.ok ? '保存しました' : reasonText(r), !r.ok); await refreshPlot(); });
+        act('[data-drink]', async (b) => { const r = await call('nation:tavernBuy', { id: v.id, drink: b.dataset.drink, coins: coins() }); if (!r.ok) { note(reasonText(r), true); return; } spend(r.cost); note('🍶 飲んだ！ ' + r.secs + ' 秒間、効果が続きます'); });
+    }
+
     // ---------- 組み立て ----------
     function build() {
         const wrap = document.querySelector('#section-survival .sv-wrap'); if (!wrap || $('nbOverlay')) return;
@@ -287,8 +373,8 @@
     function init() {
         build();
         const b = $('svNation'); if (b) b.addEventListener('click', open);
-        const sb = $('svShopBtn'); if (sb) sb.addEventListener('click', () => { const id = window.SBSurvival && window.SBSurvival.nearShop(); if (id) openShop(id); });
+        const sb = $('svShopBtn'); if (sb) sb.addEventListener('click', () => { const id = window.SBSurvival && window.SBSurvival.nearShop(); if (id) openPlot(id); });
     }
-    window.SBNation = { open: open, close: close, openShop: openShop, refresh: refresh };
+    window.SBNation = { open: open, close: close, openShop: openPlot, openPlot: openPlot, refresh: refresh };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
