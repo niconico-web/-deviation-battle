@@ -16,11 +16,13 @@
 #svDead b{font-size:2.4rem}
 .sv-msg{position:absolute;bottom:150px;left:50%;transform:translateX(-50%);max-width:80%;text-align:center;color:#fff;text-shadow:0 1px 3px #000;font-size:.85rem;pointer-events:none}
 .sv-msg.err{color:#ff9a9a}
+/* タッチ操作用ボタン - stage.htmlの配置に合わせる */
 #svStickZone{position:absolute;left:0;bottom:0;width:48%;height:48%}
-#svStick{position:absolute;left:28px;bottom:28px;width:110px;height:110px;border-radius:50%;background:#fff2;border:2px solid #fff5;display:flex;align-items:center;justify-content:center}
+#svStick{position:absolute;left:max(16px,env(safe-area-inset-left));bottom:120px;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(80,160,255,.35);display:none}
 #svStickKnob{width:50px;height:50px;border-radius:50%;background:#fffa}
-#svAtkBtn{position:absolute;right:26px;bottom:34px;width:96px;height:96px;border-radius:50%;border:3px solid #fff8;background:#e0452fcc;color:#fff;font-size:2rem;display:none}
-@media (pointer:coarse){#svStick,#svAtkBtn{display:flex}#svCanvas{cursor:default}}
+#svAtkBtn{position:absolute;right:max(88px,env(safe-area-inset-right));bottom:120px;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(60,200,230,.35);color:#fff;font-size:1.2rem;display:none}
+#svUltBtn{position:absolute;right:max(160px,env(safe-area-inset-right));bottom:120px;width:62px;height:62px;border-radius:50%;border:2px solid rgba(255,255,255,.55);background:rgba(255,200,40,.35);color:#fff;font-size:1.2rem;display:none}
+@media (pointer:coarse){#svStick,#svAtkBtn,#svUltBtn{display:flex}#svCanvas{cursor:default}}
 .sv-help{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:.7rem;color:#fff9;pointer-events:none;text-align:center}
 @media (pointer:coarse){.sv-help{display:none}}
 #svPrompt{display:none;position:absolute;bottom:130px;left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:999px;background:#000b;color:#ffe9a0;font-size:.85rem;border:1px solid #ffd84a88;pointer-events:none;white-space:nowrap}
@@ -78,30 +80,35 @@
 /* ---------- 戦闘UI（stage.html を参考に：精神力・クイズ・スキル・必殺技・集中・神器） ---------- */
 #svHud{display:none;position:absolute;inset:0;pointer-events:none;z-index:6;font-size:.82rem}
 #svHud button{pointer-events:auto;font:inherit;cursor:pointer;touch-action:manipulation}
-#svBars{position:absolute;left:8px;top:8px;width:min(260px,44vw);display:flex;flex-direction:column;gap:3px}
-.svb{position:relative;height:16px;border-radius:5px;background:#000b;border:1px solid #fff3;overflow:hidden}
+#svBars{position:absolute;left:max(10px,env(safe-area-inset-left));top:max(8px,env(safe-area-inset-top));width:min(320px,46vw);display:flex;flex-direction:column;gap:4px}
+.svb{position:relative;height:16px;border-radius:8px;background:rgba(0,0,0,.6);border:1px solid #333;overflow:hidden}
 .svb i{position:absolute;left:0;top:0;bottom:0;width:0;transition:width .12s linear}
-.svb.hp i{background:linear-gradient(#5be07a,#2e9c4c)}.svb.en i{background:linear-gradient(#6fd0ff,#2d7fd1)}.svb.ug i{background:linear-gradient(#ffd05a,#e08a1a)}
-.svb span{position:relative;display:block;text-align:center;line-height:16px;font-size:.7rem;font-weight:700;text-shadow:0 1px 2px #000}
+.svb.hp i{background:linear-gradient(90deg,#d33,#f77)}.svb.en i{background:linear-gradient(90deg,#2196f3,#64d8ff)}.svb.ug i{background:linear-gradient(90deg,#c9a227,#ffe08a)}
+.svb span{position:absolute;inset:0;text-align:center;font-size:.68rem;line-height:16px;text-shadow:0 0 3px #000}
 .svb.ug.ready{animation:svpulse .7s infinite alternate;border-color:#ffe08a}
 @keyframes svpulse{from{box-shadow:0 0 0 #ffd05a}to{box-shadow:0 0 12px #ffd05a}}
 #svStreak{font-size:.72rem;color:#ffd27a;text-shadow:0 1px 2px #000;min-height:1em}
-#svQuiz{position:absolute;left:8px;top:84px;width:min(300px,46vw);background:#0b1030e8;border:1px solid #6a5acd;border-radius:10px;padding:6px 8px;pointer-events:auto}
+#svQuiz{position:absolute;left:50%;transform:translateX(-50%);bottom:max(8px,env(safe-area-inset-bottom));width:min(560px,54vw);background:rgba(20,24,36,.88);border:1px solid #2b3550;border-radius:10px;padding:6px 8px;pointer-events:auto}
 #svQuiz .qh{display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:.7rem}
 #svQuiz .qh button{padding:2px 6px;border-radius:5px;border:1px solid #fff3;background:#222a5a;color:#fff;font-size:.66rem}
-#svQuizQ{margin:5px 0;font-weight:700;line-height:1.3}
-#svQuizC{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-#svQuizC button{padding:6px 4px;border-radius:7px;border:1px solid #fff4;background:#2a3170;color:#fff;font-size:.78rem}
-#svQuizC button.ok{background:#1f8a4a}#svQuizC button.ng{background:#a02a2a}
+#svQuizQ{margin:2px 0;font-weight:700;font-size:.95rem;word-break:break-all}
+#svQuizC{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+#svQuizC button{padding:8px 3px;border-radius:8px;border:1px solid #3a4870;background:#263049;color:#fff;font-size:.88rem;word-break:break-all;touch-action:manipulation}
+#svQuizC button.ok{background:#1f7a45;border-color:#3ddc84}#svQuizC button.ng{background:#7a2020;border-color:#ff6a6a}
 #svQuiz.min #svQuizQ,#svQuiz.min #svQuizC{display:none}
-#svAct{position:absolute;right:8px;bottom:84px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
-#svSkillBar{display:flex;gap:6px}
-.svs{position:relative;width:58px;height:58px;border-radius:12px;border:2px solid #8a7aff;background:#1b1f4aee;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0}
-.svs .ic{font-size:1.25rem;line-height:1}.svs .nm{font-size:.56rem;max-width:54px;overflow:hidden;white-space:nowrap}
-.svs small{font-size:.54rem;opacity:.85}
+#svAct{position:absolute;right:max(12px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#svSkillBar{display:grid;grid-template-columns:repeat(4,58px);gap:6px}
+.svs{position:relative;height:66px;background:rgba(28,34,51,.88);color:#fff;border:2px solid #3a4870;border-radius:10px;padding:2px;font-size:.62rem;display:flex;flex-direction:column;align-items:center;justify-content:center;touch-action:none;cursor:pointer;overflow:hidden}
+.svs.ready{border-color:#9df0ff;box-shadow:0 0 8px rgba(120,220,255,.7)}
+.svs.short{opacity:.6}
+.svs.empty{opacity:.35;cursor:default}
+.svs .sk-key{position:absolute;top:1px;left:4px;font-size:.6rem;color:#9fb3d9}
+.svs .ic{font-size:1.3rem;line-height:1.1}
+.svs .nm{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.58rem}
+.svs small{color:#7fe3ff;font-size:.6rem}
 .svs.no{opacity:.5;border-color:#555}
 .svs.cd{opacity:.55}
-.svs u{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;text-decoration:none;background:#0008;border-radius:10px}
+.svs u{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;background:rgba(0,0,0,.35);pointer-events:none;text-decoration:none;border-radius:10px}
 .svs u:empty{display:none}
 .svrow{display:flex;gap:6px}
 .svrow button{padding:7px 10px;border-radius:10px;border:2px solid #fff5;background:#2a3170;color:#fff;font-size:.78rem;line-height:1.1;display:flex;flex-direction:column;align-items:center}
@@ -121,8 +128,11 @@
 .nb-res{min-height:1.6em;margin:6px 0;padding:6px;border-radius:8px;background:#0006;text-align:center}
 /* 横画面のスマホ（高さが小さい）：全部を小さく */
 @media (max-height:520px){
-  #svBars{width:min(200px,36vw)}.svb{height:13px}.svb span{line-height:13px;font-size:.6rem}
-  #svQuiz{top:68px;width:min(240px,40vw);padding:4px 6px}#svQuizQ{font-size:.74rem;margin:3px 0}#svQuizC button{padding:4px 2px;font-size:.7rem}
-  .svs{width:46px;height:46px}.svs .ic{font-size:1rem}.svs .nm{display:none}
-  #svAct{bottom:70px;right:6px}.svrow button{padding:5px 7px;font-size:.68rem}
+  #svBars{top:max(4px,env(safe-area-inset-top));width:min(250px,36vw)}.svb{height:12px;margin-bottom:2px;border-radius:6px}.svb span{line-height:12px;font-size:.56rem}
+  #svQuiz{bottom:max(4px,env(safe-area-inset-bottom));width:min(480px,44vw);min-width:0;padding:4px 6px}#svQuizQ{font-size:.76rem;margin:0 0 3px;max-height:3.3em;overflow:hidden}#svQuizC button{padding:6px 2px;font-size:.76rem}
+  .svs{height:52px}.svs .nm{font-size:.5rem}
+  #svAct{bottom:max(4px,env(safe-area-inset-bottom));right:max(8px,env(safe-area-inset-right))}.svrow button{padding:5px 7px;font-size:.68rem}
+  #svStick{bottom:calc(max(4px,env(safe-area-inset-bottom)) + 120px);left:max(12px,env(safe-area-inset-left));width:52px;height:52px}
+  #svAtkBtn{bottom:calc(max(4px,env(safe-area-inset-bottom)) + 120px);right:max(70px,env(safe-area-inset-right));width:52px;height:52px}
+  #svUltBtn{bottom:calc(max(4px,env(safe-area-inset-bottom)) + 120px);right:max(128px,env(safe-area-inset-right));width:52px;height:52px}
 }

@@ -104,11 +104,11 @@ try {
 }
 
 const C = {
-    TICK_MS: 50,
+    TICK_MS: 100,
     SNAP_EVERY: 2,
-    MAX_PLAYERS: 60,
-    MAX_MONSTERS: 420,
-    AOI: 1300,
+    MAX_PLAYERS: 40,
+    MAX_MONSTERS: 250,
+    AOI: 1100,
     PLAYER_R: 14,
 
     BASE_SPEED: 240,
@@ -122,7 +122,7 @@ const C = {
     PVP_CAP_PCT: 0.35,
     DEF_K: 300,
 
-    DENSITY: [0, 9, 8, 8],
+    DENSITY: [0, 6, 5, 5],
 
     DESPAWN_DIST: 2200,
     SPAWN_MIN: 650,
@@ -134,7 +134,7 @@ const C = {
     CHEST_CHANNEL_S: 1.6,
     CHEST_RESPAWN_S: 600,
     RUIN_CHEST_RESPAWN_S: 900,
-    RUIN_TARGET: 9,
+    RUIN_TARGET: 6,
     RUIN_BOSS_RESPAWN_S: 480,
 
     PVP_LASER_MUL: 0.35,

@@ -96,6 +96,16 @@
             const tap = (id, fn) => { const b = $(id); const h = (e) => { e.preventDefault(); fn(); }; b.addEventListener('touchstart', h, { passive: false }); b.addEventListener('mousedown', h); };
             tap('svBtnGuard', guard); tap('svBtnUlt', () => { ultHeld = true; setTimeout(() => { ultHeld = false; }, 200); }); tap('svBtnArt', useArt);
             ['keydown', 'keyup'].forEach((ev) => $('svQuiz').addEventListener(ev, (e) => e.stopPropagation()));
+            
+            // タッチ用必殺技ボタン
+            const ultBtn = document.createElement('button');
+            ultBtn.id = 'svUltBtn';
+            ultBtn.type = 'button';
+            ultBtn.className = 'touch-btn';
+            ultBtn.textContent = '⚡';
+            wrap.appendChild(ultBtn);
+            ultBtn.addEventListener('touchstart', (e) => { e.preventDefault(); ultHeld = true; setTimeout(() => { ultHeld = false; }, 200); }, { passive: false });
+            ultBtn.addEventListener('mousedown', (e) => { e.preventDefault(); ultHeld = true; setTimeout(() => { ultHeld = false; }, 200); });
         }
         $('svHud').style.display = 'block';
         buildSkillBar();
@@ -107,7 +117,13 @@
         bar.innerHTML = '';
         slots.forEach((s, i) => {
             const b = document.createElement('button'); b.type = 'button'; b.className = 'svs'; b.dataset.i = i;
-            b.innerHTML = s ? '<span class="ic">' + (FORM_ICON[s.f] || '✨') + '</span><span class="nm">' + esc(s.n) + '</span><small>' + KEYS[i].toUpperCase() + ' ・' + s.c + '</small><u></u>' : '<span class="ic">・</span><small>' + KEYS[i].toUpperCase() + '</small>';
+            if (s) {
+                b.innerHTML = '<span class="sk-key">' + KEYS[i].toUpperCase() + '</span><span class="ic">' + (FORM_ICON[s.f] || '✨') + '</span><span class="nm">' + esc(s.n) + '</span><small class="sk-cost">' + s.c + '</small><u class="sk-cd"></u>';
+                b.classList.add('ready');
+            } else {
+                b.innerHTML = '<span class="sk-key">' + KEYS[i].toUpperCase() + '</span><span class="ic">・</span><span class="nm">（空き）</span><small class="sk-cost">-</small><u class="sk-cd"></u>';
+                b.classList.add('empty');
+            }
             const h = (e) => { e.preventDefault(); cast(i); }; b.addEventListener('touchstart', h, { passive: false }); b.addEventListener('mousedown', h);
             bar.appendChild(b);
         });
@@ -124,8 +140,8 @@
         const bar = $('svSkillBar');
         if (bar) Array.from(bar.children).forEach((b, i) => {
             const s = slots[i]; if (!s) return; const cd = cm.sk[i] || 0, no = cm.en < s.c;
-            b.classList.toggle('cd', cd > 0); b.classList.toggle('no', cd <= 0 && no);
-            const u = b.querySelector('u'); if (u) u.textContent = cd > 0 ? cd.toFixed(1) : '';
+            b.classList.toggle('cd', cd > 0); b.classList.toggle('short', cd <= 0 && no);
+            const u = b.querySelector('.sk-cd'); if (u) u.textContent = cd > 0 ? cd.toFixed(1) : '';
         });
         const g = $('svBtnGuard'); if (g) { g.classList.toggle('cd', cm.gc > 0); g.classList.toggle('on', cm.gd > 0); }
         const u = $('svBtnUlt'); if (u) u.classList.toggle('ready', !!cm.ult);
