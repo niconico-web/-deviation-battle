@@ -204,7 +204,10 @@ function state(P) {
         nations: Object.keys(db.nations).map(id => publicNation(db.nations[id])),
         totalSites: SW.SITES.length,
         arts: Arts.summary(),
+<<<<<<< HEAD
         myPlots: [].concat(db.free.filter(p => p.owner === P.pid).map(p => ({ id: p.id, kind: p.kind, name: p.name, owner: p.owner, free: true, stock: (p.stock || []).length, bank: Math.floor(p.bank || 0) })), P.nid && N(P.nid) ? N(P.nid).plots.filter(p => p.owner === P.pid).map(p => ({ id: p.id, kind: p.kind, name: p.name, owner: p.owner, free: false, stock: (p.stock || []).length, bank: Math.floor(p.bank || 0) })) : []),
+=======
+>>>>>>> 95e03e4fbafbcb50b95ec212225dec0e225cd2d3
         freeSites: SW.SITES.filter(s => !Object.keys(db.nations).some(id => db.nations[id].siteId === s.id)).length,
         mine: null
     };
@@ -444,6 +447,7 @@ function hire(P, a) {
 
 // ---------- 拠点・店 ----------
 function build(P, a) {
+<<<<<<< HEAD
     const n = P.nid ? N(P.nid) : null;
     const kind = CFG.PLOT_KINDS[a.kind] ? a.kind : null; if (!kind) return fail("bad_kind");
     const cost = CFG.PLOT_COSTS[kind];
@@ -462,6 +466,15 @@ function build(P, a) {
     if (count >= CFG.MAX_PLOTS_PER_PLAYER) return fail("plot_limit", { max: CFG.MAX_PLOTS_PER_PLAYER });
     const near = (p) => Math.hypot(p.x - P.x, p.y - P.y) < 110;
     if (db.free.some(near) || Object.keys(db.nations).some(id => db.nations[id].plots.some(near))) return fail("too_near");
+=======
+    const n = P.nid ? N(P.nid) : null; if (!n) return fail("no_nation");
+    const kind = CFG.PLOT_KINDS[a.kind] ? a.kind : null; if (!kind) return fail("bad_kind");
+    const cost = CFG.PLOT_COSTS[kind];
+    if (cellOwnerAt(P.x, P.y) !== n.id) return fail("not_my_land");
+    if (Math.hypot(P.x - siteOf(n).x, P.y - siteOf(n).y) < 150) return fail("too_close_castle");
+    if (n.plots.filter(p => p.owner === P.pid).length >= CFG.MAX_PLOTS_PER_PLAYER) return fail("plot_limit", { max: CFG.MAX_PLOTS_PER_PLAYER });
+    if (n.plots.some(p => Math.hypot(p.x - P.x, p.y - P.y) < 110)) return fail("too_near");
+>>>>>>> 95e03e4fbafbcb50b95ec212225dec0e225cd2d3
     if (SW.obstaclesNear(P.x, P.y, 90).some(o => Math.hypot(o.x - P.x, o.y - P.y) < o.r + 50)) return fail("blocked");
     if (!needCoins(a, cost)) return fail("no_coins", { need: cost });
     const name = cleanText(a.name, 16) || (P.name + "の" + CFG.PLOT_KINDS[kind]);
@@ -470,9 +483,15 @@ function build(P, a) {
     if (kind === "buyback") { plot.bank = 0; plot.offers = {}; }
     if (kind === "inn") plot.price = 500;
     if (kind === "tavern") plot.prices = { regen: 300, power: 800, guard: 800, speed: 500 };
+<<<<<<< HEAD
     list.push(plot);
     if (own) n.treasury += cost;                                          // 国の土地代は国庫へ（無所属の土地代は、だれにも入らない）
     save(); return { ok: true, cost: cost, free: !own };
+=======
+    n.plots.push(plot);
+    n.treasury += cost;                                                 // 土地代は国庫へ
+    save(); return { ok: true, cost: cost };
+>>>>>>> 95e03e4fbafbcb50b95ec212225dec0e225cd2d3
 }
 function findPlot(id) {
     for (const nid in db.nations) { const p = db.nations[nid].plots.find(x => x.id === id); if (p) return { n: db.nations[nid], p: p }; }
@@ -736,10 +755,18 @@ function destroyNation(n, byNid, why) {
 // ---------- 毎秒の処理 ----------
 function ensureGuards() {
     for (const id in db.nations) {
-        const n = db.nations[id], s = siteOf(n);
+        const n = db.nations[id];
+        if (!n) continue; // 国家データがなければスキップ
+
+        const s = siteOf(n);
+        // 拠点データ（s）が取得できない、または座標が存在しない場合はスキップしてエラーを防ぐ
+        if (!s || s.x === undefined || s.y === undefined) continue;
+
         ["castle", "town"].forEach(post => {
             let have = 0;
-            ctx.monsters.forEach(M => { if (M.nid === n.id && M.kind === "guard" && M.post === post) have++; });
+            ctx.monsters.forEach(M => { 
+                if (M && M.nid === n.id && M.kind === "guard" && M.post === post) have++; 
+            });
             if (have < n.guards[post]) {
                 const a = Math.random() * 6.28, d = post === "castle" ? 150 + Math.random() * 350 : 450 + Math.random() * 450;
                 ctx.spawnUnit("guard", n.id, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, { post: post, hx: s.x, hy: s.y });

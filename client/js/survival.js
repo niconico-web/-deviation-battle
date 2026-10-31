@@ -245,6 +245,10 @@
         const z = $('svStickZone'); z.addEventListener('touchstart', ts, { passive: false }); z.addEventListener('touchmove', tm, { passive: false }); z.addEventListener('touchend', te); z.addEventListener('touchcancel', te);
         const u = $('svUseBtn'); u.addEventListener('touchstart', (e) => { e.preventDefault(); touchUse.on = true; }, { passive: false }); u.addEventListener('touchend', () => { touchUse.on = false; }); u.addEventListener('touchcancel', () => { touchUse.on = false; });
         const a = $('svAtkBtn'); a.addEventListener('touchstart', (e) => { e.preventDefault(); touchAtk.on = true; }, { passive: false }); a.addEventListener('touchend', () => { touchAtk.on = false; }); a.addEventListener('touchcancel', () => { touchAtk.on = false; });
+        const ult = $('svUltBtn'); if (ult) {
+            ult.addEventListener('touchstart', (e) => { e.preventDefault(); if (window.SVHud) window.SVHud.triggerUlt(); }, { passive: false });
+            ult.addEventListener('mousedown', (e) => { e.preventDefault(); if (window.SVHud) window.SVHud.triggerUlt(); });
+        }
     }
     function detach() { window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', resize); window.removeEventListener('mouseup', mu); Object.keys(keys).forEach((k) => { keys[k] = false; }); stick.x = stick.y = 0; touchAtk.on = false; touchUse.on = false; mouse.down = false; }
     function rel(e) { const r = cvs.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
