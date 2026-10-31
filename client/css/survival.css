@@ -74,3 +74,55 @@
 .nb-pr{margin-bottom:3px;font-size:.78rem}
 .nb-old{color:#999}
 .nb-note,.nb-card small{color:#bbb}
+
+/* ---------- 戦闘UI（stage.html を参考に：精神力・クイズ・スキル・必殺技・集中・神器） ---------- */
+#svHud{display:none;position:absolute;inset:0;pointer-events:none;z-index:6;font-size:.82rem}
+#svHud button{pointer-events:auto;font:inherit;cursor:pointer;touch-action:manipulation}
+#svBars{position:absolute;left:8px;top:8px;width:min(260px,44vw);display:flex;flex-direction:column;gap:3px}
+.svb{position:relative;height:16px;border-radius:5px;background:#000b;border:1px solid #fff3;overflow:hidden}
+.svb i{position:absolute;left:0;top:0;bottom:0;width:0;transition:width .12s linear}
+.svb.hp i{background:linear-gradient(#5be07a,#2e9c4c)}.svb.en i{background:linear-gradient(#6fd0ff,#2d7fd1)}.svb.ug i{background:linear-gradient(#ffd05a,#e08a1a)}
+.svb span{position:relative;display:block;text-align:center;line-height:16px;font-size:.7rem;font-weight:700;text-shadow:0 1px 2px #000}
+.svb.ug.ready{animation:svpulse .7s infinite alternate;border-color:#ffe08a}
+@keyframes svpulse{from{box-shadow:0 0 0 #ffd05a}to{box-shadow:0 0 12px #ffd05a}}
+#svStreak{font-size:.72rem;color:#ffd27a;text-shadow:0 1px 2px #000;min-height:1em}
+#svQuiz{position:absolute;left:8px;top:84px;width:min(300px,46vw);background:#0b1030e8;border:1px solid #6a5acd;border-radius:10px;padding:6px 8px;pointer-events:auto}
+#svQuiz .qh{display:flex;justify-content:space-between;align-items:center;gap:4px;font-size:.7rem}
+#svQuiz .qh button{padding:2px 6px;border-radius:5px;border:1px solid #fff3;background:#222a5a;color:#fff;font-size:.66rem}
+#svQuizQ{margin:5px 0;font-weight:700;line-height:1.3}
+#svQuizC{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+#svQuizC button{padding:6px 4px;border-radius:7px;border:1px solid #fff4;background:#2a3170;color:#fff;font-size:.78rem}
+#svQuizC button.ok{background:#1f8a4a}#svQuizC button.ng{background:#a02a2a}
+#svQuiz.min #svQuizQ,#svQuiz.min #svQuizC{display:none}
+#svAct{position:absolute;right:8px;bottom:84px;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#svSkillBar{display:flex;gap:6px}
+.svs{position:relative;width:58px;height:58px;border-radius:12px;border:2px solid #8a7aff;background:#1b1f4aee;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0}
+.svs .ic{font-size:1.25rem;line-height:1}.svs .nm{font-size:.56rem;max-width:54px;overflow:hidden;white-space:nowrap}
+.svs small{font-size:.54rem;opacity:.85}
+.svs.no{opacity:.5;border-color:#555}
+.svs.cd{opacity:.55}
+.svs u{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;text-decoration:none;background:#0008;border-radius:10px}
+.svs u:empty{display:none}
+.svrow{display:flex;gap:6px}
+.svrow button{padding:7px 10px;border-radius:10px;border:2px solid #fff5;background:#2a3170;color:#fff;font-size:.78rem;line-height:1.1;display:flex;flex-direction:column;align-items:center}
+.svrow button small{font-size:.58rem;opacity:.8}
+#svBtnUlt.ready{background:#b8860b;border-color:#ffe08a;animation:svpulse .7s infinite alternate}
+#svBtnGuard.on{background:#1f7ab0}#svBtnGuard.cd,#svBtnArt.cd{opacity:.55}
+#svBtnArt{display:none;background:#7a2a8a;border-color:#ffd27a}
+#svPrep{position:absolute;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:30;padding:8px}
+#svPrep .pp{width:min(560px,96%);max-height:94%;overflow-y:auto;background:#161a2eef;border:1px solid #6a5acd;border-radius:14px;padding:10px 14px;color:#fff;font-size:.85rem}
+#svPrep h3{margin:0 0 8px}
+#svPrep .pc{border:1px solid #fff2;border-radius:10px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:3px;background:#0004}
+#svPrep select{padding:6px;border-radius:6px;background:#0008;color:#fff;border:1px solid #fff4}
+#svPrep small{color:#bbb}.pe{color:#bbb;font-size:.78rem}.pg{display:block}.ps{padding:1px 0}
+#svPrep .pb{display:flex;gap:8px}
+#svPrep .pb button{flex:1;padding:10px;border-radius:10px;border:0;font:inherit;font-weight:700;cursor:pointer;background:#b8860b;color:#fff}
+#svPrep .pb button#svpNo{background:#444}
+.nb-res{min-height:1.6em;margin:6px 0;padding:6px;border-radius:8px;background:#0006;text-align:center}
+/* 横画面のスマホ（高さが小さい）：全部を小さく */
+@media (max-height:520px){
+  #svBars{width:min(200px,36vw)}.svb{height:13px}.svb span{line-height:13px;font-size:.6rem}
+  #svQuiz{top:68px;width:min(240px,40vw);padding:4px 6px}#svQuizQ{font-size:.74rem;margin:3px 0}#svQuizC button{padding:4px 2px;font-size:.7rem}
+  .svs{width:46px;height:46px}.svs .ic{font-size:1rem}.svs .nm{display:none}
+  #svAct{bottom:70px;right:6px}.svrow button{padding:5px 7px;font-size:.68rem}
+}

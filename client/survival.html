@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>学習支援ツール - 実践フィールド</title>
+<meta name="description" content="学習支援ツール - 実践フィールド">
+<link rel="stylesheet" href="css/survival.css">
+<style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; background: #0b0714; color: #eee; font-family: "Hiragino Sans", "Meiryo", sans-serif; overflow: hidden; touch-action: none; user-select: none; }
+    /* index.html の「セクション」の代わりに、画面いっぱいに出す（stage の画面と同じ作り） */
+    .content-section { display: none; position: fixed; inset: 0; }
+    .content-section.active { display: block; }
+    .sv-wrap { width: 100% !important; height: 100% !important; min-height: 0 !important; border-radius: 0 !important; }
+    #svBoot { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; background: #0b0714; color: #cfd6ff; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+<div id="svBoot">⏳ 実践フィールドに接続中…</div>
+<section id="section-survival" class="content-section">
+                <div class="sv-wrap">
+                    <canvas id="svCanvas"></canvas>
+                    <div class="sv-tl">
+                        <div class="sv-hp"><div id="svHpFill"></div><div id="svHpText"></div></div>
+                        <div id="svZone"></div>
+                        <div id="svStats"></div>
+                    </div>
+                    <div id="svFeed"></div>
+                    <div id="svCombat"></div>
+                    <div id="svPrompt"></div>
+                    <div id="svLag">通信が不安定です…</div>
+                    <div id="svTerr"></div>
+                    <button type="button" id="svShopBtn">🛒 店を見る</button>
+                    <div class="sv-tr"><canvas id="svMini" width="130" height="130"></canvas><button type="button" id="svNation">🏰 国</button><button type="button" id="svLeave">🚪 町へ戻る</button></div>
+                    <div id="svDead"><span>💀 倒された…</span><span><b>5</b> 秒後に復活（安全地帯）</span></div>
+                    <div class="sv-msg" id="svMsg"></div>
+                    <div class="sv-help">移動：WASD／スティック　攻撃：クリック・Space　スキル：Z X C V　必殺：Q　集中：F　神器：R　使う：E　クイズ：1〜4　※ここは完全PvPです</div>
+                    <div id="svStickZone"><div id="svStick"><div id="svStickKnob"></div></div></div>
+                    <button type="button" id="svAtkBtn">⚔️</button>
+                    <button type="button" id="svUseBtn">🎁</button>
+                </div>
+            </section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="js/orientation.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/tools.js"></script>
+<script src="js/materials.js"></script>
+<script src="js/questions.js"></script>
+<script src="js/action-skills.js"></script>
+<script src="js/hw-weapons.js"></script>
+<script src="js/elements.js"></script>
+<script src="js/armor.js"></script>
+<script src="js/accessories.js"></script>
+<script src="js/pixel-data.js"></script>
+<script src="js/pixel.js"></script>
+<script src="js/pixel-extra.js"></script>
+<script src="js/market.js"></script>
+<script src="js/survival-world.js"></script>
+<script src="js/survival-pixel.js"></script>
+<script src="js/survival-hud.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/nation-ui.js"></script>
+<script>
+// 通信（index.html と同じ設定）。プレイヤーの本人確認は、各リクエストの playerId で行う
+window.socket = io({ reconnection: true, reconnectionDelay: 1000, reconnectionDelayMax: 5000, reconnectionAttempts: 10, transports: ['websocket', 'polling'], forceNew: false });
+if (window.SBOrientation) { SBOrientation.guard(); }
+function svBoot() {
+    const sec = document.getElementById('section-survival'), boot = document.getElementById('svBoot');
+    let p = null; try { p = JSON.parse(localStorage.getItem('player') || 'null'); } catch (e) { /* なし */ }
+    if (!p || !p.id) { boot.textContent = 'キャラクターが見つかりません。町から入り直してください'; setTimeout(() => { location.href = 'index.html'; }, 2500); return; }
+    // 次元の裂け目が開いているか（第二世界に到達した人だけ）
+    let ok = false; try { ok = !!(window.HW && HW.load().world2); } catch (e) { /* 開いていない */ }
+    if (!ok) { boot.textContent = '次元の裂け目は、第二世界に到達すると開きます'; setTimeout(() => { location.href = 'index.html'; }, 2500); return; }
+    const go = () => { boot.style.display = 'none'; sec.classList.add('active'); };
+    if (window.socket.connected) go(); else { window.socket.once('connect', go); setTimeout(() => { if (!sec.classList.contains('active')) go(); }, 6000); }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', svBoot); else svBoot();
+</script>
+</body>
+</html>

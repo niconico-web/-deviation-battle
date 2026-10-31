@@ -1144,7 +1144,7 @@
         const got = {};
         list.forEach(row => {
             const id = row[0], ch = row[1];
-            if (Math.random() < Math.min(1, ch * kindMul * luck)) got[id] = (got[id] || 0) + ((kind === 'boss' && ch >= 1) ? 2 + Math.floor(Math.random() * 2) : 1);
+            if (Math.random() < Math.min(1, ch * kindMul * luck) * 0.05) got[id]   /* 素材ドロップは以前の 1/20 */  = (got[id] || 0) + ((kind === 'boss' && ch >= 1) ? 2 + Math.floor(Math.random() * 2) : 1);
         });
         giveMaterials(got, x, y);
     }

@@ -17,6 +17,7 @@ const STORE_FILES = [
   'quests.json',
   'survival.json',
   'nations.json',
+  'artifacts.json',
   'bundles.json',
   'pvp_event.json'
 ];
