@@ -24,11 +24,7 @@ const ARTS = [
     { id: "hourglass", name: "時の砂時計", icon: "⏳", cd: 50, desc: "周囲の時を止めて敵を動けなくする。自分は加速する" }
 ];
 const DROP_RETURN_S = 1800;       // 拾われないまま30分たつと、神殿へ戻る
-<<<<<<< HEAD
 const PICKUP_R = 100, VAULT_R = 560;
-=======
-const PICKUP_R = 100, VAULT_R = 220;
->>>>>>> 95e03e4fbafbcb50b95ec212225dec0e225cd2d3
 
 let db = { arts: {} };
 try { const j = JSON.parse(fs.readFileSync(FILE, "utf-8")); if (j && j.arts) db = j; } catch (e) { /* 初回 */ }
