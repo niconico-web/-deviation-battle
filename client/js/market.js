@@ -8,8 +8,13 @@
 (function () {
     'use strict';
     const OUTBOX_KEY = 'sbMarketOutbox', CLAIMED_KEY = 'sbMarketClaimed';
-    const KIND_LABEL = { weapon: '武器', armor: '防具', acc: 'アクセサリー', orb: 'オーブ' };
-    const KIND_ICON = { weapon: '🗡️', armor: '🛡️', acc: '💍', orb: '🔮' };
+    const KIND_LABEL = { weapon: '武器', armor: '防具', acc: 'アクセサリー', orb: 'オーブ', material: '素材' };
+    const KIND_ICON = { weapon: '🗡️', armor: '🛡️', acc: '💍', orb: '🔮', material: '🧪' };
+    const matInfo = (id) => { try { return (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[id]) || null; } catch (e) { return null; } };
+    const MAT_APPLIED_KEY = 'sbMarketMatApplied';
+    const matApplied = () => new Set(jget(MAT_APPLIED_KEY, []));
+    const matMark = (ids) => { const a = jget(MAT_APPLIED_KEY, []).concat(ids); jset(MAT_APPLIED_KEY, a.slice(-600)); };
+    const newMatId = (mat) => 'mat_' + mat + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     const TIER_COL = { tier1: '#c9c9c9', tier2: '#6fa8ff', tier3: '#ffd84a', tier4: '#c077ff', tier5: '#ff8a2a' };
     const RAR_LABEL = { normal: 'ノーマル', magic: 'マジック', rare: 'レア', epic: 'エピック', legendary: 'レジェンド', tier1: 'ティア1', tier2: 'ティア2', tier3: 'ティア3', tier4: 'ティア4', tier5: 'ティア5' };
     const REASON = {
@@ -52,18 +57,21 @@
 
     // ---------- アイテムの出し入れ（端末側） ----------
     function nameOf(kind, d) {
+        if (kind === 'material') return ((matInfo(d.mat) || {}).name || d.name || d.mat) + ' ×' + d.count;
         if (kind === 'orb') { const t = RAR_LABEL[d.tier] || d.tier; return t + 'オーブ（' + (d.statType || '?') + ' +' + Math.round((d.bonus || 0) * 1000) / 10 + '%）'; }
         if (kind === 'weapon') return d.name || ((d.prefix || '') + '＋' + (d.baseName || '武器'));
         if (kind === 'armor') return ((d.prefix || '') + (d.prefix ? '＋' : '') + (d.baseName || '防具'));
         return d.name || d.baseId || 'アクセサリー';
     }
-    function rarKey(kind, d) { return kind === 'orb' ? d.tier : d.rarity; }
+    function rarKey(kind, d) { return kind === 'orb' ? d.tier : kind === 'material' ? 'normal' : d.rarity; }
     function rarColor(kind, d) {
+        if (kind === 'material') return '#9fe0a0';
         if (kind === 'orb') return TIER_COL[d.tier] || '#ccc';
         try { return window.HW.RARITIES[d.rarity].color; } catch (e) { return '#ccc'; }
     }
-    function minOf(kind, d) { return (kind === 'orb' ? info.orbMin[d.tier] : info.equipMin[d.rarity]) || 0; }
+    function minOf(kind, d) { if (kind === 'material') return (info.matMinEach || 5) * (d.count || 1); return (kind === 'orb' ? info.orbMin[d.tier] : info.equipMin[d.rarity]) || 0; }
     function detailLines(kind, d) {
+        if (kind === 'material') return ['素材 ／ ' + d.count + ' 個', '最低 ' + fmt((info.matMinEach || 5) * d.count) + ' コイン'];
         const L = [];
         try {
             if (kind === 'weapon') { L.push((window.HW.TYPES[d.type] ? window.HW.TYPES[d.type].label : d.type) + ' ／ 攻撃 +' + Math.round((d.pct || 0) * 1000) / 10 + '% ／ Lv' + (d.ilvl || 1)); if (d.sockets) L.push('穴 ' + d.sockets + '（オーブ ' + (d.orbs || []).filter(Boolean).length + ' 個はめ込み済み）'); (d.effects || []).forEach((e) => L.push('・' + (e.name || e.id || '特殊効果'))); }
@@ -82,27 +90,34 @@
             weapon: (d.weapons || []).filter((w) => w.id !== d.equipped && !w.locked && w.rarity !== 'mythic' && !w.mythicId).map((w) => ({ kind: 'weapon', data: w })),
             armor: (d.armors || []).filter((a) => eqArm.indexOf(a.id) === -1 && !a.locked).map((a) => ({ kind: 'armor', data: a })),
             acc: (d.accs || []).filter((a) => eqAcc.indexOf(a.id) === -1 && !a.locked).map((a) => ({ kind: 'acc', data: a })),
-            orb: (p.orbs || []).filter((o) => o && o.tier).map((o) => ({ kind: 'orb', data: o }))
+            orb: (p.orbs || []).filter((o) => o && o.tier).map((o) => ({ kind: 'orb', data: o })),
+            material: Object.keys(p.materials && !Array.isArray(p.materials) ? p.materials : {}).filter((k) => p.materials[k] > 0).map((k) => ({ kind: 'material', data: { id: 'mat_' + k, mat: k, count: Math.floor(p.materials[k]), name: (matInfo(k) || {}).name || k } }))
         };
     }
     function removeLocal(items) {
         const H = window.HW, d = H.load(), p = player();
-        const ids = { weapon: new Set(), armor: new Set(), acc: new Set(), orb: new Set() };
+        const ids = { weapon: new Set(), armor: new Set(), acc: new Set(), orb: new Set(), material: new Set() };
         items.forEach((it) => ids[it.kind].add(it.data.id));
+        const matOut = items.filter((it) => it.kind === 'material');
         d.weapons = (d.weapons || []).filter((x) => !ids.weapon.has(x.id));
         d.armors = (d.armors || []).filter((x) => !ids.armor.has(x.id));
         d.accs = (d.accs || []).filter((x) => !ids.acc.has(x.id));
         H.save(d);
-        if (p) { p.orbs = (p.orbs || []).filter((x) => !ids.orb.has(x.id)); savePlayer(p); }
+        if (p) {
+            p.orbs = (p.orbs || []).filter((x) => !ids.orb.has(x.id));
+            if (matOut.length) { if (!p.materials || Array.isArray(p.materials)) p.materials = {}; matOut.forEach((it) => { p.materials[it.data.mat] = Math.max(0, (p.materials[it.data.mat] || 0) - it.data.count); if (!p.materials[it.data.mat]) delete p.materials[it.data.mat]; }); }
+            savePlayer(p);
+        }
     }
     function addLocal(items, coinsDelta) {
         const H = window.HW, d = H.load(), p = player();
-        const has = { weapon: new Set((d.weapons || []).map((x) => x.id)), armor: new Set((d.armors || []).map((x) => x.id)), acc: new Set((d.accs || []).map((x) => x.id)), orb: new Set(((p && p.orbs) || []).map((x) => x.id)) };
+        const has = { weapon: new Set((d.weapons || []).map((x) => x.id)), armor: new Set((d.armors || []).map((x) => x.id)), acc: new Set((d.accs || []).map((x) => x.id)), orb: new Set(((p && p.orbs) || []).map((x) => x.id)), material: matApplied() };
         if (!Array.isArray(d.weapons)) d.weapons = []; if (!Array.isArray(d.armors)) d.armors = []; if (!Array.isArray(d.accs)) d.accs = [];
-        const orbs = [], hints = [];
+        const orbs = [], hints = [], mats = [];
         items.forEach((it) => {
-            if (!it || !it.data || has[it.kind].has(it.data.id)) return;           // すでに持っている（再受取）ならスキップ
+            if (!it || !it.data || !has[it.kind] || has[it.kind].has(it.data.id)) return;           // すでに持っている（再受取）ならスキップ
             has[it.kind].add(it.data.id);
+            if (it.kind === 'material') { mats.push(it.data); return; }
             if (it.eq) hints.push(it);
             if (it.kind === 'weapon') d.weapons.push(it.data); else if (it.kind === 'armor') d.armors.push(it.data);
             else if (it.kind === 'acc') d.accs.push(it.data); else orbs.push(it.data);
@@ -115,10 +130,14 @@
             else if (it.eq === 'acc') { if (!Array.isArray(d.accEq)) d.accEq = [null, null, null]; const i = d.accEq.indexOf(null); if (i >= 0 && d.accEq.indexOf(x.id) < 0) d.accEq[i] = x.id; }
         });
         H.save(d);
-        if (p) { p.orbs = (p.orbs || []).concat(orbs); p.coins = Math.max(0, (p.coins || 0) + (coinsDelta || 0)); savePlayer(p); }
+        if (p) {
+            p.orbs = (p.orbs || []).concat(orbs); p.coins = Math.max(0, (p.coins || 0) + (coinsDelta || 0));
+            if (mats.length) { if (!p.materials || Array.isArray(p.materials)) p.materials = {}; mats.forEach((m) => { p.materials[m.mat] = (p.materials[m.mat] || 0) + m.count; }); matMark(mats.map((m) => m.id)); }
+            savePlayer(p);
+        }
     }
     function hasAll(items) {
-        const inv = (function () { const d = window.HW.load(), p = player() || {}; return { weapon: new Set((d.weapons || []).map((x) => x.id)), armor: new Set((d.armors || []).map((x) => x.id)), acc: new Set((d.accs || []).map((x) => x.id)), orb: new Set((p.orbs || []).map((x) => x.id)) }; })();
+        const inv = (function () { const d = window.HW.load(), p = player() || {}; return { weapon: new Set((d.weapons || []).map((x) => x.id)), armor: new Set((d.armors || []).map((x) => x.id)), acc: new Set((d.accs || []).map((x) => x.id)), orb: new Set((p.orbs || []).map((x) => x.id)), material: matApplied() }; })();
         return items.every((it) => inv[it.kind].has(it.data.id));
     }
 
@@ -275,7 +294,8 @@
         const body = $('marketBody'); if (!body) return;
         const inv = inventory(), list = inv[sellKind];
         const min = sel.reduce((s, it) => s + minOf(it.kind, it.data), 0);
-        const picked = (it) => sel.some((x) => x.data.id === it.data.id);
+        const same = (a, b) => a.kind === 'material' ? (b.kind === 'material' && a.data.mat === b.data.mat) : a.data.id === b.data.id;
+        const picked = (it) => sel.some((x) => same(x, it));
         body.innerHTML = '<div class="mk-note">装備中・ロック中・神話のアイテムは出品できません。オーブをはめた武器は、オーブごと売れます。複数選ぶと「まとめ売り」になります（最大 ' + info.maxItems + ' 点）。</div>' +
             '<div class="mk-subtabs">' + Object.keys(KIND_LABEL).map((k) => '<button type="button" class="mk-sub' + (sellKind === k ? ' on' : '') + '" data-k="' + k + '">' + KIND_ICON[k] + KIND_LABEL[k] + ' (' + inv[k].length + ')</button>').join('') + '</div>' +
             '<div class="mk-grid">' + (list.length ? list.map((it, i) => '<div class="mk-pick' + (picked(it) ? ' on' : '') + '" data-i="' + i + '">' + itemCard(it, ' ／ 最低 ' + fmt(minOf(it.kind, it.data))) + '</div>').join('') : '<div class="mk-empty">出品できる' + KIND_LABEL[sellKind] + 'がありません</div>') + '</div>' +
@@ -284,7 +304,14 @@
             '<div class="mk-note" id="sellNet"></div><button type="button" class="btn btn-primary" id="sellGo"' + (sel.length ? '' : ' disabled') + '>出品する</button></div>';
         body.querySelectorAll('.mk-sub').forEach((b) => b.addEventListener('click', () => { sellKind = b.dataset.k; renderSell(); }));
         body.querySelectorAll('.mk-pick').forEach((c) => c.addEventListener('click', () => {
-            const it = list[+c.dataset.i], k = sel.findIndex((x) => x.data.id === it.data.id);
+            const it0 = list[+c.dataset.i], k = sel.findIndex((x) => same(x, it0));
+            let it = it0;
+            if (k < 0 && it0.kind === 'material') {                                 // 素材は、何個出すかを決める
+                const v = window.prompt(((matInfo(it0.data.mat) || {}).name || it0.data.mat) + ' を何個出品しますか？（持っている数：' + it0.data.count + '）', String(it0.data.count));
+                const n = Math.floor(Number(v)); if (v == null) return;
+                if (!(n >= 1) || n > it0.data.count) { toast('個数を正しく入力してください', true); return; }
+                it = { kind: 'material', data: Object.assign({}, it0.data, { id: newMatId(it0.data.mat), count: n }) };
+            }
             if (k >= 0) sel.splice(k, 1); else if (sel.length < info.maxItems) sel.push(it); else toast(reasonText({ reason: 'too_many', max: info.maxItems }), true);
             const keep = { t: $('sellTitle').value, p: $('sellPrice').value }; renderSell(); $('sellTitle').value = keep.t; if (keep.p && Number(keep.p) >= min) $('sellPrice').value = keep.p; updateNet();
         }));
