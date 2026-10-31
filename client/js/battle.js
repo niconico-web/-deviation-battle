@@ -3866,10 +3866,12 @@ function finishBotBattle(result) {
     // ボット戦での素材ドロップ処理
     // ショップで購入した武器（isOriginalではない通常の武器）を装備している場合は、
     // 依頼により素材ドロップを確定（100%）にする。オリジナル武器・ボス武器などは対象外。
+    // 素材ドロップは、以前の 1/20（0.05）。ここを変えれば全体の素材の出やすさが変わる
+    const MATERIAL_DROP_MUL = 0.05;
     if (win && enemy.isBot && enemy.materialDrops) {
         const isShopWeaponEquipped = !!(me.equippedWeapon && !me.equippedWeapon.isOriginal && !me.equippedWeapon.isDebugWeapon);
         enemy.materialDrops.forEach(drop => {
-            if (isShopWeaponEquipped || Math.random() < drop.chance) {
+            if (Math.random() < (isShopWeaponEquipped ? 1 : drop.chance) * MATERIAL_DROP_MUL) {
                 localStorage.setItem("droppedMaterial", drop.materialId);
                 addLog(`${enemy.name}から${MATERIAL_DATA[drop.materialId].name}を入手！`);
             }
