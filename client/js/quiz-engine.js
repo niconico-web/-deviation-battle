@@ -3889,7 +3889,7 @@ function finishBotBattle(result) {
     if (win && enemy.isBot && enemy.materialDrops) {
         const isShopWeaponEquipped = !!(me.equippedWeapon && !me.equippedWeapon.isOriginal && !me.equippedWeapon.isDebugWeapon);
         enemy.materialDrops.forEach(drop => {
-            if (isShopWeaponEquipped || Math.random() < drop.chance) {
+            if (Math.random() < (isShopWeaponEquipped ? 1 : drop.chance) * 0.05) {   // 素材ドロップは以前の 1/20
                 localStorage.setItem("droppedMaterial", drop.materialId);
                 addLog(`${enemy.name}から${MATERIAL_DATA[drop.materialId].name}を入手！`);
             }

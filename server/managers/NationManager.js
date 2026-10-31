@@ -12,6 +12,7 @@ const fs = require("fs");
 const path = require("path");
 const SW = require("../../client/js/survival-world.js");
 const Market = require("./MarketManager");
+const Arts = require("./ArtifactManager");
 
 const FILE = path.join(__dirname, "..", "data", "nations.json");
 
@@ -19,7 +20,9 @@ const FILE = path.join(__dirname, "..", "data", "nations.json");
 const CFG = {
     FOUND_COST: 5000000,        // 建国
     PLOT_COST: 100000,          // 拠点・店（領地内）。国庫に入る
-    MAX_PLOTS_PER_PLAYER: 3,
+    PLOT_COSTS: { base: 100000, shop: 100000, inn: 100000, tavern: 100000, buyback: 100000, casino: 300000 },
+    PLOT_KINDS: { base: '拠点', shop: 'ショップ', casino: 'ギャンブル場', buyback: '買取所', inn: '宿屋', tavern: '酒場' },
+    MAX_PLOTS_PER_PLAYER: 5,
     MAX_TAX: 30,                // 税率の上限（%）
     NAME_MIN: 2, NAME_MAX: 12,
     WAR_COST: 50000,            // 宣戦布告（国庫から）
@@ -117,7 +120,7 @@ function tableForClient() {
     const out = {};
     for (const id in db.nations) {
         const n = db.nations[id];
-        out[id] = { name: n.name, color: n.color, site: n.siteId, ruler: n.rulerName, allies: n.allies.slice(), wars: db.wars.filter(w => w.a === n.id || w.b === n.id).map(w => (w.a === n.id ? w.b : w.a)) };
+        out[id] = { name: n.name, color: n.color, site: n.siteId, ruler: n.rulerName, allies: n.allies.slice(), wars: db.wars.filter(w => w.a === n.id || w.b === n.id).map(w => (w.a === n.id ? w.b : w.a)), vault: Arts.vaultOf(n.id).length };
     }
     return out;
 }
@@ -133,7 +136,7 @@ function plotsNear(x, y, rad) {
     const out = [];
     for (const id in db.nations) {
         db.nations[id].plots.forEach(p => {
-            if (Math.abs(p.x - x) < rad && Math.abs(p.y - y) < rad) out.push([p.id, p.kind === "shop" ? 1 : 0, p.x, p.y, +id, p.name]);
+            if (Math.abs(p.x - x) < rad && Math.abs(p.y - y) < rad) out.push([p.id, p.kind, p.x, p.y, +id, p.name]);
         });
     }
     return out;
@@ -188,7 +191,7 @@ function publicNation(n) {
         members: Object.keys(n.members).length, cells: cellsOf(n.id).length, open: !!n.open,
         citizenTax: n.citizenTax, shopTax: n.shopTax, allies: n.allies.slice(),
         wars: db.wars.filter(w => w.a === n.id || w.b === n.id).map(w => (w.a === n.id ? w.b : w.a)),
-        protectedUntil: n.createdAt + CFG.PROTECT_S, createdAt: n.createdAt
+        protectedUntil: n.createdAt + CFG.PROTECT_S, createdAt: n.createdAt, vault: Arts.vaultOf(n.id).length
     };
 }
 function state(P) {
@@ -197,6 +200,7 @@ function state(P) {
         ok: true, nid: mine ? mine.id : 0, pid: P.pid, cfg: CFG,
         nations: Object.keys(db.nations).map(id => publicNation(db.nations[id])),
         totalSites: SW.SITES.length,
+        arts: Arts.summary(),
         freeSites: SW.SITES.filter(s => !Object.keys(db.nations).some(id => db.nations[id].siteId === s.id)).length,
         mine: null
     };
@@ -205,7 +209,7 @@ function state(P) {
         out.mine = Object.assign(publicNation(mine), {
             isRuler: mine.ruler === P.pid, treasury: Math.floor(mine.treasury), escortPref: mine.escortPref,
             guards: mine.guards, memberList: Object.keys(mine.members).map(pid => ({ pid: pid, name: mine.members[pid].name, ruler: pid === mine.ruler })),
-            plots: mine.plots.map(p => ({ id: p.id, kind: p.kind, name: p.name, owner: p.owner, ownerName: p.ownerName, x: Math.round(p.x), y: Math.round(p.y), stock: (p.stock || []).length, sale: p.sale || 0 })),
+            plots: mine.plots.map(p => ({ id: p.id, kind: p.kind, name: p.name, owner: p.owner, ownerName: p.ownerName, x: Math.round(p.x), y: Math.round(p.y), stock: (p.stock || []).length, sale: p.sale || 0, bank: Math.floor(p.bank || 0) })),
             trades: db.trades.filter(tr => tr.a === mine.id || tr.b === mine.id).map(tr => ({ id: tr.id, other: tr.a === mine.id ? tr.b : tr.a, mine: tr.a === mine.id ? tr.vol.a : tr.vol.b, theirs: tr.a === mine.id ? tr.vol.b : tr.vol.a })),
             incoming: db.props.filter(p => p.to === mine.id && p.until > t).map(p => ({ id: p.id, type: p.type, from: p.from, vol: p.vol })),
             outgoing: db.props.filter(p => p.from === mine.id && p.until > t).map(p => ({ id: p.id, type: p.type, to: p.to })),
@@ -264,6 +268,7 @@ function removePlotsOf(n, pid, why) {
     n.plots = keep;
 }
 function returnStock(p, why) {
+    if (p.bank >= 1) { Market.pushCoinsMail(p.owner, Math.floor(p.bank), "閉店した「" + p.name + "」の元手が戻ってきました"); p.bank = 0; }
     if (p.stock && p.stock.length) {
         Market.returnItems(p.owner, p.stock.map(s => ({ kind: s.kind, data: s.data, eq: null })), why || "閉店した店の在庫が戻ってきました");
         p.stock = [];
@@ -396,9 +401,11 @@ function declareWar(P, a) {
     const o = N(Number(a.to)); if (!o || o.id === n.id) return fail("not_found");
     if (allied(n.id, o.id)) return fail("allied");
     if (atWar(n.id, o.id)) return fail("already");
-    if (now() < o.createdAt + CFG.PROTECT_S) return fail("protected", { until: o.createdAt + CFG.PROTECT_S });
-    if (n.treasury < CFG.WAR_COST) return fail("no_treasury", { need: CFG.WAR_COST });
-    n.treasury -= CFG.WAR_COST;
+    // 神器（国宝）を持つ国は狙われる：保護期間が無視され、費用なしで宣戦布告できる
+    const prize = Arts.vaultOf(o.id).length > 0;
+    if (!prize && now() < o.createdAt + CFG.PROTECT_S) return fail("protected", { until: o.createdAt + CFG.PROTECT_S });
+    if (!prize && n.treasury < CFG.WAR_COST) return fail("no_treasury", { need: CFG.WAR_COST });
+    if (!prize) n.treasury -= CFG.WAR_COST;
     db.trades = db.trades.filter(tr => !((tr.a === n.id && tr.b === o.id) || (tr.a === o.id && tr.b === n.id)));
     db.wars.push({ id: db.seq++, a: n.id, b: o.id, since: now(), until: now() + CFG.WAR_HOURS * 3600 });
     ctx.feed("⚔ 「" + n.name + "」が「" + o.name + "」に宣戦布告した！");
@@ -434,17 +441,23 @@ function hire(P, a) {
 // ---------- 拠点・店 ----------
 function build(P, a) {
     const n = P.nid ? N(P.nid) : null; if (!n) return fail("no_nation");
-    const kind = a.kind === "shop" ? "shop" : a.kind === "base" ? "base" : null; if (!kind) return fail("bad_kind");
+    const kind = CFG.PLOT_KINDS[a.kind] ? a.kind : null; if (!kind) return fail("bad_kind");
+    const cost = CFG.PLOT_COSTS[kind];
     if (cellOwnerAt(P.x, P.y) !== n.id) return fail("not_my_land");
     if (Math.hypot(P.x - siteOf(n).x, P.y - siteOf(n).y) < 150) return fail("too_close_castle");
     if (n.plots.filter(p => p.owner === P.pid).length >= CFG.MAX_PLOTS_PER_PLAYER) return fail("plot_limit", { max: CFG.MAX_PLOTS_PER_PLAYER });
     if (n.plots.some(p => Math.hypot(p.x - P.x, p.y - P.y) < 110)) return fail("too_near");
     if (SW.obstaclesNear(P.x, P.y, 90).some(o => Math.hypot(o.x - P.x, o.y - P.y) < o.r + 50)) return fail("blocked");
-    if (!needCoins(a, CFG.PLOT_COST)) return fail("no_coins", { need: CFG.PLOT_COST });
-    const name = cleanText(a.name, 16) || (kind === "shop" ? P.name + "の店" : P.name + "の拠点");
-    n.plots.push({ id: "p" + db.seq++, kind: kind, owner: P.pid, ownerName: P.name, x: Math.round(P.x), y: Math.round(P.y), name: name, stock: [] });
-    n.treasury += CFG.PLOT_COST;                                        // 土地代は国庫へ
-    save(); return { ok: true, cost: CFG.PLOT_COST };
+    if (!needCoins(a, cost)) return fail("no_coins", { need: cost });
+    const name = cleanText(a.name, 16) || (P.name + "の" + CFG.PLOT_KINDS[kind]);
+    const plot = { id: "p" + db.seq++, kind: kind, owner: P.pid, ownerName: P.name, x: Math.round(P.x), y: Math.round(P.y), name: name, stock: [] };
+    if (kind === "casino") { plot.bank = 0; plot.games = { coin: { on: true, min: 100, max: 50000 }, dice: { on: true, min: 100, max: 50000 }, slot: { on: true, min: 100, max: 20000 } }; }
+    if (kind === "buyback") { plot.bank = 0; plot.offers = {}; }
+    if (kind === "inn") plot.price = 500;
+    if (kind === "tavern") plot.prices = { regen: 300, power: 800, guard: 800, speed: 500 };
+    n.plots.push(plot);
+    n.treasury += cost;                                                 // 土地代は国庫へ
+    save(); return { ok: true, cost: cost };
 }
 function findPlot(id) {
     for (const nid in db.nations) { const p = db.nations[nid].plots.find(x => x.id === id); if (p) return { n: db.nations[nid], p: p }; }
@@ -461,7 +474,7 @@ function shopView(P, a) {
     const f = findPlot(String(a.id)); if (!f || f.p.kind !== "shop") return fail("not_found");
     if (Math.hypot(f.p.x - P.x, f.p.y - P.y) > 260) return fail("too_far");
     return {
-        ok: true, id: f.p.id, name: f.p.name, owner: f.p.ownerName, mine: f.p.owner === P.pid, nation: f.n.name, nid: f.n.id, tax: f.n.shopTax,
+        ok: true, kind: "shop", id: f.p.id, name: f.p.name, owner: f.p.ownerName, mine: f.p.owner === P.pid, nation: f.n.name, nid: f.n.id, tax: f.n.shopTax,
         sale: f.p.sale || 0,
         items: f.p.stock.map(s => ({ id: s.data.id, kind: s.kind, data: s.data, price: s.price, sale: s.sale || 0, eff: effPrice(f.p, s) }))
     };
@@ -540,12 +553,154 @@ function shopBuy(P, a) {
     save(); return { ok: true, cost: price };
 }
 
+
+// ---------- 建物の種類（ギャンブル場・買取所・宿屋・酒場） ----------
+const DRINKS = {
+    regen: { name: "回復の酒", icon: "🍶", secs: 90, buf: "regen" },
+    power: { name: "力の酒", icon: "🍺", secs: 120, buf: "empower" },
+    guard: { name: "守りの酒", icon: "🥃", secs: 120, buf: "fortify" },
+    speed: { name: "俊足の酒", icon: "🍷", secs: 120, buf: "haste" }
+};
+// ギャンブルの遊び方（どれも店側が少し有利。確率はサーバーで決める）
+const SLOT = [{ p: 0.01, m: 25 }, { p: 0.04, m: 6 }, { p: 0.13, m: 2 }, { p: 0.19, m: 1 }];     // 残りは外れ
+const GAME_NAMES = { coin: "コイントス", dice: "サイコロ", slot: "スロット" };
+function findPlotNear(P, id, kind, rng) {
+    const f = findPlot(String(id)); if (!f || (kind && f.p.kind !== kind)) return null;
+    if (Math.hypot(f.p.x - P.x, f.p.y - P.y) > (rng || 260)) return null;
+    return f;
+}
+function plotView(P, a) {
+    const f = findPlot(String(a.id)); if (!f) return fail("not_found");
+    if (Math.hypot(f.p.x - P.x, f.p.y - P.y) > 260) return fail("too_far");
+    const p = f.p, mine = p.owner === P.pid, base = { ok: true, kind: p.kind, id: p.id, name: p.name, owner: p.ownerName, mine: mine, nation: f.n.name, nid: f.n.id, tax: f.n.shopTax };
+    if (p.kind === "shop") return shopView(P, a);
+    if (p.kind === "casino") return Object.assign(base, { bank: Math.floor(p.bank || 0), games: p.games, names: GAME_NAMES });
+    if (p.kind === "buyback") return Object.assign(base, { bank: Math.floor(p.bank || 0), offers: p.offers });
+    if (p.kind === "inn") return Object.assign(base, { price: p.price });
+    if (p.kind === "tavern") return Object.assign(base, { prices: p.prices, drinks: DRINKS });
+    return fail("bad_kind");
+}
+// 店主が出す売上（営業税を引いて、受け取り箱へ）
+function payOwner(f, gross, note) {
+    const tax = Math.floor(gross * f.n.shopTax / 100), gain = gross - tax;
+    f.n.treasury += tax;
+    if (gain > 0) Market.pushCoinsMail(f.p.owner, gain, note + "（営業税 " + fmt(tax) + "）");
+    return { tax: tax, gain: gain };
+}
+function plotConfig(P, a) {
+    const f = findPlot(String(a.id)); if (!f || f.p.owner !== P.pid) return fail("forbidden");
+    const p = f.p;
+    if (a.name != null) { const nm = cleanText(a.name, 16); if (nm) p.name = nm; }
+    if (p.kind === "casino" && a.games && typeof a.games === "object") {
+        Object.keys(GAME_NAMES).forEach(g => {
+            const c = a.games[g]; if (!c) return;
+            p.games[g] = { on: !!c.on, min: clamp(Math.floor(Number(c.min) || 100), 10, 1e6), max: clamp(Math.floor(Number(c.max) || 1000), 10, 1e6) };
+            if (p.games[g].max < p.games[g].min) p.games[g].max = p.games[g].min;
+        });
+    }
+    if (p.kind === "buyback" && a.offers && typeof a.offers === "object") {
+        const out = {};
+        Object.keys(a.offers).slice(0, 40).forEach(mat => {
+            if (!/^[a-z0-9_]{2,40}$/.test(mat)) return;
+            const o = a.offers[mat], price = Math.floor(Number(o && o.price)), max = Math.floor(Number(o && o.max));
+            if (price >= 1 && price <= 1e7 && max >= 1) out[mat] = { price: price, max: Math.min(max, 99999) };
+        });
+        p.offers = out;
+    }
+    if (p.kind === "inn" && a.price != null) p.price = clamp(Math.floor(Number(a.price) || 0), 0, 1e6);
+    if (p.kind === "tavern" && a.prices && typeof a.prices === "object") Object.keys(DRINKS).forEach(k => { if (a.prices[k] != null) p.prices[k] = clamp(Math.floor(Number(a.prices[k]) || 0), 0, 1e6); });
+    save(); return { ok: true };
+}
+// 元手（銀行）：ギャンブル場の賞金や、買取所の買い取り代金に使う
+function plotDeposit(P, a) {
+    const f = findPlot(String(a.id)); if (!f || f.p.owner !== P.pid || f.p.bank == null) return fail("forbidden");
+    const amt = Math.floor(Number(a.amount));
+    if (!(amt >= 1) || amt > 1e9) return fail("bad_amount");
+    if (!needCoins(a, amt)) return fail("no_coins", { need: amt });
+    f.p.bank += amt; save(); return { ok: true, cost: amt };
+}
+function plotWithdraw(P, a) {
+    const f = findPlot(String(a.id)); if (!f || f.p.owner !== P.pid || f.p.bank == null) return fail("forbidden");
+    const amt = Math.min(Math.floor(Number(a.amount)), Math.floor(f.p.bank));
+    if (!(amt >= 1)) return fail("bad_amount");
+    f.p.bank -= amt; Market.pushCoinsMail(f.p.owner, amt, "「" + f.p.name + "」の元手の引き出し"); save();
+    return { ok: true, amount: amt };
+}
+function casinoBet(P, a) {
+    const f = findPlotNear(P, a.id, "casino"); if (!f) return fail("too_far");
+    const p = f.p, g = String(a.game), cfg = p.games[g];
+    if (!cfg || !cfg.on) return fail("closed_game");
+    if (p.owner === P.pid) return fail("own");
+    const t = now();
+    if (P.betAt && t - P.betAt < 0.6) return fail("rate_limit");
+    const bet = Math.floor(Number(a.bet));
+    if (!(bet >= cfg.min) || bet > cfg.max) return fail("bad_bet", { min: cfg.min, max: cfg.max });
+    if (!needCoins(a, bet)) return fail("no_coins", { need: bet });
+    let mult = 0, result = {};
+    if (g === "coin") {
+        const pick = a.pick === "tails" ? "tails" : "heads", win = Math.random() < 0.485;
+        mult = win ? 2 : 0; result = { pick: pick, face: win ? pick : (pick === "heads" ? "tails" : "heads") };
+    } else if (g === "dice") {
+        const pick = clamp(Math.floor(Number(a.pick) || 1), 1, 6), roll = 1 + Math.floor(Math.random() * 6), hit = Math.random() < 0.1667;
+        const face = hit ? pick : ((pick - 1 + 1 + Math.floor(Math.random() * 5)) % 6) + 1;       // 当たりは1/6、外れの目はそれ以外から
+        mult = hit ? 5.7 : 0; result = { pick: pick, face: face }; void roll;
+    } else if (g === "slot") {
+        let r = Math.random(), acc = 0; mult = 0;
+        for (const o of SLOT) { acc += o.p; if (r < acc) { mult = o.m; break; } }
+        const sym = ["🍒", "🔔", "💎", "7️⃣", "🍋"];
+        const pickSym = () => sym[Math.floor(Math.random() * sym.length)];
+        result = { reels: mult >= 25 ? ["7️⃣", "7️⃣", "7️⃣"] : mult >= 6 ? ["💎", "💎", "💎"] : mult >= 2 ? ["🔔", "🔔", "🔔"] : mult === 1 ? ["🍒", "🍒", pickSym() === "🍒" ? "🍋" : pickSym()] : ["🍋", "🍒", "🔔"] };
+    } else return fail("closed_game");
+    const payout = Math.floor(bet * mult), net = payout - bet;
+    if (net > 0 && (p.bank || 0) < net) return fail("bank_short", { bank: Math.floor(p.bank || 0) });   // 元手が足りないときは賭けられない
+    P.betAt = t;
+    if (net > 0) p.bank -= net;
+    else { const tax = Math.floor(bet * f.n.shopTax / 100); f.n.treasury += tax; p.bank += bet - tax; }
+    save();
+    return { ok: true, game: g, result: result, mult: mult, payout: payout, net: net, bank: Math.floor(p.bank) };
+}
+function buybackSell(P, a) {
+    const f = findPlotNear(P, a.id, "buyback"); if (!f) return fail("too_far");
+    const p = f.p, mat = String(a.mat), o = p.offers[mat];
+    if (!o) return fail("not_wanted");
+    if (p.owner === P.pid) return fail("own");
+    const count = Math.floor(Number(a.count));
+    if (!(count >= 1) || count > o.max) return fail("bad_count", { max: o.max });
+    const total = o.price * count;
+    if ((p.bank || 0) < total) return fail("bank_short", { bank: Math.floor(p.bank || 0) });
+    p.bank -= total; o.max -= count; if (o.max <= 0) delete p.offers[mat];
+    Market.returnItems(p.owner, [{ kind: "material", data: { id: "mat_" + mat + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), mat: mat, count: count, name: String(a.name || mat).replace(/[<>&"]/g, "").slice(0, 20) }, eq: null }], "「" + p.name + "」で買い取った素材");
+    save(); return { ok: true, gain: total, count: count };
+}
+function innRest(P, a) {
+    const f = findPlotNear(P, a.id, "inn"); if (!f) return fail("too_far");
+    const p = f.p, t = now();
+    if (p.owner === P.pid) return fail("own");
+    if (ctx.inCombat(P)) return fail("in_combat");
+    if (P.innAt && t - P.innAt < 20) return fail("travel_cd", { sec: Math.ceil(20 - (t - P.innAt)) });
+    if (p.price > 0 && !needCoins(a, p.price)) return fail("no_coins", { need: p.price });
+    P.innAt = t; P.hp = P.maxHp; if (P.enMax) P.en = P.enMax;
+    if (p.price > 0) payOwner(f, p.price, "「" + p.name + "」の宿泊代");
+    save(); return { ok: true, cost: p.price };
+}
+function tavernBuy(P, a) {
+    const f = findPlotNear(P, a.id, "tavern"); if (!f) return fail("too_far");
+    const p = f.p, k = String(a.drink), d = DRINKS[k];
+    if (!d || !(p.prices[k] > 0)) return fail("not_wanted");
+    if (p.owner === P.pid) return fail("own");
+    if (!needCoins(a, p.prices[k])) return fail("no_coins", { need: p.prices[k] });
+    const t = now(); P.buf = P.buf || {}; P.buf[d.buf] = Math.max(P.buf[d.buf] || 0, t + d.secs);
+    payOwner(f, p.prices[k], "「" + p.name + "」の" + d.name);
+    save(); return { ok: true, cost: p.prices[k], secs: d.secs };
+}
+
 // ---------- 国の滅亡 ----------
 function destroyNation(n, byNid, why) {
     const conq = byNid ? N(byNid) : null;
     cellsOf(n.id).forEach(ci => { if (conq) db.cellOwner[ci] = conq.id; else delete db.cellOwner[ci]; delete db.inv[ci]; });
     n.plots.forEach(p => returnStock(p, "国が滅びたため、店の在庫が戻ってきました"));
     if (conq && n.treasury > 0) conq.treasury += Math.floor(n.treasury / 2);
+    Arts.transferVault(n.id, conq ? conq.id : 0);                    // 国宝（神器）は征服した国のものに
     Object.keys(n.members).forEach(pid => setPlayerNation(pid, 0));
     for (const id in db.nations) { db.nations[id].allies = db.nations[id].allies.filter(x => x !== n.id); }
     db.wars = db.wars.filter(w => w.a !== n.id && w.b !== n.id);
@@ -724,9 +879,10 @@ module.exports = {
     CFG, init, tick, count, flush,
     state, travel, create, join, leave, kick, transfer, setPolicy, donate,
     propose, respond, breakAlly, declareWar, cancelTrade, setTradeVol,
-    hire, build, demolish, shopView, shopStock, shopSetPrice, shopSetShop, shopUnstock, shopBuy,
+    hire, build, demolish, plotView, plotConfig, plotDeposit, plotWithdraw, casinoBet, buybackSell, innRest, tavernBuy, shopView, shopStock, shopSetPrice, shopSetShop, shopUnstock, shopBuy,
     friendly, friendlyUnit, friendlyNid, hostileTo, provoke, taxOf, respawnPoint,
     cellOwnerAt, cellInfo, plotsNear, tableForClient, cellsForClient, broadcastView,
     shipArrived, shipMoved, unitKilled, nationOfPid, stockedIds,
+    nationById: (id) => N(id), capitalOf: (n) => siteOf(n),
     onJoin: (P) => { const n = nationOfPid(P.pid); P.nid = n ? n.id : 0; }
 };
