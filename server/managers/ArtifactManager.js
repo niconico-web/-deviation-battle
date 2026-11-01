@@ -90,7 +90,21 @@ function useAt(P, t, nationOf, capitalOf) {
     const n = P.nid && nationOf ? nationOf(P.nid) : null;
     if (!n) return false;
     const cap = capitalOf(n);
-    if (hyp(P, cap) > VAULT_R) return false;
+
+    // 国の首都が取得できない場合は神器の使用を中止する
+    if (
+        !cap ||
+        !Number.isFinite(Number(cap.x)) ||
+        !Number.isFinite(Number(cap.y))
+    ) {
+        console.warn("[ArtifactManager] Invalid capital:", {
+            nationId: n.id,
+            siteId: n.siteId
+        });
+        return false;
+    }
+
+if (hyp(P, cap) > VAULT_R) return false;
     if (P.art) {                                                    // 自分の国の城に奉納
         const a = def(P.art), s = st(P.art);
         s.state = "vault"; s.nid = n.id; delete s.pid; delete s.name;

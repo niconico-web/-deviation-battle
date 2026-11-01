@@ -82,7 +82,39 @@ const N = (id) => db.nations[id] || null;
 const FREE = { id: 0, name: "無所属", shopTax: 0, treasury: 0, ruler: "", members: {}, get plots() { return db.free; } };
 const nationOfPid = (pid) => { for (const id in db.nations) { if (db.nations[id].members[pid]) return db.nations[id]; } return null; };
 const count = () => Object.keys(db.nations).length;
-const siteOf = (n) => SW.SITES[n.siteId];
+const siteOf = (n) => {
+    if (!n || n.siteId == null) return null;
+
+    const siteId = Number(n.siteId);
+
+    if (
+        !Number.isInteger(siteId) ||
+        siteId < 0 ||
+        siteId >= SW.SITES.length
+    ) {
+        console.warn("[NationManager] Invalid siteId:", {
+            nationId: n.id,
+            siteId: n.siteId
+        });
+        return null;
+    }
+
+    const site = SW.SITES[siteId];
+
+    if (
+        !site ||
+        !Number.isFinite(Number(site.x)) ||
+        !Number.isFinite(Number(site.y))
+    ) {
+        console.warn("[NationManager] Capital site not found:", {
+            nationId: n.id,
+            siteId
+        });
+        return null;
+    }
+
+    return site;
+};
 const capitalCell = (n) => SW.cellIdx(siteOf(n).x, siteOf(n).y);
 const cellsOf = (nid) => Object.keys(db.cellOwner).filter(k => db.cellOwner[k] === nid).map(Number);
 const allied = (a, b) => !!(a && b && N(a) && N(b) && N(a).allies.indexOf(b) >= 0);
