@@ -28,12 +28,24 @@ const FAST_MS = 3000, SLOW_MS = 15000;
 const isMirrored = (name) => NAME_OK.test(name) && !STATIC.has(name);
 function headers(extra) { return Object.assign({ apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, extra || {}); }
 async function rest(method, query, body, extraHeaders) {
-    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 60000);  // 20秒→60秒に延長
     try {
-        const res = await fetch(URL_BASE + "/rest/v1/" + TABLE + query, { method: method, headers: headers(extraHeaders), body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
-        if (!res.ok) throw new Error(method + " " + res.status + " " + (await res.text()).slice(0, 200));
+        const url = URL_BASE + "/rest/v1/" + TABLE + query;
+        console.log("[Supabase] リクエスト: " + method + " " + url);
+        const res = await fetch(url, { method: method, headers: headers(extraHeaders), body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
+        if (!res.ok) {
+            const errorText = await res.text();
+            console.warn("[Supabase] HTTPエラー: " + res.status + " " + errorText.slice(0, 200));
+            throw new Error(method + " " + res.status + " " + errorText.slice(0, 200));
+        }
         const text = await res.text();
         return text ? JSON.parse(text) : null;
+    } catch (e) {
+        if (e.name === "AbortError") {
+            console.warn("[Supabase] リクエストがタイムアウトしました（60秒）");
+            throw new Error("Request timeout after 60s");
+        }
+        throw e;
     } finally { clearTimeout(timer); }
 }
 const listRemote = () => rest("GET", "?select=key,content");
