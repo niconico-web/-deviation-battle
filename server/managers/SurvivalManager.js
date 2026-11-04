@@ -16,6 +16,7 @@ const SW = require("../../client/js/survival-world.js");
 const Market = require("./MarketManager");
 const Loot = require("./LootGenerator");
 const Nations = require("./NationManager");
+const Arts = require("./ArtifactManager");
 
 // ---------- 預かり中の装備の保存（サーバーが落ちても、持ち主へ返せるように） ----------
 const SESS_FILE = path.join(__dirname, "..", "data", "survival.json");
@@ -67,6 +68,7 @@ let TYPES = {
     sword: { kind: "cone", range: 78, arc: 1.7, cd: 0.42, mult: 1.0 }
 };
 let PCT_CAP = 0.5;
+const KIND_CODE = { cone: 1, line: 2, smash: 3, ring: 4, proj: 5, lasers: 6 };
 let MYTHIC_IDS = [];
 
 try {
@@ -95,6 +97,7 @@ try {
 
     if (sb.HW && sb.HW.TYPES) {
         TYPES = sb.HW.TYPES;
+        if (!TYPES.sword) TYPES.sword = { kind: "cone", range: 78, arc: 1.7, cd: 0.42, mult: 1.0 };
         PCT_CAP = sb.HW.PCT_CAP || 0.5;
         MYTHIC_IDS = Object.keys(sb.HW.MYTHICS || {});
     }
@@ -102,8 +105,12 @@ try {
     console.error("[Survival] 武器データの読み込みに失敗:", e.message);
 }
 
+// 素手（武器を奪われたとき）も、ちゃんと殴れるようにする
+if (!TYPES.fist) TYPES.fist = { kind: "cone", range: 58, arc: 1.5, cd: 0.5, mult: 0.45, label: "素手" };
+
 const C = {
     TICK_MS: 50,
+    SNAP_EVERY: 2,
     MAX_PLAYERS: 60,
     MAX_MONSTERS: 420,
     AOI: 1300,
@@ -275,6 +282,7 @@ const monsters = new Map();
 const projs = [];
 
 let events = [];
+let snapTick = 0;
 let nextEid = 1;
 let nextMid = 1;
 
@@ -305,9 +313,18 @@ function unitPower(P) {
     return clamp(1 + Math.log2(1 + P.atkStat / 50) * 0.35, 1, 3);
 }
 
+// 戦闘拡張（精神力・スキル・必殺技・集中）
+const Combat = require("./SurvivalCombat")({
+    players, monsters, projs,
+    emit: (e) => events.push(e),
+    SW, Nations, C, dist, now, damageMonster, damagePlayer, pvpDamage, unitPower,
+    getTypes: () => TYPES
+});
+
 function init(ioServer) {
     io = ioServer;
     // 国のしくみとつなぐ（国は半永久。国が1つでもあれば、誰もいなくても世界は動き続ける＝貿易船が航行する）
+    Arts.init({ feed, notice });
     Nations.init({ players, monsters, io, spawnUnit, feed, giveCoins: payCoins, inCombat: (P) => now() < P.lastCombat + C.COMBAT_S });
     if (Nations.count() > 0 && !loop) loop = setInterval(tick, C.TICK_MS);
 }
@@ -447,6 +464,7 @@ function join(socket, data) {
 
     Nations.onJoin(P);
     P.prov = {};
+    Combat.initPlayer(P, data);
 
     players.set(socket.id, P);
     saveSessions();
@@ -462,6 +480,7 @@ function join(socket, data) {
         roster: allRoster(),
         world: { size: SW.SIZE, seed: SW.SEED },
         nation: { table: Nations.tableForClient(), cells: Nations.cellsForClient() },
+        combat: { slots: Combat.slotsView(P), enMax: P.enMax, ultName: Combat.ultName(P) },
         tick: C.TICK_MS,
         carried: P.carry.map(it => it.data.id)
     };
@@ -496,6 +515,7 @@ function remove(sid) {
     if (!P) return 0;
 
     const returned = settle(P);
+    if (players.get(sid)) Arts.onLeave(players.get(sid));            // 神器は神殿へ戻る
     players.delete(sid);
 
     if (io) {
@@ -599,13 +619,33 @@ function input(socket, m) {
     P.seq = (m.seq | 0);
 }
 
+// クイズ・スキル・集中（端末から）
+function quiz(socket, ok) {
+    const P = players.get(socket.id);
+    return P ? Combat.quiz(P, !!ok) : { ok: false };
+}
+function skill(socket, idx, aim) {
+    const P = players.get(socket.id);
+    return P ? Combat.cast(P, idx, aim) : { ok: false };
+}
+function artifact(socket) {
+    const P = players.get(socket.id);
+    if (!P) return { ok: false };
+    if (!P.art) return { ok: false, reason: "none" };
+    return Combat.castArtifact(P, P.art, Arts.def(P.art));
+}
+function guardSkill(socket) {
+    const P = players.get(socket.id);
+    return P ? Combat.guard(P) : { ok: false };
+}
+
 // ---------- 攻撃 ----------
 function hitUnits(P, T) {
     return T.mult * (1 + P.wpct) * unitPower(P);
 }
 
 function playerAttack(P, t) {
-    const T = TYPES[P.wtype];
+    const T = TYPES[P.wtype] || TYPES.sword;           // 知らない武器種でも、空振りで終わらせない
     if (!T || t < P.nextAtk) return;
 
     P.nextAtk = t + clamp(T.cd || 0.5, 0.15, 3);
@@ -615,6 +655,8 @@ function playerAttack(P, t) {
     const s = Math.sin(dir);
 
     P.dir = dir;
+    // 武器ごとの攻撃の演出（斬る・突く・叩く・広がる・撃つ）
+    events.push(["k", "w", Math.round(P.x), Math.round(P.y), Math.round(dir * 100), KIND_CODE[T.kind] || 1, Math.round(T.range || 80), 0]);
 
     if (T.kind === "lasers") {
         const N = T.count || 7;
@@ -784,6 +826,8 @@ function damagePlayer(O, dmg, byPlayer, byMonster) {
     if (byPlayer && SW.inSafe(byPlayer.x, byPlayer.y)) return;
     if (byPlayer && Nations.friendly(byPlayer, O)) return;              // 同じ国・同盟国は味方
     if (byPlayer && O.nid) Nations.provoke(byPlayer, O.nid, t);          // 国民に手を出すと、その国の衛兵に狙われる
+    dmg = Combat.absorb(O, dmg, t);                                      // 集中（ガード）・障壁・鉄壁
+    if (dmg <= 0) return;
 
     dmg = Math.max(1, Math.round(dmg));
 
@@ -798,6 +842,7 @@ function damagePlayer(O, dmg, byPlayer, byMonster) {
     if (O.hp <= 0) {
         O.hp = 0;
         O.dead = true;
+        Arts.onDeath(O, t);                                                  // 神器を落とす
         O.deaths++;
         O.respawnAt = t + C.RESPAWN_S;
         O.mx = O.my = 0;
@@ -1183,6 +1228,7 @@ function damageMonster(M, units, P) {
         if (M.kind === "guard" && !M.escort && !Nations.hostileTo(M.nid, P, now())) return;
         Nations.provoke(P, M.nid, now());                                // 襲うと、その国の衛兵が敵とみなす
     }
+    Combat.onDealt(P, units);                                            // 与えたダメージで必殺技ゲージがたまる
 
     M.hp -= units;
     M.dmgBy[P.eid] = (M.dmgBy[P.eid] || 0) + units;
@@ -1263,7 +1309,9 @@ function killMonster(M) {
         }
     });
 
-    if (M.ruinBoss) {
+    if (M.guardianOf != null) Arts.guardianKilled(M.guardianOf, M.x, M.y);
+
+    if (M.ruinBoss && M.ruin != null) {
         const rs = ruinState[M.ruin];
 
         if (rs) {
@@ -1272,6 +1320,9 @@ function killMonster(M) {
         }
 
         feed("🏛 " + M.name + " が倒された！");
+
+        const rr = SW.RUINS[M.ruin];
+        if (rr && rr.boss) dungeonCleared(rr);
     }
 
     if (M.boss) {
@@ -1355,34 +1406,134 @@ function spawnMonster(x, y, tier, bossNest) {
 
 function spawnRuinMonster(idx, boss) {
     const r = SW.RUINS[idx];
-    const a = Math.random() * Math.PI * 2;
-    const d = boss ? 0 : 60 + Math.random() * r.r * 0.65;
+    let x, y;
 
-    const M = spawnMonster(
-        r.x + Math.cos(a) * d,
-        r.y + Math.sin(a) * d,
-        r.tier,
-        null
-    );
+    if (boss) {
+        x = r.bossAt.x;
+        y = r.bossAt.y;
+    } else {
+        const c = r.cells[Math.floor(Math.random() * r.cells.length)];
+        x = c.x + (Math.random() - 0.5) * 60;
+        y = c.y + (Math.random() - 0.5) * 60;
+    }
+
+    const M = spawnMonster(x, y, r.tier, null);
 
     M.ruin = idx;
 
+    // 深い階ほど強い（地下5階の敵は、地下1階の約2倍）
+    if (!boss) {
+        const depth = 1 + 0.25 * (r.floor - 1);
+        M.hp = M.maxHp = M.maxHp * depth;
+        M.dmg *= 1 + 0.12 * (r.floor - 1);
+        M.coins = M.coins.map(c => Math.round(c * (1 + 0.2 * (r.floor - 1))));
+    }
+
     if (boss) {
         M.ruinBoss = true;
-        M.name = r.name + "の守護者";
+        M.name = SW.DUNGEONS[r.dg].name + "の主";
         M.icon = "👑";
-        M.r = 36;
-        M.hp = M.maxHp = 55 + r.tier * 35;
-        M.dmg = 0.1 + r.tier * 0.02;
-        M.spd = 140;
-        M.aggro = 700;
-        M.range = 48;
-        M.cd = 1.2;
-        M.coins = [250 * r.tier, 400 * r.tier];
+        M.r = 44;
+        M.hp = M.maxHp = 160 + r.tier * 90;
+        M.dmg = 0.12 + r.tier * 0.025;
+        M.spd = 150;
+        M.aggro = 900;
+        M.range = 56;
+        M.cd = 1.1;
+        M.coins = [400 * r.tier, 700 * r.tier];
         M.ring = 0;
     }
 
     return M;
+}
+
+// ---------- ダンジョンの出入り・階段（「使う」キー） ----------
+function notice(P, text) {
+    const s = io && io.sockets.sockets.get(P.sid);
+    if (s) s.emit("survival:notice", text);
+}
+
+function dungeonUse(P, t) {
+    if (t < (P.stairAt || 0)) return false;
+
+    const go = (x, y) => {
+        P.x = x;
+        P.y = y;
+        P.stairAt = t + 0.8;
+        P.invuln = Math.max(P.invuln || 0, t + 1.2);
+        P.chan = null;
+        return true;
+    };
+    const busy = () => {
+        if (t - P.lastCombat < C.COMBAT_S) {
+            notice(P, "戦闘中は階段を使えません");
+            return true;
+        }
+        return false;
+    };
+    const di = SW.dgAt(P.x, P.y);
+
+    if (di < 0) {
+        for (const d of SW.DUNGEONS) {
+            if (d.entrance && dist(P, d.entrance) < 120) {
+                if (busy()) return true;
+                const r = SW.RUINS[d.floors[0]];
+                notice(P, "🏛 " + d.name + " に入った");
+                return go(r.start.x, r.start.y);
+            }
+        }
+
+        return false;
+    }
+
+    const r = SW.RUINS[di];
+    const d = SW.DUNGEONS[r.dg];
+
+    if (r.up && dist(P, r.up) < 80) {
+        if (busy()) return true;
+
+        if (r.floor === 1) {
+            notice(P, "地上へ戻った");
+            return go(d.entrance.x, d.entrance.y + 140);
+        }
+
+        const prev = SW.RUINS[d.floors[r.floor - 2]];
+        return go(prev.down.x, prev.down.y);
+    }
+
+    if (r.down && dist(P, r.down) < 80) {
+        if (busy()) return true;
+        const nx = SW.RUINS[d.floors[r.floor]];
+        notice(P, "地下" + nx.floor + "階へ");
+        return go(nx.start.x, nx.start.y);
+    }
+
+    return false;
+}
+
+// 地下5階のボスを倒した＝踏破
+function dungeonCleared(r) {
+    const d = SW.DUNGEONS[r.dg];
+
+    feed("🏆 「" + d.name + "」が踏破された！");
+
+    players.forEach(P => {
+        if (P.dead || P.ghost || dist(P, r) > r.r + 200) return;
+
+        P.cleared = P.cleared || {};
+        P.cleared[d.id] = (P.cleared[d.id] || 0) + 1;
+
+        payCoins(P, 1500 * d.tier, "🏆 ダンジョン踏破！");
+        giveItems(
+            P,
+            [
+                { tier: d.tier, minRarity: "epic", legend: 0.08 * d.tier },
+                { tier: d.tier, minRarity: "rare" }
+            ],
+            "踏破報酬"
+        );
+        notice(P, "🏆 「" + d.name + "」を踏破した！ 階段から戻れます");
+    });
 }
 
 function freeSpot(cx, cy) {
@@ -1465,9 +1616,11 @@ function director(t) {
             if (M.ruin === i && !M.ruinBoss) cnt++;
         });
 
+        const target = r.boss ? 5 : 6 + r.floor * 2;
+
         for (
             let k = 0;
-            k < Math.min(2, C.RUIN_TARGET - cnt);
+            k < Math.min(2, target - cnt);
             k++
         ) {
             if (monsters.size < C.MAX_MONSTERS) {
@@ -1478,12 +1631,39 @@ function director(t) {
         if (rs.bossMid && !monsters.has(rs.bossMid)) rs.bossMid = 0;
 
         if (
+            r.boss &&
             !rs.bossMid &&
             t >= rs.bossRespawnAt &&
             monsters.size < C.MAX_MONSTERS
         ) {
             rs.bossMid = spawnRuinMonster(i, true).id;
         }
+    });
+
+    // 神殿の守護者（神器が神殿にあるときだけ、近くに人がいると現れる）
+    SW.SHRINES.forEach((sh, i) => {
+        if (!Arts.shrineOpen(i)) return;
+        let near = false;
+        players.forEach(P => { if (!P.dead && dist(P, sh) < 1500) near = true; });
+        if (!near) return;
+        let have = false;
+        monsters.forEach(M => { if (M.guardianOf === i) have = true; });
+        if (have || monsters.size >= C.MAX_MONSTERS) return;
+        const M = spawnMonster(sh.x, sh.y, 3, null);
+        M.guardianOf = i;
+        M.name = Arts.ARTS[i].name + "の守護者";
+        M.icon = "🗿";
+        M.r = 46;
+        M.hp = M.maxHp = 520;
+        M.dmg = 0.2;
+        M.spd = 160;
+        M.aggro = 900;
+        M.range = 58;
+        M.cd = 1.0;
+        M.coins = [800, 1500];
+        M.ruinBoss = true;                                           // 周りに輪の攻撃をする（遺跡の守護者と同じ動き）
+        M.ruin = null;
+        M.ring = 0;
     });
 
     // ボスの巣
@@ -1795,8 +1975,8 @@ function tick() {
         // 移動
         if (P.mx || P.my) {
             const r = SW.resolve(
-                P.x + P.mx * C.BASE_SPEED * dt,
-                P.y + P.my * C.BASE_SPEED * dt,
+                P.x + P.mx * C.BASE_SPEED * (P.buf && P.buf.haste > t ? 1.3 : 1) * dt,
+                P.y + P.my * C.BASE_SPEED * (P.buf && P.buf.haste > t ? 1.3 : 1) * dt,
                 C.PLAYER_R
             );
 
@@ -1806,8 +1986,13 @@ function tick() {
             if (!P.firing) P.dir = Math.atan2(P.my, P.mx);
         }
 
-        if (P.ultReq && !P.ult && P.wtype === "unbreakable" && t >= P.ultReadyAt) {
-            startUlt(P, t);
+        if (P.ultReq && !P.ult && Combat.canUlt(P)) {
+            if (P.wtype === "unbreakable") {
+                P.ug = 0;
+                startUlt(P, t);
+            } else {
+                Combat.castUlt(P, t);
+            }
         }
 
         if (P.ult) tickUlt(P, t);
@@ -1830,6 +2015,10 @@ function tick() {
                 P.chan = null;
                 openChest(P, ch.chest, t);
             }
+        } else if (P.use && !P.usePrev && dungeonUse(P, t)) {
+            // 階段・ダンジョンの入り口を使った
+        } else if (P.use && !P.usePrev && Arts.useAt(P, t, Nations.nationById, Nations.capitalOf)) {
+            // 神器を拾った／奉納した／国宝を持ち出した
         } else if (P.use && !P.mx && !P.my && !P.firing) {
             const c = chestAt(P, t);
 
@@ -1845,6 +2034,8 @@ function tick() {
             }
         }
 
+        P.usePrev = P.use;
+
         if (t - P.lastHurt > C.REGEN_DELAY && P.hp < P.maxHp) {
             P.hp = Math.min(
                 P.maxHp,
@@ -1853,7 +2044,7 @@ function tick() {
         }
     });
 
-    monsters.forEach(M => monsterAI(M, dt, t));
+    monsters.forEach(M => Combat.runAI(M, dt, t, monsterAI));
 
     // 弾
     for (let i = projs.length - 1; i >= 0; i--) {
@@ -1865,10 +2056,7 @@ function tick() {
 
         let dead =
             b.life <= 0 ||
-            b.x < 0 ||
-            b.y < 0 ||
-            b.x > SW.SIZE ||
-            b.y > SW.SIZE;
+            !SW.inBounds(b.x, b.y);
 
         if (
             !dead &&
@@ -1894,6 +2082,7 @@ function tick() {
                     ) {
                         b.hit.add("m" + M.id);
                         damageMonster(M, b.units, owner);
+                        Combat.onProjHit(owner, M, b);
 
                         if (b.pierce-- <= 0) dead = true;
                     }
@@ -1945,9 +2134,15 @@ function tick() {
     }
 
     Nations.tick(t, dt);
+    Combat.tick(t, dt);
+    players.forEach(P => Arts.trackHolder(P));
+    Arts.tick(t);
 
-    snapshot(t);
-    events = [];
+    // 動きの計算は毎tick、画面への送信は C.SNAP_EVERY tick ごと（通信量を減らして軽くする）
+    if (++snapTick % C.SNAP_EVERY === 0) {
+        snapshot(t);
+        events = [];
+    }
 }
 
 function snapshot(t) {
@@ -1957,6 +2152,8 @@ function snapshot(t) {
         if (P.ghost) return;
 
         const s = io.sockets.sockets.get(sid);
+        const slow = !P.slowAt || t - P.slowAt >= 2 || P.slowFirst !== false;   // 建物・神器の状況は、約2秒に1回だけ送る（変わらないので）
+        if (slow) { P.slowAt = t; P.slowFirst = false; }
         if (!s) return;
 
         const near = (o, rad) =>
@@ -1988,7 +2185,7 @@ function snapshot(t) {
 
         monsters.forEach(M => {
             if (near(M, C.AOI)) {
-                ms.push([
+                const ma = [
                     M.id,
                     M.icon,
                     Math.round(M.x),
@@ -2003,7 +2200,9 @@ function snapshot(t) {
                     M.kind === "ship" ? Math.round(M.tx) : 0,
                     M.kind === "ship" ? Math.round(M.ty) : 0,
                     M.kind === "ship" ? (M.cargo | 0) : 0
-                ]);
+                ];
+                if (!M.nid) ma.length = 9;                       // 普通の敵は、国の項目を送らない（通信量を減らす）
+                ms.push(ma);
             }
         });
 
@@ -2035,10 +2234,12 @@ function snapshot(t) {
 
         for (let i = 0; i < events.length; i++) {
             const e = events[i];
+            // 演出（"k"）は [種類, 形, x, y, …]、そのほかは [種類, x, y, …]
+            const ex = e[0] === "k" ? e[2] : e[1], ey = e[0] === "k" ? e[3] : e[2];
 
             if (
-                Math.abs(e[1] - P.x) < C.AOI &&
-                Math.abs(e[2] - P.y) < C.AOI
+                Math.abs(ex - P.x) < C.AOI &&
+                Math.abs(ey - P.y) < C.AOI
             ) {
                 ev.push(e);
             }
@@ -2069,14 +2270,18 @@ function snapshot(t) {
                     ? Math.min(1, (t - P.chan.start) / C.CHEST_CHANNEL_S)
                     : 0,
                 nid: P.nid || 0,
-                ci: Nations.cellInfo(P)
+                dgi: SW.dgAt(P.x, P.y),
+                ci: Nations.cellInfo(P),
+                art: P.art ? { id: Arts.idx(P.art), cd: Math.max(0, +((P.artCd || 0) - t).toFixed(1)) } : null,
+                cm: Combat.meView(P, t)
             },
 
             p: ps,
             m: ms,
             b: bs,
             c: cs,
-            st: Nations.plotsNear(P.x, P.y, C.AOI),
+            pg: Nations.pointProgress(),
+            ...(slow ? { st: Nations.plotsNear(P.x, P.y, C.AOI), ar: Arts.publicList() } : {}),
             ev: ev,
             online: players.size
         });
@@ -2107,7 +2312,7 @@ function spawnUnit(kind, nid, x, y, o) {
         ranged: false, cd: def.cd, coins: [0, 0],
         nextAtk: 0, nextShot: 0, ring: 0, dmgBy: {}, face: 0, dead: false, target: 0,
         wander: 0, wx: x, wy: y,
-        nid: nid, kind: kind === "escort" ? "guard" : kind, escort: kind === "escort",
+        nid: nid, kind: kind === "escort" ? "guard" : kind, escort: kind === "escort", ptId: o.ptId,
         post: kind === "escort" ? "escort" : o.post, shipId: o.shipId, cargo: o.cargo, tx: o.tx, ty: o.ty,
         movedAt: 0
     };
@@ -2141,7 +2346,7 @@ function nationUnitAI(M, dt, t) {
     }
 
     // 衛兵：持ち場の近くで見張り、敵を見つけたら追う
-    let ax = M.homeX, ay = M.homeY, leash = M.post === "castle" ? 420 : 640;
+    let ax = M.homeX, ay = M.homeY, leash = M.post === "castle" ? 800 : (M.post === "point" ? 600 : 1500);
 
     if (M.escort) {
         let ship = null;
@@ -2229,6 +2434,10 @@ module.exports = {
     input,
     stats,
     playerOf,
+    quiz,
+    skill,
+    artifact,
+    guardSkill,
     CONFIG: C,
     TYPES: () => TYPES,
     _players: players,
