@@ -48,7 +48,19 @@ async function rest(method, query, body, extraHeaders) {
         throw e;
     } finally { clearTimeout(timer); }
 }
-const listRemote = () => rest("GET", "?select=key,content");
+const listRemote = async () => {
+    const allRows = [];
+    let offset = 0;
+    const limit = 100;  // 一度に100件ずつ取得
+    while (true) {
+        const rows = await rest("GET", `?select=key,content&limit=${limit}&offset=${offset}`);
+        if (!rows || rows.length === 0) break;
+        allRows.push(...rows);
+        if (rows.length < limit) break;  // 取得件数がlimitより少なければ最後まで取得済み
+        offset += limit;
+    }
+    return allRows;
+};
 const upsert = (rows) => rest("POST", "?on_conflict=key", rows, { Prefer: "resolution=merge-duplicates,return=minimal" });
 function localFiles() { try { return fs.readdirSync(DATA_DIR).filter(isMirrored); } catch (e) { return []; } }
 function readLocal(name) { try { const t = fs.readFileSync(path.join(DATA_DIR, name), "utf-8"); JSON.parse(t); return t; } catch (e) { return null; } }   // 壊れている／書き込み途中のものは送らない
