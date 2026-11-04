@@ -88,7 +88,7 @@ function restoreOnBootSync() {
     if (!ENABLED) { console.log("[Supabase] SUPABASE_URL / SUPABASE_SERVICE_KEY 未設定：ファイル保存のみで動きます"); return false; }
     try {
         console.log("[Supabase] 起動時の復元を開始: node=" + process.execPath + " file=" + __filename);
-        execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env });
+        execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 120000, env: process.env });  // 30秒→120秒に延長
         return true;
     }
     catch (e) {
@@ -98,6 +98,7 @@ function restoreOnBootSync() {
         console.warn("  実行パス: " + process.execPath);
         console.warn("  ファイルパス: " + __filename);
         if (e.code === "ENOENT") console.warn("  ファイルが見つかりません。パスを確認してください。");
+        if (e.code === "ETIMEDOUT") console.warn("  プロセス実行がタイムアウトしました。データ量が多すぎる可能性があります。");
         return false;
     }
 }
