@@ -90,7 +90,25 @@ function useAt(P, t, nationOf, capitalOf) {
     const n = P.nid && nationOf ? nationOf(P.nid) : null;
     if (!n) return false;
     const cap = capitalOf(n);
+
     if (hyp(P, cap) > VAULT_R) return false;
+
+
+    // 国の首都が取得できない場合は神器の使用を中止する
+    if (
+        !cap ||
+        !Number.isFinite(Number(cap.x)) ||
+        !Number.isFinite(Number(cap.y))
+    ) {
+        console.warn("[ArtifactManager] Invalid capital:", {
+            nationId: n.id,
+            siteId: n.siteId
+        });
+        return false;
+    }
+
+if (hyp(P, cap) > VAULT_R) return false;
+
     if (P.art) {                                                    // 自分の国の城に奉納
         const a = def(P.art), s = st(P.art);
         s.state = "vault"; s.nid = n.id; delete s.pid; delete s.name;
@@ -136,15 +154,21 @@ function transferVault(fromNid, toNid) {
     });
     save();
 }
+
 // 存在しない国に奉納されていた国宝は、神殿へ戻す
 function purgeVault(validNids) {
     let ch = false;
     ARTS.forEach(a => { const s2 = st(a.id); if (s2.state === "vault" && validNids.indexOf(s2.nid) < 0) { db.arts[a.id] = { state: "shrine" }; ch = true; } });
     if (ch) save();
 }
+
 function holderPids() { return ARTS.filter(a => st(a.id).state === "held").map(a => st(a.id).pid); }
 function tick(t) {
     ARTS.forEach(a => { const s = st(a.id); if (s.state === "dropped" && t - (s.at || t) > DROP_RETURN_S) { db.arts[a.id] = { state: "shrine" }; save(); ctx.feed("🕊 地に落ちていた「" + a.name + "」は神殿へ戻っていった"); } });
 }
 
+
 module.exports = { purgeVault, ARTS, def, idx, init, publicList, summary, useAt, onDeath, onLeave, guardianKilled, shrineOpen, vaultOf, transferVault, trackHolder, tick, holderPids, version: () => version, flush };
+
+module.exports = { ARTS, def, idx, init, publicList, summary, useAt, onDeath, onLeave, guardianKilled, shrineOpen, vaultOf, transferVault, trackHolder, tick, holderPids, version: () => version, flush };
+

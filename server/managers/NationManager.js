@@ -761,10 +761,18 @@ function ensureGuardsPoints() {
 function ensureGuards() {
     ensureGuardsPoints();
     for (const id in db.nations) {
-        const n = db.nations[id], s = siteOf(n);
+        const n = db.nations[id];
+        if (!n) continue; // 国家データがなければスキップ
+
+        const s = siteOf(n);
+        // 拠点データ（s）が取得できない、または座標が存在しない場合はスキップしてエラーを防ぐ
+        if (!s || s.x === undefined || s.y === undefined) continue;
+
         ["castle", "town"].forEach(post => {
             let have = 0;
-            ctx.monsters.forEach(M => { if (M.nid === n.id && M.kind === "guard" && M.post === post) have++; });
+            ctx.monsters.forEach(M => { 
+                if (M && M.nid === n.id && M.kind === "guard" && M.post === post) have++; 
+            });
             if (have < n.guards[post]) {
                 const a = Math.random() * 6.28, d = post === "castle" ? 150 + Math.random() * 350 : 450 + Math.random() * 450;
                 ctx.spawnUnit("guard", n.id, s.x + Math.cos(a) * d, s.y + Math.sin(a) * d, { post: post, hx: s.x, hy: s.y });
