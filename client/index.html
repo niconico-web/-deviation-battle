@@ -39,7 +39,6 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <link rel="stylesheet" href="css/study-enhanced.css">
     <link rel="stylesheet" href="css/ui-settings.css">
     <link rel="stylesheet" href="css/market.css">
-    <link rel="stylesheet" href="css/survival.css">
 <link rel="stylesheet" href="css/study-manager.css">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -393,29 +392,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 </div>
             </section>
 
-            <section id="section-survival" class="content-section">
-                <div class="sv-wrap">
-                    <canvas id="svCanvas"></canvas>
-                    <div class="sv-tl">
-                        <div class="sv-hp"><div id="svHpFill"></div><div id="svHpText"></div></div>
-                        <div id="svZone"></div>
-                        <div id="svStats"></div>
-                    </div>
-                    <div id="svFeed"></div>
-                    <div id="svCombat"></div>
-                    <div id="svPrompt"></div>
-                    <div id="svLag">通信が不安定です…</div>
-                    <div id="svTerr"></div>
-                    <button type="button" id="svShopBtn">🛒 店を見る</button>
-                    <div class="sv-tr"><canvas id="svMini" width="130" height="130"></canvas><button type="button" id="svNation">🏰 国</button><button type="button" id="svLeave">🚪 町へ戻る</button></div>
-                    <div id="svDead"><span>💀 倒された…</span><span><b>5</b> 秒後に復活（安全地帯）</span></div>
-                    <div class="sv-msg" id="svMsg"></div>
-                    <div class="sv-help">移動：WASD/矢印　攻撃：クリック / Space（マウスの向きに攻撃）　宝箱：E（押し続ける）　※ここは完全PvPです</div>
-                    <div id="svStickZone"><div id="svStick"><div id="svStickKnob"></div></div></div>
-                    <button type="button" id="svAtkBtn">⚔️</button>
-                    <button type="button" id="svUseBtn">🎁</button>
-                </div>
-            </section>
+
 
             <section id="section-market" class="content-section">
                 <h2>🏪 市場</h2>
@@ -835,9 +812,6 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/armor.js" defer></script>
     <script src="js/accessories.js" defer></script>
     <script src="js/market.js" defer></script>
-    <script src="js/survival-world.js" defer></script>
-    <script src="js/survival.js" defer></script>
-    <script src="js/nation-ui.js" defer></script>
     <script src="js/achievements.js" defer></script>
     <script src="js/pixel-data.js" defer></script>
     <script src="js/pixel.js" defer></script>
@@ -845,6 +819,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/stage-data.js" defer></script>
     <script src="js/stage-lobby.js" defer></script>
     <script src="js/beginner.js" defer></script>
+    <script src="js/survival-entry.js" defer></script>
     <script src="js/world.js" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
