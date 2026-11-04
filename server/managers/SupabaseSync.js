@@ -27,14 +27,19 @@ const FAST_MS = 3000, SLOW_MS = 15000;
 
 const isMirrored = (name) => NAME_OK.test(name) && !STATIC.has(name);
 function headers(extra) { return Object.assign({ apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, extra || {}); }
-async function rest(method, query, body, extraHeaders) {
-    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 60000);  // 20秒→60秒に延長
+async function rest(method, query, body, extraHeaders, retries = 3) {
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 60000);
     try {
         const url = URL_BASE + "/rest/v1/" + TABLE + query;
         console.log("[Supabase] リクエスト: " + method + " " + url);
         const res = await fetch(url, { method: method, headers: headers(extraHeaders), body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
         if (!res.ok) {
             const errorText = await res.text();
+            // HTMLエラーレスポンス（SSLエラーなど）を検出
+            if (errorText.trim().startsWith("<!DOCTYPE")) {
+                console.warn("[Supabase] SSL/接続エラー（HTMLレスポンス）: " + res.status);
+                throw new Error("SSL handshake failed or connection error");
+            }
             console.warn("[Supabase] HTTPエラー: " + res.status + " " + errorText.slice(0, 200));
             throw new Error(method + " " + res.status + " " + errorText.slice(0, 200));
         }
@@ -44,6 +49,13 @@ async function rest(method, query, body, extraHeaders) {
         if (e.name === "AbortError") {
             console.warn("[Supabase] リクエストがタイムアウトしました（60秒）");
             throw new Error("Request timeout after 60s");
+        }
+        // SSLエラーや一時的な接続エラーの場合はリトライ
+        if (retries > 0 && (e.message.includes("SSL") || e.message.includes("ECONNRESET") || e.message.includes("ETIMEDOUT"))) {
+            console.warn("[Supabase] 接続エラー、リトライします（残り" + retries + "回）");
+            await new Promise(r => setTimeout(r, 2000));  // 2秒待機
+            clearTimeout(timer);
+            return rest(method, query, body, extraHeaders, retries - 1);
         }
         throw e;
     } finally { clearTimeout(timer); }
