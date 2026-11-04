@@ -62,8 +62,20 @@ async function pushAll() {
 // server.js の最初に呼ぶ。別プロセスで復元して結果を待つ（以降の require がファイルを読むより前に終わらせるため）
 function restoreOnBootSync() {
     if (!ENABLED) { console.log("[Supabase] SUPABASE_URL / SUPABASE_SERVICE_KEY 未設定：ファイル保存のみで動きます"); return false; }
-    try { execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env }); return true; }
-    catch (e) { console.warn("[Supabase] 起動時の復元に失敗しました（ローカルのファイルで続行）: " + (e.message || e).toString().slice(0, 160)); return false; }
+    try {
+        console.log("[Supabase] 起動時の復元を開始: node=" + process.execPath + " file=" + __filename);
+        execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env });
+        return true;
+    }
+    catch (e) {
+        const errStr = String(e.message || e);
+        console.warn("[Supabase] 起動時の復元に失敗しました（ローカルのファイルで続行）:");
+        console.warn("  エラー: " + errStr.slice(0, 300));
+        console.warn("  実行パス: " + process.execPath);
+        console.warn("  ファイルパス: " + __filename);
+        if (e.code === "ENOENT") console.warn("  ファイルが見つかりません。パスを確認してください。");
+        return false;
+    }
 }
 
 // ---------- ② 実行中の同期 ／ ③ 停止時の最終保存 ----------
@@ -101,7 +113,19 @@ async function start() {
 
 if (require.main === module) {
     const mode = process.argv[2];
-    if (!ENABLED) process.exit(0);
-    (mode === "--push" ? pushAll() : restore()).then(() => process.exit(0), (e) => { console.warn("[Supabase] " + mode + " failed: " + e.message); process.exit(1); });
+    console.log("[Supabase] 直接実行: mode=" + mode + " args=" + process.argv.slice(2).join(" "));
+    if (!ENABLED) {
+        console.log("[Supabase] 環境変数未設定のため終了");
+        process.exit(0);
+    }
+    const promise = mode === "--push" ? pushAll() : restore();
+    promise.then(() => {
+        console.log("[Supabase] " + (mode || "restore") + " 完了");
+        process.exit(0);
+    }, (e) => {
+        console.warn("[Supabase] " + (mode || "restore") + " 失敗: " + e.message);
+        console.warn(e.stack);
+        process.exit(1);
+    });
 }
 module.exports = { enabled: ENABLED, restoreOnBootSync, start, syncOnce, pushAll, restore };
