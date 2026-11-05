@@ -8,7 +8,9 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # AIスキル作成用（Anthropic APIキー）。未設定でも動くが、キーワード判定の簡易版になる
+      # AIスキル作成用（Google AI Studio / Anthropic APIキー）。未設定でも動くが、キーワード判定の簡易版になる
+      - key: GEMINI_API_KEY
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
       # Supabase（保存データの永続化）。server/supabase/schema.sql を Supabase の SQL Editor で実行してから、
