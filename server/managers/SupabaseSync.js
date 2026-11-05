@@ -27,52 +27,16 @@ const FAST_MS = 3000, SLOW_MS = 15000;
 
 const isMirrored = (name) => NAME_OK.test(name) && !STATIC.has(name);
 function headers(extra) { return Object.assign({ apikey: KEY, Authorization: "Bearer " + KEY, "Content-Type": "application/json" }, extra || {}); }
-async function rest(method, query, body, extraHeaders, retries = 3) {
-    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 60000);
+async function rest(method, query, body, extraHeaders) {
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-        const url = URL_BASE + "/rest/v1/" + TABLE + query;
-        console.log("[Supabase] リクエスト: " + method + " " + url);
-        const res = await fetch(url, { method: method, headers: headers(extraHeaders), body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
-        if (!res.ok) {
-            const errorText = await res.text();
-            // HTMLエラーレスポンス（SSLエラーなど）を検出
-            if (errorText.trim().startsWith("<!DOCTYPE")) {
-                console.warn("[Supabase] SSL/接続エラー（HTMLレスポンス）: " + res.status);
-                throw new Error("SSL handshake failed or connection error");
-            }
-            console.warn("[Supabase] HTTPエラー: " + res.status + " " + errorText.slice(0, 200));
-            throw new Error(method + " " + res.status + " " + errorText.slice(0, 200));
-        }
+        const res = await fetch(URL_BASE + "/rest/v1/" + TABLE + query, { method: method, headers: headers(extraHeaders), body: body ? JSON.stringify(body) : undefined, signal: ctrl.signal });
+        if (!res.ok) throw new Error(method + " " + res.status + " " + (await res.text()).slice(0, 200));
         const text = await res.text();
         return text ? JSON.parse(text) : null;
-    } catch (e) {
-        if (e.name === "AbortError") {
-            console.warn("[Supabase] リクエストがタイムアウトしました（60秒）");
-            throw new Error("Request timeout after 60s");
-        }
-        // SSLエラーや一時的な接続エラーの場合はリトライ
-        if (retries > 0 && (e.message.includes("SSL") || e.message.includes("ECONNRESET") || e.message.includes("ETIMEDOUT"))) {
-            console.warn("[Supabase] 接続エラー、リトライします（残り" + retries + "回）");
-            await new Promise(r => setTimeout(r, 2000));  // 2秒待機
-            clearTimeout(timer);
-            return rest(method, query, body, extraHeaders, retries - 1);
-        }
-        throw e;
     } finally { clearTimeout(timer); }
 }
-const listRemote = async () => {
-    const allRows = [];
-    let offset = 0;
-    const limit = 100;  // 一度に100件ずつ取得
-    while (true) {
-        const rows = await rest("GET", `?select=key,content&limit=${limit}&offset=${offset}`);
-        if (!rows || rows.length === 0) break;
-        allRows.push(...rows);
-        if (rows.length < limit) break;  // 取得件数がlimitより少なければ最後まで取得済み
-        offset += limit;
-    }
-    return allRows;
-};
+const listRemote = () => rest("GET", "?select=key,content");
 const upsert = (rows) => rest("POST", "?on_conflict=key", rows, { Prefer: "resolution=merge-duplicates,return=minimal" });
 function localFiles() { try { return fs.readdirSync(DATA_DIR).filter(isMirrored); } catch (e) { return []; } }
 function readLocal(name) { try { const t = fs.readFileSync(path.join(DATA_DIR, name), "utf-8"); JSON.parse(t); return t; } catch (e) { return null; } }   // 壊れている／書き込み途中のものは送らない
@@ -98,21 +62,8 @@ async function pushAll() {
 // server.js の最初に呼ぶ。別プロセスで復元して結果を待つ（以降の require がファイルを読むより前に終わらせるため）
 function restoreOnBootSync() {
     if (!ENABLED) { console.log("[Supabase] SUPABASE_URL / SUPABASE_SERVICE_KEY 未設定：ファイル保存のみで動きます"); return false; }
-    try {
-        console.log("[Supabase] 起動時の復元を開始: node=" + process.execPath + " file=" + __filename);
-        execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 120000, env: process.env });  // 30秒→120秒に延長
-        return true;
-    }
-    catch (e) {
-        const errStr = String(e.message || e);
-        console.warn("[Supabase] 起動時の復元に失敗しました（ローカルのファイルで続行）:");
-        console.warn("  エラー: " + errStr.slice(0, 300));
-        console.warn("  実行パス: " + process.execPath);
-        console.warn("  ファイルパス: " + __filename);
-        if (e.code === "ENOENT") console.warn("  ファイルが見つかりません。パスを確認してください。");
-        if (e.code === "ETIMEDOUT") console.warn("  プロセス実行がタイムアウトしました。データ量が多すぎる可能性があります。");
-        return false;
-    }
+    try { execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env }); return true; }
+    catch (e) { console.warn("[Supabase] 起動時の復元に失敗しました（ローカルのファイルで続行）: " + (e.message || e).toString().slice(0, 160)); return false; }
 }
 
 // ---------- ② 実行中の同期 ／ ③ 停止時の最終保存 ----------
@@ -150,19 +101,7 @@ async function start() {
 
 if (require.main === module) {
     const mode = process.argv[2];
-    console.log("[Supabase] 直接実行: mode=" + mode + " args=" + process.argv.slice(2).join(" "));
-    if (!ENABLED) {
-        console.log("[Supabase] 環境変数未設定のため終了");
-        process.exit(0);
-    }
-    const promise = mode === "--push" ? pushAll() : restore();
-    promise.then(() => {
-        console.log("[Supabase] " + (mode || "restore") + " 完了");
-        process.exit(0);
-    }, (e) => {
-        console.warn("[Supabase] " + (mode || "restore") + " 失敗: " + e.message);
-        console.warn(e.stack);
-        process.exit(1);
-    });
+    if (!ENABLED) process.exit(0);
+    (mode === "--push" ? pushAll() : restore()).then(() => process.exit(0), (e) => { console.warn("[Supabase] " + mode + " failed: " + e.message); process.exit(1); });
 }
 module.exports = { enabled: ENABLED, restoreOnBootSync, start, syncOnce, pushAll, restore };

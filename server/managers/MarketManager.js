@@ -63,6 +63,12 @@ function flushNow() { if (timer) { clearTimeout(timer); flush(); } }
 const ID_RE = /^[A-Za-z0-9]{4,12}$/;
 const isPid = (id) => ID_RE.test(String(id || ""));
 const PID = (id) => String(id).toUpperCase();
+// ---------- ワールド（スタンダード／シーズンの市場を分ける）----------
+//  クライアントは、スタンダードキャラ＝アカウントID（6文字）、シーズンキャラ＝アカウントID＋"S"（7文字）で話しかけてくる。
+//  7文字のIDは「シーズンの世界」。出品も受け取り箱も、世界ごとに完全に別になる
+//  （同じアカウントのスタンダードキャラが出した物を、シーズンキャラが買うことはできない）
+const worldOf = (id) => (String(id || "").length === 7 ? "season" : "standard");
+const worldOfListing = (l) => l.world || worldOf(l.sellerId);     // world が無い古い出品は、出品者のIDから判断する
 const now = () => Date.now();
 const fail = (reason, extra) => Object.assign({ ok: false, reason: reason }, extra || {});
 
@@ -170,7 +176,7 @@ function list(m) {
         db.seq += 1;
         const id = "L" + db.seq.toString(36) + now().toString(36).slice(-4);
         db.listings[id] = {
-            id: id, sellerId: sellerId, sellerName: String(m.sellerName || "名無し").slice(0, 20), title: title,
+            id: id, sellerId: sellerId, world: worldOf(sellerId), sellerName: String(m.sellerName || "名無し").slice(0, 20), title: title,
             items: items, price: price, minPrice: minTotal, createdAt: now(), status: "active"
         };
         schedule();
@@ -221,7 +227,8 @@ function browse(m) {
     const q = String(m.q || "").trim().toLowerCase().slice(0, 30);
     const kind = KINDS.includes(m.kind) ? m.kind : null;
     const rarity = m.rarity ? String(m.rarity) : null;
-    let rows = Object.values(db.listings).filter(l => l.status === "active" || l.status === "reserved");
+    const myWorld = worldOf(viewer || "");
+    let rows = Object.values(db.listings).filter(l => (l.status === "active" || l.status === "reserved") && worldOfListing(l) === myWorld);
     if (kind) rows = rows.filter(l => l.items.some(i => i.kind === kind));
     if (rarity) rows = rows.filter(l => l.items.some(i => (i.kind === "orb" ? i.data.tier : i.data.rarity) === rarity));
     if (q) rows = rows.filter(l => l.title.toLowerCase().indexOf(q) !== -1 || l.items.some(i => itemName(i).toLowerCase().indexOf(q) !== -1));
@@ -247,6 +254,7 @@ function reserve(m) {
     const l = db.listings[m.listingId];
     if (!l) return fail("gone");                                       // 売り切れ／取り下げ
     if (l.sellerId === buyerId) return fail("own");
+    if (worldOfListing(l) !== worldOf(buyerId)) return fail("other_world");     // 別の世界（シーズン／スタンダード）の出品は買えない
     if (l.status === "reserved") {
         if (l.reservedBy === buyerId) return { ok: true, listing: publicView(l, buyerId), resumed: true };   // 自分の予約の再送
         return fail("reserved");

@@ -76,26 +76,33 @@ function flushSync() {
 process.on('exit', flushSync);
 ['SIGINT', 'SIGTERM'].forEach(sig => process.on(sig, () => { flushSync(); process.exit(0); }));
 
-// プレイヤーデータを保存
-function savePlayer(player) {
+// 1つのプレイヤーID（＝引継ぎコード）に、スタンダードキャラとシーズンキャラの2体を保存する。
+//  ・スタンダードキャラ → playerData[ID]      （ランキング・フレンドなどはこちらを見る）
+//  ・シーズンキャラ     → playerData[ID~s]    （2体のデータが混ざらないよう別の枠に保存。ランキングには出さない）
+const SEASON_SUFFIX = '~s';
+function keyOf(playerId, mode) { return String(playerId) + (mode === 'season' ? SEASON_SUFFIX : ''); }
+
+// プレイヤーデータを保存（mode: 'standard'(既定) / 'season'）
+function savePlayer(player, mode) {
     if (!player || !player.id) {
         return false;
     }
     // 既存のデータをマージして、ギルド情報などが失われないようにする
-    const existingData = playerData[player.id] || {};
-    playerData[player.id] = { ...existingData, ...player };
+    const key = keyOf(player.id, mode);
+    const existingData = playerData[key] || {};
+    playerData[key] = { ...existingData, ...player };
     scheduleSave();
     return true;
 }
 
-// プレイヤーデータを取得
-function getPlayer(playerId) {
-    return playerData[playerId] || null;
+// プレイヤーデータを取得（mode を省略するとスタンダードキャラ）
+function getPlayer(playerId, mode) {
+    return playerData[keyOf(playerId, mode)] || null;
 }
 
-// 全プレイヤーデータを取得（ランキング集計用）
+// 全プレイヤーデータを取得（ランキング集計用。シーズンキャラの枠は含めない）
 function getAllPlayers() {
-    return Object.values(playerData);
+    return Object.keys(playerData).filter(k => !k.endsWith(SEASON_SUFFIX)).map(k => playerData[k]);
 }
 
 // 起動時ロード

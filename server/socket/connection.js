@@ -453,8 +453,16 @@ module.exports = function(io){
         //  2台の端末が同じプレイヤーIDを共有し、どちらで進めても自動で反映し合う。
         //  サーバーは「版（rev）」を持つ。端末は「最後に同期した版（baseRev）」を添えて保存し、
         //  サーバーの版と違えば＝もう一方の端末が先に更新している → 上書きせず衝突として知らせる（force で強制上書き）
+        // いま操作中のキャラ（'season' / 'standard'）。引継ぎデータ（sbSeason）に入っている
+        const activeModeOf = (b) => {
+            try { const s = b && b.items && b.items.sbSeason; const o = s ? JSON.parse(s) : null; return o && o.active === 'season' ? 'season' : 'standard'; } catch (e) { return 'standard'; }
+        };
+        const livePlayerOf = (id, b) => {
+            const mode = activeModeOf(b);
+            return PlayerDataManager.getPlayer(id, mode) || (mode === 'season' ? PlayerDataManager.getPlayer(id) : null);
+        };
         const syncInfo = (id) => {
-            const pl = PlayerDataManager.getPlayer(id), b = ExtraDataManager.getBundle(id);
+            const b = ExtraDataManager.getBundle(id), pl = livePlayerOf(id, b);
             return { id: id, exists: !!pl, rev: (b && b.rev) || 0, at: (b && b.at) || 0, dev: (b && b.dev) || "", name: pl ? pl.name : "", level: pl ? (pl.level || 1) : 0, coins: pl ? (pl.coins || 0) : 0 };
         };
         const okId = (id) => /^[A-Za-z0-9]{4,12}$/.test(String(id || ""));
@@ -466,7 +474,7 @@ module.exports = function(io){
             // 版がずれていても、いまの版を保存したのが「この端末」なら衝突ではない（保存の返事が届かなかった・重ねて送ったなど）。別の端末が先に保存したときだけ衝突にする
             const sameDev = !!(m.dev && cur.dev && String(m.dev) === cur.dev);
             if (!m.force && cur.exists && cur.rev !== base && !sameDev) { socket.emit("sync:pushed", Object.assign({ ok: false, conflict: true }, cur, { manual: !!m.manual })); return; }
-            if (!PlayerDataManager.savePlayer(m.player)) { socket.emit("sync:pushed", { ok: false, reason: "player", manual: !!m.manual }); return; }
+            if (!PlayerDataManager.savePlayer(m.player, m.mode === "season" ? "season" : "standard")) { socket.emit("sync:pushed", { ok: false, reason: "player", manual: !!m.manual }); return; }
             const nextRev = cur.rev + 1;
             const bundleOk = m.bundle ? ExtraDataManager.saveBundle(m.id, m.bundle, nextRev, m.dev) : ExtraDataManager.saveBundle(m.id, { items: {} }, nextRev, m.dev);
             if (!bundleOk) { socket.emit("sync:pushed", { ok: false, reason: "size", manual: !!m.manual }); return; }
@@ -474,9 +482,9 @@ module.exports = function(io){
         });
         socket.on("sync:pull", (m) => {
             if (!m || !okId(m.id)) { socket.emit("sync:pulled", { ok: false, reason: "invalid" }); return; }
-            const pl = PlayerDataManager.getPlayer(m.id);
-            if (!pl) { socket.emit("sync:pulled", { ok: false, notFound: true, link: !!m.link }); return; }
             const b = ExtraDataManager.getBundle(m.id);
+            const pl = livePlayerOf(m.id, b) || PlayerDataManager.getPlayer(m.id);
+            if (!pl) { socket.emit("sync:pulled", { ok: false, notFound: true, link: !!m.link }); return; }
             socket.emit("sync:pulled", { ok: true, id: m.id, rev: (b && b.rev) || 0, at: (b && b.at) || 0, player: pl, items: (b && b.items) || null, link: !!m.link });
         });
 

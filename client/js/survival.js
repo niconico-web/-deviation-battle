@@ -110,7 +110,7 @@
         let w = null; try { w = (window.HW.load().weapons || []).find((x) => x.id === window.HW.load().equipped) || window.HW.getEquipped(window.HW.load()); } catch (e) { /* 素手扱い */ }
         wName = w ? (window.HW.displayName ? window.HW.displayName(w) : w.name) : '素手';
         const payload = {
-            playerId: String(p.id), name: p.name, level: p.level || 1, avatar: p.avatar || null,
+            playerId: (function () { try { const n = window.SeasonSys && window.SeasonSys.netId && window.SeasonSys.netId(); if (n) return String(n); } catch (e) { /* 通常のID */ } return String(p.id); })(), name: p.name, level: p.level || 1, avatar: p.avatar || null,
             stats: { maxHp: stats.maxHp || p.maxHp || 100, atk: stats.atk || p.atk || 10, def: stats.def || p.def || 0 },
             special: stats.special || p.special || 0,
             skills: collectSkills(),

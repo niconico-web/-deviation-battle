@@ -22,7 +22,7 @@
         above_max: () => '価格が高すぎます', bad_price: () => '価格を正しく入力してください', empty: () => '出品するアイテムを選んでください',
         too_many: (r) => '1件にまとめられるのは ' + r.max + ' 点までです', seller_limit: (r) => '同時に出品できるのは ' + r.max + ' 件までです',
         bad_item: () => 'このアイテムは出品できません（ロック中・神話など）', duplicate_item: () => 'すでに出品中のアイテムが含まれています',
-        bad_title: () => 'タイトルに使えない言葉が含まれています', gone: () => 'この出品はもう買えません（売り切れ・取り下げ）', own: () => '自分の出品は買えません',
+        bad_title: () => 'タイトルに使えない言葉が含まれています', gone: () => 'この出品はもう買えません（売り切れ・取り下げ）', other_world: () => 'この出品は、別のワールド（シーズン／スタンダード）の市場のものなので買えません', own: () => '自分の出品は買えません',
         reserved: () => '他の人が購入手続き中です。少し待ってからもう一度', no_coins: () => 'コインが足りません', rate_limit: () => '操作が速すぎます。少し待ってください',
         server_error: () => 'サーバーでエラーが起きました', not_found: () => '見つかりません'
     };
@@ -37,6 +37,9 @@
     const jget = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || 'null'); return v == null ? d : v; } catch (e) { return d; } };
     const jset = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 容量不足 */ } };
     function player() { try { return typeof getPlayerData === 'function' ? getPlayerData() : null; } catch (e) { return null; } }
+    // 市場でのプレイヤーID：スタンダードキャラとシーズンキャラは、別の市場（別のID）で取引する（season.js の netId）
+    function pid(p) { try { const n = window.SeasonSys && window.SeasonSys.netId && window.SeasonSys.netId(); if (n) return String(n); } catch (e) { /* 共通IDが使えないときは通常のID */ } return String(p.id); }
+    function worldLabel() { try { return window.SeasonSys && window.SeasonSys.isSeasonChar() ? '🌟 シーズンの市場' : '♾️ スタンダードの市場'; } catch (e) { return ''; } }
     function savePlayer(p) {
         localStorage.setItem('player', JSON.stringify(p));
         try { if (typeof updateStatus === 'function') updateStatus(p); } catch (e) { /* 表示更新のみ */ }
@@ -165,7 +168,7 @@
             if (price < min) { toast(reasonText({ reason: 'below_min', min: min }), true); return; }
             const p = player(); if (!p) return;
             const opId = 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-            const payload = { playerId: String(p.id), sellerName: p.name, title: $('sellTitle').value.trim(), price: price, items: sel.map((it) => ({ kind: it.kind, data: it.data })), opId: opId };
+            const payload = { playerId: pid(p), sellerName: p.name, title: $('sellTitle').value.trim(), price: price, items: sel.map((it) => ({ kind: it.kind, data: it.data })), opId: opId };
             const box = jget(OUTBOX_KEY, []); box.push({ type: 'list', opId: opId, payload: payload, items: payload.items }); jset(OUTBOX_KEY, box);
             removeLocal(sel);                                   // 先に手元から外す（預け先に届くまで outbox が持つ）
             const chosen = sel; sel = [];
@@ -182,11 +185,11 @@
         const p = player(); if (!p) return false;
         const already = hasAll(listing.items);                      // 取り込み済み（確認だけ再送する場合）
         if (!already) {
-            if ((p.coins || 0) < listing.price) { await call('market:release', { playerId: String(p.id), listingId: listing.id }); toast(reasonText({ reason: 'no_coins' }), true); return false; }
+            if ((p.coins || 0) < listing.price) { await call('market:release', { playerId: pid(p), listingId: listing.id }); toast(reasonText({ reason: 'no_coins' }), true); return false; }
             addLocal(listing.items, -listing.price);
         }
         const opId = 'A' + listing.id;
-        const payload = { playerId: String(p.id), listingId: listing.id, opId: opId };
+        const payload = { playerId: pid(p), listingId: listing.id, opId: opId };
         const box = jget(OUTBOX_KEY, []); if (!box.some((x) => x.opId === opId)) { box.push({ type: 'ack', opId: opId, payload: payload }); jset(OUTBOX_KEY, box); }
         const res = await call('market:ack', payload);
         if (res.ok) jset(OUTBOX_KEY, jget(OUTBOX_KEY, []).filter((x) => x.opId !== opId));
@@ -196,7 +199,7 @@
         if (busy) return; busy = true;
         try {
             const p = player(); if (!p) return;
-            const res = await call('market:reserve', { playerId: String(p.id), listingId: listingId, coins: p.coins || 0 });
+            const res = await call('market:reserve', { playerId: pid(p), listingId: listingId, coins: p.coins || 0 });
             if (!res.ok) { toast(reasonText(res), true); closeDetail(); renderBrowse(); return; }
             const ok = await applyPurchase(res.listing);
             closeDetail();
@@ -206,14 +209,14 @@
     }
     async function resumePending() {
         const p = player(); if (!p || !online()) return;
-        const res = await call('market:pending', { playerId: String(p.id) });
+        const res = await call('market:pending', { playerId: pid(p) });
         if (res.ok) for (const l of res.rows) await applyPurchase(l);
     }
 
     // ---------- 受け取り箱 ----------
     async function claimMail(silent) {
         const p = player(); if (!p || !online()) return 0;
-        const res = await call('market:mail', { playerId: String(p.id) });
+        const res = await call('market:mail', { playerId: pid(p) });
         if (!res.ok || !res.mail.length) { setBadge(0); return 0; }
         const claimed = new Set(jget(CLAIMED_KEY, []));
         let coins = 0; const notes = [];
@@ -226,7 +229,7 @@
         });
         if (coins) addLocal([], coins);
         jset(CLAIMED_KEY, Array.from(claimed).slice(-300));
-        await call('market:mailDone', { playerId: String(p.id), ids: res.mail.map((m) => m.id) });
+        await call('market:mailDone', { playerId: pid(p), ids: res.mail.map((m) => m.id) });
         setBadge(0); updateCoins();
         if (!silent && notes.length) toast('受け取りました：' + notes.join(' ／ '));
         return res.mail.length;
@@ -242,7 +245,7 @@
     function render() {
         const root = $('marketRoot'); if (!root) return;
         root.innerHTML =
-            '<div class="mk-head"><div>💰 所持コイン <b id="marketCoins"></b></div><div class="mk-note">手数料 ' + Math.round(info.feeRate * 100) + '%（売れたときに引かれます）</div></div>' +
+            '<div class="mk-head"><div>' + worldLabel() + '　💰 所持コイン <b id="marketCoins"></b></div><div class="mk-note">手数料 ' + Math.round(info.feeRate * 100) + '%（売れたときに引かれます）</div></div>' +
             '<div class="mk-tabs">' + [['browse', '🔎 さがす'], ['sell', '📤 出品する'], ['mine', '📦 出品中'], ['mail', '📬 受け取り']].map((t) => '<button type="button" class="mk-tab' + (tab === t[0] ? ' on' : '') + '" data-tab="' + t[0] + '">' + t[1] + (t[0] === 'mail' ? '<span id="marketMailBadge"></span>' : '') + '</button>').join('') + '</div>' +
             '<div id="marketMsg" class="market-msg"></div><div id="marketBody"></div><div id="marketDetail"></div>';
         root.querySelectorAll('.mk-tab').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; render(); }));
@@ -261,7 +264,7 @@
         const bind = (id, key) => $(id).addEventListener(id === 'fQ' ? 'change' : 'change', (e) => { filters[key] = e.target.value; filters.page = 0; renderBrowse(); });
         bind('fKind', 'kind'); bind('fRar', 'rarity'); bind('fSort', 'sort'); bind('fQ', 'q');
         const p = player();
-        const res = await call('market:browse', Object.assign({ playerId: p ? String(p.id) : '', pageSize: 12 }, filters));
+        const res = await call('market:browse', Object.assign({ playerId: p ? pid(p) : '', pageSize: 12 }, filters));
         const list = $('mkList'); if (!list) return;
         if (!res.ok) { list.innerHTML = '<div class="mk-empty">' + esc(reasonText(res)) + '</div>'; return; }
         if (!res.rows.length) { list.innerHTML = '<div class="mk-empty">出品はまだありません。最初の出品者になってみましょう！</div>'; $('mkPager').innerHTML = ''; return; }
@@ -323,13 +326,13 @@
     async function renderMine() {
         const body = $('marketBody'); if (!body) return;
         body.innerHTML = '読み込み中…';
-        const p = player(), res = await call('market:mine', { playerId: p ? String(p.id) : '' });
+        const p = player(), res = await call('market:mine', { playerId: p ? pid(p) : '' });
         if (!res.ok) { body.innerHTML = '<div class="mk-empty">' + esc(reasonText(res)) + '</div>'; return; }
         if (!res.rows.length) { body.innerHTML = '<div class="mk-empty">出品中のアイテムはありません</div>'; return; }
         body.innerHTML = res.rows.map((l) => '<div class="mk-row"><div><b>' + esc(l.title) + '</b> <small>' + l.count + '点</small><br>💰 ' + fmt(l.price) + (l.status === 'reserved' ? ' ／ 購入手続き中' : '') + '</div>' +
             '<button type="button" class="btn" data-id="' + l.id + '"' + (l.status === 'reserved' ? ' disabled' : '') + '>取り下げる</button></div>').join('');
         body.querySelectorAll('button[data-id]').forEach((b) => b.addEventListener('click', async () => {
-            b.disabled = true; const r = await call('market:cancel', { playerId: String(p.id), listingId: b.dataset.id });
+            b.disabled = true; const r = await call('market:cancel', { playerId: pid(p), listingId: b.dataset.id });
             if (!r.ok) { toast(reasonText(r), true); renderMine(); return; }
             await claimMail(true); toast('取り下げました。アイテムは手元に戻りました'); renderMine();
         }));
