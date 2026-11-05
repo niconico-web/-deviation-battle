@@ -991,7 +991,6 @@
         if (e.dead) return;
         e.dead = true; e.hp = 0;
         run.kills++;
-        if (window.InnateRuntime && InnateRuntime.active()) InnateRuntime.event('kill', { id: e.id, x: Math.round(e.x), y: Math.round(e.y), r: Math.round(e.r), name: String((e.def && e.def.name) || '敵').slice(0, 16), icon: String((e.def && e.def.icon) || '').slice(0, 4), color: (e.def && e.def.color) || '#cccccc', maxHp: Math.round(e.maxHp || 0), boss: !!e.boss });
         const main = e.boss && !e.echo;                                                    // 召喚された歴代ボス(echo)は本体ではない
         const others = main && enemies.some(o => o !== e && o.boss && !o.echo && !o.dead && o.hp > 0);
         const last = main && !others;                                                      // 最後の1体を倒したときだけクリア＆ボスドロップ
@@ -1257,7 +1256,6 @@
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
         accEvent('hurt');
-        if (window.InnateRuntime && InnateRuntime.active()) InnateRuntime.event('hurt', { amount: dmg, frac: +(dmg / me.maxHp).toFixed(3) });
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         // 被弾時効果
         if (A('thorns') > 0) { const n = nearestEnemy(me.x, me.y, 140); if (n) dealHit(n, weapon.dmg * P.atkMul * A('thorns'), {}); }
@@ -1874,94 +1872,9 @@
         else if (key === 'barrier') { me.barrierHp = (me.barrierHp || 0) + Math.max(10, Math.round(me.maxHp * 0.25)); tag('バリア', '#7fc8ff'); }
     }
 
-    // ---------- 固有能力（AIが書いたコード）----------
-    //  コードは innate-runtime.js の隔離環境で動く。ここは、そこから返ってきた「検証済みの命令」をゲームに反映する場所。
-    //  威力はコードでは決まらない：1ヒット分の基準ダメージ(info.base)に、命令の mult を掛けるだけ（上限・予算は runtime 側で強制）
-    let innateReady = false;
-    function innateInit() {
-        if (innateReady) return true;
-        if (!window.InnateRuntime) return false;
-        InnateRuntime.setAdapter({
-            bounds: { w: WORLD_W, h: WORLD_H },
-            allowEff: k => k !== 'damage' && SELF_FX.indexOf(k) < 0 && !!(window.ActionSkills && ActionSkills.EFFECTS && ActionSkills.EFFECTS[k]),
-            world: () => ({
-                me: { x: Math.round(me.x), y: Math.round(me.y), hp: Math.round(me.hp), maxHp: Math.round(me.maxHp), ang: me.ang || 0 },
-                en: enemies.filter(e => e.hp > 0).slice(0, 40).map(e => ({ id: e.id, x: Math.round(e.x), y: Math.round(e.y), r: Math.round(e.r), hp: Math.round(e.hp), maxHp: Math.round(e.maxHp || e.hp), boss: !!e.boss }))
-            }),
-            apply: innateApply,
-            error: msg => popups.push({ x: me.x, y: me.y - 52, t: 2.4, text: String(msg).slice(0, 30), c: '#ff9d9d' })
-        });
-        innateReady = true;
-        return true;
-    }
-    // 戦闘が始まったら、装備している常時スクリプトを1回だけ始める
-    let innatePassivesStarted = false;
-    function innateStartPassives() {
-        if (innatePassivesStarted || run.phase !== 'run') return;
-        innatePassivesStarted = true;
-        if (!innateInit()) return;
-        skillSlots.forEach(s => { if (s && s.skill && s.skill.kind === 'code' && s.skill.passive && s.params.innate) InnateRuntime.cast(s.skill, { ang: me.ang || 0, params: s.params, base: 0, eff: [] }); });
-    }
-    // 常時スクリプトは戦闘中ずっと動くので、1ヒット分の基準ダメージを、命令が来るたびに今の強さで計算し直す（castSkill の base と同じ式）
-    function innateUnitBase(p) {
-        if (!p || !p.innate) return 0;
-        return weapon.dmg * P.atkMul * atkDyn() * (p.baseMult || 1) * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) / (p.innate.scale || 1);
-    }
-    function innateCast(s, unitBase, eff, ang) {
-        if (!innateInit()) return false;
-        return InnateRuntime.cast(s.skill, { ang: ang, params: s.params, base: unitBase, eff: eff }) != null;
-    }
-    function innateApply(c, info) {
-        if (run.phase !== 'run' || me.dead) return;
-        const eff = c.eff && c.eff.length ? c.eff : info.eff, dmg = (info.persistent ? innateUnitBase(info.params) : info.base) * c.mult;
-        if (c.k === 'shot') {
-            const vx = Math.cos(c.angle) * c.speed, vy = Math.sin(c.angle) * c.speed;
-            myShots.push({ x: c.x, y: c.y, vx: vx, vy: vy, r: c.r, life: c.life, pierce: c.pierce, hit: {}, homing: c.homing, c: c.color, skill: { base: dmg, hasDmg: true, eff: eff } });
-            netSend('shot', { s: [{ x: Math.round(c.x), y: Math.round(c.y), vx: Math.round(vx), vy: Math.round(vy), r: c.r, life: +c.life.toFixed(2), pierce: c.pierce, c: c.color }] });
-        } else if (c.k === 'hit') {
-            const e = enemies.find(x => x.hp > 0 && String(x.id) === String(c.id));
-            if (e) skillHit(e, dmg, true, eff, Math.atan2(e.y - me.y, e.x - me.x));
-        } else if (c.k === 'area') {
-            const d = { f: 'nova', x: c.x, y: c.y, r: c.r }; skillFx(d); netSend('sk', d);
-            enemies.forEach(e => { if (e.hp > 0 && dist(c.x, c.y, e.x, e.y) <= c.r + e.r) skillHit(e, dmg, true, eff, Math.atan2(e.y - c.y, e.x - c.x)); });
-        } else if (c.k === 'line') {
-            const a = Math.atan2(c.y2 - c.y1, c.x2 - c.x1), len = Math.hypot(c.x2 - c.x1, c.y2 - c.y1);
-            const d = { f: 'laser', x: c.x1, y: c.y1, a: a, len: len, w: c.w }; skillFx(d); netSend('sk', d);
-            enemies.forEach(e => { if (e.hp > 0 && distSeg(e.x, e.y, c.x1, c.y1, c.x2, c.y2) <= c.w / 2 + e.r) skillHit(e, dmg, true, eff, a); });
-        } else if (c.k === 'status') {
-            const e = enemies.find(x => x.hp > 0 && String(x.id) === String(c.id));
-            if (e && e.st) {      // AIが組み合わせた状態異常。長さは runtime 側で上限に補正済み。ボスには効きにくい
-                const k = e.boss ? 0.4 : 1;
-                if (c.stun > 0) e.st.stunT = Math.max(e.st.stunT || 0, c.stun * k);
-                if (c.slow > 0) e.st.slowT = Math.max(e.st.slowT || 0, c.slow * k);
-                if (c.weaken > 0) e.st.weakenT = Math.max(e.st.weakenT || 0, c.weaken * k);
-                if (c.blind > 0) e.st.blindT = Math.max(e.st.blindT || 0, c.blind * k);
-                if (c.curse > 0) e.st.curseT = Math.max(e.st.curseT || 0, c.curse * k);
-            }
-        } else if (c.k === 'heal') {
-            me.hp = Math.min(me.maxHp, me.hp + me.maxHp * c.frac);
-            popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: '+' + Math.round(me.maxHp * c.frac), c: '#9dffb0' });
-        } else if (c.k === 'dash') {
-            let nx = me.x, ny = me.y; const steps = Math.ceil(c.dist / 16);
-            for (let i = 0; i < steps; i++) {      // 少しずつ進み、岩や壁にぶつかったらそこで止まる
-                const tx = clamp(nx + c.dx * c.dist / steps, 20, WORLD_W - 20), ty = clamp(ny + c.dy * c.dist / steps, 20, WORLD_H - 20);
-                let blocked = false; for (const k of rocks) if (dist(tx, ty, k.x, k.y) < k.r + me.r) { blocked = true; break; }
-                if (!blocked && CORR_ON && corrSolid(tx, ty)) blocked = true;
-                if (blocked) break; nx = tx; ny = ty;
-            }
-            me.x = nx; me.y = ny;
-        } else if (c.k === 'popup') {
-            popups.push({ x: me.x, y: me.y - 46, t: 1.0, text: c.text, c: c.color });
-        }
-    }
-
     function castSkill(slot, charged) {      // charged=true は、溜めが終わって実際に発動するとき
         const s = skillSlots[slot];
         if (!s || me.dead || me.stunT > 0 || me.ultT > 0 || run.phase !== 'run') return;
-        if (s.skill.kind === 'code' && s.skill.passive) {      // 常時スクリプトは、キーを押すと「press」の出来事がコードに届く（消費・クールタイムなし）
-            if (window.InnateRuntime && InnateRuntime.active()) InnateRuntime.event('press', { slot: slot, ang: aimAngle() });
-            return;
-        }
         if (!charged) {
             if (s.cdLeft > 0 || me.cast || me.gch > 0) return;
             if (me.energy < s.cost) { flashEnergy(); return; }
@@ -1984,8 +1897,6 @@
         const base = weapon.dmg * P.atkMul * atkDyn() * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
         const later = (sec, fn) => setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) fn(); }, sec * 1000);
 
-        // 固有能力（AIが書いたコード）。隔離環境で動かし、出てきた命令だけを innateApply で実行する。動かせないときは、下の通常の弾にフォールバック
-        if (s.skill.kind === 'code' && p.innate && innateCast(s, base / (p.innate.scale || 1), eff, ang)) return;
         if (p.pieces) { castPieces(p, base, hasDmg, eff, ang, later, s.skill.id); return; }   // 自由配置のスキル、突き、一閃
 
         if (p.form === 'projectile') {
@@ -3466,7 +3377,6 @@
         drawPlayer(me, true);
         // 演出
         fx.forEach(f => drawFx(f));
-        if (window.InnateRuntime) InnateRuntime.draw(ctx);      // 固有能力（AIのコード）が描いた絵。世界座標の中なので、カメラに合って動く
         popups.forEach(p => { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = (p.big ? 'bold 18px' : 'bold 14px') + ' sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.globalAlpha = 1; });
         ctx.restore();
         if (CORR_ON && CF.on && CF.theme && CF.theme.id === 'dark' && !me.dead && !(window.SBAcc && SBAcc.hasSpecial(hack, 'antidark'))) {      // 暗闇の階：自分の周りだけが見える
@@ -4052,7 +3962,7 @@
             run.time += dt;
             skillSlots.forEach(sk => { if (sk && sk.cdLeft > 0) sk.cdLeft = Math.max(0, sk.cdLeft - dt); });
             if ((skillT -= dt) <= 0) { skillT = 0.1; updateSkillBar(); }
-            updateMe(dt); updateShots(dt); innateStartPassives(); if (window.InnateRuntime) InnateRuntime.update(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
+            updateMe(dt); updateShots(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
             if (DBG) { if (DBG.god) { me.invHard = 99; if (me.dead) { me.dead = false; me.hp = me.maxHp; } } if (DBG.energy !== false) me.energy = ENERGY_MAX; }   // デバッグ：無敵・エネルギー無限
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
             else if (isHost) { updateHost(dt); } else lerpRemote(dt);

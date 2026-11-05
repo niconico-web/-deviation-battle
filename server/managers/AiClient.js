@@ -8,8 +8,8 @@
 //   AI_PROVIDER=gemini / claude を指定すると、両方のキーがあるときにどちらを使うか選べる
 //
 //  モデル（環境変数で変えられる）：
-//   Gemini ：GEMINI_MODEL（既定 gemini-2.5-flash）。固有能力のコード生成だけ別にしたいときは GEMINI_INNATE_MODEL
-//   Claude ：呼び出し側が渡す（SKILL_AI_MODEL / INNATE_AI_MODEL）
+//   Gemini ：GEMINI_MODEL（既定 gemini-2.5-flash）。AIスキル生成だけ別にしたいときは GEMINI_SKILL_MODEL
+//   Claude ：呼び出し側が渡す（SKILL_AI_MODEL）
 // ============================================================
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models/";
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
@@ -69,5 +69,8 @@ async function callText(o) {
     catch (e) { console.error("[" + o.tag + "] request failed:", e.message); return null; }
     finally { clearTimeout(timer); }
 }
+
+// 起動時に、どのAIを使うかを1回だけ表示する（キーが読み込めているかの確認用。キーの中身は表示しない）
+console.log("[AI] 使うAI: " + ({ gemini: "Gemini（Google AI Studio）", claude: "Claude" }[provider()] || "なし（キーが見つからないため、簡易版で動きます）"));
 
 module.exports = { callText, provider, geminiKey, claudeKey };
