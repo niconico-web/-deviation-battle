@@ -13,13 +13,14 @@
 //  部品の定義はクライアントの action-skills.js / elements.js を読み込んで使う（定義が二重にならない）。
 //
 //  環境変数
-//   ANTHROPIC_API_KEY   … 無いとAIは使わず、キーワード判定の簡易版で作る
+//   GEMINI_API_KEY（Google AI Studio）または ANTHROPIC_API_KEY … どちらも無いとAIは使わず、キーワード判定の簡易版で作る（AiClient が選ぶ）
 //   SKILL_AI_MODEL      … 使うモデル（既定 claude-haiku-5-5）
 //   SKILL_AI_DAILY_LIMIT… 1人が1日に作れる回数（既定 30）
 // ============================================================
 const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
+const AiClient = require("./AiClient");
 
 const CLIENT_JS = path.join(__dirname, "..", "..", "client", "js");
 const MODEL = process.env.SKILL_AI_MODEL || "claude-haiku-5-5";
@@ -123,29 +124,12 @@ function sanitize(spec, ctx) {
 
 // ---------- AI呼び出し ----------
 async function callClaude(text, ctx) {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return null;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 25000);
-    try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-            body: JSON.stringify({
-                model: MODEL, max_tokens: 900,
-                system: buildSystemPrompt(ctx.allowForms, ctx.allowEffects, AS.maxEffectsFor(ctx.special)),
-                messages: [{ role: "user", content: "スキルの説明：\n" + text }]
-            }),
-            signal: ctrl.signal
-        });
-        if (!res.ok) { console.error("[SkillAI] API error", res.status); return null; }
-        const j = await res.json();
-        const out = (j.content || []).filter(c => c.type === "text").map(c => c.text).join("");
-        return extractJson(out);
-    } catch (e) {
-        console.error("[SkillAI] request failed:", e.message);
-        return null;
-    } finally { clearTimeout(timer); }
+    // Gemini（Google AI Studio）か Claude のうち、キーがある方を使う（AiClient）。どちらも無ければ null → 簡易版
+    const out = await AiClient.callText({
+        system: buildSystemPrompt(ctx.allowForms, ctx.allowEffects, AS.maxEffectsFor(ctx.special)),
+        user: "スキルの説明：\n" + text, maxTokens: 900, timeoutMs: 25000, claudeModel: MODEL, geminiModelEnv: "GEMINI_SKILL_MODEL", tag: "SkillAI"
+    });
+    return out == null ? null : extractJson(out);
 }
 
 // ---------- APIキーが無い／失敗したときの、キーワード判定の簡易版 ----------

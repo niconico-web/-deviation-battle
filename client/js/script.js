@@ -1002,7 +1002,7 @@ function pushSync(force) {
     if (syncInFlight && Date.now() - syncInFlight < 20000 && !force) { syncPushAgain = true; return; }     // 返事待ち：あとでもう一度
     const meta = loadSyncMeta(), base = meta && meta.id === player.id ? (meta.rev || 0) : 0;
     syncPushHash = currentSyncHash(); syncInFlight = Date.now();
-    window.socket.emit('sync:push', { id: player.id, baseRev: base, dev: getDeviceId(), player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
+    window.socket.emit('sync:push', { id: player.id, baseRev: base, dev: getDeviceId(), mode: (window.SeasonSys && window.SeasonSys.mode && window.SeasonSys.mode()) || 'standard', player: player, bundle: collectBundle(), manual: syncManual, force: !!force });
 }
 function applyPulled(r) {              // サーバーのデータをこの端末へ反映して、再読み込み
     if (!r || !r.ok || !r.player) return false;
@@ -1117,7 +1117,7 @@ function startAutoSync() {
 }
 
 // ---------- データ引き継ぎ：プレイヤー以外のデータ ----------
-const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
+const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbInnate', 'sbPvpEvent', 'sbAch'];
 let lastBundleAt = 0;
 // ページを開いた直後（初期化で保存データが整えられる前）のデータの指紋。同期の「この端末に変更があるか」の判定に使う
 const bootSyncHash = currentSyncHash();

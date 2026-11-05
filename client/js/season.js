@@ -2,7 +2,9 @@
 // シーズン制度 (season.js)
 //  ・キャラクターは2種類：スタンダードキャラ（永遠の資産）／シーズンキャラ（そのシーズン限定）
 //  ・シーズンキャラは勉強効率+10%。レベル1・素手から始まり、週ごとにステージ（世界）と難易度が解放される
-//  ・シーズンが終わると、シーズンキャラがスタンダードキャラになり、既存のスタンダードキャラは上書きされる
+//  ・シーズンが終わると、シーズンキャラがスタンダードキャラに「統合」される（置き換えではなく足し合わせ）。
+//    シーズンで伸ばしたステータス・XP・勉強時間・コイン・素材・武器などが、既存のスタンダードキャラに加算される
+//  ・2つのキャラは同じプレイヤーID（＝共通の引継ぎコード）を使う。サーバーでも1つのアカウントとして保存される
 //  ・いま操作中のキャラは今までどおり localStorage の "player" / "sbHack" に入っている（既存コードは一切変更不要）。
 //    操作していないほうのキャラは "sbSeason" の slots に生の文字列のまま預かる。切り替え = 入れ替えて再読み込み。
 //
@@ -70,6 +72,61 @@
             save(d);
         } catch (e) { /* バックアップできなくても進行には影響しない */ }
     })();
+
+    // ---------- 共通のプレイヤーID（引継ぎコード）----------
+    //  シーズンキャラとスタンダードキャラは、同じプレイヤーIDを使う（＝1つのアカウント）。
+    //  ・どちらを操作していても引継ぎコードは同じ。サーバーにもまとめて保存される
+    //  ・以前に別々のIDで作ったキャラは、起動時にスタンダードキャラのIDへそろえる（古いIDは legacyIds に残す）
+    //  ・武器庫(sbHack)は「持ち主ID」が合わないと空になるので、IDを変えるときは owner も必ず一緒に変える
+    const ID_OK = /^[A-Z0-9]{6}$/;
+    function idOfRaw(raw) { const p = raw && parseSafe(raw.player); return p && p.id ? String(p.id) : null; }
+    function setIdInRaw(raw, id) {
+        const p = parseSafe(raw.player); if (!p) return raw;
+        p.id = id;
+        const h = raw.hack ? parseSafe(raw.hack) : null;
+        if (h && typeof h === 'object') h.owner = String(id);
+        return { player: JSON.stringify(p), hack: h ? JSON.stringify(h) : raw.hack };
+    }
+    function ensureAccountId(d) {
+        const ids = { standard: hasSlot(d, 'standard') ? idOfRaw(rawOf(d, 'standard')) : null, season: hasSlot(d, 'season') ? idOfRaw(rawOf(d, 'season')) : null };
+        let a = (d.accountId && ID_OK.test(d.accountId)) ? d.accountId : null;
+        if (a && ids.standard !== a && ids.season !== a) a = null;        // 持ち主のいなくなったIDは使わない
+        if (!a) a = (ids.standard && ID_OK.test(ids.standard)) ? ids.standard : ((ids.season && ID_OK.test(ids.season)) ? ids.season : null);
+        d.accountId = a;
+        return a;
+    }
+    function unifyIds() {
+        try {
+            const d = load(), before = d.accountId || null, a = ensureAccountId(d);
+            let changed = (a || null) !== before;
+            if (a) {
+                ['standard', 'season'].forEach(mode => {
+                    if (!hasSlot(d, mode)) return;
+                    const raw = rawOf(d, mode), cur = idOfRaw(raw);
+                    if (!cur || cur === a) return;
+                    if (!Array.isArray(d.legacyIds)) d.legacyIds = [];
+                    if (d.legacyIds.indexOf(cur) < 0) d.legacyIds.push(cur);
+                    d.legacyIds = d.legacyIds.slice(-10);
+                    const fixed = setIdInRaw(raw, a);
+                    if (d.active === mode) putLive(fixed); else d.slots[mode] = fixed;
+                    changed = true;
+                });
+            }
+            if (changed) save(d);
+        } catch (e) { console.warn('[Season] unifyIds failed', e); }
+    }
+    unifyIds();     // ページを開いた直後（ほかのスクリプトがキャラを読む前）にそろえる
+    // 新しくキャラを作るときのID：もう片方のキャラがいるなら、同じIDを使う（stats.js の generatePlayerId から呼ばれる）
+    function idForNewChar() {
+        try { const d = load(); return ensureAccountId(d); } catch (e) { return null; }
+    }
+    // 市場・サバイバル（国の店を含む）など「プレイヤー同士のやりとり」で使うID。
+    //  スタンダードキャラ＝アカウントID（6文字）／シーズンキャラ＝アカウントID＋"S"（7文字）。
+    //  IDが別になるので、市場の出品・受け取り箱・店の売上などが、2つのキャラの間で行き来できない
+    //  （サーバーは、7文字のIDを「シーズンの世界」として扱う）
+    function netId() {
+        try { const a = ensureAccountId(load()); return a ? (isSeasonChar() ? a + 'S' : a) : null; } catch (e) { return null; }
+    }
 
     // ---------- 時刻（サーバー時刻に合わせる。端末の時計をいじっても解放が早まらないように）----------
     let offset = 0;
@@ -182,6 +239,7 @@
     function settle() {
         const d = load();
         if (d.active === 'season' && d.pendingCreate && localStorage.getItem('player')) { d.pendingCreate = false; save(d); }
+        unifyIds();     // 作りたてのキャラが別のIDになっていたら、共通IDにそろえる
     }
 
     function reload() { setTimeout(() => location.reload(), 80); }
@@ -227,26 +285,152 @@
         const cur = currentDef();
         return !!(def && (now() >= endMs(def) || (cur && cur.id !== def.id)));
     }
+    // ---------- 統合（足し合わせ）----------
+    //  シーズンキャラが「伸ばした分」を、スタンダードキャラに加える（置き換えない）。
+    //   ・ステータス：シーズンキャラの値から初期値（キャラ作成直後の合計250）を引いた分を加算
+    //   ・XP・勉強時間・コイン・結晶・素材・ボス撃破数などは合算。レベルは合算XPから計算し直す
+    //   ・武器・防具・アクセサリー・オーブは、スタンダードの分にシーズンの分を加える（IDが同じものは重複させない）
+    //   ・名前・装備中の武器・スキルツリー・勉強記録など「そのキャラらしさ」はスタンダードのまま
+    const STAT_KEYS_S = ['maxHp', 'atk', 'def', 'speed', 'special'];
+    const BASE_STATS_S = { maxHp: 50, atk: 70, def: 50, speed: 30, special: 50 };   // stats.js の DEFAULT_STATS
+    const nz = v => (isFinite(Number(v)) ? Number(v) : 0);
+    function asDict(x) {
+        if (Array.isArray(x)) { const o = {}; x.forEach(m => { if (m && m.id) o[m.id] = (o[m.id] || 0) + nz(m.count); }); return o; }
+        return (x && typeof x === 'object') ? x : {};
+    }
+    function sumCounters(a, b) {
+        const out = Object.assign({}, asDict(a)), bb = asDict(b);
+        Object.keys(bb).forEach(k => {
+            if (k === '__proto__') return;
+            if (typeof out[k] === 'number' && typeof bb[k] === 'number') out[k] = out[k] + bb[k];
+            else if (out[k] === undefined) out[k] = bb[k];
+        });
+        return out;
+    }
+    function unionById(a, b, skip) {
+        const out = Array.isArray(a) ? a.slice() : [];
+        const seen = new Set(out.map(x => x && x.id).filter(Boolean));
+        (Array.isArray(b) ? b : []).forEach(x => {
+            if (!x || (skip && skip(x))) return;
+            if (x.id) { if (seen.has(x.id)) return; seen.add(x.id); }
+            out.push(x);
+        });
+        return out;
+    }
+    function mergePlayers(std, sea, accountId) {
+        const m = Object.assign({}, std);
+        STAT_KEYS_S.forEach(k => { m[k] = nz(std[k]) + Math.max(0, nz(sea[k]) - BASE_STATS_S[k]); });
+        m.xp = nz(std.xp) + nz(sea.xp);
+        m.level = typeof calcLevel === 'function' ? calcLevel(m.xp) : Math.max(nz(std.level), nz(sea.level), 1);
+        m.totalStudySeconds = nz(std.totalStudySeconds) + nz(sea.totalStudySeconds);
+        m.coins = nz(std.coins) + nz(sea.coins);
+        m.pvpWins = nz(std.pvpWins) + nz(sea.pvpWins);
+        m.bossRunCount = nz(std.bossRunCount) + nz(sea.bossRunCount);
+        m.grade = Math.max(nz(std.grade), nz(sea.grade), 1);
+        m.craftCurrency = sumCounters(std.craftCurrency, sea.craftCurrency);
+        m.materials = sumCounters(std.materials, sea.materials);
+        m.bossDefeats = sumCounters(std.bossDefeats, sea.bossDefeats);
+        m.dungeonClears = sumCounters(std.dungeonClears, sea.dungeonClears);
+        m.orbs = unionById(std.orbs, sea.orbs);
+        m.weapons = unionById(std.weapons, sea.weapons, w => w.source === 'starter');
+        m.hp = m.maxHp;
+        if (accountId) m.id = accountId;
+        return m;
+    }
+    function mergeHacks(sh, ah, accountId) {
+        const s0 = (sh && typeof sh === 'object') ? sh : {}, a0 = (ah && typeof ah === 'object') ? ah : {};
+        const m = Object.assign({}, s0);
+        ['weapons', 'armors', 'accs'].forEach(k => { m[k] = unionById(s0[k], a0[k], x => x.source === 'starter'); });
+        m.items = sumCounters(s0.items, a0.items);
+        m.cleared = Object.assign({}, a0.cleared || {}); Object.keys(s0.cleared || {}).forEach(k => { if (s0.cleared[k]) m.cleared[k] = s0.cleared[k]; });
+        m.clearedDiff = Object.assign({}, a0.clearedDiff || {}); Object.keys(s0.clearedDiff || {}).forEach(k => { m.clearedDiff[k] = Math.max(nz(s0.clearedDiff[k]), nz((a0.clearedDiff || {})[k])); });
+        if (accountId) m.owner = String(accountId);
+        return m;
+    }
+    function mergeRaw(stdRaw, seaRaw, accountId) {
+        const sp = parseSafe(stdRaw.player), ap = parseSafe(seaRaw.player);
+        if (!sp || !ap) return null;
+        return {
+            player: JSON.stringify(mergePlayers(sp, ap, accountId)),
+            hack: JSON.stringify(mergeHacks(parseSafe(stdRaw.hack), parseSafe(seaRaw.hack), accountId))
+        };
+    }
+    // 固有能力（sbInnate）の引き継ぎ：スタンダードキャラに固有能力が無ければ、シーズンキャラの能力を受け継ぐ（あれば、スタンダードのものが残る）。
+    //  習熟度は「確定してから勉強した時間」で決まるので、統合で勉強時間が足されても一気に上がらないよう、基準の時間をずらす
+    function carryInnateAtMerge(seaPlayer, mergedPlayer) {
+        try {
+            const o = JSON.parse(localStorage.getItem('sbInnate') || 'null') || {};
+            if (!o.season) return;
+            if (!o.standard) {
+                const a = o.season, delta = Math.max(0, nz(seaPlayer && seaPlayer.totalStudySeconds) - nz(a.studyBase));
+                a.studyBase = Math.max(0, nz(mergedPlayer && mergedPlayer.totalStudySeconds) - delta);
+                o.standard = a;
+            }
+            delete o.season;
+            localStorage.setItem('sbInnate', JSON.stringify(o));
+        } catch (e) { /* 固有能力が壊れていても、統合は続ける */ }
+    }
     function mergeSeason() {
         const d = load();
         if (!canMerge(d)) { alert('シーズンが終わるまでは、スタンダードに統合できません。'); return; }
-        const sc = summary(rawOf(d, 'season')), sd = hasSlot(d, 'standard') ? summary(rawOf(d, 'standard')) : null;
-        const msg = 'シーズンキャラ「' + sc.name + '」（Lv' + sc.level + '・ステータス合計 ' + sc.total + '）を、スタンダードキャラにします。\n' +
-            (sd ? '\n現在のスタンダードキャラ「' + sd.name + '」（Lv' + sd.level + '・合計 ' + sd.total + '）は上書きされます。\n（念のため1つ前のスタンダードは端末に1体分だけバックアップされます）\n' : '') + '\nよろしいですか？';
-        if (!confirm(msg)) return;
         const seasonRaw = rawOf(d, 'season'), stdRaw = hasSlot(d, 'standard') ? rawOf(d, 'standard') : null;
-        // 新しいスタンダード：プレイヤーIDは今までのスタンダードのものを引き継ぐ（フレンドなどが切れないように）
-        const np = parseSafe(seasonRaw.player), nh = parseSafe(seasonRaw.hack);
-        if (!np) { alert('シーズンキャラのデータを読み込めませんでした。統合を中止します。'); return; }
-        const op = stdRaw && parseSafe(stdRaw.player);
-        if (np && op && op.id) { np.id = op.id; if (nh) nh.owner = String(op.id); }
-        const merged = { player: JSON.stringify(np), hack: nh ? JSON.stringify(nh) : seasonRaw.hack };
-        // バックアップ（上書きされるスタンダード）
-        if (stdRaw && stdRaw.player) d.backup = { player: stdRaw.player, hack: stdRaw.hack, at: now(), seasonId: d.seasonId };
+        const sc = summary(seasonRaw), sd = stdRaw ? summary(stdRaw) : null;
+        if (!sc) { alert('シーズンキャラのデータを読み込めませんでした。統合を中止します。'); return; }
+        const acct = ensureAccountId(d);
+        let merged = null;
+        if (stdRaw && sd) {
+            merged = mergeRaw(stdRaw, seasonRaw, acct);
+            if (!merged) { alert('キャラのデータを読み込めませんでした。統合を中止します。'); return; }
+        } else {
+            // スタンダードキャラがいない：シーズンキャラがそのままスタンダードになる
+            const np = parseSafe(seasonRaw.player), nh = parseSafe(seasonRaw.hack);
+            if (acct) { np.id = acct; if (nh) nh.owner = String(acct); }
+            merged = { player: JSON.stringify(np), hack: nh ? JSON.stringify(nh) : seasonRaw.hack };
+        }
+        const after = summary(merged);
+        const msg = 'シーズンキャラ「' + sc.name + '」（Lv' + sc.level + '・ステータス合計 ' + sc.total + '）を、スタンダードキャラに統合します。\n' +
+            (sd ? '\n現在のスタンダードキャラ「' + sd.name + '」（Lv' + sd.level + '・合計 ' + sd.total + '）に、シーズンで伸ばした分が足されます。\n' +
+                  '→ 統合後：Lv' + after.level + '・合計 ' + after.total + '\n（上書きではなく足し合わせです。念のため統合前の2体は端末にバックアップされます）\n' : '') +
+            '\n固有能力：スタンダードキャラがまだ持っていなければ、シーズンキャラの固有能力を受け継ぎます（すでに持っている場合は、スタンダードの固有能力が残ります）。\n\nよろしいですか？';
+        if (!confirm(msg)) return;
+        // バックアップ（統合前の2体）
+        d.backup = stdRaw && stdRaw.player ? { player: stdRaw.player, hack: stdRaw.hack, at: now(), seasonId: d.seasonId, merged: true, season: { player: seasonRaw.player, hack: seasonRaw.hack } } : null;
+        carryInnateAtMerge(parseSafe(seasonRaw.player), parseSafe(merged.player));
         putLive(merged);
         d.slots = { standard: null, season: null };
-        d.active = 'standard'; d.history.push({ seasonId: d.seasonId, mergedAt: now() });
+        d.active = 'standard'; d.history.push({ seasonId: d.seasonId, mergedAt: now(), mode: 'add' });
         d.seasonId = null; d.pendingCreate = false;
+        save(d); reload();
+    }
+
+    // ---------- 「置き換わってしまった」統合のやり直し ----------
+    //  以前の版では、統合するとシーズンキャラがスタンダードを「置き換え」ていた。そのとき上書きされたスタンダードは backup に残っている。
+    //  それを今の（置き換えで残ったシーズンキャラの）データに足し合わせて、本来の統合にやり直す。
+    function canRemerge(d) {
+        return !!(d.backup && d.backup.player && !d.backup.merged && d.backup.seasonId && d.active === 'standard' && localStorage.getItem('player'));
+    }
+    function remergeFromBackup() {
+        const d = load();
+        if (!canRemerge(d)) { alert('やり直せる統合データがありません。'); return; }
+        const live = liveRaw(), cur = summary(live), old = summary(d.backup);
+        if (!cur || !old) { alert('データを読み込めませんでした。'); return; }
+        const acct = ensureAccountId(d);
+        const merged = mergeRaw({ player: d.backup.player, hack: d.backup.hack }, live, acct);
+        if (!merged) { alert('データを読み込めませんでした。中止します。'); return; }
+        const after = summary(merged);
+        if (!confirm('統合をやり直します。\n\n・いまのキャラ「' + cur.name + '」（Lv' + cur.level + '・合計 ' + cur.total + '）\n・置き換えで消えた元のスタンダード「' + old.name + '」（Lv' + old.level + '・合計 ' + old.total + '）\n\n→ 足し合わせて Lv' + after.level + '・合計 ' + after.total + ' のスタンダードキャラになります。\n（やり直しの前の状態は端末に残るので、あとで取り消せます）\n\nよろしいですか？')) return;
+        d.undoRemerge = { player: live.player, hack: live.hack, at: now() };
+        d.backup.merged = true;
+        putLive(merged);
+        save(d); reload();
+    }
+    function undoRemerge() {
+        const d = load();
+        if (!d.undoRemerge || !d.undoRemerge.player || d.active !== 'standard') { alert('取り消せるやり直しはありません。'); return; }
+        if (!confirm('統合のやり直しを取り消して、やり直す前の状態に戻します。よろしいですか？')) return;
+        putLive({ player: d.undoRemerge.player, hack: d.undoRemerge.hack });
+        if (d.backup) d.backup.merged = false;
+        delete d.undoRemerge;
         save(d); reload();
     }
     function restoreBackup() {
@@ -314,7 +498,7 @@
         }
         h += '<div class="ss-sec">キャラクター</div>' +
             charLine('🌟 シーズンキャラ', seaSm, d.active === 'season') + charLine('♾️ スタンダードキャラ', stdSm, d.active === 'standard') +
-            '<div class="ss-note">シーズンキャラ：勉強効率+10%・レベル1の素手スタート・週ごとに世界と難易度が解放。<br>スタンダードキャラ：永遠の資産。シーズン終了時、シーズンキャラがここに統合されます（既存のスタンダードキャラは上書き）。専用のエンドコンテンツ「永劫の玉座」に挑めます。</div>';
+            '<div class="ss-note">シーズンキャラ：勉強効率+10%・レベル1の素手スタート・週ごとに世界と難易度が解放。<br>スタンダードキャラ：永遠の資産。シーズン終了時、シーズンキャラで伸ばした分がここに足し合わされます（上書きではなく統合）。どちらのキャラも同じ引継ぎコード（プレイヤーID）です。専用のエンドコンテンツ「永劫の玉座」に挑めます。</div>';
 
         if (showDef) {
             h += '<div class="ss-sec">週ごとのスケジュール</div>';
@@ -337,6 +521,8 @@
             else add('♾️ スタンダードキャラに切り替え', '', () => switchTo('standard'));
         }
         if (merge) add('🏁 シーズンを終了してスタンダードに統合', 'red', mergeSeason);
+        if (canRemerge(d)) add('🔁 置き換わった統合をやり直す（足し合わせ）', 'gold', remergeFromBackup);
+        if (d.undoRemerge && d.active === 'standard') add('↩ 統合のやり直しを取り消す', 'gray', undoRemerge);
         if (d.backup && d.backup.player && d.active === 'standard') {
             const b = summary(d.backup);
             add('↩ 1つ前のスタンダードに戻す（' + (b ? b.name : '?') + '）', 'gray', restoreBackup);
@@ -445,6 +631,13 @@
         isSeasonChar: isSeasonChar, studyMultiplier: studyMultiplier, currentDef: currentDef, state: myState,
         canEnterWorld: canEnterWorld, worldOpenWeek: worldOpenWeek, canUseDiff: canUseDiff, diffOpenWeek: diffOpenWeek,
         gateDiffReq: gateDiffReq, pvpEventOpen: pvpEventOpen, canEnterStage: canEnterStage,
-        openPanel: openPanel, openWorldSelect: openWorldSelect, switchTo: switchTo, startSeasonChar: startSeasonChar, mergeSeason: mergeSeason, now: now
+        openPanel: openPanel, openWorldSelect: openWorldSelect, switchTo: switchTo, startSeasonChar: startSeasonChar, mergeSeason: mergeSeason, now: now,
+        // 共通ID・ワールド（市場・同期・固有能力が使う）
+        mode: function () { return isSeasonChar() ? 'season' : 'standard'; },
+        accountId: function () { try { return ensureAccountId(load()); } catch (e) { return null; } },
+        legacyIds: function () { try { return (load().legacyIds || []).slice(); } catch (e) { return []; } },
+        idForNewChar: idForNewChar, netId: netId,
+        remergeFromBackup: remergeFromBackup, undoRemerge: undoRemerge,
+        _test: { mergePlayers: mergePlayers, mergeHacks: mergeHacks, mergeRaw: mergeRaw, ensureAccountId: ensureAccountId, unifyIds: unifyIds }
     };
 })();

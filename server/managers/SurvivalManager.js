@@ -127,7 +127,7 @@ const C = {
     PVP_CAP_PCT: 0.35,
     DEF_K: 300,
 
-    DENSITY: [0, 6, 5, 5],
+    DENSITY: [0, 9, 8, 8],
 
     DESPAWN_DIST: 2200,
     SPAWN_MIN: 650,
@@ -139,7 +139,7 @@ const C = {
     CHEST_CHANNEL_S: 1.6,
     CHEST_RESPAWN_S: 600,
     RUIN_CHEST_RESPAWN_S: 900,
-    RUIN_TARGET: 6,
+    RUIN_TARGET: 9,
     RUIN_BOSS_RESPAWN_S: 480,
 
     PVP_LASER_MUL: 0.35,

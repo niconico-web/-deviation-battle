@@ -61,6 +61,12 @@ function validateStatAllocation(stats) {
 }
 
 function generatePlayerId() {
+    // シーズンキャラとスタンダードキャラは、同じプレイヤーID（共通の引継ぎコード）を使う。
+    // もう片方のキャラがいるなら、新しく作るキャラにもそのIDを使う（season.js が持ち主のいるIDだけを返す）
+    try {
+        const shared = typeof window !== 'undefined' && window.SeasonSys && window.SeasonSys.idForNewChar && window.SeasonSys.idForNewChar();
+        if (shared && isValidPlayerId(shared)) return shared;
+    } catch (e) { /* 共通IDが使えなければ、通常どおり新規発行 */ }
     // 6桁の英大文字と数字で構成されるIDを生成
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
