@@ -95,32 +95,6 @@
     const MAX_EFFECTS = 3;      // 特殊ステータスが低いとき（初期）のグリフ枠
     const MAX_AUGMENTS = 4;
 
-    // ---------- 固有能力（念能力風）の「制約」----------
-    //  固有能力から生まれるスキルは、必ず制約を背負う。制約は「ゲーム側」が決めた下の表だけ（AIは選ぶだけ）。
-    //  制約が重いほど威力が上がるが、どの制約も compute() の中だけで効くので、どの戦闘でも同じ動きになる。
-    //   cost  : 消費エネルギーの倍率 / cd : クールタイムの倍率 / range : 範囲（半径・長さ・幅）の倍率
-    //   w     : 制約の重さ（威力ボーナスの元。1点につき威力+5%、最大+30%）/ group : 同じグループは1つしか選べない
-    const INNATE_CONSTRAINTS = {
-        heavy:     { name: "重い代償",   icon: "🪨", w: 1, group: "cost",  cost: 1.6, desc: "消費エネルギー ×1.6" },
-        veryheavy: { name: "極重の代償", icon: "⛓️", w: 2, group: "cost",  cost: 2.2, desc: "消費エネルギー ×2.2" },
-        slow:      { name: "長い再使用", icon: "⏳", w: 1, group: "cd",    cd: 1.8,   desc: "クールタイム ×1.8" },
-        veryslow:  { name: "極長の再使用", icon: "🕰️", w: 2, group: "cd",  cd: 2.8,   desc: "クールタイム ×2.8" },
-        narrow:    { name: "限定範囲",   icon: "🎯", w: 1, group: "range", range: 0.8, desc: "射程・半径・幅 ×0.8" }
-    };
-    // 固有能力のスキルは「AIが書いたコード」で動く（innate-runtime.js が隔離環境で実行する）。
-    //  強さの上限・消費・クールタイムは、コードではなくゲーム側のこの表で決まる（AIが書けるのは「動き」だけ）。
-    //   cost: 消費エネルギー / cd: クールタイム(秒) / budget: 1回の発動で出せる「威力の合計」（通常ダメージ何発分か）
-    const INNATE_TIERS = {
-        1: { cost: 20, cd: 3.0, budget: 1.4 },
-        2: { cost: 30, cd: 4.5, budget: 2.2 },
-        3: { cost: 42, cd: 6.5, budget: 3.2 },
-        4: { cost: 58, cd: 9.0, budget: 4.6 },
-        5: { cost: 78, cd: 13.0, budget: 6.5 }
-    };
-    const INNATE_MASTERY_MAX = 10;
-    const INNATE_SEC_PER_MASTERY = 1800;      // 勉強30分ごとに習熟度+1（最大10）
-    const INNATE_EXTRA_AT = [3, 6];           // 習熟度3と6で、応用能力を後から追加できる枠が1つずつ開く
-
     // 特殊ステータスが高いほど、1つのスキルに入れられるグリフ（効果）の数が増える：3 → 最大6
     //   特殊 150 以上で4つ / 1,000 以上で5つ / 5,000 以上で6つ
     const GLYPH_SLOT_STEPS = [[5000, 6], [1000, 5], [150, 4]];
@@ -215,18 +189,6 @@
         });
         s.augments = aug;
         const lay = normLayout(s.layout, s.form);
-        // 固有能力のコード（固有能力から生まれたスキルだけが持てる。ほかのスキルには付けられない）
-        if (s.innate && s.kind === "code" && typeof s.code === "string" && s.code.trim()) {
-            s.code = s.code.slice(0, 6000);
-            s.tier = Math.max(1, Math.min(5, Math.round(Number(s.tier) || 1)));
-            s.passive = !!s.passive;      // 常時スクリプト：戦闘の間ずっと動き、敵を倒した・攻撃を受けた・キーを押した、に反応する
-        } else { delete s.kind; delete s.code; delete s.tier; delete s.passive; }
-        // 固有能力の制約（表にあるものだけ。同じグループは1つまで）
-        if (Array.isArray(s.constraints)) {
-            const used = {};
-            s.constraints = s.constraints.filter(c => { const d = INNATE_CONSTRAINTS[c]; if (!d || used[d.group]) return false; used[d.group] = true; return true; });
-            if (!s.constraints.length) delete s.constraints;
-        } else delete s.constraints;
         // 属性（elements.js の ID。無い・不正なら無属性）
         if (s.element && !(window.SBElem && SBElem.ELEMS[s.element])) delete s.element;
         if (!s.element) delete s.element;
@@ -247,28 +209,8 @@
         s.effects.forEach(e => cost += EFFECTS[e].cost);
         s.augments.forEach(a => cost += AUGMENTS[a].cost);
 
-        const T = (s.innate && s.kind === "code") ? INNATE_TIERS[s.tier] : null;
-        if (T) cost = s.passive ? 0 : T.cost;     // コードのスキルは、消費もクールタイムも威力の上限も、階級（tier）の表で決まる（常時スクリプトは消費なし）
-        // 固有能力：制約（重い代償・長い再使用・限定範囲）と、習熟度（勉強で成長）
-        //  習熟度が上がるほど制約が軽くなり（最大で半分）、威力が少し伸びる（1段階+3%）。制約の重さに応じた威力ボーナスも付く
-        let cMulCost = 1, cMulCd = 1, cMulRange = 1, cWeight = 0, boost = 1;
-        const mastery = Math.max(0, Math.min(INNATE_MASTERY_MAX, Number(s.mastery) || 0));
-        if (s.constraints && s.constraints.length) {
-            const relax = 1 - 0.05 * mastery;
-            s.constraints.forEach(k => {
-                const c = INNATE_CONSTRAINTS[k]; if (!c) return;
-                cWeight += c.w;
-                if (c.cost) cMulCost *= 1 + (c.cost - 1) * relax;
-                if (c.cd) cMulCd *= 1 + (c.cd - 1) * relax;
-                if (c.range) cMulRange *= 1 - (1 - c.range) * relax;
-            });
-            cost *= cMulCost;
-        }
-        if (s.innate) boost = 1 + Math.min(0.3, 0.05 * cWeight) + 0.03 * mastery;
-
-        const innateScale = T ? 0.5 + 0.35 * s.tier : 1;      // コードが動かない戦闘（試し撃ちなど）で出る代わりの弾の強さ
-        const dmgMult = (1 + 0.25 * amplify) * boost * innateScale;
-        const cooldown = Math.max(0.6, (T ? (s.passive ? 0.5 : T.cd) : (FORMS[s.form].cd + cost * 0.02)) * (1 - 0.15 * swift) * cMulCd);
+        const dmgMult = (1 + 0.25 * amplify);
+        const cooldown = Math.max(0.6, (FORMS[s.form].cd + cost * 0.02) * (1 - 0.15 * swift));
         const count = s.layout ? s.layout.length : 1 + multi;
 
         const p = { form: s.form, count: count, dmgMult: dmgMult, effects: s.effects.slice() };
@@ -326,7 +268,6 @@
             // 領域：広い範囲を duration 秒間展開。tick ごとに、中の敵へダメージとデバフ、中の味方へ回復・バフ（baseMult は1回あたり）
             Object.assign(p, { radius: 280 * (1 + 0.3 * extend), duration: 9, tick: 0.8, baseMult: 0.16, range: 280 * (1 + 0.3 * extend) });   // 弱体化：半径280・9秒間・0.8秒ごとに0.16倍（以前は半径330・12秒・0.6秒ごと・0.3倍）
         }
-        if (cMulRange !== 1) ['radius', 'length', 'width', 'orbitR', 'ringR', 'range'].forEach(k => { if (typeof p[k] === 'number') p[k] *= cMulRange; });   // 限定範囲
         // 実際に出る「配置」の一覧（自由配置が無いときは、突き・一閃だけ数ぶんの標準配置を作る）
         p.element = s.element || null;
         if (s.layout) { p.pieces = s.layout.map(pc => Object.assign({}, pc)); p.custom = true; }
@@ -348,20 +289,17 @@
             for (let i = 0; i < count; i++) p.pieces.push({ fw: 0, sd: 0, a: s.form === "flash" ? (zig[i % zig.length]) : 0, s: 1 });
             p.custom = false;
         } else { p.pieces = null; p.custom = false; }
-        if (T) p.innate = { tier: s.tier, budget: T.budget * boost, rangeMul: cMulRange, scale: innateScale, mastery: mastery };
         return { skill: s, cost: Math.round(cost), cooldown: cooldown, params: p };
     }
 
     function describe(skillInput) {
         const c = compute(skillInput);
         const s = c.skill;
-        const parts = [s.kind === "code" ? "固有能力（階級" + s.tier + (s.passive ? "・常時" : "") + "）" : FORMS[s.form].name];
-        if (s.kind === "code" && s.desc) parts.push(String(s.desc).slice(0, 80));
-        if (c.params.count > 1 && s.kind !== "code") parts.push("×" + c.params.count);
+        const parts = [FORMS[s.form].name];
+        if (c.params.count > 1) parts.push("×" + c.params.count);
         if (s.layout) parts.push("自由配置");
         if (s.element && window.SBElem && SBElem.ELEMS[s.element]) parts.push(SBElem.ELEMS[s.element].icon + SBElem.ELEMS[s.element].name + "属性");
         s.effects.forEach(e => parts.push(EFFECTS[e].name));
-        if (s.constraints && s.constraints.length) parts.push("制約：" + s.constraints.map(k => INNATE_CONSTRAINTS[k].name).join("・"));
         const augCount = {};
         s.augments.forEach(a => augCount[a] = (augCount[a] || 0) + 1);
         Object.keys(augCount).forEach(a => parts.push(AUGMENTS[a].name + (augCount[a] > 1 ? "×" + augCount[a] : "")));
@@ -379,44 +317,14 @@
         { id: "starter_shockwave", name: "ショックウェーブ", form: "nova", effects: ["damage", "knockback"], augments: [] }
     ];
 
-    // ---------- 固有能力（1キャラに1つ。AIが基本能力1＋応用能力3を作る）----------
-    //  保存：localStorage "sbInnate" = { standard: 能力|null, season: 能力|null }（スタンダードキャラとシーズンキャラは別々）
-    //  能力 = { id, concept, name, principle, can[], cannot[], keywords[], element, lore, studyBase, base:スキル, apps:[スキル×3], extra:[スキル×0〜2] }
-    //  生まれたスキルは、スキル一覧（loadSkills）に自動で並び、装備スロットにはめ込める（編集・削除はできない）
-    const KEY_INNATE = "sbInnate";
-    function currentMode() {
-        try { const d = JSON.parse(localStorage.getItem("sbSeason") || "null"); return d && d.active === "season" ? "season" : "standard"; } catch (e) { return "standard"; }
-    }
-    function loadInnateAll() { try { const o = JSON.parse(localStorage.getItem(KEY_INNATE) || "null"); return o && typeof o === "object" ? o : {}; } catch (e) { return {}; } }
-    function getInnate() { const a = loadInnateAll()[currentMode()]; return a && a.base ? a : null; }
-    function saveInnate(a) { const o = loadInnateAll(); o[currentMode()] = a; localStorage.setItem(KEY_INNATE, JSON.stringify(o)); }
-    function studySeconds() { try { const p = (typeof getPlayerData === "function") ? getPlayerData() : null; return p ? Number(p.totalStudySeconds) || 0 : 0; } catch (e) { return 0; } }
-    // 習熟度：能力を確定してから勉強した時間で決まる（30分ごとに+1、最大10）
-    function innateMastery(a) {
-        if (!a) return 0;
-        return Math.max(0, Math.min(INNATE_MASTERY_MAX, Math.floor(Math.max(0, studySeconds() - (Number(a.studyBase) || 0)) / INNATE_SEC_PER_MASTERY)));
-    }
-    function innateExtraSlots(a) { const m = innateMastery(a); return INNATE_EXTRA_AT.filter(x => m >= x).length; }
-    function innateSkills() {
-        const a = getInnate(); if (!a) return [];
-        const m = innateMastery(a);
-        const mk = (sk, id, role) => Object.assign({}, sk, { id: id, innate: true, kind: "code", role: role, mastery: m, form: "projectile", effects: ["damage"], augments: [], layout: undefined, element: sk.element || a.element || undefined });
-        const out = [mk(a.base, "ia_base", "base")];
-        (a.apps || []).slice(0, 3).forEach((sk, i) => out.push(mk(sk, "ia_app" + (i + 1), "app")));
-        (a.extra || []).slice(0, 2).forEach((sk, i) => out.push(mk(sk, "ia_x" + (i + 1), "app")));
-        return out.map(sk => { if (!sk.element) delete sk.element; if (!sk.layout) delete sk.layout; return normalize(sk, false); });
-    }
-
     function loadSkills() {
-        let list = null;
         try {
             const raw = JSON.parse(localStorage.getItem(KEY_SKILLS) || "null");
-            if (Array.isArray(raw) && raw.length) list = raw.filter(x => x && !x.innate).map(normalize);
+            if (Array.isArray(raw) && raw.length) return raw.map(normalize);
         } catch (e) { /* 壊れていたら初期スキルに戻す */ }
-        if (!list || !list.length) list = STARTER_SKILLS.map(normalize);
-        return list.concat(innateSkills());
+        return STARTER_SKILLS.map(normalize);
     }
-    function saveSkills(list) { localStorage.setItem(KEY_SKILLS, JSON.stringify(list.filter(x => x && !x.innate).map(normalize))); }   // 固有能力のスキルは sbInnate に持つので、ここには保存しない
+    function saveSkills(list) { localStorage.setItem(KEY_SKILLS, JSON.stringify(list.map(normalize))); }
 
     function loadLoadout() {
         const skills = loadSkills();
@@ -543,8 +451,6 @@
     global.ActionSkills = {
         FORMS, EFFECTS, AUGMENTS, isFormUnlocked, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
         normalize, compute, describe,
-        INNATE_CONSTRAINTS, INNATE_TIERS, INNATE_MASTERY_MAX, INNATE_SEC_PER_MASTERY, INNATE_EXTRA_AT,
-        loadInnateAll, getInnate, saveInnate, innateMastery, innateExtraSlots, innateSkills, currentMode,
         loadSkills, saveSkills, loadLoadout, saveLoadout, newId,
         enemySkillsFor,
         GLYPH_RECIPES, DEFAULT_UNLOCKED_GLYPHS,

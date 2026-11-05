@@ -1117,7 +1117,7 @@ function startAutoSync() {
 }
 
 // ---------- データ引き継ぎ：プレイヤー以外のデータ ----------
-const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbInnate', 'sbPvpEvent', 'sbAch'];
+const TRANSFER_KEYS = ['sbHack', 'sb_action_skills', 'sb_action_loadout', 'sb_unlocked_glyphs', 'sbBeginner', 'sbSeason', 'sbPvpEvent', 'sbAch'];
 let lastBundleAt = 0;
 // ページを開いた直後（初期化で保存データが整えられる前）のデータの指紋。同期の「この端末に変更があるか」の判定に使う
 const bootSyncHash = currentSyncHash();
@@ -1521,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // サイドバーの直接ボタンは「マップ／ステータス／インベントリ／勉強／オンライン」の
     // 5つだけに絞ってあるので、それ以外（ミッション・オーブ工房・スキル・ボスバトル・
     // ダンジョン・ランキング・ヘルプ・問題リスト）は町の建物に触れて入る。
-    const townOnlySections = ['missions', 'workshop', 'skills', 'boss-battle', 'dungeon', 'ranking', 'help', 'questionlists']; // survival removed
+    const townOnlySections = ['missions', 'workshop', 'skills', 'boss-battle', 'dungeon', 'ranking', 'help', 'questionlists', 'survival'];
 
     function activateSection(section, fromTown) {
         if (townOnlySections.includes(section) && !fromTown) {

@@ -76,7 +76,6 @@
                 <h2>作ったスキル</h2>
                 <div id="skillList"></div>
             </div>
-            <div class="card" id="innateCard" style="margin-top:12px;border-color:#a78bfa;"></div>
             <div class="card" style="margin-top:12px;">
                 <h2>🔮 グリフ工房（素材でグリフを解放）</h2>
                 <p class="meta" style="font-size:0.75rem;color:#9aa6c4;margin:0 0 8px;">ダメージ以外のグリフ（効果）は、必要な素材を集めて作成すると使えるようになります。</p>
@@ -179,11 +178,6 @@
         skills.forEach(s => {
             const c = AS.compute(s);
             const el = document.createElement('div'); el.className = 'skill-item';
-            if (s.innate) {      // 固有能力のスキル：編集・削除はできない（固有能力の画面で管理する）
-                el.style.borderColor = '#a78bfa';
-                el.innerHTML = '<div><div>🌀 <b>' + esc(s.name) + '</b> <span style="font-size:.7rem;color:#c9b8ff">固有能力・' + (s.role === 'base' ? '基本' : '応用') + '</span></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's</div></div><div></div>';
-                box.appendChild(el); return;
-            }
             el.innerHTML = '<div><div>' + AS.FORMS[s.form].icon + ' <b>' + esc(s.name) + '</b></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's</div></div>' +
                 '<div><button class="ghost" data-a="edit">編集</button> <button class="ghost danger" data-a="del">削除</button></div>';
             el.querySelector('[data-a=edit]').addEventListener('click', () => {
@@ -501,7 +495,5 @@
 })();
 </script>
 <script src="js/skill-ai.js"></script>
-<script src="js/innate-runtime.js"></script>
-<script src="js/innate-ui.js"></script>
 </body>
 </html>

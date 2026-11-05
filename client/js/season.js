@@ -355,21 +355,6 @@
             hack: JSON.stringify(mergeHacks(parseSafe(stdRaw.hack), parseSafe(seaRaw.hack), accountId))
         };
     }
-    // 固有能力（sbInnate）の引き継ぎ：スタンダードキャラに固有能力が無ければ、シーズンキャラの能力を受け継ぐ（あれば、スタンダードのものが残る）。
-    //  習熟度は「確定してから勉強した時間」で決まるので、統合で勉強時間が足されても一気に上がらないよう、基準の時間をずらす
-    function carryInnateAtMerge(seaPlayer, mergedPlayer) {
-        try {
-            const o = JSON.parse(localStorage.getItem('sbInnate') || 'null') || {};
-            if (!o.season) return;
-            if (!o.standard) {
-                const a = o.season, delta = Math.max(0, nz(seaPlayer && seaPlayer.totalStudySeconds) - nz(a.studyBase));
-                a.studyBase = Math.max(0, nz(mergedPlayer && mergedPlayer.totalStudySeconds) - delta);
-                o.standard = a;
-            }
-            delete o.season;
-            localStorage.setItem('sbInnate', JSON.stringify(o));
-        } catch (e) { /* 固有能力が壊れていても、統合は続ける */ }
-    }
     function mergeSeason() {
         const d = load();
         if (!canMerge(d)) { alert('シーズンが終わるまでは、スタンダードに統合できません。'); return; }
@@ -391,11 +376,10 @@
         const msg = 'シーズンキャラ「' + sc.name + '」（Lv' + sc.level + '・ステータス合計 ' + sc.total + '）を、スタンダードキャラに統合します。\n' +
             (sd ? '\n現在のスタンダードキャラ「' + sd.name + '」（Lv' + sd.level + '・合計 ' + sd.total + '）に、シーズンで伸ばした分が足されます。\n' +
                   '→ 統合後：Lv' + after.level + '・合計 ' + after.total + '\n（上書きではなく足し合わせです。念のため統合前の2体は端末にバックアップされます）\n' : '') +
-            '\n固有能力：スタンダードキャラがまだ持っていなければ、シーズンキャラの固有能力を受け継ぎます（すでに持っている場合は、スタンダードの固有能力が残ります）。\n\nよろしいですか？';
+            '\nよろしいですか？';
         if (!confirm(msg)) return;
         // バックアップ（統合前の2体）
         d.backup = stdRaw && stdRaw.player ? { player: stdRaw.player, hack: stdRaw.hack, at: now(), seasonId: d.seasonId, merged: true, season: { player: seasonRaw.player, hack: seasonRaw.hack } } : null;
-        carryInnateAtMerge(parseSafe(seasonRaw.player), parseSafe(merged.player));
         putLive(merged);
         d.slots = { standard: null, season: null };
         d.active = 'standard'; d.history.push({ seasonId: d.seasonId, mergedAt: now(), mode: 'add' });
@@ -632,7 +616,7 @@
         canEnterWorld: canEnterWorld, worldOpenWeek: worldOpenWeek, canUseDiff: canUseDiff, diffOpenWeek: diffOpenWeek,
         gateDiffReq: gateDiffReq, pvpEventOpen: pvpEventOpen, canEnterStage: canEnterStage,
         openPanel: openPanel, openWorldSelect: openWorldSelect, switchTo: switchTo, startSeasonChar: startSeasonChar, mergeSeason: mergeSeason, now: now,
-        // 共通ID・ワールド（市場・同期・固有能力が使う）
+        // 共通ID・ワールド（市場・同期が使う）
         mode: function () { return isSeasonChar() ? 'season' : 'standard'; },
         accountId: function () { try { return ensureAccountId(load()); } catch (e) { return null; } },
         legacyIds: function () { try { return (load().legacyIds || []).slice(); } catch (e) { return []; } },
