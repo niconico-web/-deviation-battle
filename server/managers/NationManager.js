@@ -10,7 +10,19 @@
 // ============================================================
 const fs = require("fs");
 const path = require("path");
-const SW = require("../../client/js/survival-world.js");
+/* Survival removed - dummy SW object to prevent startup errors */
+const SW = {
+    POINTS: [],
+    SITES: [],
+    CX: 800,
+    CY: 800,
+    SAFE_R: 200,
+    cellIdx: () => -1,
+    inSafe: () => true,
+    obstaclesNear: () => [],
+    CELL_SITE: [],
+    POINT_CELLS: {}
+};
 const Market = require("./MarketManager");
 const Arts = require("./ArtifactManager");
 

@@ -39,7 +39,7 @@
     }
     const reasonText = (r) => { const f = REASON[r && r.reason]; return f ? f(r) : 'うまくいきませんでした（' + (r && r.reason) + '）'; };
     function note(t, err) { const m = $('nbMsg'); if (!m) return; m.textContent = t; m.className = 'nb-msg' + (err ? ' err' : ''); }
-    const nName = (id) => { const t = (window.SBSurvival && window.SBSurvival.table()) || {}; return t[id] ? t[id].name : (S && (S.nations.find((n) => n.id === id) || {}).name) || '？'; };
+    const nName = (id) => { /* Survival removed */ const t = {}; return t[id] ? t[id].name : (S && (S.nations.find((n) => n.id === id) || {}).name) || '？'; };
     const dot = (c) => '<span class="nb-dot" style="background:' + esc(c) + '"></span>';
 
     // ---------- 開閉 ----------
@@ -53,7 +53,8 @@
         if (!r.ok) { $('nbBody').innerHTML = '<div class="nb-empty">' + esc(reasonText(r)) + '</div>'; return; }
         S = r;
         if (!tab || (!S.mine && ['found', 'join', 'build', 'arts', 'map'].indexOf(tab) < 0) || (S.mine && ['found', 'join'].indexOf(tab) >= 0)) tab = S.mine ? 'home' : 'found';
-        if (window.SBSurvival && window.SBSurvival.refreshView) window.SBSurvival.refreshView();
+        /* Survival removed */
+        // if (window.SBSurvival && window.SBSurvival.refreshView) window.SBSurvival.refreshView();
         render();
     }
     function render() {
@@ -210,6 +211,10 @@
     }
     // ---------- 勢力図（全勢力の領土・拠点・戦争・神器・戦況） ----------
     function renderMap(el) {
+        /* Survival removed - map rendering disabled */
+        el.innerHTML = '<div class="nb-card"><h3>🗺 勢力図</h3><div class="nb-empty">サバイバルエリアは削除されました</div></div>';
+        return;
+        /*
         const SWw = window.SurvivalWorld, nat = S.nations.slice().sort((a, b) => (b.points - a.points) || (b.cells - a.cells));
         const lg = (S.log || []).slice(-14).reverse();
         const fmtT = (t) => { const d = new Date(t * 1000); return (d.getMonth() + 1) + '/' + d.getDate() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -236,12 +241,18 @@
         const ar = (window.SBSurvival && window.SBSurvival.arts && window.SBSurvival.arts()) || [];
         ar.forEach((a) => { if (a[1] === 1 || a[1] === 2) { g.font = '14px sans-serif'; g.fillText('⭐', a[2] * sc, a[3] * sc + 5); } });
         const me = window.SBSurvival && window.SBSurvival.pos && window.SBSurvival.pos(); if (me) { g.fillStyle = '#fff'; g.beginPath(); g.arc(me.x * sc, me.y * sc, 4, 0, 7); g.fill(); g.strokeStyle = '#4adf7a'; g.lineWidth = 2; g.stroke(); }
+        */
     }
     // ---------- 神器 ----------
     function renderArts(el) {
+        /* Survival removed - artifacts disabled */
+        el.innerHTML = '<div class="nb-card"><h3>🌟 神器</h3><div class="nb-empty">サバイバルエリアは削除されました</div></div>';
+        return;
+        /*
         const st = { shrine: '神殿に安置されている（守護者を倒すと手に入る）', held: '持ち主あり', dropped: '地面に落ちている！', vault: '国宝として奉納' };
         el.innerHTML = '<div class="nb-card"><h3>🌟 神器（全7つ・世界に1つずつ）</h3><small>サバイバルエリアでだけ使える、とても強い武器です。持っていると R キーで撃てます。持ち主が倒されると落とし、ログアウトすると神殿へ戻ります。自分の国の城の近くで E を押すと「国宝」として奉納できます。国宝を持つ国は、保護期間が無視され、費用なしで宣戦布告されます——戦争のきっかけになります。</small></div>' +
             (S.arts || []).map((a) => '<div class="nb-card"><b>' + a.icon + ' ' + esc(a.name) + '</b><br><small>' + esc(a.desc) + '（再使用 ' + a.cd + '秒）</small><br><span class="nb-tag' + (a.state === 'vault' ? ' trade' : a.state === 'held' ? ' war' : '') + '">' + st[a.state] + '</span> ' + (a.state === 'held' ? esc(a.holder) + (a.nid ? '（' + esc(nName(a.nid)) + '）' : '') : '') + (a.state === 'vault' ? esc(nName(a.nid)) : '') + '</div>').join('');
+        */
     }
 
     // ---------- 店 ----------

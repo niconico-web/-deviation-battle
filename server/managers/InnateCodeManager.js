@@ -372,9 +372,14 @@ async function create(m) {
     const text = cleanText(m.text); if (text.length < 4) return { ok: false, reason: "too_short" };
     const q = checkQuota(pid, "create", CREATE_LIMIT); if (!q.ok) return q;
     const u = q.u; u.busy = true; u.lastAt = Date.now();
+    // Debug: Check if API keys are available
+    console.log("[Innate] GEMINI_API_KEY exists:", !!process.env.GEMINI_API_KEY);
+    console.log("[Innate] ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
+    console.log("[Innate] AI Provider:", AiClient.provider());
     try {
         const raw = await callClaude(createPrompt(), "プレイヤーが望む能力の原理：\n" + text, 6000);
         const viaAI = !!raw;
+        console.log("[Innate] AI result:", viaAI ? "SUCCESS" : "FAILED (using local)");
         const src = raw || localCreate(text);
         const ab = sanitizeAbility(src, text);
         if (!ab.element) ab.element = pickElement(text);
