@@ -808,19 +808,34 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
 
 
 
-    <script src="js/elements.js" defer></script>
-    <script src="js/armor.js" defer></script>
-    <script src="js/accessories.js" defer></script>
-    <script src="js/market.js" defer></script>
-    <script src="js/achievements.js" defer></script>
-    <script src="js/pixel-data.js" defer></script>
-    <script src="js/pixel.js" defer></script>
-    <script src="js/pixel-extra.js" defer></script>
-    <script src="js/stage-data.js" defer></script>
-    <script src="js/stage-lobby.js" defer></script>
-    <script src="js/beginner.js" defer></script>
-    <script src="js/survival-entry.js" defer></script>
-    <script src="js/world.js" defer></script>
+    <!-- Game scripts loaded dynamically for performance -->
+    <script>
+        function loadGameScripts() {
+            const scripts = [
+                'js/elements.js',
+                'js/armor.js',
+                'js/accessories.js',
+                'js/market.js',
+                'js/achievements.js',
+                'js/pixel-data.js',
+                'js/pixel.js',
+                'js/pixel-extra.js',
+                'js/stage-data.js',
+                'js/stage-lobby.js',
+                'js/beginner.js',
+                'js/world.js'
+            ];
+            scripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.defer = true;
+                document.head.appendChild(script);
+            });
+        }
+        document.addEventListener('DOMContentLoaded', loadGameScripts);
+    </script>
+    <!-- Survival removed for performance -->
+    <!-- <script src="js/survival-entry.js" defer></script> -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

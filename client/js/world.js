@@ -27,7 +27,8 @@
         { id: "info", section: "help", label: "案内所", icon: "❓", x: 200, y: 560, w: 120, h: 100, color: "#607d8b" },
         { id: "stagegate", label: "ステージゲート（ダンジョン＋ボス）", icon: "🚪", x: 100, y: 400, w: 150, h: 120, color: "#7b3fa0", isStageGate: true },
         { id: "library", section: "questionlists", label: "問題リスト", icon: "📚", x: 660, y: 460, w: 130, h: 100, color: "#3d5a80" },
-        { id: "rift", isRift: true, get label() { return (typeof window.isSurvivalUnlocked === "function" && window.isSurvivalUnlocked()) ? "次元の裂け目（サバイバルエリア・完全PvP）" : "次元の裂け目 🔒第二世界で解放"; }, icon: "🌀", x: 1470, y: 330, w: 100, h: 150, color: "#5b2a8c" },
+        /* Survival removed */
+        // { id: "rift", isRift: true, get label() { return (typeof window.isSurvivalUnlocked === "function" && window.isSurvivalUnlocked()) ? "次元の裂け目（サバイバルエリア・完全PvP）" : "次元の裂け目 🔒第二世界で解放"; }, icon: "🌀", x: 1470, y: 330, w: 100, h: 150, color: "#5b2a8c" },
         { id: "market", section: "market", label: "市場（プレイヤー売買）", icon: "🏪", x: 1300, y: 780, w: 160, h: 110, color: "#c0392b" },
     ];
 

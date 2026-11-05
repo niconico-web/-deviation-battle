@@ -1521,7 +1521,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // サイドバーの直接ボタンは「マップ／ステータス／インベントリ／勉強／オンライン」の
     // 5つだけに絞ってあるので、それ以外（ミッション・オーブ工房・スキル・ボスバトル・
     // ダンジョン・ランキング・ヘルプ・問題リスト）は町の建物に触れて入る。
-    const townOnlySections = ['missions', 'workshop', 'skills', 'boss-battle', 'dungeon', 'ranking', 'help', 'questionlists', 'survival'];
+    const townOnlySections = ['missions', 'workshop', 'skills', 'boss-battle', 'dungeon', 'ranking', 'help', 'questionlists']; // survival removed
 
     function activateSection(section, fromTown) {
         if (townOnlySections.includes(section) && !fromTown) {
