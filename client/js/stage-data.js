@@ -656,6 +656,15 @@
         const span = Math.max(1, ILVL_MAX - STAT_REQ.w1EndIlvl);
         return STAT_REQ.w1End * Math.pow(STAT_REQ.final / STAT_REQ.w1End, Math.min(1.5, (ilvl - STAT_REQ.w1EndIlvl) / span));
     }
+    // 推奨ステータス合計 req に対応する ilvl を逆算する（reqTotal は ilvl に対して単調増加なので二分探索）
+    function ilvlForReq(req) {
+        let lo = 1, hi = ILVL_MAX;
+        for (let i = 0; i < 40; i++) {
+            const mid = (lo + hi) / 2;
+            if (reqTotal(mid) <= req) lo = mid; else hi = mid;
+        }
+        return Math.max(1, Math.min(ILVL_MAX, Math.round(lo)));
+    }
     // 戦闘ステータスの換算式（stage.js の P.atkMul / P.maxHp と同じ形。合計を5ステータスに均等に振った人を想定）
     const atkMulRef = T => 0.6 + (T / 5) / 150;
     const maxHpRef = T => 100 + (T / 5) * 2;
@@ -775,6 +784,6 @@
     function scaleOf(req) {
         return { gMob: atkMulRef(req) / atkMulRef(STAT_REQ.start), gDmg: atkMulRef(req) / atkMulRef(STAT_REQ.start), gHp: maxHpRef(req) / maxHpRef(STAT_REQ.start) };
     }
-    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, RUSH_DIFFS: RUSH_DIFFS, RUSH: RUSH, CORRIDOR: CORRIDOR, scaleOf: scaleOf, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
+    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, RUSH_DIFFS: RUSH_DIFFS, RUSH: RUSH, CORRIDOR: CORRIDOR, scaleOf: scaleOf, ilvlForReq: ilvlForReq, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
     window.getStageById = function (id) { return S.find(s => s.id === id) || null; };
 })();
