@@ -85,8 +85,13 @@ function triggerBossTelegraph(io, roomId) {
 
         if (!result.error) {
             const logs = [];
-            if (result.guarded) logs.push(`${result.playerName}はガードした！ダメージ80%カット！`);
-            logs.push(`${boss.name}の攻撃！${result.playerName}に${result.damage}のダメージ！`);
+            if (result.dodged) {
+                logs.push(`${result.playerName}は攻撃を回避した！`);
+                if (result.keystoneMirrorReady) logs.push('幻影支配：残像が次の攻撃に備えた！');
+            } else {
+                if (result.guarded) logs.push(`${result.playerName}はガードした！ダメージ80%カット！`);
+                logs.push(`${boss.name}の攻撃！${result.playerName}に${result.damage}のダメージ！`);
+            }
 
             const stateUpdate = {};
             Object.keys(currentBattle.players).forEach(id => {
@@ -104,7 +109,7 @@ function triggerBossTelegraph(io, roomId) {
 
             io.to(roomId).emit('battle:update', {
                 logs,
-                damageEvents: [{ targetId: target.id, dodged: false, damage: result.damage }],
+                damageEvents: [{ targetId: target.id, dodged: !!result.dodged, damage: result.damage || 0 }],
                 effectEvents: [],
                 stateUpdate
             });
@@ -404,14 +409,20 @@ module.exports = function(io){
                 if (pvpResult.damage) pvpLogs.push(`${pvpResult.damage}のダメージ！`);
                 if (pvpResult.defended) pvpLogs.push("防御姿勢をとった！");
                 if (pvpResult.ultimateActivated) pvpLogs.push("必殺技が発動！");
+                if (pvpResult.keystoneBloodCost) pvpLogs.push(`血の契約：HPを${pvpResult.keystoneBloodCost}消費して攻撃を強化！`);
+                if (pvpResult.keystoneBloodPactFailed) pvpLogs.push("血の契約：HPが足りず、強化は発動しなかった。");
+                if (pvpResult.keystoneMinionSummoned) pvpLogs.push(`死霊術：ミニオンを召喚！（現在${pvpResult.keystoneMinionCount}体）`);
+                if (pvpResult.keystoneLightning) pvpLogs.push(`雷霆支配：放電！追加${pvpResult.keystoneLightning}ダメージ！`);
+                if (pvpResult.keystoneMirrorStrike) pvpLogs.push(`幻影支配：残像が追撃！追加${pvpResult.keystoneMirrorStrike}ダメージ！`);
+                if (pvpResult.keystoneMirrorReady) pvpLogs.push(`${battle.players[enemyId]?.name || '相手'}の残像が次の攻撃に備えた！`);
                 if (pvpResult.selfBurnTick) pvpLogs.push(`火傷ダメージ！${player.name}に${pvpResult.selfBurnTick.damage}のダメージ（残り${pvpResult.selfBurnTick.remaining}ターン）`);
                 if (pvpResult.selfPoisonTick) pvpLogs.push(`毒ダメージ！${player.name}に${pvpResult.selfPoisonTick.damage}のダメージ（残り${pvpResult.selfPoisonTick.remaining}ターン）`);
                 if (pvpResult.enemyBurnTick) pvpLogs.push(`火傷ダメージ！相手に${pvpResult.enemyBurnTick.damage}のダメージ（残り${pvpResult.enemyBurnTick.remaining}ターン）`);
                 if (pvpResult.enemyPoisonTick) pvpLogs.push(`毒ダメージ！相手に${pvpResult.enemyPoisonTick.damage}のダメージ（残り${pvpResult.enemyPoisonTick.remaining}ターン）`);
 
                 const pvpDamageEvents = [];
-                if (pvpResult.damage) {
-                    pvpDamageEvents.push({ targetId: enemyId, dodged: !!pvpResult.dodged, damage: pvpResult.damage });
+                if (pvpResult.damage || pvpResult.keystoneExtraDamage) {
+                    pvpDamageEvents.push({ targetId: enemyId, dodged: !!pvpResult.dodged, damage: (pvpResult.damage || 0) + (pvpResult.keystoneExtraDamage || 0) });
                 }
                 if (pvpResult.selfBurnTick) pvpDamageEvents.push({ targetId: playerId, dodged: false, damage: pvpResult.selfBurnTick.damage });
                 if (pvpResult.selfPoisonTick) pvpDamageEvents.push({ targetId: playerId, dodged: false, damage: pvpResult.selfPoisonTick.damage });
@@ -475,14 +486,19 @@ module.exports = function(io){
             if (raidCmdResult.ultimateActivated) {
                 raidCmdLogs.push("必殺技が発動！");
             }
+            if (raidCmdResult.keystoneBloodCost) raidCmdLogs.push(`血の契約：HPを${raidCmdResult.keystoneBloodCost}消費して攻撃を強化！`);
+            if (raidCmdResult.keystoneBloodPactFailed) raidCmdLogs.push("血の契約：HPが足りず、強化は発動しなかった。");
+            if (raidCmdResult.keystoneMinionSummoned) raidCmdLogs.push(`死霊術：ミニオンを召喚！（現在${raidCmdResult.keystoneMinionCount}体）`);
+            if (raidCmdResult.keystoneLightning) raidCmdLogs.push(`雷霆支配：放電！追加${raidCmdResult.keystoneLightning}ダメージ！`);
+            if (raidCmdResult.keystoneMirrorStrike) raidCmdLogs.push(`幻影支配：残像が追撃！追加${raidCmdResult.keystoneMirrorStrike}ダメージ！`);
             if (raidCmdResult.selfBurnTick) raidCmdLogs.push(`火傷ダメージ！${player.name}に${raidCmdResult.selfBurnTick.damage}のダメージ（残り${raidCmdResult.selfBurnTick.remaining}ターン）`);
             if (raidCmdResult.selfPoisonTick) raidCmdLogs.push(`毒ダメージ！${player.name}に${raidCmdResult.selfPoisonTick.damage}のダメージ（残り${raidCmdResult.selfPoisonTick.remaining}ターン）`);
             if (raidCmdResult.bossBurnTick) raidCmdLogs.push(`火傷ダメージ！ボスに${raidCmdResult.bossBurnTick.damage}のダメージ（残り${raidCmdResult.bossBurnTick.remaining}ターン）`);
             if (raidCmdResult.bossPoisonTick) raidCmdLogs.push(`毒ダメージ！ボスに${raidCmdResult.bossPoisonTick.damage}のダメージ（残り${raidCmdResult.bossPoisonTick.remaining}ターン）`);
 
             const raidCmdDamageEvents = [];
-            if (raidCmdResult.damage) {
-                raidCmdDamageEvents.push({ targetId: bossId, dodged: !!raidCmdResult.dodged, damage: raidCmdResult.damage });
+            if (raidCmdResult.damage || raidCmdResult.keystoneExtraDamage) {
+                raidCmdDamageEvents.push({ targetId: bossId, dodged: !!raidCmdResult.dodged, damage: (raidCmdResult.damage || 0) + (raidCmdResult.keystoneExtraDamage || 0) });
             }
             if (raidCmdResult.selfBurnTick) raidCmdDamageEvents.push({ targetId: playerId, dodged: false, damage: raidCmdResult.selfBurnTick.damage });
             if (raidCmdResult.selfPoisonTick) raidCmdDamageEvents.push({ targetId: playerId, dodged: false, damage: raidCmdResult.selfPoisonTick.damage });

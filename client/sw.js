@@ -1,4 +1,4 @@
-const CACHE_NAME = 'school-battle-cache-v108';
+const CACHE_NAME = 'school-battle-cache-v109';
 // キャッシュするファイルのリスト
 const urlsToCache = [
   '/',
@@ -86,7 +86,7 @@ const urlsToCache = [
   '/js/script.js',
   '/js/share.js',
   '/js/shop.js',
-  '/js/skillTree.js?v=20261106-keystone1',
+  '/js/skillTree.js?v=20261106-poe2tree1',
   '/js/social.js',
   '/js/stats.js',
   '/js/study-enhanced.js',

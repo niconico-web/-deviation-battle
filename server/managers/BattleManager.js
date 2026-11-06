@@ -166,6 +166,7 @@ function createBattle(roomId, player1, player2, isBossBattle = false) {
                 grade: hostGrade,
                 equippedWeapon: hostWeapon,
                 skillSlots: Array.isArray(host.skillSlots) ? host.skillSlots : [null, null, null],
+                skillTree: { unlockedNodes: Array.isArray(host.skillTree?.unlockedNodes) ? host.skillTree.unlockedNodes.filter(id => typeof id === 'string').slice(0, 2500) : [] },
                 answerTime: null,
                 correctAnswers: 0,
                 ultimateGauge: { current: 0, max: 100 }
@@ -235,6 +236,7 @@ function createBattle(roomId, player1, player2, isBossBattle = false) {
             grade: guestGrade,
             equippedWeapon: guestWeapon,
             skillSlots: Array.isArray(guest.skillSlots) ? guest.skillSlots : [null, null, null],
+            skillTree: { unlockedNodes: Array.isArray(guest.skillTree?.unlockedNodes) ? guest.skillTree.unlockedNodes.filter(id => typeof id === 'string').slice(0, 2500) : [] },
             answerTime: null,
             correctAnswers: 0,
             ultimateGauge: { current: 0, max: 100 }
@@ -289,6 +291,7 @@ function createRaidBattle(roomId, players, boss) {
             grade,
             equippedWeapon: weapon,
             skillSlots: Array.isArray(p.skillSlots) ? p.skillSlots : [null, null, null],
+            skillTree: { unlockedNodes: Array.isArray(p.skillTree?.unlockedNodes) ? p.skillTree.unlockedNodes.filter(id => typeof id === 'string').slice(0, 2500) : [] },
             answerTime: null,
             correctAnswers: 0,
             ultimateGauge: { current: 0, max: 100 }
