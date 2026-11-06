@@ -464,7 +464,9 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                     <h3>スキルツリー</h3>
                     <div class="setting-box">
                         <p>残スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
+                        <p class="help-text">ノードをクリックすると詳細を表示、習得可能なノードはダブルクリックで習得できます。金色のひし形は、強い効果と代償を持つキーストーンです。</p>
                     </div>
+                    <div class="skill-tree-keystone-legend"><span class="keystone-legend-mark">◆</span> キーストーン：大きな強化と引き換えに、別の能力が低下します</div>
                     <div id="skillTreeContainer" class="skill-tree-container">
                         <div id="skillTreeCanvas" class="skill-tree-canvas"></div>
                         <div id="skillDescriptionArea" class="skill-description-area"></div>
@@ -734,7 +736,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/materials.js" defer></script>
     <script src="js/weapons.js" defer></script>
     <script src="js/orbWorkshop.js" defer></script>
-    <script src="js/skillTree.js" defer></script>
+    <script src="js/skillTree.js?v=20261106-keystone1" defer></script>
     <script src="js/mission.js" defer></script>
     <script src="js/loginBonus.js" defer></script>
     <script src="js/shop.js" defer></script>

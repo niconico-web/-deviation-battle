@@ -922,9 +922,47 @@ textarea {
     color: white;
 }
 
-.skill-node.can-unlock {
+.skill-node.unlockable {
     border-color: var(--accent-green);
     box-shadow: 0 0 10px var(--accent-green);
+}
+
+/* キーストーンは通常ノードと形・色を変えて見分けやすくする */
+.skill-node.keystone {
+    width: 58px;
+    height: 58px;
+    border-radius: 13px;
+    border: 3px solid #d6a84f;
+    background: #45351b;
+    color: #ffe5a3;
+    transform: rotate(45deg);
+    box-shadow: 0 0 12px rgba(214, 168, 79, 0.35);
+    font-weight: 700;
+    z-index: 3;
+}
+.skill-node.keystone span {
+    display: block;
+    max-width: 54px;
+    line-height: 1.15;
+    transform: rotate(-45deg);
+}
+.skill-node.keystone:hover {
+    transform: rotate(45deg) scale(1.08);
+    border-color: #ffe08a;
+}
+.skill-node.keystone.unlocked {
+    background: #8a5d16;
+    border-color: #ffd36a;
+    color: #fff8df;
+}
+.skill-node.keystone.unlockable {
+    box-shadow: 0 0 16px rgba(255, 211, 106, 0.75);
+}
+.keystone-detail-note {
+    padding: 8px 10px;
+    border-left: 3px solid #d6a84f;
+    background: rgba(214, 168, 79, 0.12);
+    border-radius: 4px;
 }
 
 .skill-node.selected {
@@ -1918,4 +1956,21 @@ textarea {
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+}
+
+.skill-tree-keystone-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0;
+    padding: 9px 12px;
+    border: 1px solid rgba(214, 168, 79, 0.45);
+    border-radius: 7px;
+    background: rgba(214, 168, 79, 0.09);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+.skill-tree-keystone-legend .keystone-legend-mark {
+    color: #d6a84f;
+    font-size: 1.25rem;
 }
