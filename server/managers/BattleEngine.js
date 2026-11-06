@@ -5,6 +5,7 @@
 // ============================================
 
 const QuestionManager = require("./QuestionManager");
+const KeystoneBattleEffects = require("./KeystoneBattleEffects");
 
 // -----------------------------
 // 定数
@@ -909,6 +910,7 @@ function processAnswerOnly(battle, playerId, answer, usedSkill) {
             result.damage = 0;
             result.dodged = true;
             result.dodgeChance = dodgeChance;
+            KeystoneBattleEffects.onDodge(player, result);
         } else {
             let finalDamage = applyUniqueAbilityDefense(damage, defender);
 
@@ -1256,6 +1258,11 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
                 damage = 0;
                 result.skippedTurn = true;
             }
+            const keystoneAttack = damage > 0
+                ? KeystoneBattleEffects.prepareAttack(player, effectiveCommand, result)
+                : { damageMultiplier: 1 };
+            if (keystoneAttack.damageMultiplier > 1) damage = Math.floor(damage * keystoneAttack.damageMultiplier);
+            if (keystoneAttack.bloodPactFailed) result.keystoneBloodPactFailed = true;
 
             // 必殺技発動判定（「必殺技」コマンドを選び、ゲージが満タンの場合のみ）
             if (effectiveCommand === 'ultimate' && damage > 0) {
@@ -1293,6 +1300,7 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
                 }
                 applyOnHitStatusEffects(player, boss, result);
                 applyDamageReflect(player, boss, damage, result);
+                KeystoneBattleEffects.onSuccessfulHit(player, boss, damage, effectiveCommand, result);
             } else {
                 result.damage = 0;
             }
@@ -1330,6 +1338,7 @@ function processRaidAnswer(battle, playerId, answer, usedSkill, command = 'attac
             result.damage = 0;
             result.dodged = true;
             result.dodgeChance = dodgeChance;
+            KeystoneBattleEffects.onDodge(player, result);
         } else {
             let finalDamage = applyUniqueAbilityDefense(damage, player);
             if (player.hp - finalDamage <= 0 && player.hp > 1 && hasUniqueAbility(player, 'guts')) {
@@ -1538,6 +1547,11 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
                 damage = 0;
                 result.skippedTurn = true;
             }
+            const keystoneAttack = damage > 0
+                ? KeystoneBattleEffects.prepareAttack(attacker, effectiveCommand, result)
+                : { damageMultiplier: 1 };
+            if (keystoneAttack.damageMultiplier > 1) damage = Math.floor(damage * keystoneAttack.damageMultiplier);
+            if (keystoneAttack.bloodPactFailed) result.keystoneBloodPactFailed = true;
             const dodgeChance = damageResult.dodgeChance;
             
             // 必殺技発動判定（ゲージが満タンの場合）
@@ -1564,6 +1578,7 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
                 result.damage = 0;
                 result.dodged = true;
                 result.dodgeChance = dodgeChance;
+                KeystoneBattleEffects.onDodge(defender, result);
             } else {
                 // ユニーク能力によるダメージ軽減を適用（防御側）
                 let finalDamage = applyUniqueAbilityDefense(damage, defender);
@@ -1598,6 +1613,7 @@ function processAnswer(battle, playerId, answer, usedSkill, command = 'attack') 
                 }
                 applyOnHitStatusEffects(attacker, defender, result);
                 applyDamageReflect(attacker, defender, finalDamage, result);
+                KeystoneBattleEffects.onSuccessfulHit(attacker, defender, finalDamage, effectiveCommand, result);
             }
             } // effectiveCommand === 'defend' の else 終わり
             
@@ -1876,6 +1892,7 @@ function processCommand(battle, playerId, command) {
             result.damage = 0;
             result.dodged = true;
             result.dodgeChance = dodgeChance;
+            KeystoneBattleEffects.onDodge(defender, result);
         } else {
             let finalDamage = applyUniqueAbilityDefense(damage, defender);
 
@@ -1896,6 +1913,7 @@ function processCommand(battle, playerId, command) {
             }
             applyOnHitStatusEffects(attacker, defender, result);
             applyDamageReflect(attacker, defender, finalDamage, result);
+            KeystoneBattleEffects.onSuccessfulHit(attacker, defender, finalDamage, effectiveCommand, result);
         }
 
         if (defender.hp <= 0) {
@@ -2009,6 +2027,11 @@ function processPvpCommand(battle, playerId, command) {
             defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
         });
         let damage = damageResult.damage;
+        const keystoneAttack = damage > 0
+            ? KeystoneBattleEffects.prepareAttack(attacker, effectiveCommand, result)
+            : { damageMultiplier: 1 };
+        if (keystoneAttack.damageMultiplier > 1) damage = Math.floor(damage * keystoneAttack.damageMultiplier);
+        if (keystoneAttack.bloodPactFailed) result.keystoneBloodPactFailed = true;
 
         let ultimateActivated = false;
         if (effectiveCommand === 'ultimate' && ultimateReady) {
@@ -2028,6 +2051,7 @@ function processPvpCommand(battle, playerId, command) {
             result.damage = 0;
             result.dodged = true;
             result.dodgeChance = dodgeChance;
+            KeystoneBattleEffects.onDodge(defender, result);
         } else {
             let finalDamage = applyUniqueAbilityDefense(damage, defender);
 
@@ -2048,6 +2072,7 @@ function processPvpCommand(battle, playerId, command) {
             }
             applyOnHitStatusEffects(attacker, defender, result);
             applyDamageReflect(attacker, defender, finalDamage, result);
+            KeystoneBattleEffects.onSuccessfulHit(attacker, defender, finalDamage, effectiveCommand, result);
         }
 
         if (defender.hp <= 0) {
@@ -2346,6 +2371,11 @@ function processRaidPlayerCommand(battle, playerId, command) {
             defenderSpeed: getEffectiveStat(defender, 'speed') // 素早さデバフ・バフを回避率に反映
         });
         let damage = damageResult.damage;
+        const keystoneAttack = damage > 0
+            ? KeystoneBattleEffects.prepareAttack(attacker, effectiveCommand, result)
+            : { damageMultiplier: 1 };
+        if (keystoneAttack.damageMultiplier > 1) damage = Math.floor(damage * keystoneAttack.damageMultiplier);
+        if (keystoneAttack.bloodPactFailed) result.keystoneBloodPactFailed = true;
 
         if (effectiveCommand === 'ultimate' && ultimateReady) {
             damage = Math.floor(damage * ULTIMATE_DAMAGE_MULTIPLIER);
@@ -2362,6 +2392,7 @@ function processRaidPlayerCommand(battle, playerId, command) {
             result.damage = 0;
             result.dodged = true;
             result.dodgeChance = dodgeChance;
+            KeystoneBattleEffects.onDodge(defender, result);
         } else {
             let finalDamage = applyUniqueAbilityDefense(damage, defender);
             defender.hp = Math.max(0, defender.hp - finalDamage);
@@ -2375,6 +2406,7 @@ function processRaidPlayerCommand(battle, playerId, command) {
             }
             applyOnHitStatusEffects(attacker, defender, result);
             applyDamageReflect(attacker, defender, finalDamage, result);
+            KeystoneBattleEffects.onSuccessfulHit(attacker, defender, finalDamage, effectiveCommand, result);
         }
 
         if (defender.hp <= 0) {
@@ -2462,6 +2494,19 @@ function resolveRaidBossAttack(battle, targetPlayerId, guardActivated) {
     if (boss.skills && boss.skills.length > 0 && Math.random() < 0.5) {
         bossUsedSkill = boss.skills[Math.floor(Math.random() * boss.skills.length)];
         damage = applyBossSkillEffect(damage, boss, player, bossUsedSkill, result);
+    }
+
+    const dodgeChance = damageResult.dodgeChance || 0;
+    const hasMirrorKeystone = KeystoneBattleEffects.getKeystoneTiers(player).mirror > 0;
+    if (hasMirrorKeystone && Math.random() * 100 < dodgeChance) {
+        result.damage = 0;
+        result.dodged = true;
+        result.dodgeChance = dodgeChance;
+        KeystoneBattleEffects.onDodge(player, result);
+        return {
+            ...result,
+            battleState: { players: battle.players, finished: battle.finished }
+        };
     }
 
     if (guardActivated) {

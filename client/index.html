@@ -466,7 +466,15 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                         <p>残スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
                         <p class="help-text">ノードをクリックすると詳細を表示、習得可能なノードはダブルクリックで習得できます。金色のひし形は、強い効果と代償を持つキーストーンです。</p>
                     </div>
-                    <div class="skill-tree-keystone-legend"><span class="keystone-legend-mark">◆</span> キーストーン：大きな強化と引き換えに、別の能力が低下します</div>
+                    <div class="skill-tree-keystone-legend"><span class="keystone-legend-mark">◆</span> キーストーン：戦闘ルールそのものを変える特殊効果</div>
+                    <div class="skill-tree-toolbar">
+                        <input id="skillTreeSearch" type="search" placeholder="ノード名・効果を検索" aria-label="パッシブノード検索">
+                        <button type="button" id="skillTreeZoomOut" aria-label="縮小">−</button>
+                        <span id="skillTreeZoomLabel">100%</span>
+                        <button type="button" id="skillTreeZoomIn" aria-label="拡大">＋</button>
+                        <button type="button" id="skillTreeZoomReset">100%</button>
+                        <button type="button" id="skillTreeFit">全体表示</button>
+                    </div>
                     <div id="skillTreeContainer" class="skill-tree-container">
                         <div id="skillTreeCanvas" class="skill-tree-canvas"></div>
                         <div id="skillDescriptionArea" class="skill-description-area"></div>
@@ -736,7 +744,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/materials.js" defer></script>
     <script src="js/weapons.js" defer></script>
     <script src="js/orbWorkshop.js" defer></script>
-    <script src="js/skillTree.js?v=20261106-keystone1" defer></script>
+    <script src="js/skillTree.js?v=20261106-poe2tree1" defer></script>
     <script src="js/mission.js" defer></script>
     <script src="js/loginBonus.js" defer></script>
     <script src="js/shop.js" defer></script>

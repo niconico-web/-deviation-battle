@@ -269,6 +269,111 @@ const SKILL_TREE = {
         ]
     }
 
+// ============================================
+// 巨大な連結型パッシブツリー拡張（PoE型）
+// 既存201ノードを維持し、12クラスター×150ノード＋9接続ノードを追加
+// ============================================
+function extendSkillTreeForPoEStyle() {
+    const existing = new Set(SKILL_TREE.nodes.map(node => node.id));
+    const branches = [
+        { slug: 'bone', mechanic: 'minion', anchor: 'atk_mastery', angle: -158, name: '骨の軍勢', stat: 'atk', sideA: 'special', sideB: 'maxHp' },
+        { slug: 'wraith', mechanic: 'minion', anchor: 'magic_mastery', angle: -128, name: '亡霊の契約', stat: 'special', sideA: 'atk', sideB: 'maxHp' },
+        { slug: 'beast', mechanic: 'minion', anchor: 'tank_mastery', angle: -98, name: '獣王の群れ', stat: 'def', sideA: 'maxHp', sideB: 'speed' },
+        { slug: 'storm', mechanic: 'lightning', anchor: 'speed_mastery', angle: -68, name: '雷嵐', stat: 'speed', sideA: 'atk', sideB: 'special' },
+        { slug: 'spark', mechanic: 'lightning', anchor: 'special_mastery', angle: -38, name: '電光', stat: 'special', sideA: 'speed', sideB: 'atk' },
+        { slug: 'chain', mechanic: 'lightning', anchor: 'crit_mastery', angle: -8, name: '連鎖放電', stat: 'atk', sideA: 'speed', sideB: 'def' },
+        { slug: 'dodge', mechanic: 'mirror', anchor: 'speed_path_5', angle: 22, name: '残影', stat: 'speed', sideA: 'def', sideB: 'maxHp' },
+        { slug: 'reflect', mechanic: 'mirror', anchor: 'immortal_guard', angle: 52, name: '鏡の守護', stat: 'def', sideA: 'maxHp', sideB: 'atk' },
+        { slug: 'shadow', mechanic: 'mirror', anchor: 'tank_path_5', angle: 82, name: '影渡り', stat: 'speed', sideA: 'special', sideB: 'def' },
+        { slug: 'pact', mechanic: 'blood', anchor: 'vampire', angle: 112, name: '血の盟約', stat: 'atk', sideA: 'maxHp', sideB: 'special' },
+        { slug: 'sacrifice', mechanic: 'blood', anchor: 'hp_mastery', angle: 142, name: '生贄の祭壇', stat: 'maxHp', sideA: 'def', sideB: 'atk' },
+        { slug: 'frenzy', mechanic: 'blood', anchor: 'crit_apex', angle: 172, name: '狂血', stat: 'atk', sideA: 'speed', sideB: 'special' }
+    ];
+    const anchorMap = new Map(SKILL_TREE.nodes.map(node => [node.id, node]));
+    const keyDescriptions = {
+        minion: [
+            '通常攻撃3回ごとにミニオンを1体召喚。ミニオンは攻撃ごとに追加ダメージを与える。',
+            'ミニオン上限+1。召喚したミニオンの追加ダメージが上昇する。',
+            'ミニオン上限+1。ミニオンの追加ダメージがさらに上昇する。',
+            'ミニオン上限+1。最大4体のミニオン軍団を率いる。'
+        ],
+        lightning: [
+            '通常攻撃4回ごとに雷撃が発生し、追加ダメージを与える。',
+            '雷撃の追加ダメージが上昇する。',
+            '雷撃の追加ダメージがさらに上昇する。',
+            '雷撃が強化され、4回目の攻撃で大きな放電を起こす。'
+        ],
+        mirror: [
+            '回避成功時に残像を作る。次の通常攻撃に追加ダメージ。',
+            '残像の反撃ダメージが上昇する。',
+            '残像の反撃ダメージがさらに上昇する。',
+            '残像の反撃が最大強度になる。'
+        ],
+        blood: [
+            '通常攻撃時に最大HPの3%を消費し、攻撃ダメージを強化する。',
+            'HP消費は4%。攻撃ダメージがさらに上昇する。',
+            'HP消費は5%。攻撃ダメージがさらに上昇する。',
+            'HP消費は6%。攻撃ダメージが大幅に上昇する。'
+        ]
+    };
+    const statNames = { atk: '攻撃', def: '防御', speed: '速さ', special: '特殊', maxHp: '最大HP' };
+    for (const branch of branches) {
+        const anchor = anchorMap.get(branch.anchor);
+        if (!anchor) continue;
+        const rad = branch.angle * Math.PI / 180;
+        const dx = Math.cos(rad), dy = Math.sin(rad);
+        const px = -dy, py = dx;
+        for (let depth = 1; depth <= 50; depth++) {
+            for (let lane = -1; lane <= 1; lane++) {
+                const isKeystone = lane === 0 && [12, 24, 36, 48].includes(depth);
+                const tier = [12, 24, 36, 48].indexOf(depth) + 1;
+                const id = isKeystone ? `ks_${branch.mechanic}_${branch.slug}_${tier}` : `poe_${branch.slug}_${depth}_${lane + 1}`;
+                if (existing.has(id)) continue;
+                const x = Number((anchor.x + dx * depth * 1.55 + px * lane * 1.05).toFixed(2));
+                const y = Number((anchor.y + dy * depth * 1.55 + py * lane * 1.05).toFixed(2));
+                const isNotable = !isKeystone && (depth % 10 === 0 || (lane !== 0 && depth % 15 === 0));
+                const stat = lane === 0 ? branch.stat : (lane < 0 ? branch.sideA : branch.sideB);
+                const statAmount = isNotable ? (stat === 'maxHp' ? 25 : 5) : (stat === 'maxHp' ? 8 : 2);
+                const node = {
+                    id,
+                    name: isKeystone ? `${branch.name}：${({minion:'死霊の王権',lightning:'雷霆の心臓',mirror:'幻影の残滓',blood:'血盟の誓約'})[branch.mechanic]} ${tier}` : (isNotable ? `${branch.name}の熟達${depth}` : `${branch.name} ${String(depth).padStart(2, '0')}-${lane + 2}`),
+                    description: isKeystone ? keyDescriptions[branch.mechanic][tier - 1] : `${statNames[stat]}+${statAmount}。${branch.name}系統を進むためのノード。`,
+                    cost: isKeystone ? 7 + tier * 2 : (isNotable ? 3 : 1),
+                    x, y,
+                    requires: depth === 1 ? branch.anchor : (lane === 0 && [12, 24, 36, 48].includes(depth - 1)
+                        ? `ks_${branch.mechanic}_${branch.slug}_${[12, 24, 36, 48].indexOf(depth - 1) + 1}`
+                        : `poe_${branch.slug}_${depth - 1}_${lane + 1}`),
+                    type: isKeystone ? 'keystone' : (isNotable ? 'passive' : 'stat'),
+                    effect: isKeystone ? { keystone: branch.mechanic, tier, atk: 0 } : { [stat]: statAmount }
+                };
+                SKILL_TREE.nodes.push(node);
+                existing.add(id);
+            }
+        }
+    }
+    // 9つの横断ブリッジ。複数の系統を横断する別ルートを作る。
+    const bridges = [
+        ['bridge_pact_bone','骨と血の盟約','atk_mastery','vampire',-10,16],
+        ['bridge_storm_shadow','雷影の回廊','speed_mastery','speed_path_5',-6,18],
+        ['bridge_wraith_sacrifice','亡霊の祭壇','magic_mastery','hp_mastery',-2,20],
+        ['bridge_beast_reflect','獣鏡の結節','tank_mastery','immortal_guard',2,20],
+        ['bridge_chain_frenzy','連鎖狂気','crit_mastery','crit_apex',6,18],
+        ['bridge_bone_storm','骨雷の交差','atk_mastery','speed_mastery',10,16],
+        ['bridge_mirror_pact','鏡血の交差','speed_path_5','vampire',14,14],
+        ['bridge_guard_sacrifice','守護と犠牲','tank_mastery','hp_mastery',18,12],
+        ['bridge_magic_crit','魔術の臨界','magic_mastery','crit_apex',22,10]
+    ];
+    for (const [id,name,a,b,x,y] of bridges) {
+        if (existing.has(id)) continue;
+        SKILL_TREE.nodes.push({ id, name, description: '異なる系統をつなぐ横断ルート。どちらか一方の接続ノードから習得できる。', cost: 4, x, y, requiresAny: [a,b], type: 'passive', effect: {} });
+        existing.add(id);
+    }
+}
+extendSkillTreeForPoEStyle();
+
+// ツリー操作状態（ズーム倍率）
+let skillTreeZoom = 1;
+
 // カスタムスキル作成コスト
 const CUSTOM_SKILL_COST = 100;
 
@@ -440,7 +545,8 @@ function getSkillNodeEffects(player) {
             maxHpPercent: 0, atkPercent: 0, defPercent: 0, speedPercent: 0, specialPercent: 0,
             critChance: 0, critMultiplier: 0, skillCostReduction: 0
         },
-        active: []
+        active: [],
+        keystones: []
     };
 
     const playerTreeData = player.skillTree;
@@ -456,6 +562,9 @@ function getSkillNodeEffects(player) {
         if (node.type === "stat" || node.type === "passive" || node.type === "keystone") {
             // パッシブ効果を適用
             const effect = node.effect || {};
+            if (node.type === "keystone" && effect.keystone) {
+                effects.keystones.push({ id: node.id, mechanic: effect.keystone, tier: Number(effect.tier) || 1, name: node.name });
+            }
             if (effect.grantSkillPoints) {
                 // この効果はアンロック時に一度だけ適用されるべき
                 // ここでは何もしない
@@ -1437,161 +1546,147 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
 function renderTree() {
     const content = document.getElementById('skillTreeCanvas');
     const pointsDisplay = document.getElementById('totalSkillPointsDisplay');
-    if (!content || !pointsDisplay) {
-        console.log('renderTree: content or pointsDisplay not found');
-        return;
-    }
-
+    if (!content || !pointsDisplay) return;
     const player = getPlayerData();
-    if (!player) {
-        console.log('renderTree: player not found');
-        return;
-    }
-    
+    if (!player) return;
     const treeData = SKILL_TREE;
-    const playerData = player.skillTree;
+    const playerData = player.skillTree || { unlockedNodes: [], availablePoints: 0 };
+    const unlocked = new Set(playerData.unlockedNodes || []);
+    pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0} / ノード: ${treeData.nodes.length.toLocaleString()}`;
+    content.innerHTML = '';
 
-    pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
-    content.innerHTML = ''; // コンテンツをクリア
-
-    // 1. Find bounds of the tree
-    const allX = treeData.nodes.map(n => n.x);
-    const allY = treeData.nodes.map(n => n.y);
-    const minX = Math.min(...allX);
-    const minY = Math.min(...allY);
-    const maxX = Math.max(...allX);
-    const maxY = Math.max(...allY);
-
-    // 2. Calculate offsets and total size with padding
-    const PADDING = 80;
-    const NODE_H_SPACING = 80;
-    const NODE_V_SPACING = 70;
-    const NODE_WIDTH = 60;
-    const NODE_HEIGHT = 40;
-
-    const offsetX = -minX * NODE_H_SPACING + PADDING;
-    const offsetY = -minY * NODE_V_SPACING + PADDING;
-
+    const allX = treeData.nodes.map(n => n.x), allY = treeData.nodes.map(n => n.y);
+    const minX = Math.min(...allX), minY = Math.min(...allY), maxX = Math.max(...allX), maxY = Math.max(...allY);
+    const PADDING = 100, NODE_H_SPACING = 80, NODE_V_SPACING = 70, NODE_WIDTH = 60, NODE_HEIGHT = 40;
+    const offsetX = -minX * NODE_H_SPACING + PADDING, offsetY = -minY * NODE_V_SPACING + PADDING;
     const totalWidth = (maxX - minX) * NODE_H_SPACING + NODE_WIDTH + PADDING * 2;
     const totalHeight = (maxY - minY) * NODE_V_SPACING + NODE_HEIGHT + PADDING * 2;
 
-    // Create an inner container that will be the actual scrollable content
+    const world = document.createElement('div');
+    world.className = 'skill-tree-world';
+    world.style.width = `${totalWidth * skillTreeZoom}px`;
+    world.style.height = `${totalHeight * skillTreeZoom}px`;
     const innerContent = document.createElement('div');
-    innerContent.style.position = 'relative';
+    innerContent.className = 'skill-tree-inner';
     innerContent.style.width = `${totalWidth}px`;
     innerContent.style.height = `${totalHeight}px`;
-    content.appendChild(innerContent);
+    innerContent.style.transform = `scale(${skillTreeZoom})`;
+    world.appendChild(innerContent);
+    content.appendChild(world);
 
-    // Create SVG container for connection lines
+    const nodeById = new Map(treeData.nodes.map(n => [n.id, n]));
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.style.position = 'absolute';
-    svg.style.top = '0';
-    svg.style.left = '0';
-    svg.style.width = '100%';
-    svg.style.height = '100%';
-    svg.style.pointerEvents = 'none'; // Crucial for touch scrolling
+    svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+    svg.setAttribute('width', totalWidth);
+    svg.setAttribute('height', totalHeight);
+    svg.style.position = 'absolute'; svg.style.inset = '0'; svg.style.pointerEvents = 'none';
     innerContent.appendChild(svg);
-    
-    console.log('renderTree: created inner content and SVG');
 
-    // 最初に接続線を描画
-    console.log('renderTree: drawing connections');
+    // 接続線をMap参照で描画（旧実装の毎回findによるO(n²)を解消）
     treeData.nodes.forEach(node => {
         const requiredIds = [
             ...(node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : []),
             ...(node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [])
         ];
         requiredIds.forEach(reqId => {
-            const requiredNode = treeData.nodes.find(n => n.id === reqId);
+            const requiredNode = nodeById.get(reqId);
             if (!requiredNode) return;
-            const nodeX = node.x * NODE_H_SPACING + offsetX;
-            const nodeY = node.y * NODE_V_SPACING + offsetY;
-            const reqNodeX = requiredNode.x * NODE_H_SPACING + offsetX;
-            const reqNodeY = requiredNode.y * NODE_V_SPACING + offsetY;
-            drawConnection(svg, reqNodeX + NODE_WIDTH / 2, reqNodeY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, playerData.unlockedNodes.includes(node.id));
+            const nodeX = node.x * NODE_H_SPACING + offsetX, nodeY = node.y * NODE_V_SPACING + offsetY;
+            const reqX = requiredNode.x * NODE_H_SPACING + offsetX, reqY = requiredNode.y * NODE_V_SPACING + offsetY;
+            drawConnection(svg, reqX + NODE_WIDTH / 2, reqY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, unlocked.has(node.id));
         });
     });
 
-    // 次にノードを描画（線の上に表示するため）
-    console.log('renderTree: drawing nodes');
     treeData.nodes.forEach(node => {
-        const nodeEl = document.createElement('div');
+        const nodeEl = document.createElement('button');
+        nodeEl.type = 'button';
         nodeEl.className = `skill-node ${node.type}`;
-        // 3. Apply offsets to coordinates
-        const nodeX = node.x * NODE_H_SPACING + offsetX;
-        const nodeY = node.y * NODE_V_SPACING + offsetY;
-        nodeEl.style.left = `${nodeX}px`;
-        nodeEl.style.top = `${nodeY}px`;
+        const nodeX = node.x * NODE_H_SPACING + offsetX, nodeY = node.y * NODE_V_SPACING + offsetY;
+        nodeEl.style.left = `${nodeX}px`; nodeEl.style.top = `${nodeY}px`;
         nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
-
-        const isUnlocked = playerData.unlockedNodes.includes(node.id);
-        
-        const nodeText = document.createElement('span');
-        nodeText.textContent = node.name; // フルネームを表示
-        nodeEl.appendChild(nodeText);
-
-        let isUnlockable = false;
-        if (!isUnlocked && playerData.availablePoints >= node.cost) {
-            const requirements = node.requires
-                ? (Array.isArray(node.requires) ? node.requires : [node.requires])
-                : [];
-            const allRequired = requirements.every(reqId => playerData.unlockedNodes.includes(reqId));
-            const alternatives = node.requiresAny
-                ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny])
-                : [];
-            const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => playerData.unlockedNodes.includes(reqId));
-            isUnlockable = allRequired && anyAlternative;
-        }
-
-        if (isUnlocked) nodeEl.classList.add('unlocked');
-        else if (isUnlockable) nodeEl.classList.add('unlockable');
-        else nodeEl.classList.add('locked');
-
-        // クリックイベント（説明表示）
-        nodeEl.onclick = (e) => {
+        nodeEl.setAttribute('aria-label', `${node.name}。${node.description}`);
+        const isUnlocked = unlocked.has(node.id);
+        const requirements = node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : [];
+        const alternatives = node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [];
+        const allRequired = requirements.every(reqId => unlocked.has(reqId));
+        const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => unlocked.has(reqId));
+        const isUnlockable = !isUnlocked && (playerData.availablePoints || 0) >= node.cost && allRequired && anyAlternative;
+        nodeEl.classList.add(isUnlocked ? 'unlocked' : (isUnlockable ? 'unlockable' : 'locked'));
+        const label = document.createElement('span'); label.textContent = node.name; nodeEl.appendChild(label);
+        nodeEl.onclick = e => { e.stopPropagation(); showSkillDescription(node, isUnlocked, isUnlockable); };
+        nodeEl.ondblclick = e => {
             e.stopPropagation();
-            showSkillDescription(node, isUnlocked, isUnlockable);
+            if (!isUnlockable) { alert(isUnlocked ? 'このスキルは既に習得済みです。' : '前提ノードとスキルポイントを確認してください。'); return; }
+            if (!confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) return;
+            const result = unlockSkillNode(getPlayerData(), node.id);
+            if (!result.success) { alert(result.error); return; }
+            localStorage.setItem('player', JSON.stringify(result.player));
+            if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
+            if (typeof updateStatus === 'function') updateStatus(result.player);
+            renderTree(); renderAvailableSkills(result.player);
         };
-        
-        // ダブルクリックイベント（習得）
-        nodeEl.ondblclick = (e) => {
-            e.stopPropagation();
-            if (isUnlockable) {
-                if (confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) {
-                    const result = unlockSkillNode(getPlayerData(), node.id);
-                    if (result.success) {
-                        localStorage.setItem("player", JSON.stringify(result.player));
-                        if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
-                        if (typeof updateStatus === 'function') updateStatus(result.player);
-                        renderTree(); // ツリーを再描画
-                        renderAvailableSkills(result.player); // 利用可能スキルリストも更新
-                    } else {
-                        alert(result.error);
-                    }
-                }
-            } else if (isUnlocked) {
-                alert('このスキルは既に習得済みです。');
-            } else {
-                alert('このスキルはまだ習得できません。前提スキルを解放してください。または、スキルポイントをためてください');
-            }
-        };
-
         innerContent.appendChild(nodeEl);
     });
 
-    // 5. Set initial scroll position to the start node
-    const startNode = treeData.nodes.find(n => n.id === 'start_node');
-    if (startNode) {
-        const nodeX = startNode.x * NODE_H_SPACING + offsetX;
-        const nodeY = startNode.y * NODE_V_SPACING + offsetY;
-        // Use setTimeout to ensure the browser has rendered the content before scrolling
-        setTimeout(() => { // Give a slight delay for rendering
-            content.scrollTop = nodeY - (content.clientHeight / 2) + (NODE_HEIGHT / 2);
-            content.scrollLeft = nodeX - (content.clientWidth / 2) + (NODE_WIDTH / 2);
-        }, 50);
+    const startNode = nodeById.get('start_node');
+    if (startNode && !content.dataset.userMoved) {
+        const sx = startNode.x * NODE_H_SPACING + offsetX, sy = startNode.y * NODE_V_SPACING + offsetY;
+        requestAnimationFrame(() => {
+            content.scrollLeft = sx * skillTreeZoom - content.clientWidth / 2 + NODE_WIDTH * skillTreeZoom / 2;
+            content.scrollTop = sy * skillTreeZoom - content.clientHeight / 2 + NODE_HEIGHT * skillTreeZoom / 2;
+        });
     }
-    
-    console.log('renderTree: rendering complete');
+    setupSkillTreeControls(content, nodeById, offsetX, offsetY, NODE_H_SPACING, NODE_V_SPACING);
+}
+
+function setupSkillTreeControls(content, nodeById, offsetX, offsetY, hSpacing, vSpacing) {
+    if (content.dataset.controlsReady === '1') return;
+    content.dataset.controlsReady = '1';
+    const setZoom = (next, anchorX = content.clientWidth / 2, anchorY = content.clientHeight / 2) => {
+        const old = skillTreeZoom;
+        skillTreeZoom = Math.max(0.02, Math.min(1.8, next));
+        const world = content.querySelector('.skill-tree-world');
+        const inner = content.querySelector('.skill-tree-inner');
+        if (!world || !inner) return;
+        const logicalX = (content.scrollLeft + anchorX) / old;
+        const logicalY = (content.scrollTop + anchorY) / old;
+        const width = parseFloat(inner.style.width), height = parseFloat(inner.style.height);
+        world.style.width = `${width * skillTreeZoom}px`; world.style.height = `${height * skillTreeZoom}px`;
+        inner.style.transform = `scale(${skillTreeZoom})`;
+        content.scrollLeft = logicalX * skillTreeZoom - anchorX;
+        content.scrollTop = logicalY * skillTreeZoom - anchorY;
+        const label = document.getElementById('skillTreeZoomLabel'); if (label) label.textContent = `${Math.round(skillTreeZoom * 100)}%`;
+    };
+    const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+    bind('skillTreeZoomIn', () => setZoom(skillTreeZoom + 0.1));
+    bind('skillTreeZoomOut', () => setZoom(skillTreeZoom - 0.1));
+    bind('skillTreeZoomReset', () => setZoom(1));
+    bind('skillTreeFit', () => { const inner = content.querySelector('.skill-tree-inner'); const width = parseFloat(inner?.style.width) || 1; const height = parseFloat(inner?.style.height) || 1; setZoom(Math.min(1, (content.clientWidth - 40) / width, (content.clientHeight - 40) / height)); });
+    const search = document.getElementById('skillTreeSearch');
+    if (search) search.oninput = () => {
+        const q = search.value.trim().toLocaleLowerCase();
+        const found = q ? SKILL_TREE.nodes.find(n => n.name.toLocaleLowerCase().includes(q) || n.description.toLocaleLowerCase().includes(q)) : null;
+        if (!found) return;
+        const x = (found.x * hSpacing + offsetX) * skillTreeZoom;
+        const y = (found.y * vSpacing + offsetY) * skillTreeZoom;
+        content.scrollTo({ left: Math.max(0, x - content.clientWidth / 2), top: Math.max(0, y - content.clientHeight / 2), behavior: 'smooth' });
+    };
+    let dragging = false, startX = 0, startY = 0, scrollX = 0, scrollY = 0;
+    content.addEventListener('pointerdown', e => {
+        if (e.target.closest('.skill-node')) return;
+        dragging = true; startX = e.clientX; startY = e.clientY; scrollX = content.scrollLeft; scrollY = content.scrollTop;
+        content.classList.add('is-panning'); content.setPointerCapture?.(e.pointerId);
+    });
+    content.addEventListener('pointermove', e => {
+        if (!dragging) return;
+        content.dataset.userMoved = '1'; content.scrollLeft = scrollX - (e.clientX - startX); content.scrollTop = scrollY - (e.clientY - startY);
+    });
+    const stop = () => { dragging = false; content.classList.remove('is-panning'); };
+    content.addEventListener('pointerup', stop); content.addEventListener('pointercancel', stop);
+    content.addEventListener('wheel', e => {
+        e.preventDefault();
+        setZoom(skillTreeZoom + (e.deltaY < 0 ? 0.08 : -0.08), e.offsetX, e.offsetY);
+    }, { passive: false });
 }
 
 function showSkillDescription(node, isUnlocked, isUnlockable) {
@@ -1612,7 +1707,7 @@ function showSkillDescription(node, isUnlocked, isUnlockable) {
         <h3>${node.name}</h3>
         <p><strong>タイプ:</strong> ${node.type === 'keystone' ? 'キーストーン（大きな長所と代償）' : node.type}</p>
         <p><strong>説明:</strong> ${node.description}</p>
-        ${node.type === 'keystone' ? '<p class="keystone-detail-note">習得中は効果が常時ステータスに反映されます。通常のパッシブとは異なり、強化と同時に代償も発生します。</p>' : ''}
+        ${node.type === 'keystone' ? '<p class="keystone-detail-note">戦闘ルールを変える特殊効果です。効果はサーバー側の戦闘処理で判定されます。</p>' : ''}
         <p><strong>コスト:</strong> ${node.cost} スキルポイント</p>
         <p><strong>状態:</strong> ${statusText}</p>
         ${node.requires ? `<p><strong>前提スキル（すべて必要）:</strong> ${Array.isArray(node.requires) ? node.requires.join(', ') : node.requires}</p>` : ''}
