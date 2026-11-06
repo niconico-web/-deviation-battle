@@ -373,6 +373,78 @@ extendSkillTreeForPoEStyle();
 
 // ツリー操作状態（ズーム倍率）
 let skillTreeZoom = 1;
+let skillTreeLayoutCache = null;
+
+// ノードの元座標を保ちながら、近すぎるノードだけを少しずつ押し離す。
+// 前提条件・効果データには触れず、表示上の座標だけを補正する。
+function getSkillTreeLayout(nodes, hSpacing = 100, vSpacing = 90) {
+    if (skillTreeLayoutCache && skillTreeLayoutCache.nodes === nodes) return skillTreeLayoutCache.positions;
+
+    const items = nodes.map((node, index) => ({
+        node,
+        index,
+        x: node.x * hSpacing,
+        y: node.y * vSpacing,
+        baseX: node.x * hSpacing,
+        baseY: node.y * vSpacing
+    }));
+    const cellSize = 96;
+    const minDistance = 88;
+    const minDistanceSq = minDistance * minDistance;
+
+    // 空間ハッシュで近傍だけを比較し、約2,000ノードでも二重ループを避ける。
+    for (let iteration = 0; iteration < 36; iteration++) {
+        const grid = new Map();
+        for (const item of items) {
+            const gx = Math.floor(item.x / cellSize);
+            const gy = Math.floor(item.y / cellSize);
+            const key = `${gx},${gy}`;
+            if (!grid.has(key)) grid.set(key, []);
+            grid.get(key).push(item);
+        }
+
+        for (const item of items) {
+            const gx = Math.floor(item.x / cellSize);
+            const gy = Math.floor(item.y / cellSize);
+            for (let oy = -1; oy <= 1; oy++) {
+                for (let ox = -1; ox <= 1; ox++) {
+                    const nearby = grid.get(`${gx + ox},${gy + oy}`);
+                    if (!nearby) continue;
+                    for (const other of nearby) {
+                        if (other.index <= item.index) continue;
+                        let dx = other.x - item.x;
+                        let dy = other.y - item.y;
+                        let distanceSq = dx * dx + dy * dy;
+                        if (distanceSq >= minDistanceSq) continue;
+                        if (distanceSq < 0.001) {
+                            // 同じ座標のノードも毎回同じ方向に分離する。
+                            const angle = ((item.index * 37 + other.index * 17) % 360) * Math.PI / 180;
+                            dx = Math.cos(angle) * 0.01;
+                            dy = Math.sin(angle) * 0.01;
+                            distanceSq = dx * dx + dy * dy;
+                        }
+                        const distance = Math.sqrt(distanceSq);
+                        const push = (minDistance - distance) * 0.42;
+                        const px = dx / distance * push;
+                        const py = dy / distance * push;
+                        item.x -= px; item.y -= py;
+                        other.x += px; other.y += py;
+                    }
+                }
+            }
+        }
+
+        // 元の枝の形が崩れないよう、毎回少しだけ元座標へ引き戻す。
+        for (const item of items) {
+            item.x += (item.baseX - item.x) * 0.025;
+            item.y += (item.baseY - item.y) * 0.025;
+        }
+    }
+
+    const positions = new Map(items.map(item => [item.node.id, { x: item.x, y: item.y }]));
+    skillTreeLayoutCache = { nodes, positions };
+    return positions;
+}
 
 // カスタムスキル作成コスト
 const CUSTOM_SKILL_COST = 100;
@@ -1549,18 +1621,30 @@ function renderTree() {
     if (!content || !pointsDisplay) return;
     const player = getPlayerData();
     if (!player) return;
+
     const treeData = SKILL_TREE;
     const playerData = player.skillTree || { unlockedNodes: [], availablePoints: 0 };
     const unlocked = new Set(playerData.unlockedNodes || []);
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0} / ノード: ${treeData.nodes.length.toLocaleString()}`;
     content.innerHTML = '';
 
-    const allX = treeData.nodes.map(n => n.x), allY = treeData.nodes.map(n => n.y);
-    const minX = Math.min(...allX), minY = Math.min(...allY), maxX = Math.max(...allX), maxY = Math.max(...allY);
-    const PADDING = 100, NODE_H_SPACING = 80, NODE_V_SPACING = 70, NODE_WIDTH = 60, NODE_HEIGHT = 40;
-    const offsetX = -minX * NODE_H_SPACING + PADDING, offsetY = -minY * NODE_V_SPACING + PADDING;
-    const totalWidth = (maxX - minX) * NODE_H_SPACING + NODE_WIDTH + PADDING * 2;
-    const totalHeight = (maxY - minY) * NODE_V_SPACING + NODE_HEIGHT + PADDING * 2;
+    const NODE_WIDTH = 70, NODE_HEIGHT = 48;
+    // Layout is cached by getSkillTreeLayout; repeated unlocks no longer rerun the
+    // 36-pass collision solver for the same immutable tree.
+    const positions = getSkillTreeLayout(treeData.nodes, 100, 90);
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const node of treeData.nodes) {
+        const p = positions.get(node.id);
+        if (!p) continue;
+        minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    }
+    if (!Number.isFinite(minX)) return;
+
+    const PADDING = 120;
+    const offsetX = -minX + PADDING, offsetY = -minY + PADDING;
+    const totalWidth = maxX - minX + NODE_WIDTH + PADDING * 2;
+    const totalHeight = maxY - minY + NODE_HEIGHT + PADDING * 2;
 
     const world = document.createElement('div');
     world.className = 'skill-tree-world';
@@ -1582,64 +1666,108 @@ function renderTree() {
     svg.style.position = 'absolute'; svg.style.inset = '0'; svg.style.pointerEvents = 'none';
     innerContent.appendChild(svg);
 
-    // 接続線をMap参照で描画（旧実装の毎回findによるO(n²)を解消）
-    treeData.nodes.forEach(node => {
-        const requiredIds = [
-            ...(node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : []),
-            ...(node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [])
-        ];
-        requiredIds.forEach(reqId => {
-            const requiredNode = nodeById.get(reqId);
-            if (!requiredNode) return;
-            const nodeX = node.x * NODE_H_SPACING + offsetX, nodeY = node.y * NODE_V_SPACING + offsetY;
-            const reqX = requiredNode.x * NODE_H_SPACING + offsetX, reqY = requiredNode.y * NODE_V_SPACING + offsetY;
-            drawConnection(svg, reqX + NODE_WIDTH / 2, reqY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, unlocked.has(node.id));
-        });
-    });
+    const nodesLayer = document.createElement('div');
+    nodesLayer.className = 'skill-tree-nodes-layer';
+    nodesLayer.style.position = 'absolute'; nodesLayer.style.inset = '0';
+    innerContent.appendChild(nodesLayer);
 
-    treeData.nodes.forEach(node => {
-        const nodeEl = document.createElement('button');
-        nodeEl.type = 'button';
-        nodeEl.className = `skill-node ${node.type}`;
-        const nodeX = node.x * NODE_H_SPACING + offsetX, nodeY = node.y * NODE_V_SPACING + offsetY;
-        nodeEl.style.left = `${nodeX}px`; nodeEl.style.top = `${nodeY}px`;
-        nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
-        nodeEl.setAttribute('aria-label', `${node.name}。${node.description}`);
-        const isUnlocked = unlocked.has(node.id);
-        const requirements = node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : [];
-        const alternatives = node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [];
-        const allRequired = requirements.every(reqId => unlocked.has(reqId));
-        const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => unlocked.has(reqId));
-        const isUnlockable = !isUnlocked && (playerData.availablePoints || 0) >= node.cost && allRequired && anyAlternative;
-        nodeEl.classList.add(isUnlocked ? 'unlocked' : (isUnlockable ? 'unlockable' : 'locked'));
-        const label = document.createElement('span'); label.textContent = node.name; nodeEl.appendChild(label);
-        nodeEl.onclick = e => { e.stopPropagation(); showSkillDescription(node, isUnlocked, isUnlockable); };
-        nodeEl.ondblclick = e => {
-            e.stopPropagation();
-            if (!isUnlockable) { alert(isUnlocked ? 'このスキルは既に習得済みです。' : '前提ノードとスキルポイントを確認してください。'); return; }
-            if (!confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) return;
-            const result = unlockSkillNode(getPlayerData(), node.id);
-            if (!result.success) { alert(result.error); return; }
-            localStorage.setItem('player', JSON.stringify(result.player));
-            if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
-            if (typeof updateStatus === 'function') updateStatus(result.player);
-            renderTree(); renderAvailableSkills(result.player);
-        };
-        innerContent.appendChild(nodeEl);
-    });
+    // Virtualize the tree: only create buttons and SVG edges near the visible
+    // viewport. The full world remains scrollable, so no gameplay/navigation changes.
+    let refreshQueued = false;
+    const refreshViewport = () => {
+        refreshQueued = false;
+        const zoom = Math.max(0.02, skillTreeZoom);
+        const margin = Math.max(650, 900 / zoom);
+        const left = Math.max(0, content.scrollLeft / zoom - margin);
+        const top = Math.max(0, content.scrollTop / zoom - margin);
+        const right = Math.min(totalWidth, (content.scrollLeft + content.clientWidth) / zoom + margin);
+        const bottom = Math.min(totalHeight, (content.scrollTop + content.clientHeight) / zoom + margin);
+        const visible = [];
+
+        nodesLayer.replaceChildren();
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+        for (const node of treeData.nodes) {
+            const pos = positions.get(node.id);
+            if (!pos) continue;
+            const x = pos.x + offsetX, y = pos.y + offsetY;
+            if (x + NODE_WIDTH < left || x > right || y + NODE_HEIGHT < top || y > bottom) continue;
+            visible.push({ node, x, y });
+        }
+
+        for (const item of visible) {
+            const node = item.node;
+            const requiredIds = [
+                ...(node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : []),
+                ...(node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [])
+            ];
+            for (const reqId of requiredIds) {
+                const requiredNode = nodeById.get(reqId);
+                const reqPos = requiredNode && positions.get(requiredNode.id);
+                if (!reqPos) continue;
+                const rx = reqPos.x + offsetX, ry = reqPos.y + offsetY;
+                if (rx + NODE_WIDTH < left || rx > right || ry + NODE_HEIGHT < top || ry > bottom) continue;
+                drawConnection(svg,
+                    rx + NODE_WIDTH / 2, ry + NODE_HEIGHT / 2,
+                    item.x + NODE_WIDTH / 2, item.y + NODE_HEIGHT / 2,
+                    unlocked.has(node.id));
+            }
+        }
+
+        for (const item of visible) {
+            const node = item.node;
+            const nodeEl = document.createElement('button');
+            nodeEl.type = 'button';
+            nodeEl.className = `skill-node ${node.type}`;
+            nodeEl.style.left = `${item.x}px`; nodeEl.style.top = `${item.y}px`;
+            nodeEl.title = `${node.name}\n${node.description}\nコスト: ${node.cost}`;
+            nodeEl.setAttribute('aria-label', `${node.name}。${node.description}`);
+            const isUnlocked = unlocked.has(node.id);
+            const requirements = node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : [];
+            const alternatives = node.requiresAny ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny]) : [];
+            const allRequired = requirements.every(reqId => unlocked.has(reqId));
+            const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => unlocked.has(reqId));
+            const isUnlockable = !isUnlocked && (playerData.availablePoints || 0) >= node.cost && allRequired && anyAlternative;
+            nodeEl.classList.add(isUnlocked ? 'unlocked' : (isUnlockable ? 'unlockable' : 'locked'));
+            const label = document.createElement('span'); label.textContent = node.name; nodeEl.appendChild(label);
+            nodeEl.onclick = e => { e.stopPropagation(); showSkillDescription(node, isUnlocked, isUnlockable); };
+            nodeEl.ondblclick = e => {
+                e.stopPropagation();
+                if (!isUnlockable) { alert(isUnlocked ? 'このスキルは既に習得済みです。' : '前提ノードとスキルポイントを確認してください。'); return; }
+                if (!confirm(`${node.name} を習得しますか？ (コスト: ${node.cost})`)) return;
+                const result = unlockSkillNode(getPlayerData(), node.id);
+                if (!result.success) { alert(result.error); return; }
+                localStorage.setItem('player', JSON.stringify(result.player));
+                if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
+                if (typeof updateStatus === 'function') updateStatus(result.player);
+                renderTree(); renderAvailableSkills(result.player);
+            };
+            nodesLayer.appendChild(nodeEl);
+        }
+    };
+    content._skillTreeRefreshViewport = () => {
+        if (refreshQueued) return;
+        refreshQueued = true;
+        requestAnimationFrame(refreshViewport);
+    };
+    if (content._skillTreeScrollHandler) content.removeEventListener('scroll', content._skillTreeScrollHandler);
+    content._skillTreeScrollHandler = content._skillTreeRefreshViewport;
+    content.addEventListener('scroll', content._skillTreeScrollHandler, { passive: true });
 
     const startNode = nodeById.get('start_node');
     if (startNode && !content.dataset.userMoved) {
-        const sx = startNode.x * NODE_H_SPACING + offsetX, sy = startNode.y * NODE_V_SPACING + offsetY;
+        const startPos = positions.get(startNode.id);
         requestAnimationFrame(() => {
-            content.scrollLeft = sx * skillTreeZoom - content.clientWidth / 2 + NODE_WIDTH * skillTreeZoom / 2;
-            content.scrollTop = sy * skillTreeZoom - content.clientHeight / 2 + NODE_HEIGHT * skillTreeZoom / 2;
+            content.scrollLeft = (startPos.x + offsetX) * skillTreeZoom - content.clientWidth / 2 + NODE_WIDTH * skillTreeZoom / 2;
+            content.scrollTop = (startPos.y + offsetY) * skillTreeZoom - content.clientHeight / 2 + NODE_HEIGHT * skillTreeZoom / 2;
+            content._skillTreeRefreshViewport?.();
         });
     }
-    setupSkillTreeControls(content, nodeById, offsetX, offsetY, NODE_H_SPACING, NODE_V_SPACING);
+    content._skillTreeRefreshViewport();
+    setupSkillTreeControls(content, nodeById, positions, offsetX, offsetY, NODE_WIDTH, NODE_HEIGHT);
 }
 
-function setupSkillTreeControls(content, nodeById, offsetX, offsetY, hSpacing, vSpacing) {
+function setupSkillTreeControls(content, nodeById, positions, offsetX, offsetY, nodeWidth, nodeHeight) {
     if (content.dataset.controlsReady === '1') return;
     content.dataset.controlsReady = '1';
     const setZoom = (next, anchorX = content.clientWidth / 2, anchorY = content.clientHeight / 2) => {
@@ -1653,6 +1781,7 @@ function setupSkillTreeControls(content, nodeById, offsetX, offsetY, hSpacing, v
         const width = parseFloat(inner.style.width), height = parseFloat(inner.style.height);
         world.style.width = `${width * skillTreeZoom}px`; world.style.height = `${height * skillTreeZoom}px`;
         inner.style.transform = `scale(${skillTreeZoom})`;
+        content._skillTreeRefreshViewport?.();
         content.scrollLeft = logicalX * skillTreeZoom - anchorX;
         content.scrollTop = logicalY * skillTreeZoom - anchorY;
         const label = document.getElementById('skillTreeZoomLabel'); if (label) label.textContent = `${Math.round(skillTreeZoom * 100)}%`;
@@ -1667,8 +1796,9 @@ function setupSkillTreeControls(content, nodeById, offsetX, offsetY, hSpacing, v
         const q = search.value.trim().toLocaleLowerCase();
         const found = q ? SKILL_TREE.nodes.find(n => n.name.toLocaleLowerCase().includes(q) || n.description.toLocaleLowerCase().includes(q)) : null;
         if (!found) return;
-        const x = (found.x * hSpacing + offsetX) * skillTreeZoom;
-        const y = (found.y * vSpacing + offsetY) * skillTreeZoom;
+        const pos = positions.get(found.id);
+        const x = (pos.x + offsetX + nodeWidth / 2) * skillTreeZoom;
+        const y = (pos.y + offsetY + nodeHeight / 2) * skillTreeZoom;
         content.scrollTo({ left: Math.max(0, x - content.clientWidth / 2), top: Math.max(0, y - content.clientHeight / 2), behavior: 'smooth' });
     };
     let dragging = false, startX = 0, startY = 0, scrollX = 0, scrollY = 0;

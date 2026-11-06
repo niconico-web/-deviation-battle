@@ -169,11 +169,7 @@ const PORT = process.env.PORT || 3000;
 io.on('connection', (socket) => {
     console.log(`[${new Date().toISOString()}] Socket connected - ID: ${socket.id}`);
 
-    socket.onAny((eventName, ...args) => {
-        if (eventName !== 'ping' && eventName !== 'pong') {
-            console.log(`[Socket] Event received: ${eventName} from ${socket.id}`);
-        }
-    });
+    // Avoid logging every gameplay packet: high-frequency Socket.IO logs add I/O latency.
 
     socket.on('disconnect', (reason) => {
         console.log(`[${new Date().toISOString()}] Socket disconnected - ID: ${socket.id} reason: ${reason}`);
