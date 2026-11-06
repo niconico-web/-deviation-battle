@@ -261,8 +261,11 @@ const SKILL_TREE = {
             { id: "connector_3", name: "道", cost: 1, x: -1, y: -3, requires: ["magic_path_1", "atk_path_1"], type: "stat", effect: {} },
             { id: "connector_4", name: "道", cost: 1, x: 1, y: 3, requires: ["hp_path_1", "core_speed_1"], type: "stat", effect: {} },
 
-            // --- 複合ビルド：攻撃型・魔法型のどちらからでも到達できる分岐 ---
-            { id: "hybrid_battle_mind", name: "戦闘術理", description: "攻撃+5%、クリティカル率+2%。攻撃の極意または魔力の極意から接続できる", cost: 5, x: -4, y: -8, requiresAny: ["atk_mastery", "magic_mastery"], type: "passive", effect: { atkPercent: 0.05, critChance: 0.02 } },
+            // --- キーストーン：強烈な長所と明確な代償を持つビルド分岐 ---
+            { id: "keystone_glass_cannon", name: "ガラスの大砲", description: "攻撃力+30%。代償として防御力-20%。攻撃の極意またはクリティカルの頂点から接続できる", cost: 8, x: -18, y: -13, requiresAny: ["atk_mastery", "crit_apex"], type: "keystone", effect: { atkPercent: 0.30, defPercent: -0.20 } },
+            { id: "keystone_iron_wall", name: "不動要塞", description: "防御力+30%。代償として速さ-15%。防御の極意または不落の要塞から接続できる", cost: 8, x: 5, y: -14, requiresAny: ["def_mastery", "tank_mastery"], type: "keystone", effect: { defPercent: 0.30, speedPercent: -0.15 } },
+            { id: "keystone_swift_blade", name: "疾風迅雷", description: "速さ+30%。代償として攻撃力-15%。速さの極意または速さVから接続できる", cost: 8, x: -18, y: 10, requiresAny: ["speed_mastery", "speed_path_5"], type: "keystone", effect: { speedPercent: 0.30, atkPercent: -0.15 } },
+            { id: "keystone_blood_pact", name: "血の契約", description: "攻撃力+20%。代償として最大HP-15%。体力の極意または吸血鬼から接続できる", cost: 8, x: 5, y: 12, requiresAny: ["hp_mastery", "vampire"], type: "keystone", effect: { atkPercent: 0.20, maxHpPercent: -0.15 } },
         ]
     }
 
@@ -401,14 +404,11 @@ function unlockSkillNode(player, nodeId) {
         return { success: false, error: 'スキルポイントが不足しています' };
     }
     
-    // 前提条件チェック。requires は AND、requiresAny は OR として扱う。
-    // 既存ノードの挙動を変えず、新しいノードだけ複数ルートから接続できる。
+    // 前提条件チェック。requires はすべて必要、requiresAny はいずれか1つでよい。
     if (node.requires) {
         const requirements = Array.isArray(node.requires) ? node.requires : [node.requires];
-        for (const reqId of requirements) {
-            if (!playerTreeData.unlockedNodes.includes(reqId)) {
-                return { success: false, error: '前提条件のスキルを解放してください' };
-            }
+        if (!requirements.every(reqId => playerTreeData.unlockedNodes.includes(reqId))) {
+            return { success: false, error: '前提条件のスキルを解放してください' };
         }
     }
     if (node.requiresAny) {
@@ -428,67 +428,6 @@ function unlockSkillNode(player, nodeId) {
     }
     
     return { success: true, player };
-}
-
-// スキルノードの振り直し。
-// 指定ノードに依存している解放済みノードも自動で戻し、前提条件のない状態を防ぐ。
-function refundSkillNode(player, nodeId) {
-    player = initializeSkillData(player);
-    const tree = player.skillTree;
-    const nodes = SKILL_TREE.nodes;
-    const target = nodes.find(node => node.id === nodeId);
-    if (!target) return { success: false, error: 'スキルノードが見つかりません' };
-    if (nodeId === 'start_node') return { success: false, error: '開始ノードは振り直せません' };
-    if (!tree.unlockedNodes.includes(nodeId)) return { success: false, error: 'このノードは習得していません' };
-
-    const removed = new Set([nodeId]);
-    let changed = true;
-    while (changed) {
-        changed = false;
-        for (const node of nodes) {
-            if (!tree.unlockedNodes.includes(node.id) || removed.has(node.id)) continue;
-            const andReqs = node.requires
-                ? (Array.isArray(node.requires) ? node.requires : [node.requires])
-                : [];
-            const orReqs = node.requiresAny
-                ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny])
-                : [];
-            const losesAndRequirement = andReqs.some(id => removed.has(id));
-            const remainingOrReqs = orReqs.filter(id => tree.unlockedNodes.includes(id) && !removed.has(id));
-            const losesOrRequirement = orReqs.length > 0 && remainingOrReqs.length === 0;
-            if (losesAndRequirement || losesOrRequirement) {
-                removed.add(node.id);
-                changed = true;
-            }
-        }
-    }
-
-    const removedNodes = nodes.filter(node => removed.has(node.id));
-    const pointsDelta = removedNodes.reduce((sum, node) => {
-        return sum + (Number(node.cost) || 0) - (Number(node.effect?.grantSkillPoints) || 0);
-    }, 0);
-    if ((tree.availablePoints || 0) + pointsDelta < 0) {
-        return {
-            success: false,
-            error: 'このノードで獲得したスキルポイントを別のノードに使用しています。先に他のノードを振り直してください。'
-        };
-    }
-
-    tree.unlockedNodes = tree.unlockedNodes.filter(id => !removed.has(id));
-    tree.availablePoints = (tree.availablePoints || 0) + pointsDelta;
-
-    // 振り直したアクティブスキルは装備スロットからも外す。
-    const removedIds = removed;
-    if (Array.isArray(player.skillSlots)) {
-        player.skillSlots = player.skillSlots.map(skill => skill && removedIds.has(skill.id) ? null : skill);
-    }
-
-    return {
-        success: true,
-        player,
-        refundedNodes: removedNodes.map(node => ({ id: node.id, name: node.name })),
-        refundedPoints: pointsDelta
-    };
 }
 
 // スキルノードの効果を取得
@@ -514,7 +453,7 @@ function getSkillNodeEffects(player) {
         const node = skillTree.nodes.find(n => n.id === nodeId);
         if (!node) continue;
         
-        if (node.type === "stat" || node.type === "passive") {
+        if (node.type === "stat" || node.type === "passive" || node.type === "keystone") {
             // パッシブ効果を適用
             const effect = node.effect || {};
             if (effect.grantSkillPoints) {
@@ -1564,13 +1503,12 @@ function renderTree() {
         ];
         requiredIds.forEach(reqId => {
             const requiredNode = treeData.nodes.find(n => n.id === reqId);
-            if (requiredNode) {
-                const nodeX = node.x * NODE_H_SPACING + offsetX;
-                const nodeY = node.y * NODE_V_SPACING + offsetY;
-                const reqNodeX = requiredNode.x * NODE_H_SPACING + offsetX;
-                const reqNodeY = requiredNode.y * NODE_V_SPACING + offsetY;
-                drawConnection(svg, reqNodeX + NODE_WIDTH / 2, reqNodeY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, playerData.unlockedNodes.includes(node.id));
-            }
+            if (!requiredNode) return;
+            const nodeX = node.x * NODE_H_SPACING + offsetX;
+            const nodeY = node.y * NODE_V_SPACING + offsetY;
+            const reqNodeX = requiredNode.x * NODE_H_SPACING + offsetX;
+            const reqNodeY = requiredNode.y * NODE_V_SPACING + offsetY;
+            drawConnection(svg, reqNodeX + NODE_WIDTH / 2, reqNodeY + NODE_HEIGHT / 2, nodeX + NODE_WIDTH / 2, nodeY + NODE_HEIGHT / 2, playerData.unlockedNodes.includes(node.id));
         });
     });
 
@@ -1594,19 +1532,15 @@ function renderTree() {
 
         let isUnlockable = false;
         if (!isUnlocked && playerData.availablePoints >= node.cost) {
-            if (!node.requires && !node.requiresAny) {
-                isUnlockable = true;
-            } else {
-                const requirements = node.requires
-                    ? (Array.isArray(node.requires) ? node.requires : [node.requires])
-                    : [];
-                const allRequired = requirements.every(reqId => playerData.unlockedNodes.includes(reqId));
-                const alternatives = node.requiresAny
-                    ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny])
-                    : [];
-                const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => playerData.unlockedNodes.includes(reqId));
-                if (allRequired && anyAlternative) isUnlockable = true;
-            }
+            const requirements = node.requires
+                ? (Array.isArray(node.requires) ? node.requires : [node.requires])
+                : [];
+            const allRequired = requirements.every(reqId => playerData.unlockedNodes.includes(reqId));
+            const alternatives = node.requiresAny
+                ? (Array.isArray(node.requiresAny) ? node.requiresAny : [node.requiresAny])
+                : [];
+            const anyAlternative = alternatives.length === 0 || alternatives.some(reqId => playerData.unlockedNodes.includes(reqId));
+            isUnlockable = allRequired && anyAlternative;
         }
 
         if (isUnlocked) nodeEl.classList.add('unlocked');
@@ -1627,6 +1561,8 @@ function renderTree() {
                     const result = unlockSkillNode(getPlayerData(), node.id);
                     if (result.success) {
                         localStorage.setItem("player", JSON.stringify(result.player));
+                        if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
+                        if (typeof updateStatus === 'function') updateStatus(result.player);
                         renderTree(); // ツリーを再描画
                         renderAvailableSkills(result.player); // 利用可能スキルリストも更新
                     } else {
@@ -1674,46 +1610,14 @@ function showSkillDescription(node, isUnlocked, isUnlockable) {
     descArea.style.display = 'block';
     descArea.innerHTML = `
         <h3>${node.name}</h3>
-        <p><strong>タイプ:</strong> ${node.type}</p>
+        <p><strong>タイプ:</strong> ${node.type === 'keystone' ? 'キーストーン（大きな長所と代償）' : node.type}</p>
         <p><strong>説明:</strong> ${node.description}</p>
+        ${node.type === 'keystone' ? '<p class="keystone-detail-note">習得中は効果が常時ステータスに反映されます。通常のパッシブとは異なり、強化と同時に代償も発生します。</p>' : ''}
         <p><strong>コスト:</strong> ${node.cost} スキルポイント</p>
         <p><strong>状態:</strong> ${statusText}</p>
         ${node.requires ? `<p><strong>前提スキル（すべて必要）:</strong> ${Array.isArray(node.requires) ? node.requires.join(', ') : node.requires}</p>` : ''}
-        ${node.requiresAny ? `<p><strong>接続ルート（いずれか必要）:</strong> ${Array.isArray(node.requiresAny) ? node.requiresAny.join(', ') : node.requiresAny}</p>` : ''}
+        ${node.requiresAny ? `<p><strong>接続ルート（いずれか1つ）:</strong> ${Array.isArray(node.requiresAny) ? node.requiresAny.join(' / ') : node.requiresAny}</p>` : ''}
     `;
-
-    if (isUnlocked && node.id !== 'start_node') {
-        const refundButton = document.createElement('button');
-        refundButton.type = 'button';
-        refundButton.className = 'btn btn-secondary';
-        refundButton.textContent = 'このノードから振り直す';
-        refundButton.addEventListener('click', () => {
-            const currentPlayer = getPlayerData();
-            const result = refundSkillNode(currentPlayer, node.id);
-            if (!result.success) {
-                alert(result.error);
-                return;
-            }
-            const names = result.refundedNodes.map(item => item.name).join('、');
-            if (!confirm(`${names} を振り直します。
-合計 ${result.refundedPoints} ポイントが戻ります。
-続行しますか？`)) return;
-            localStorage.setItem('player', JSON.stringify(result.player));
-            if (typeof syncPlayerToServer === 'function') syncPlayerToServer(true);
-            if (typeof updateStatus === 'function') updateStatus(result.player);
-            renderSkillTreeUI();
-            const descriptionArea = document.getElementById('skillDescriptionArea');
-            if (descriptionArea) {
-                descriptionArea.style.display = 'none';
-                descriptionArea.innerHTML = '<p>スキルを選択してください</p>';
-            }
-        });
-        descArea.appendChild(refundButton);
-        const note = document.createElement('p');
-        note.className = 'help-text';
-        note.textContent = 'このノードに依存する後続ノードも一緒に振り直されます。';
-        descArea.appendChild(note);
-    }
 }
 
 function renderSkillSlots(player) {
@@ -1977,7 +1881,6 @@ if (typeof window !== 'undefined') {
     window.initializeSkillData = initializeSkillData;
     window.addSkillPointsOnLevelUp = addSkillPointsOnLevelUp;
     window.unlockSkillNode = unlockSkillNode;
-    window.refundSkillNode = refundSkillNode;
     window.getSkillNodeEffects = getSkillNodeEffects;
     window.applySkillEffectsToStats = applySkillEffectsToStats;
     window.validateCustomSkill = validateCustomSkill;
