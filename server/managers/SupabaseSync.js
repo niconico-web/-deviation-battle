@@ -19,6 +19,10 @@ const URL_BASE = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const TABLE = process.env.SUPABASE_KV_TABLE || "kv_store";
 const ENABLED = !!(URL_BASE && KEY);
+// null=未実行 / true=起動時の復元に成功 / false=失敗。
+// false のときは Supabase への送信をすべて止める。復元できていないのに送ると、
+// Supabase 上の本番データ（市場・ランキング等）を空っぽのローカルファイルで上書きしてしまうため。
+let restoreOk = null;
 // 問題・ボスなどの「素材ファイル」はコードと一緒に配られるので、保存対象にしない
 const STATIC = new Set(["bosses.json", "questions.json", "quests.json", "boss_rewards.json", "boss_questions.json"]);
 const FAST = new Set(["market.json", "survival.json", "nations.json", "artifacts.json"]);      // 預かり中のアイテムを含むので、短い間隔で送る
@@ -54,6 +58,9 @@ async function restore() {
     console.log("[Supabase] restored " + n + " file(s) from " + TABLE);
 }
 async function pushAll() {
+    // --push は別プロセスで動くため、親から環境変数で復元結果を受け取る
+    const restoreFailed = restoreOk === false || process.env.SB_SUPABASE_RESTORE_OK === "false";
+    if (ENABLED && restoreFailed) { console.warn("[Supabase] 復元失敗のため最終保存をスキップ（本番データ保護）"); return; }
     const rows = localFiles().map(name => ({ key: name, content: readLocal(name) })).filter(r => r.content != null);
     if (rows.length) await upsert(rows);
     console.log("[Supabase] pushed " + rows.length + " file(s)");
@@ -62,8 +69,13 @@ async function pushAll() {
 // server.js の最初に呼ぶ。別プロセスで復元して結果を待つ（以降の require がファイルを読むより前に終わらせるため）
 function restoreOnBootSync() {
     if (!ENABLED) { console.log("[Supabase] SUPABASE_URL / SUPABASE_SERVICE_KEY 未設定：ファイル保存のみで動きます"); return false; }
-    try { execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env }); return true; }
-    catch (e) { console.warn("[Supabase] 起動時の復元に失敗しました（ローカルのファイルで続行）: " + (e.message || e).toString().slice(0, 160)); return false; }
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try { execFileSync(process.execPath, [__filename, "--restore"], { stdio: "inherit", timeout: 30000, env: process.env }); restoreOk = true; return true; }
+        catch (e) { console.warn("[Supabase] 起動時の復元に失敗（" + attempt + "回目）: " + (e.message || e).toString().slice(0, 160)); }
+    }
+    restoreOk = false;
+    console.warn("[Supabase] 復元に失敗したため、Supabaseへの保存を停止しました。次回起動時に再試行します。");
+    return false;
 }
 
 // ---------- ② 実行中の同期 ／ ③ 停止時の最終保存 ----------
@@ -71,7 +83,7 @@ const sig = new Map(), lastSent = new Map();
 let busy = false, started = false, lastWarn = 0;
 const sigOf = (name) => { try { const s = fs.statSync(path.join(DATA_DIR, name)); return s.mtimeMs + ":" + s.size; } catch (e) { return null; } };
 async function syncOnce(force) {
-    if (busy) return; busy = true;
+    if (busy || (ENABLED && restoreOk === false)) return; busy = true;
     try {
         const now = Date.now(), rows = [], names = [];
         for (const name of localFiles()) {
@@ -89,7 +101,7 @@ async function start() {
     if (!ENABLED || started) return; started = true;
     // 停止時：同期的に最後の保存を送る（process.exit の直前でも、確実に終わらせるため別プロセスで）。
     // 各機能が 'exit' で自分のファイルを書き終えたあとに走るよう、start() は全機能を読み込んだあとに呼ぶ
-    process.on("exit", () => { try { execFileSync(process.execPath, [__filename, "--push"], { stdio: "inherit", timeout: 15000, env: process.env }); } catch (e) { /* 終了中なので無視 */ } });
+    process.on("exit", () => { try { execFileSync(process.execPath, [__filename, "--push"], { stdio: "inherit", timeout: 15000, env: Object.assign({}, process.env, { SB_SUPABASE_RESTORE_OK: String(restoreOk) }) }); } catch (e) { /* 終了中なので無視 */ } });
     // いまのファイルを基準にする。Supabase に無いファイル（初回）は、最初にまとめて送る
     try {
         const remote = new Set(((await listRemote()) || []).map(r => r.key));

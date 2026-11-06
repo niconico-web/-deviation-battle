@@ -377,7 +377,7 @@ let skillTreeLayoutCache = null;
 
 // ノードの元座標を保ちながら、近すぎるノードだけを少しずつ押し離す。
 // 前提条件・効果データには触れず、表示上の座標だけを補正する。
-function getSkillTreeLayout(nodes, hSpacing = 100, vSpacing = 90) {
+function getSkillTreeLayout(nodes, hSpacing = 150, vSpacing = 130) {
     if (skillTreeLayoutCache && skillTreeLayoutCache.nodes === nodes) return skillTreeLayoutCache.positions;
 
     const items = nodes.map((node, index) => ({
@@ -388,8 +388,8 @@ function getSkillTreeLayout(nodes, hSpacing = 100, vSpacing = 90) {
         baseX: node.x * hSpacing,
         baseY: node.y * vSpacing
     }));
-    const cellSize = 96;
-    const minDistance = 88;
+    const cellSize = 140;
+    const minDistance = 120;
     const minDistanceSq = minDistance * minDistance;
 
     // 空間ハッシュで近傍だけを比較し、約2,000ノードでも二重ループを避ける。
@@ -1631,7 +1631,7 @@ function renderTree() {
     const NODE_WIDTH = 70, NODE_HEIGHT = 48;
     // Layout is cached by getSkillTreeLayout; repeated unlocks no longer rerun the
     // 36-pass collision solver for the same immutable tree.
-    const positions = getSkillTreeLayout(treeData.nodes, 100, 90);
+    const positions = getSkillTreeLayout(treeData.nodes, 150, 130);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const node of treeData.nodes) {
         const p = positions.get(node.id);

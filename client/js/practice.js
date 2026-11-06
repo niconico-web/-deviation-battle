@@ -257,6 +257,19 @@
     let snapBytes = 0, netPing = -1, netPingT = 0, netPingBusy = false;      // 直近のスナップショットの大きさ／通信の遅れ（ms）
     const posLast = { x: 0, y: 0, t: performance.now() };
 
+    // ---------- 敵の強さをプレイヤーに合わせる ----------
+    //  ステージの想定（stage.req＝推奨ステータス合計）よりパーティのステータス合計が高いとき、
+    //  敵のHP・攻撃・速さと敵レベル（ilvl）をその強さに引き上げる。
+    //  ボスHPが固定値のステージ（スタンダードワールド）と、強さが別途決まる
+    //  ボスラッシュ・無限回廊・対人戦は対象外。
+    if (!PVP && !RUSH_ON && !CORR_ON && !stage.bossHp && typeof window.STAGE_DATA.ilvlForReq === 'function') {
+        const pt = corrPartyTotal();
+        if (pt > (stage.req || 0)) {
+            applyScale(pt, window.STAGE_DATA.ilvlForReq(pt), PW);
+            announce('⚔ 強い気配を感じる…　このステージの敵が強くなった！', 2200);
+        }
+    }
+
     // ---------- ネットワーク ----------
     function netSend(t, d) { if (socket && room) socket.emit('stage:relay', { t: t, d: d }); }
     function partyCount() { return 1 + Object.keys(allies).length; }
