@@ -4,7 +4,7 @@
 // ============================================
 
 // スキルポイント獲得量（レベルアップごと）
-const SKILL_POINTS_PER_LEVEL = 2;
+const SKILL_POINTS_PER_LEVEL = 3; // 拡張スキルツリー対応のため増加
 
 // 統合された単一のスキルツリー定義
 const SKILL_TREE = {
@@ -1438,11 +1438,55 @@ function renderTree() {
         return;
     }
     
-    const treeData = SKILL_TREE;
+    // 拡張スキルツリーがあれば使用
+    const treeData = window.SKILL_TREE_EXPANDED || SKILL_TREE;
     const playerData = player.skillTree;
 
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
+
+    // スタート地点選択UI（拡張スキルツリーの場合）
+    if (treeData.startPoints && !playerData.startPoint) {
+        const startSelection = document.createElement('div');
+        startSelection.className = 'start-point-selection';
+        startSelection.style.cssText = `
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: rgba(0,0,0,0.8);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        `;
+        
+        Object.values(treeData.startPoints).forEach(sp => {
+            const btn = document.createElement('button');
+            btn.className = `start-point-btn ${sp.class}`;
+            btn.style.cssText = `
+                padding: 15px 25px;
+                border: 2px solid #444;
+                border-radius: 8px;
+                background: #2a2d32;
+                color: white;
+                cursor: pointer;
+                font-size: 14px;
+                transition: all 0.2s;
+            `;
+            btn.innerHTML = `<strong>${sp.name}</strong><br><small>${sp.description}</small>`;
+            btn.onclick = () => {
+                playerData.startPoint = sp.id;
+                // スタート地点のノードを自動解放
+                playerData.unlockedNodes.push(sp.id);
+                localStorage.setItem("player", JSON.stringify(player));
+                renderTree(); // 再描画
+            };
+            startSelection.appendChild(btn);
+        });
+        
+        content.appendChild(startSelection);
+        return; // スタート地点選択まで
+    }
 
     // 1. Find bounds of the tree
     const allX = treeData.nodes.map(n => n.x);
@@ -1467,6 +1511,7 @@ function renderTree() {
 
     // Create an inner container that will be the actual scrollable content
     const innerContent = document.createElement('div');
+    innerContent.className = 'skill-tree-inner';
     innerContent.style.position = 'relative';
     innerContent.style.width = `${totalWidth}px`;
     innerContent.style.height = `${totalHeight}px`;
