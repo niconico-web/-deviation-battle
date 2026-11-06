@@ -3,6 +3,15 @@
 // Mine and Slash style: 4 start points (Durability, Offense, Balance, Magic)
 // ============================================
 
+// Service Workerキャッシュをクリア（スキルツリー更新用）
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+            registration.unregister();
+        });
+    });
+}
+
 // スキルポイント獲得量（レベルアップごと）
 const SKILL_POINTS_PER_LEVEL = 5;
 
