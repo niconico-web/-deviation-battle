@@ -1691,8 +1691,12 @@ function renderTree() {
     pointsDisplay.textContent = `総スキルポイント: ${playerData.availablePoints || 0}`;
     content.innerHTML = ''; // コンテンツをクリア
 
-    // スタート地点選択UI（拡張スキルツリーの場合）
+    // 既存プレイヤーデータにスタート地点がない場合、自動的にバランスを割り当て
     if (treeData.startPoints && !playerData.startPoint) {
+        playerData.startPoint = "start_balance";
+        playerData.unlockedNodes.push("start_balance");
+        localStorage.setItem("player", JSON.stringify(player));
+    }
         const startSelection = document.createElement('div');
         startSelection.className = 'start-point-selection';
         startSelection.style.cssText = `
