@@ -1985,10 +1985,10 @@ textarea {
 .skill-tree-canvas.is-panning { cursor:grabbing; user-select:none; }
 .skill-tree-world { position:relative; }
 .skill-tree-inner { position:absolute; left:0; top:0; transform-origin:top left; }
-.skill-node { position:absolute; z-index:2; width:60px; min-height:40px; padding:3px; display:flex; align-items:center; justify-content:center; border:1px solid #59616b; border-radius:50%; background:#343a40; color:#f5f5f5; font-size:10px; line-height:1.1; text-align:center; cursor:pointer; overflow-wrap:anywhere; }
+.skill-node { position:absolute; z-index:2; box-sizing:border-box; width:70px; height:48px; padding:4px; display:flex; align-items:center; justify-content:center; border:1px solid #59616b; border-radius:50%; background:#343a40; color:#f5f5f5; font-size:10px; line-height:1.15; text-align:center; cursor:pointer; overflow-wrap:anywhere; }
 .skill-node.stat { border-radius:50%; }
 .skill-node.passive { border-radius:12px; border-color:#6da3c9; background:#24445c; }
-.skill-node.keystone { width:68px; min-height:54px; border:2px solid #d6a84f; border-radius:9px; background:#59421c; color:#fff2c8; transform:rotate(45deg) scale(.82); box-shadow:0 0 12px rgba(214,168,79,.35); }
+.skill-node.keystone { width:70px; height:54px; border:2px solid #d6a84f; border-radius:9px; background:#59421c; color:#fff2c8; transform:rotate(45deg) scale(.82); box-shadow:0 0 12px rgba(214,168,79,.35); }
 .skill-node.keystone span { transform:rotate(-45deg); }
 .skill-node.active { border-color:#a67ad8; background:#49336a; }
 .skill-node.unlocked { box-shadow:0 0 0 2px #48b879,0 0 12px rgba(72,184,121,.35); }
@@ -1996,3 +1996,9 @@ textarea {
 .skill-node.locked { opacity:.72; }
 
 .skill-node.keystone:hover { transform: rotate(45deg) scale(.9); }
+
+/* 巨大ツリー：ノードの可読性と接続線の視認性を優先 */
+.skill-tree-inner { contain: layout style; }
+.skill-tree-inner > svg line { opacity: .48; }
+.skill-node { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
+.skill-node span { max-width:100%; overflow-wrap:anywhere; pointer-events:none; }
