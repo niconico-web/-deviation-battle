@@ -337,8 +337,8 @@ function extendSkillTreeForPoEStyle() {
                 const tier = [12, 24, 36, 48].indexOf(depth) + 1;
                 const id = isKeystone ? `ks_${branch.mechanic}_${branch.slug}_${tier}` : `poe_${branch.slug}_${depth}_${lane + 1}`;
                 if (existing.has(id)) continue;
-                const x = Number((anchor.x + dx * depth * 1.55 + px * lane * 1.05).toFixed(2));
-                const y = Number((anchor.y + dy * depth * 1.55 + py * lane * 1.05).toFixed(2));
+                const x = Number((anchor.x + dx * depth * 2.2 + px * lane * 1.05).toFixed(2));
+                const y = Number((anchor.y + dy * depth * 2.2 + py * lane * 1.05).toFixed(2));
                 const isNotable = !isKeystone && (depth % 10 === 0 || (lane !== 0 && depth % 15 === 0));
                 const stat = lane === 0 ? branch.stat : (lane < 0 ? branch.sideA : branch.sideB);
                 const statAmount = isNotable ? (stat === 'maxHp' ? 25 : 5) : (stat === 'maxHp' ? 8 : 2);
@@ -361,15 +361,15 @@ function extendSkillTreeForPoEStyle() {
     }
     // 9つの横断ブリッジ。複数の系統を横断する別ルートを作る。
     const bridges = [
-        ['bridge_pact_bone','骨と血の盟約','atk_mastery','vampire',-10,16],
-        ['bridge_storm_shadow','雷影の回廊','speed_mastery','speed_path_5',-6,18],
-        ['bridge_wraith_sacrifice','亡霊の祭壇','magic_mastery','hp_mastery',-2,20],
-        ['bridge_beast_reflect','獣鏡の結節','tank_mastery','immortal_guard',2,20],
-        ['bridge_chain_frenzy','連鎖狂気','crit_mastery','crit_apex',6,18],
-        ['bridge_bone_storm','骨雷の交差','atk_mastery','speed_mastery',10,16],
-        ['bridge_mirror_pact','鏡血の交差','speed_path_5','vampire',14,14],
-        ['bridge_guard_sacrifice','守護と犠牲','tank_mastery','hp_mastery',18,12],
-        ['bridge_magic_crit','魔術の臨界','magic_mastery','crit_apex',22,10]
+        ['bridge_pact_bone','骨と血の盟約','atk_mastery','vampire',-14,23],
+        ['bridge_storm_shadow','雷影の回廊','speed_mastery','speed_path_5',-9,26],
+        ['bridge_wraith_sacrifice','亡霊の祭壇','magic_mastery','hp_mastery',-3,28],
+        ['bridge_beast_reflect','獣鏡の結節','tank_mastery','immortal_guard',3,28],
+        ['bridge_chain_frenzy','連鎖狂気','crit_mastery','crit_apex',9,26],
+        ['bridge_bone_storm','骨雷の交差','atk_mastery','speed_mastery',14,23],
+        ['bridge_mirror_pact','鏡血の交差','speed_path_5','vampire',20,20],
+        ['bridge_guard_sacrifice','守護と犠牲','tank_mastery','hp_mastery',26,17],
+        ['bridge_magic_crit','魔術の臨界','magic_mastery','crit_apex',31,14]
     ];
     for (const [id,name,a,b,x,y] of bridges) {
         if (existing.has(id)) continue;
