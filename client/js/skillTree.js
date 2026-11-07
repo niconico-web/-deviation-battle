@@ -554,7 +554,8 @@ function addSkillPointsOnLevelUp(player, oldLevel, newLevel) {
     
     player.skillTree.availablePoints += pointsGained;
     player.skillTree.lastLevelGranted = newLevel;
-    
+    if (window.SBSound) SBSound.sfx('levelup');
+
     return player;
 }
 

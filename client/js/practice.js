@@ -530,6 +530,28 @@
         return e;
     }
 
+    // 通常ステージの「魔改造」敵：精鋭（elite）に低確率で一般モブにも付き、
+    // 倒し方・戦い方が少し変わる変種になる。無限回廊は専用のCAFFIXがあるので対象外。
+    const STAGE_AFFIX = [
+        { id: 'explosive', n: '爆発型', icon: '💥' },
+        { id: 'split',     n: '分裂型', icon: '🧫' },
+        { id: 'venom',     n: '毒牙',   icon: '☠️' },
+        { id: 'frenzy',    n: '狂暴',   icon: '😡' },
+        { id: 'swift',     n: '疾走',   icon: '💨' },
+        { id: 'giant',     n: '巨漢',   icon: '🗿' },
+        { id: 'thick',     n: '鉄壁',   icon: '🛡️' }
+    ];
+    function applyStageAffix(e, loud) {
+        const a = STAGE_AFFIX[Math.floor(Math.random() * STAGE_AFFIX.length)];
+        e.affix = a.id;
+        if (a.id === 'frenzy') { e.dmg *= 1.25; e.spd *= 1.1; }
+        else if (a.id === 'swift') e.spd *= 1.35;
+        else if (a.id === 'giant') { e.hp = e.maxHp = Math.round(e.maxHp * 1.4); e.r *= 1.2; e.dmg *= 1.15; }
+        else if (a.id === 'thick') e.takeMul = (e.takeMul || 1) * 0.6;
+        else if (a.id === 'explosive') e.dmg *= 1.1;
+        if (loud) netAnnounce(a.icon + ' ' + a.n + 'の敵が出現！', 1300);
+    }
+
     function spawnGroup() {
         const alive = alivePlayersPos();
         const c = alive[Math.floor(Math.random() * alive.length)] || { x: WORLD_W / 2, y: WORLD_H / 2 };
@@ -542,6 +564,7 @@
         for (let i = 0; i < n; i++) {
             const x = clamp(c.x + Math.cos(ang) * d + rnd(-60, 60), 40, WORLD_W - 40), y = clamp(c.y + Math.sin(ang) * d + rnd(-60, 60), 40, WORLD_H - 40);
             const e = spawnEnemy(def, x, y, false, elite);
+            if (!CORR_ON && (elite || Math.random() < 0.05)) applyStageAffix(e, elite);
             pushOutOfRocks(e, e.r);
         }
     }
@@ -977,6 +1000,7 @@
             popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: String(Math.round(dmg)), c: o.crit ? '#ffd84a' : (o.elc || '#fff'), big: !!o.crit });
         }
         e.flash = 0.1;
+        if (window.SBSound && dmg > 0) SBSound.sfx(o.crit ? 'crit' : 'hit');
         if (isHost) applyHit(d); else { netSend('hit', d); e.hp = Math.max(0, e.hp - dmg * (e.takeMul || 1)); }
         if (dmg > 0 && !accBusy) accEvent('hit');
     }
@@ -1004,9 +1028,19 @@
         if (e.dead) return;
         e.dead = true; e.hp = 0;
         run.kills++;
+        // 魔改造の死に際効果（ホスト側で実行。telegraphは状態同期されるので観戦側にも見える）
+        // 無限回廊のexplosiveは下のCORR_ON側で別途処理済みなので、ここでは通常ステージのみ
+        if (!CORR_ON && e.affix === 'explosive') telegraph(e.x, e.y, 150, 0.9, e.dmg * 1.6, '#ff7a3a');
+        else if (!CORR_ON && e.affix === 'split') {
+            for (let i = 0; i < 2; i++) {
+                const m = spawnEnemy(e.def, e.x + rnd(-50, 50), e.y + rnd(-50, 50), false, false);
+                m.hp = m.maxHp = Math.round(m.maxHp * 0.4); m.noLoot = true; m.affix = null;
+            }
+        }
         const main = e.boss && !e.echo;                                                    // 召喚された歴代ボス(echo)は本体ではない
         const others = main && enemies.some(o => o !== e && o.boss && !o.echo && !o.dead && o.hp > 0);
         const last = main && !others;                                                      // 最後の1体を倒したときだけクリア＆ボスドロップ
+        if (window.SBSound) { SBSound.sfx(last ? 'bossdie' : (e.boss ? 'bossdie' : 'die')); if (last) SBSound.bgm('stage'); }
         const ev = { id: e.id, x: e.x, y: e.y, boss: last, part: (main && !last && !RUSH_ON) || !!e.noLoot, echo: !!e.echo, elite: !!e.elite, by: by, ilvl: SC.ilvl, ico: e.def.icon, col: e.def.color || '#fff', r: e.r };
         if (RUSH_ON && main) {      // ボスラッシュ：1体ごとに報酬（rb=1）、フェーズの最後の1体は豪華（rb=2）
             const pd = RUSHD.phases[Math.max(0, RS.ph - 1)] || RUSHD.phases[0];
@@ -1268,6 +1302,8 @@
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
+        if (opt && opt.poison) { me.poisonT = 4; me.poisonDps = Math.max(me.poisonDps || 0, dmg * 0.35); popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '毒！', c: '#8fd45a' }); }
+        if (window.SBSound) SBSound.sfx('hurt');
         accEvent('hurt');
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         // 被弾時効果
@@ -1282,7 +1318,7 @@
             if (p.key === 'hurtShield') me.shield = true;
             if (p.key === 'hurtNova') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.35, life: 0.35, c: '#ffe08a' }); enemies.forEach(e => { if (dist(e.x, e.y, me.x, me.y) < 170) { const a = Math.atan2(e.y - me.y, e.x - me.x); dealHit(e, weapon.dmg * P.atkMul * 0.8, { kx: Math.cos(a) * 300, ky: Math.sin(a) * 300 }); } }); }
         });
-        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
+        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
         else if (opt && opt.stun) stunMe(STUN_SEC);
     }
     // スタン：約3秒、移動・攻撃・ダッシュ・スキルがすべて使えない（クイズの回答だけは可能）
@@ -1470,6 +1506,7 @@
         const lockT = (U.st === 'keeper' || U.st === 'unbreak') ? 1.0 : dur, godT = U.st === 'keeper' ? 2.2 : (U.st === 'unbreak' ? 2.6 : dur);      // ゲートキーパーの大技は、門が働いている間も動ける（動けないのは最初の1秒だけ）
         me.ultT = lockT; me.invHard = Math.max(me.invHard || 0, godT); me.inv = Math.max(me.inv, godT); me.dashT = 0; me.ang = aimAngle();
         ultFlashT = 0.3; addShake(4, 0.25); announce('⚡ ' + U.name, 1500);
+        if (window.SBSound) SBSound.sfx('ult');
         fx.push({ k: 'pring', x: me.x, y: me.y, r: 0, max: 110, t: 0.4, life: 0.4, c: col, fill: true }); netSend('atk', { k: 'ring', x: me.x, y: me.y, a: me.ang, rad: 110, c: col, fin: 1 });
         const ang0 = me.ang;
         if (U.st === 'slash') {
@@ -1721,6 +1758,7 @@
         const hit = (e, base) => { const h = strike(e, (base || 1) * cs.m, (T.knock || 0) * (cs.kn || 1)); hitFeel(e, cs, h); return h; };
         const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range * (cs.r || 1), arc: (T.arc || 0) * (cs.a || 1), rad: (P.radius || T.radius) * (cs.r || 1), w: (T.width || 0) * (cs.w || 1), c: HW.rarityOf(weapon).color, cs: cs.i, dir: cs.dir || 1, fin: cs.fin ? 1 : 0 };
         spawnAtkFx(d); netSend('atk', d); mySwing(d);
+        if (window.SBSound) SBSound.sfx('swing');
         if (cs.wave || cs.quake || cs.heal || cs.keeper) mythicExtras(cs, d, ang);
         if (T.sup === 'heal' || T.sup === 'buff' || T.sup === 'all') supportPulse(T);
         // デュアルウェポン：3回に1回、もう一つの武器で追撃（攻撃力70%）
@@ -1892,6 +1930,7 @@
             if (s.cdLeft > 0 || me.cast || me.gch > 0) return;
             if (me.energy < s.cost) { flashEnergy(); return; }
             me.energy -= s.cost; s.cdLeft = s.cooldown * (1 + A('skillCdUp')); updateEnergyUI();
+            if (window.SBSound) SBSound.sfx('skill');
             const cs = CHARGE_SEC[s.params.form] || 0;
             if (cs > 0) {      // 溜め開始：エネルギーとクールタイムは先に使う。発動の向きと狙いは、溜め終わりの瞬間に決まる
                 me.cast = { slot: slot, t: cs, max: cs, form: s.params.form }; me.dashT = 0; me.ang = aimAngle();
@@ -2326,6 +2365,14 @@
         accTick(dt);
         tickCharge(dt);
         if (A('selfBleed') > 0 && !me.dead && run.phase === 'run') me.hp = Math.max(1, me.hp - me.maxHp * A('selfBleed') * dt);      // 血の契約（HP1で止まる）
+        // 毒（毒牙の敵に触れると付く）。ダメージはじわじわ減り、0になったら毒は切れる
+        if (me.poisonT > 0 && !me.dead && run.phase === 'run') {
+            me.poisonT -= dt; me.hp -= (me.poisonDps || 0) * dt;
+            if (me.poisonT <= 0 || me.hp <= 0) {
+                if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('毒で倒れた！ 仲間が近くに来れば復活できます', 2200); }
+                me.poisonT = 0; me.poisonDps = 0;
+            }
+        }
         me.atkCd -= dt; me.dashCd -= dt; me.inv -= dt; if (me.invHard > 0) me.invHard -= dt; if (me.haste > 0) me.haste -= dt; if (me.flash > 0) me.flash -= dt;
         if (me.dead) {
             // 仲間が近くにいると復活する
@@ -2362,7 +2409,7 @@
         // 接触ダメージ
         for (const e of enemies) {
             if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20 || e.noContact) continue;
-            if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber') continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0))); }
+            if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber') continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0)), e.affix === 'venom' ? { poison: true } : null); }
         }
         // 敵弾
         for (let i = eBullets.length - 1; i >= 0; i--) {
@@ -2602,6 +2649,7 @@
 
     function startBoss() {
         run.bossSpawned = true; G = {};
+        if (window.SBSound) { SBSound.sfx('boss'); SBSound.bgm('boss'); }
         enemies.forEach(e => { if (!e.boss) { e.hp = 0; fx.push({ k: 'puff', x: e.x, y: e.y, t: 0.3, life: 0.3, c: '#aaa' }); } });
         enemies = enemies.filter(e => e.hp > 0);
         const defs = stage.bosses || [stage.boss];
@@ -3952,8 +4000,8 @@
     }
     function answer(o, b) {
         if (quizLock || !curQ || run.phase === 'end') return; quizLock = true;
-        if (o === curQ.a) { streak++; b.classList.add('ok'); addEnergy((25 + (streak >= 3 ? 10 : 0)) * P.energyMul); popups.push({ x: me.x, y: me.y - 40, t: 0.8, text: '+ENERGY', c: '#7fe3ff' }); setTimeout(nextQuiz, 300); }
-        else { streak = 0; b.classList.add('ng'); Array.from(el('quizC').children).forEach(x => { if (x.dataset.v === curQ.a) x.classList.add('ok'); }); setTimeout(nextQuiz, 1300); }
+        if (o === curQ.a) { streak++; b.classList.add('ok'); if (window.SBSound) SBSound.sfx('correct'); addEnergy((25 + (streak >= 3 ? 10 : 0)) * P.energyMul); popups.push({ x: me.x, y: me.y - 40, t: 0.8, text: '+ENERGY', c: '#7fe3ff' }); setTimeout(nextQuiz, 300); }
+        else { streak = 0; b.classList.add('ng'); if (window.SBSound) SBSound.sfx('wrong'); Array.from(el('quizC').children).forEach(x => { if (x.dataset.v === curQ.a) x.classList.add('ok'); }); setTimeout(nextQuiz, 1300); }
     }
     function quizPick(i) { const b = el('quizC').children[i]; if (b) b.click(); }
     function toggleQuiz() { quizOn = !quizOn; el('quiz').style.display = quizOn ? 'block' : 'none'; }
