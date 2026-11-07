@@ -266,6 +266,14 @@ const SKILL_TREE = {
             { id: "keystone_iron_wall", name: "不動要塞", description: "防御力+30%。代償として速さ-15%。防御の極意または不落の要塞から接続できる", cost: 8, x: 5, y: -14, requiresAny: ["def_mastery", "tank_mastery"], type: "keystone", effect: { defPercent: 0.30, speedPercent: -0.15 } },
             { id: "keystone_swift_blade", name: "疾風迅雷", description: "速さ+30%。代償として攻撃力-15%。速さの極意または速さVから接続できる", cost: 8, x: -18, y: 10, requiresAny: ["speed_mastery", "speed_path_5"], type: "keystone", effect: { speedPercent: 0.30, atkPercent: -0.15 } },
             { id: "keystone_blood_pact", name: "血の契約", description: "攻撃力+20%。代償として最大HP-15%。体力の極意または吸血鬼から接続できる", cost: 8, x: 5, y: 12, requiresAny: ["hp_mastery", "vampire"], type: "keystone", effect: { atkPercent: 0.20, maxHpPercent: -0.15 } },
+            { id: "keystone_berserker_rage", name: "狂戦の咆哮", description: "攻撃力+40%。代償として防御力-30%、速さ-10%。狂戦士または攻撃の頂点から接続できる", cost: 9, x: -32, y: -14, requiresAny: ["berserker", "atyramid_top"], type: "keystone", effect: { atkPercent: 0.40, defPercent: -0.30, speedPercent: -0.10 } },
+            { id: "keystone_aegis_wall", name: "鉄壁の加護", description: "防御力+35%、最大HP+10%。代償として攻撃力-20%。城塞または防御の頂点から接続できる", cost: 9, x: 20, y: -18, requiresAny: ["fortress", "dpyramid_top"], type: "keystone", effect: { defPercent: 0.35, maxHpPercent: 0.10, atkPercent: -0.20 } },
+            { id: "keystone_shadow_step", name: "影走り", description: "速さ+40%。代償として防御力-20%、攻撃力-10%。空の歩行者または速さの頂点から接続できる", cost: 9, x: -24, y: 17, requiresAny: ["skywalker", "spyramid_top"], type: "keystone", effect: { speedPercent: 0.40, defPercent: -0.20, atkPercent: -0.10 } },
+            { id: "keystone_arcane_surge", name: "魔力の奔流", description: "特殊+40%。代償として速さ-15%、防御力-10%。大魔導師または魔術の極みから接続できる", cost: 9, x: 4, y: -21, requiresAny: ["archmage", "special_apex", "magic_apex"], type: "keystone", effect: { specialPercent: 0.40, speedPercent: -0.15, defPercent: -0.10 } },
+            { id: "keystone_undying_flesh", name: "不死身の肉体", description: "最大HP+30%。代償として攻撃力-15%、速さ-10%。不死者または再生者から接続できる", cost: 9, x: 23, y: 6, requiresAny: ["undying", "regenerator", "hppyramid_top"], type: "keystone", effect: { maxHpPercent: 0.30, atkPercent: -0.15, speedPercent: -0.10 } },
+            { id: "keystone_deadeye", name: "会心一閃", description: "クリティカル率+15%、攻撃力+10%。代償として防御力-15%。会心の極意または狂血から接続できる", cost: 9, x: -23, y: -7, requiresAny: ["crit_mastery", "crit_apex", "frenzy"], type: "keystone", effect: { critChance: 0.15, atkPercent: 0.10, defPercent: -0.15 } },
+            { id: "keystone_sanctuary", name: "聖盾の庇護", description: "防御力+25%、最大HP+20%。代償として速さ-15%、攻撃力-10%。守護者または不動の要塞から接続できる", cost: 9, x: 23, y: -9, requiresAny: ["guardian", "tank_mastery"], type: "keystone", effect: { defPercent: 0.25, maxHpPercent: 0.20, speedPercent: -0.15, atkPercent: -0.10 } },
+            { id: "keystone_gamblers_blade", name: "賭けの剣", description: "攻撃力+50%。代償として防御力-35%、最大HP-20%。攻撃の頂点または狂戦士から接続できる最重量のキーストーン", cost: 10, x: -31, y: -18, requiresAny: ["atyramid_top", "berserker"], type: "keystone", effect: { atkPercent: 0.50, defPercent: -0.35, maxHpPercent: -0.20 } },
         ]
     }
 
@@ -1612,7 +1620,7 @@ function drawConnection(svg, x1, y1, x2, y2, isUnlocked) {
     line.setAttribute('x2', x2);
     line.setAttribute('y2', y2);
     line.setAttribute('stroke', isUnlocked ? '#3498db' : '#2a2d32');
-    line.setAttribute('stroke-width', '2');
+    line.setAttribute('stroke-width', '1.2');
     svg.appendChild(line);
 }
 
@@ -1647,6 +1655,15 @@ function renderTree() {
     const totalWidth = maxX - minX + NODE_WIDTH + PADDING * 2;
     const totalHeight = maxY - minY + NODE_HEIGHT + PADDING * 2;
 
+    // 初回表示は全体が見えるフィット倍率にする（ユーザーが手動で動かした後は維持）
+    if (!content.dataset.userMoved && !content.dataset.autoFit) {
+        content.dataset.autoFit = '1';
+        const fitZoom = Math.max(0.05, Math.min(1, (content.clientWidth - 40) / totalWidth, (content.clientHeight - 40) / totalHeight));
+        skillTreeZoom = fitZoom;
+        const zoomLabel = document.getElementById('skillTreeZoomLabel');
+        if (zoomLabel) zoomLabel.textContent = `${Math.round(fitZoom * 100)}%`;
+    }
+
     const world = document.createElement('div');
     world.className = 'skill-tree-world';
     world.style.width = `${totalWidth * skillTreeZoom}px`;
@@ -1678,6 +1695,8 @@ function renderTree() {
     const refreshViewport = () => {
         refreshQueued = false;
         const zoom = Math.max(0.02, skillTreeZoom);
+        nodesLayer.classList.toggle('is-compact', zoom < 0.42);
+        svg.classList.toggle('is-compact', zoom < 0.42);
         const margin = Math.max(650, 900 / zoom);
         const left = Math.max(0, content.scrollLeft / zoom - margin);
         const top = Math.max(0, content.scrollTop / zoom - margin);
@@ -1696,7 +1715,8 @@ function renderTree() {
             visible.push({ node, x, y });
         }
 
-        for (const item of visible) {
+        // ズームが浅いときは接続線を描かない（数千本の線が潰れて見えるだけのため）
+        if (zoom >= 0.3) for (const item of visible) {
             const node = item.node;
             const requiredIds = [
                 ...(node.requires ? (Array.isArray(node.requires) ? node.requires : [node.requires]) : []),
@@ -1756,7 +1776,7 @@ function renderTree() {
     content.addEventListener('scroll', content._skillTreeScrollHandler, { passive: true });
 
     const startNode = nodeById.get('start_node');
-    if (startNode && !content.dataset.userMoved) {
+    if (startNode && !content.dataset.userMoved && !content.dataset.autoFit) {
         const startPos = positions.get(startNode.id);
         requestAnimationFrame(() => {
             content.scrollLeft = (startPos.x + offsetX) * skillTreeZoom - content.clientWidth / 2 + NODE_WIDTH * skillTreeZoom / 2;
