@@ -4,6 +4,7 @@
 // ============================================
 
 const GuildManager = require("../managers/GuildManager");
+const PlayerDataManager = require("../managers/PlayerDataManager");
 
 module.exports = function(io){
 
@@ -64,12 +65,14 @@ module.exports = function(io){
         // ギルド情報取得
         socket.on("guild:getInfo", (guildId) => {
             const guild = GuildManager.getGuild(guildId);
+            if (guild) guild.power = GuildManager.guildPower(guild);
             socket.emit("guild:info", guild);
         });
 
         // プレイヤーのギルド取得
         socket.on("guild:getPlayerGuild", (playerId) => {
             const guild = GuildManager.getPlayerGuild(playerId);
+            if (guild) guild.power = GuildManager.guildPower(guild);
             socket.emit("guild:playerGuild", guild);
         });
 
@@ -89,7 +92,9 @@ module.exports = function(io){
                 id: g.id,
                 name: g.name,
                 description: g.description || '',
-                memberCount: (g.members || []).length
+                memberCount: (g.members || []).length,
+                power: GuildManager.guildPower(g),
+                coins: g.coins || 0
             }));
             socket.emit("guild:list", guilds);
         });
@@ -158,6 +163,57 @@ module.exports = function(io){
             
             const quests = GuildManager.generateSystemQuests();
             socket.emit("quest:systemRegenerated", quests);
+        });
+
+        // -----------------------------
+        // ギルドコイン（金庫）と施設強化
+        // -----------------------------
+
+        // プレイヤーのコインをギルド金庫に納める
+        // サーバー側のプレイヤーデータで所持コインを確認・減算してから、
+        // ギルド金庫へ加算する（クライアント申告のコイン数は信用しない）
+        socket.on("guild:deposit", (data, cb) => {
+            const { guildId, playerId, amount } = data || {};
+            const reply = typeof cb === "function" ? cb : (r) => socket.emit("guild:depositResponse", r);
+            if (!guildId || !playerId || !amount) { reply({ success: false, message: "不正なリクエストです" }); return; }
+
+            const guild = GuildManager.getGuild(guildId);
+            if (!guild) { reply({ success: false, message: "ギルドが見つかりません" }); return; }
+            if (!GuildManager.isGuildMember(guild, playerId)) { reply({ success: false, message: "ギルドメンバーではありません" }); return; }
+
+            const amt = Math.floor(Number(amount));
+            if (!isFinite(amt) || amt <= 0) { reply({ success: false, message: "コイン数が不正です" }); return; }
+
+            const player = PlayerDataManager.getPlayer(playerId);
+            const coins = player ? Math.floor(Number(player.coins) || 0) : 0;
+            if (!player) { reply({ success: false, message: "プレイヤーデータが見つかりません" }); return; }
+            if (coins < amt) { reply({ success: false, message: "コインが足りません", coins: coins }); return; }
+
+            player.coins = coins - amt;
+            PlayerDataManager.savePlayer(player);
+
+            const result = GuildManager.depositCoins(guildId, playerId, amt);
+            if (result.success) {
+                result.coins = player.coins;   // クライアント側の所持コイン更新用
+            }
+            reply(result);
+        });
+
+        // 施設の強化（リーダーのみ。ギルドコインを消費）
+        socket.on("guild:upgradeBuilding", (data, cb) => {
+            const { guildId, playerId, buildingId } = data || {};
+            const reply = typeof cb === "function" ? cb : (r) => socket.emit("guild:upgradeBuildingResponse", r);
+            if (!guildId || !playerId || !buildingId) { reply({ success: false, message: "不正なリクエストです" }); return; }
+            const result = GuildManager.upgradeBuilding(guildId, playerId, buildingId);
+            if (result.success) result.power = GuildManager.guildPower(result.guild);
+            reply(result);
+        });
+
+        // ギルド総合力の取得（一覧・詳細で使う）
+        socket.on("guild:power", (guildId, cb) => {
+            const reply = typeof cb === "function" ? cb : () => {};
+            const g = guildId ? GuildManager.getGuild(guildId) : null;
+            reply({ success: !!g, power: g ? GuildManager.guildPower(g) : 0 });
         });
     });
 };

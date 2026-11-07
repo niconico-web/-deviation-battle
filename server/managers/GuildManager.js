@@ -32,9 +32,32 @@ const QUEST_CATEGORIES = {
     SPECIAL: { name: '調査特殊', icon: '🔍' }
 };
 
+// ギルド施設（建物）定義：ギルドコインで強化する
+// cost = baseCost * costMult^現在レベル。maxLevel まで。
+// 効果の一部は addContribution / guildPower に実装済み、残りは城PvP実装時に使う予定の数値。
+const BUILDINGS = {
+    castle:   { name: '城',     icon: '🏰', maxLevel: 10, baseCost: 500,  costMult: 1.7, desc: 'ギルドの象徴。総合力に大きく貢献（城PvPの防衛力にもなる予定）' },
+    wall:     { name: '城壁',   icon: '🧱', maxLevel: 10, baseCost: 300,  costMult: 1.6, desc: '防衛施設。総合力に貢献（城PvPの耐久力にもなる予定）' },
+    barracks: { name: '兵舎',   icon: '⚔️', maxLevel: 10, baseCost: 400,  costMult: 1.7, desc: 'Lvごとにギルド貢献度の獲得量+5%（実装済み）' },
+    market:   { name: '市場',   icon: '🏪', maxLevel: 10, baseCost: 350,  costMult: 1.6, desc: '交易施設。総合力に貢献（将来：コイン収入ボーナス予定）' }
+};
+const BUILDING_POWER = { castle: 10, wall: 8, barracks: 6, market: 5 };   // レベル1あたりの総合力
+const CONTRIBUTION_BONUS_PER_LEVEL = 0.05;                              // 兵舎Lvごとの貢献度ボーナス
+
 // データディレクトリが存在しない場合は作成
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+// ギルドデータ読み込み時に、コイン・施設を持たない古いデータを初期化する
+function normalizeGuild(g) {
+    if (g.coins == null) g.coins = 0;
+    if (!g.buildings || typeof g.buildings !== 'object') g.buildings = {};
+    Object.keys(BUILDINGS).forEach(id => {
+        if (g.buildings[id] == null || typeof g.buildings[id] !== 'object') g.buildings[id] = { level: 0 };
+        g.buildings[id].level = Math.max(0, Math.min(BUILDINGS[id].maxLevel, g.buildings[id].level | 0));
+    });
+    return g;
 }
 
 // ギルドデータを読み込む
@@ -43,6 +66,7 @@ function loadGuildData() {
         if (fs.existsSync(GUILD_DATA_FILE)) {
             const fileContent = fs.readFileSync(GUILD_DATA_FILE, 'utf-8');
             guildData = JSON.parse(fileContent);
+            Object.values(guildData).forEach(normalizeGuild);
             console.log('[GuildManager] Guild data loaded from file.');
         } else {
             console.log('[GuildManager] No guild data file found, starting with empty data.');
@@ -103,8 +127,8 @@ function createGuild(newGuildInput) {
     }
     
     const guildId = 'GUILD_' + Date.now().toString(36).toUpperCase();
-    
-    const newGuild = {
+
+    const newGuild = normalizeGuild({
         id: guildId,
         name: name,
         leaderId: leaderId,
@@ -120,7 +144,7 @@ function createGuild(newGuildInput) {
         }],
         createdAt: Date.now(),
         description: newGuildInput.description || ''
-    };
+    });
     
     // 以前は引数のシャドーイングにより、ここで module 直下の guildData ではなく
     // 引数オブジェクトに書き込んでしまっていたため、作成したギルドが
@@ -190,14 +214,15 @@ function leaveGuild(guildId, playerId) {
 
 // ギルド情報を取得
 function getGuild(guildId) {
-    return guildData[guildId] || null;
+    const g = guildData[guildId];
+    return g ? normalizeGuild(g) : null;
 }
 
 // プレイヤーのギルドを取得
 function getPlayerGuild(playerId) {
     for (const guild of Object.values(guildData)) {
         if (guild.members.some(m => m.id === playerId)) {
-            return guild;
+            return normalizeGuild(guild);
         }
     }
     return null;
@@ -205,7 +230,7 @@ function getPlayerGuild(playerId) {
 
 // 全ギルドを取得
 function getAllGuilds() {
-    return Object.values(guildData);
+    return Object.values(guildData).map(normalizeGuild);
 }
 
 // ギルドランクを計算
@@ -225,13 +250,20 @@ function calculateGuildRank(guild) {
     return 'F';
 }
 
+// 兵舎レベルによる貢献度ボーナスを掛けた実際の加算量を返す
+function contributionWithBonus(guild, amount) {
+    const lv = (guild.buildings && guild.buildings.barracks && guild.buildings.barracks.level) || 0;
+    return Math.round(amount * (1 + CONTRIBUTION_BONUS_PER_LEVEL * lv));
+}
+
 // ギルド貢献度を追加
 function addContribution(guildId, playerId, amount) {
     const guild = guildData[guildId];
     if (!guild) {
         return { success: false, message: 'ギルドが見つかりません' };
     }
-    
+    amount = contributionWithBonus(normalizeGuild(guild), amount);
+
     guild.contribution += amount;
     
     const member = guild.members.find(m => m.id === playerId);
@@ -593,6 +625,68 @@ function generateSystemQuests() {
     return createdQuests;
 }
 
+// ---------- ギルドコイン（金庫）と施設強化 ----------
+
+function isGuildMember(guild, playerId) {
+    return !!(guild && guild.members && guild.members.some(m => m.id === playerId));
+}
+
+// プレイヤーのコインをギルド金庫に納める。
+// プレイヤー側のコイン減算は socket 側で PlayerDataManager を使って行い、
+// ここでは「ギルドへの加算」だけを担当する（coins は正の整数のみ）。
+function depositCoins(guildId, playerId, amount) {
+    const guild = guildData[guildId];
+    if (!guild) return { success: false, message: 'ギルドが見つかりません' };
+    if (!isGuildMember(guild, playerId)) return { success: false, message: 'ギルドメンバーではありません' };
+    amount = Math.floor(Number(amount));
+    if (!isFinite(amount) || amount <= 0) return { success: false, message: 'コイン数が不正です' };
+    if (amount > 100000000) return { success: false, message: '一度に納められるのは1億コインまでです' };
+    normalizeGuild(guild);
+    guild.coins += amount;
+    saveGuildData();
+    return { success: true, guild: normalizeGuild(guild) };
+}
+
+// 施設の強化コスト（現在レベルから次のレベルへの費用）
+function buildingCost(guild, buildingId) {
+    const def = BUILDINGS[buildingId];
+    if (!def) return null;
+    const lv = (guild.buildings && guild.buildings[buildingId] && guild.buildings[buildingId].level) || 0;
+    if (lv >= def.maxLevel) return null;
+    return Math.round(def.baseCost * Math.pow(def.costMult, lv));
+}
+
+// 施設を強化（リーダーのみ。ギルドコインを消費）
+function upgradeBuilding(guildId, playerId, buildingId) {
+    const guild = guildData[guildId];
+    if (!guild) return { success: false, message: 'ギルドが見つかりません' };
+    const def = BUILDINGS[buildingId];
+    if (!def) return { success: false, message: '不明な施設です' };
+    const member = guild.members.find(m => m.id === playerId);
+    if (!member) return { success: false, message: 'ギルドメンバーではありません' };
+    if (member.role !== 'leader') return { success: false, message: '施設の強化はギルドリーダーのみ行えます' };
+    normalizeGuild(guild);
+    const cost = buildingCost(guild, buildingId);
+    if (cost == null) return { success: false, message: 'この施設は最大レベルです' };
+    if (guild.coins < cost) return { success: false, message: 'ギルドコインが足りません（必要: ' + cost.toLocaleString('ja-JP') + '）' };
+    guild.coins -= cost;
+    guild.buildings[buildingId].level += 1;
+    saveGuildData();
+    return { success: true, guild: normalizeGuild(guild), building: buildingId, level: guild.buildings[buildingId].level, cost: cost };
+}
+
+// ギルド総合力（ランク表示・将来の城PvPの戦力計算に使う）
+function guildPower(guild) {
+    if (!guild) return 0;
+    normalizeGuild(guild);
+    let power = (guild.members || []).length * 10 + Math.floor((guild.contribution || 0) / 100);
+    Object.keys(BUILDINGS).forEach(id => {
+        const lv = (guild.buildings[id] && guild.buildings[id].level) || 0;
+        power += lv * (BUILDING_POWER[id] || 5);
+    });
+    return power;
+}
+
 // 起動時ロード
 loadGuildData();
 loadQuestData();
@@ -612,7 +706,15 @@ module.exports = {
     getPlayerGuild,
     getAllGuilds,
     addContribution,
-    
+
+    // コイン・施設
+    depositCoins,
+    buildingCost,
+    upgradeBuilding,
+    guildPower,
+    BUILDINGS,
+    isGuildMember,
+
     // クエスト管理
     createQuest,
     acceptQuest,

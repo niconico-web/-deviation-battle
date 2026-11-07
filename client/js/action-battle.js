@@ -191,6 +191,7 @@ function action () {
             if (target.team === 'enemy') totalDamage += dmg;
             popup(target.x, target.y - target.r - 6, String(dmg), target.team === 'enemy' ? (opts.crit ? '#ffd54a' : '#fff') : '#ff6b6b', opts.crit);
             burst(target.x, target.y, target.team === 'enemy' ? '#ffe08a' : '#ff8a8a', 6);
+            if (window.SBSound) SBSound.sfx(target.team === 'enemy' ? (opts.crit ? 'crit' : 'hit') : 'hurt');
             if (target.team === 'player') { shake = 0.25; target.inv = 0.3; }
             else shake = Math.max(shake, 0.08);
         }
@@ -260,6 +261,7 @@ function action () {
         player.atkCd = a.cd;
         const ang = aimAngle;
         player.facing = ang;
+        if (window.SBSound) SBSound.sfx('swing');
         let mult = 1;
 
         if (a.kind === 'cone') {
@@ -1004,6 +1006,7 @@ function action () {
         const buttons = Array.from(quizEls.choices.querySelectorAll('button'));
         if (opt === currentQuiz.answer) {
             correctCount++; streak++;
+            if (window.SBSound) SBSound.sfx('correct');
             btn.classList.add('correct');
             let gain = ENERGY_PER_CORRECT + (streak >= 3 ? ENERGY_STREAK_BONUS : 0);
             const before = player.energy;
@@ -1013,6 +1016,7 @@ function action () {
             setTimeout(nextQuiz, 350);
         } else {
             streak = 0;
+            if (window.SBSound) SBSound.sfx('wrong');
             btn.classList.add('wrong');
             buttons.forEach(b => { if (b.dataset.value === currentQuiz.answer) b.classList.add('correct'); });
             setTimeout(nextQuiz, WRONG_LOCK_MS);

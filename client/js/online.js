@@ -957,6 +957,64 @@ function setupOnlineEventHandlers() {
         };
     }
 
+    // 「分身と対戦」：他プレイヤーの戦闘スナップショットを敵にして戦う。
+    // 人口が少なくても常に実力の近い（かもしれない）相手と戦える仕組み。
+    const snapshotMatchBtn = document.getElementById("snapshotMatch");
+    if (snapshotMatchBtn) {
+        snapshotMatchBtn.onclick = function() {
+            const player = migratePlayer(JSON.parse(localStorage.getItem("player")));
+            if (!player) {
+                alert("まずはキャラクターを作成してください。");
+                return;
+            }
+            if (!window.socket || !window.socket.connected) {
+                alert("サーバーに接続されていません。少し待ってからもう一度お試しください。");
+                return;
+            }
+
+            const battlePlayer = getBattleReadyPlayer(player);
+            const playerGrade = player.grade || 1;
+
+            // まず自分のスナップショットを預けてから、ランダムな他プレイヤーの分身をもらう
+            window.socket.emit("pvp:updateSnapshot", { playerId: player.id, snapshot: battlePlayer });
+            window.socket.emit("pvp:getRival", { playerId: player.id }, (res) => {
+                if (!res || !res.success) {
+                    alert(res && res.reason === "no_rivals"
+                        ? "まだ対戦できる分身がいません。ボット戦を利用してください。"
+                        : "分身の取得に失敗しました。もう一度お試しください。");
+                    return;
+                }
+                const snap = res.rival.snapshot || {};
+                const enemy = {
+                    id: "rival_" + res.rival.id,
+                    name: (res.rival.name || "名もなき戦士") + " の分身",
+                    maxHp: Math.max(1, Math.round(snap.maxHp || 1)),
+                    hp: Math.max(1, Math.round(snap.maxHp || 1)),
+                    atk: Math.max(1, Math.round(snap.atk || 1)),
+                    def: Math.max(0, Math.round(snap.def || 0)),
+                    speed: Math.max(1, Math.round(snap.speed || 1)),
+                    special: Math.max(0, Math.round(snap.special || 0)),
+                    grade: snap.grade || res.rival.level || playerGrade,
+                    attackType: snap.attackType || 'attack',
+                    skills: snap.skills || null,
+                    uniqueAbilities: snap.uniqueAbilities || null,
+                    avatar: snap.avatar || null,
+                    isBot: true,
+                    isSnapshot: true
+                };
+
+                localStorage.setItem("roomId", "snapshot_battle_" + Date.now());
+                localStorage.setItem("battlePlayer", JSON.stringify(battlePlayer));
+                localStorage.setItem("enemy", JSON.stringify(enemy));
+                localStorage.setItem("isBotBattle", "true");
+
+                setTimeout(() => {
+                    location.href = "battle.html";
+                }, 50);
+            });
+        };
+    }
+
     // 「実戦形式」の練習バトル：常にスライムを相手に、実際のバトル画面で
     // 操作方法を教えながら戦う（battle.html側のPracticeCoachが吹き出しを表示する）。
     const practiceBotMatchBtn = document.getElementById("practiceBotMatch");
