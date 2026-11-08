@@ -406,6 +406,8 @@ function applyBattleRewards(won, turns, damage, options = {}) {
         dungeonClears: player.dungeonClears || {},
         materials: player.materials || {},
         dungeonItems: latestDungeonItems || [],
+        classes: (latestSnapshot ? latestSnapshot.classes : player.classes) || { main: null, sub: null },
+        classTree: (latestSnapshot ? latestSnapshot.classTree : player.classTree) || {},
         dungeonCheckpoint: latestDungeonCheckpoint || 0,
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,
@@ -549,6 +551,8 @@ function buildPlayer(name, stats, xp, options = {}) {
         // ダンジョン報酬チケット（オーブスロット拡張・ステータス再分配・武器合成等）が
         // 静かに失われていた。dailyMissionsと同様にここで明示的に引き継ぐ。
         dungeonItems: options.dungeonItems || [],
+        classes: options.classes || { main: null, sub: null },      // 職業（メイン・サブ）。classes.js
+        classTree: options.classTree || {},                          // 職業ごとの専用ツリーの解放状況
         // ダンジョンのチェックポイント（到達済みの最深部）も、上と同じ理由で
         // ここに無いと勉強終了・バトル終了のたびに0にリセットされてしまっていた。
         dungeonCheckpoint: options.dungeonCheckpoint || 0,

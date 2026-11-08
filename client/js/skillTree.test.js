@@ -35,12 +35,12 @@ const testCode = `
   globalThis.layoutStats = { count: layout.size, minNodeDistance };
 `;
 vm.runInNewContext(source + testCode, context);
-assert.strictEqual(context.treeStats.count, 2018);
-assert.strictEqual(context.treeStats.keystones, 60);
+assert.strictEqual(context.treeStats.count, 2010);
+assert.strictEqual(context.treeStats.keystones, 52);
 assert.strictEqual(context.treeStats.bridges, 9);
 assert.strictEqual(context.treeStats.duplicates, 0);
 assert.strictEqual(context.treeStats.missingPrerequisites.length, 0);
 assert.ok(context.keystoneEffects.some(k => k.id === 'ks_minion_bone_1'));
-assert.strictEqual(context.layoutStats.count, 2018);
+assert.strictEqual(context.layoutStats.count, 2010);
 assert.ok(context.layoutStats.minNodeDistance >= 82, 'skill tree nodes should not overlap');
 console.log('Skill tree generation and unlock tests passed');

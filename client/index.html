@@ -63,6 +63,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 <button class="menu-btn" data-section="town"><span class="menu-icon">🗺️</span><span class="menu-label">マップ</span></button>
                 <button class="menu-btn active" data-section="stats"><span class="menu-icon">📝</span><span class="menu-label">ステータス</span></button>
                 <button class="menu-btn" data-section="shop"><span class="menu-icon">🎒</span><span class="menu-label">インベントリ</span></button>
+                <button class="menu-btn" data-section="classes"><span class="menu-icon">🎭</span><span class="menu-label">職業</span></button>
                 <button class="menu-btn" data-section="study"><span class="menu-icon">📖</span><span class="menu-label">勉強</span></button>
                 <button class="menu-btn" data-section="online"><span class="menu-icon">🌐</span><span class="menu-label">オンライン</span></button>
                 <button class="menu-btn" data-section="market"><span class="menu-icon">🏪</span><span class="menu-label">市場</span></button>
@@ -453,6 +454,11 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 </div>
             </section>
 
+            <section id="section-classes" class="content-section">
+                <h2>🎭 職業</h2>
+                <div id="classesRoot"></div>
+            </section>
+
             <section id="section-skills" class="content-section">
                 <h2>スキル <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="スキルの遊び方">?</button></h2>
                 <p><a href="action-skills.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;">🔮 アクションバトル用スキル工房を開く（形・効果・グリフを組み合わせて作成）</a></p>
@@ -821,6 +827,8 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
         });
     </script>
     <script src="js/hw-weapons.js" defer></script>
+    <script src="js/classes.js" defer></script>
+    <script src="js/classes-ui.js" defer></script>
     <script src="js/pvp-event.js" defer></script>
     <script src="js/debug.js" defer></script>
 

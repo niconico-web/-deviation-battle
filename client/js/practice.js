@@ -27,6 +27,7 @@
     const weapon = HW.getEquipped(hack);
     const agg = HW.aggregate(weapon);
     try { if (window.SBArmor) SBArmor.merge(agg, hack); } catch (e) { /* 防具が読めなくても戦える */ }
+    try { if (window.ClassSys) ClassSys.mergeInto(agg); } catch (e) { /* 職業の強化が読めなくても戦える */ }
     const A = k => agg.stats[k] || 0;
     const AB = k => !!(agg.flags && agg.flags[k]);     // Tier4オーブの固有能力のうち、特別な処理が要るもの（hw-weapons.js の ORB_ABILITY_MAP）
     const T = HW.TYPES[weapon.type] || HW.TYPES.sword;
@@ -1028,6 +1029,7 @@
         if (e.dead) return;
         e.dead = true; e.hp = 0;
         run.kills++;
+        if (window.ClassFx) ClassFx.onKill(e);                                  // 職業：魂喰らい・調合・聖なる加護
         // 魔改造の死に際効果（ホスト側で実行。telegraphは状態同期されるので観戦側にも見える）
         // 無限回廊のexplosiveは下のCORR_ON側で別途処理済みなので、ここでは通常ステージのみ
         if (!CORR_ON && e.affix === 'explosive') telegraph(e.x, e.y, 150, 0.9, e.dmg * 1.6, '#ff7a3a');
@@ -1299,12 +1301,14 @@
         const red = Math.min(0.55, defNow / (defNow + 250));
         let dmg = raw * REF_HP * (1 - red) * (1 - Math.min(0.75, Math.max(-0.5, A('dr') + (me.hp / me.maxHp <= 0.3 ? A('lowHpDr') : 0)))) * (1 + A('dmgTaken'));
         if (AB('re_miserable')) dmg *= 0.8;                                    // リ・ミゼラブル：敵の攻撃0.8倍
+        if (window.ClassFx) dmg *= ClassFx.incomingMul();                       // 職業：不動の城
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
         if (opt && opt.poison) { me.poisonT = 4; me.poisonDps = Math.max(me.poisonDps || 0, dmg * 0.35); popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '毒！', c: '#8fd45a' }); }
         if (window.SBSound) SBSound.sfx('hurt');
         accEvent('hurt');
+        if (window.ClassFx) ClassFx.onHurt(dmg);                                // 職業：怒りゲージ・剣気
         popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + dmg, c: '#ff7b7b', big: true });
         // 被弾時効果
         if (A('thorns') > 0) { const n = nearestEnemy(me.x, me.y, 140); if (n) dealHit(n, weapon.dmg * P.atkMul * A('thorns'), {}); }
@@ -1888,6 +1892,7 @@
         if (eff.indexOf('explosion') >= 0) dmg += Math.max(2, dmg * 0.4);
         dmg = Math.round(dmg);
         const st = {};
+        if (window.ClassFx) dmg = ClassFx.onHit(e, dmg, eff, st);      // 職業：奇襲・聖なる加護・専用グリフ
         const has = k => eff.indexOf(k) >= 0;
         if (has('burn')) st.burn = Math.max(1, dmg * 0.6 / 3);
         if (has('soulburn')) st.burn = Math.max(st.burn || 0, Math.max(2, dmg * 1.1 / 3));
@@ -1923,6 +1928,42 @@
         else if (key === 'barrier') { me.barrierHp = (me.barrierHp || 0) + Math.max(10, Math.round(me.maxHp * 0.25)); tag('バリア', '#7fc8ff'); }
     }
 
+    // ---------- 職業システムとの橋渡し ----------
+    let classReady = false;
+    function classInit() {
+        if (classReady || run.phase !== 'run') return;
+        classReady = true;
+        if (!window.ClassSys) return;
+        const stat = (e, key, sec) => { if (e && e.st) e.st[key] = Math.max(e.st[key] || 0, sec); };
+        const bridge = {
+            me: () => me, enemies: () => enemies, eBullets: () => eBullets, rocks: () => rocks,
+            world: () => ({ w: WORLD_W, h: WORLD_H }), isRun: () => run.phase === 'run',
+            slots: () => skillSlots, distSeg: distSeg,
+            nearestEnemy: (x, y, maxD) => nearestEnemy(x, y, maxD),
+            skillHit: (e, b, hasDmg, eff, ang) => skillHit(e, b, hasDmg, eff, ang),
+            dealHit: (e, dmg, o) => dealHit(e, dmg, o || {}),
+            unitDmg: () => weapon.dmg * P.atkMul * atkDyn() * (1 + P.special / 300),
+            heal: v => healMe(v),
+            barrier: v => { v = Math.round(v); if (v > 0) { me.barrierHp = Math.min(Math.round(me.maxHp * 0.4), (me.barrierHp || 0) + v); } },
+            popup: (text, x, y, c) => popups.push({ x: x, y: y, t: 0.9, text: text, c: c || '#ffffff' }),
+            ring: (x, y, r, c) => { const d = { f: 'nova', x: x, y: y, r: r }; skillFx(d); },
+            line: (x1, y1, x2, y2) => { const a = Math.atan2(y2 - y1, x2 - x1), d = { f: 'laser', x: x1, y: y1, a: a, len: Math.hypot(x2 - x1, y2 - y1), w: 8 }; skillFx(d); },
+            fxLine: (x1, y1, x2, y2, c, w) => { const a = Math.atan2(y2 - y1, x2 - x1), d = { f: 'laser', x: x1, y: y1, a: a, len: Math.hypot(x2 - x1, y2 - y1), w: w || 30 }; skillFx(d); },
+            fxArc: (x, y, a, r, arc) => { const d = { f: 'slash', x: x, y: y, a: a, r: r, arc: arc }; skillFx(d); },
+            setStun: (e, sec) => { if (!e || sec <= 0) return; if (e.boss) stat(e, 'slowT', sec); else stat(e, 'stunT', sec); },
+            setSt: (e, o) => { if (!e) return; if (o.slow) stat(e, 'slowT', 2.5); if (o.weaken) stat(e, 'weakenT', 3); if (o.blind) stat(e, 'blindT', 2.5); if (o.curse) stat(e, 'curseT', 6); },
+            moveMe: (dx, dy) => { moveSolid(me, dx, dy, me.r); },
+            teleportMe: (x, y) => {
+                const tx = clamp(x, 20, WORLD_W - 20), ty = clamp(y, 20, WORLD_H - 20);
+                for (const k of rocks) if (dist(tx, ty, k.x, k.y) < k.r + me.r) return;
+                if (CORR_ON && corrSolid(tx, ty)) return;
+                me.x = tx; me.y = ty;
+            }
+        };
+        if (window.ClassFx) ClassFx.setup(bridge);
+        if (window.ClassForms) ClassForms.setBridge(bridge);
+    }
+
     function castSkill(slot, charged) {      // charged=true は、溜めが終わって実際に発動するとき
         const s = skillSlots[slot];
         if (!s || me.dead || me.stunT > 0 || me.ultT > 0 || run.phase !== 'run') return;
@@ -1946,8 +1987,12 @@
         const eff = p.effects.filter(k => k !== 'damage' && SELF_FX.indexOf(k) < 0);
         if (p.element) eff.push('el:' + p.element);       // スキルの属性（skillHit が読む）
         const hasDmg = p.effects.indexOf('damage') >= 0;
-        const base = weapon.dmg * P.atkMul * atkDyn() * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
+        const base0 = weapon.dmg * P.atkMul * atkDyn() * p.baseMult * p.dmgMult * (1 + P.special / 300) * (me.empowerT > 0 ? 1.35 : 1) * (1 + A('skillPct')) * (AB('guts') && me.hp <= 1.5 ? 3 : 1);
         const later = (sec, fn) => setTimeout(() => { if (run.phase === 'run' && !me.dead && !(me.stunT > 0)) fn(); }, sec * 1000);
+        // 職業：固有効果による威力の倍率（怒りゲージ・剣気・賭け…）。専用の形は、ここから class-forms.js が動かす
+        classInit();
+        const base = base0 * (window.ClassFx ? ClassFx.castMul(p, s, slot) : 1);
+        if (p.classForm && window.ClassForms && ClassForms.cast(p.classForm, { base: base, hasDmg: hasDmg, eff: eff, ang: ang, p: p, skill: s.skill })) return;
 
         if (p.pieces) { castPieces(p, base, hasDmg, eff, ang, later, s.skill.id); return; }   // 自由配置のスキル、突き、一閃
 
@@ -3438,6 +3483,8 @@
         drawPlayer(me, true);
         // 演出
         fx.forEach(f => drawFx(f));
+        if (window.ClassForms) ClassForms.draw(ctx);       // 職業の専用の形（世界座標）
+        if (window.ClassFx) ClassFx.draw(ctx);             // 職業の固有効果のゲージなど
         popups.forEach(p => { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = (p.big ? 'bold 18px' : 'bold 14px') + ' sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.globalAlpha = 1; });
         ctx.restore();
         if (CORR_ON && CF.on && CF.theme && CF.theme.id === 'dark' && !me.dead && !(window.SBAcc && SBAcc.hasSpecial(hack, 'antidark'))) {      // 暗闇の階：自分の周りだけが見える
@@ -4023,7 +4070,7 @@
             run.time += dt;
             skillSlots.forEach(sk => { if (sk && sk.cdLeft > 0) sk.cdLeft = Math.max(0, sk.cdLeft - dt); });
             if ((skillT -= dt) <= 0) { skillT = 0.1; updateSkillBar(); }
-            updateMe(dt); updateShots(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
+            updateMe(dt); updateShots(dt); classInit(); if (window.ClassFx) ClassFx.update(dt); if (window.ClassForms) ClassForms.update(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
             if (DBG) { if (DBG.god) { me.invHard = 99; if (me.dead) { me.dead = false; me.hp = me.maxHp; } } if (DBG.energy !== false) me.energy = ENERGY_MAX; }   // デバッグ：無敵・エネルギー無限
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
             else if (isHost) { updateHost(dt); } else lerpRemote(dt);
