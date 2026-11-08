@@ -687,7 +687,18 @@
         try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {}
         return true;
     }
-    function getEquipped(d) { d = d || load(); return d.weapons.find(w => w.id === d.equipped) || d.weapons[0] || null; }
+    function getEquipped(d) {
+        d = d || load();
+        const w = d.weapons.find(x => x.id === d.equipped) || d.weapons[0] || null;
+        // 職業で使えない種類の武器は、使える武器のうちレベルが一番高いものに自動で切り替える（使える武器が1つも無いときは、そのまま使える）
+        try {
+            if (w && window.ClassSys && !window.ClassSys.canUseWeaponType(w.type)) {
+                const alt = d.weapons.filter(x => window.ClassSys.canUseWeaponType(x.type)).sort((a, b) => (b.ilvl || 0) - (a.ilvl || 0))[0];
+                if (alt) return alt;
+            }
+        } catch (e) { /* 職業の判定に失敗しても、そのまま使う */ }
+        return w;
+    }
 
     // 倉庫の上限（超えたら自動で一番弱いものを売却するのではなく、警告のみ）
     const STORAGE_LIMIT = 120;

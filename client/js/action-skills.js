@@ -70,7 +70,9 @@
     const MAX_PIECES = 8;
     // 形の解放：討伐が必要な形は、そのステージをクリアしていれば使える（HW の cleared を参照）
     function isFormUnlocked(key) {
-        const f = FORMS[key]; if (!f) return false; if (!f.unlock) return true;
+        const f = FORMS[key]; if (!f) return false;
+        if (f.cls) return !!(global.ClassSys && global.ClassSys.isFormUnlocked(key));      // 職業専用の形：その職業のツリーで解放したものだけ
+        if (!f.unlock) return true;
         try { const h = JSON.parse(localStorage.getItem("sbHack") || "{}"); return !!(h.cleared && h.cleared[f.unlock.stageId]); } catch (e) { return false; }
     }
     const LAYOUT_RANGE = { fw: [-150, 450], sd: [-300, 300], a: [-180, 180], s: [0.5, 2.5] };
@@ -141,15 +143,14 @@
     const DEFAULT_UNLOCKED_GLYPHS = ["damage", "burn", "freeze", "knockback", "drain", "stun"];
     const KEY_GLYPHS = "sb_unlocked_glyphs";
 
+    function classGlyphKeys() { try { return global.ClassSys ? global.ClassSys.unlockedGlyphKeys() : []; } catch (e) { return []; } }
     function loadUnlockedGlyphs() {
+        let base = DEFAULT_UNLOCKED_GLYPHS.slice();
         try {
             const raw = JSON.parse(localStorage.getItem(KEY_GLYPHS) || "null");
-            if (Array.isArray(raw) && raw.length) {
-                const set = new Set(raw.concat(DEFAULT_UNLOCKED_GLYPHS));
-                return Array.from(set);
-            }
+            if (Array.isArray(raw) && raw.length) base = Array.from(new Set(raw.concat(DEFAULT_UNLOCKED_GLYPHS)));
         } catch (e) { /* 壊れていたら初期化 */ }
-        return DEFAULT_UNLOCKED_GLYPHS.slice();
+        return base.concat(classGlyphKeys().filter(k => base.indexOf(k) < 0));       // 職業専用のグリフ（ツリーで解放したもの）
     }
     function saveUnlockedGlyphs(list) { localStorage.setItem(KEY_GLYPHS, JSON.stringify(list)); }
     function isGlyphUnlocked(key) { return loadUnlockedGlyphs().indexOf(key) !== -1; }
@@ -175,20 +176,24 @@
     function normalize(skill, restrictToUnlocked) {
         const s = Object.assign({ id: "", name: "スキル", form: "projectile", effects: ["damage"], augments: [] }, skill || {});
         if (!FORMS[s.form]) s.form = "projectile";
+        if (FORMS[s.form].cls && !isFormUnlocked(s.form)) s.form = "projectile";      // 職業を変えて、使えなくなった専用の形は、投射に戻す
+        const isClassForm = !!FORMS[s.form].cls;
         const unlocked = restrictToUnlocked ? loadUnlockedGlyphs() : null;
-        s.effects = (s.effects || []).filter((e, i, a) => EFFECTS[e] && a.indexOf(e) === i && (!unlocked || unlocked.indexOf(e) !== -1)).slice(0, maxEffects());
+        const classOk = (e) => !EFFECTS[e].cls || classGlyphKeys().indexOf(e) !== -1;   // 職業専用のグリフは、ツリーで解放して、その職業を選んでいる間だけ
+        s.effects = (s.effects || []).filter((e, i, a) => EFFECTS[e] && a.indexOf(e) === i && classOk(e) && (!unlocked || unlocked.indexOf(e) !== -1)).slice(0, maxEffects());
         if (!s.effects.length) s.effects = ["damage"];
         const aug = [];
         (s.augments || []).forEach(a => {
             const def = AUGMENTS[a];
             if (!def) return;
             if (def.forms.length && def.forms.indexOf(s.form) === -1) return;
+            if (isClassForm && a !== "amplify" && a !== "swift") return;                  // 職業専用の形に効くのは、増幅と迅速だけ
             if (aug.filter(x => x === a).length >= def.stack) return;
             if (aug.length >= MAX_AUGMENTS) return;
             aug.push(a);
         });
         s.augments = aug;
-        const lay = normLayout(s.layout, s.form);
+        const lay = isClassForm ? null : normLayout(s.layout, s.form);
         // 属性（elements.js の ID。無い・不正なら無属性）
         if (s.element && !(window.SBElem && SBElem.ELEMS[s.element])) delete s.element;
         if (!s.element) delete s.element;
@@ -212,6 +217,15 @@
         const dmgMult = (1 + 0.25 * amplify);
         const cooldown = Math.max(0.6, (FORMS[s.form].cd + cost * 0.02) * (1 - 0.15 * swift));
         const count = s.layout ? s.layout.length : 1 + multi;
+
+        // 職業専用の形（完全に新しい動き。class-forms.js が実装）：既存の形の数値ではなく、形ごとの定義で決まる
+        if (FORMS[s.form] && FORMS[s.form].cls) {
+            const F = FORMS[s.form];
+            const dmgMultC = (1 + 0.25 * amplify);
+            const cooldownC = Math.max(0.6, (F.cd + cost * 0.02) * (1 - 0.15 * swift));
+            const pc = { form: s.form, classForm: s.form, count: 1, dmgMult: dmgMultC, effects: s.effects.slice(), baseMult: F.dmg || 1, range: 480, element: s.element || null, pieces: null, custom: false };
+            return { skill: s, cost: Math.round(cost), cooldown: cooldownC, params: pc };
+        }
 
         const p = { form: s.form, count: count, dmgMult: dmgMult, effects: s.effects.slice() };
         if (s.form === "projectile") {
@@ -448,8 +462,17 @@
         return out.map((s, i) => normalize(Object.assign({ id: "enemy_" + i }, s)));
     }
 
+    // 職業システム（classes.js）が、専用の形とグリフを登録する。action-skills.js と classes.js のどちらが先に読まれても動く
+    function registerClass(classes) {
+        (classes || []).forEach(c => {
+            c.forms.forEach(f => { if (!FORMS[f.key]) FORMS[f.key] = { name: f.name, icon: f.icon, cost: f.cost, desc: f.desc + "（" + c.name + "専用）", cd: f.cd, dmg: f.dmg, cls: c.id }; });
+            c.glyphs.forEach(g => { if (!EFFECTS[g.key]) EFFECTS[g.key] = { name: g.name, icon: g.icon, cost: g.tpl === "self" ? 10 : 12, desc: g.desc + "（" + c.name + "専用）", self: g.tpl === "self" ? true : undefined, cls: c.id }; });
+        });
+    }
+    if (global.ClassSys) registerClass(global.ClassSys.CLASSES);
+
     global.ActionSkills = {
-        FORMS, EFFECTS, AUGMENTS, isFormUnlocked, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
+        registerClass, FORMS, EFFECTS, AUGMENTS, isFormUnlocked, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
         normalize, compute, describe,
         loadSkills, saveSkills, loadLoadout, saveLoadout, newId,
         enemySkillsFor,

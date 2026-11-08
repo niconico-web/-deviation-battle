@@ -1999,24 +1999,6 @@ textarea {
 
 /* 巨大ツリー：ノードの可読性と接続線の視認性を優先 */
 .skill-tree-inner { contain: layout style; }
-.skill-tree-inner > svg line { opacity: .32; }
-.skill-tree-inner > svg.is-compact line { opacity: .1; }
+.skill-tree-inner > svg line { opacity: .48; }
 .skill-node { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
 .skill-node span { max-width:100%; overflow-wrap:anywhere; pointer-events:none; }
-
-/* ズームアウト時はノードを小さなドットにして全体像を見やすくする */
-.skill-tree-nodes-layer.is-compact .skill-node {
-    width: 12px; height: 12px; padding: 0; border-width: 1px;
-    font-size: 0; border-radius: 50%; transform: translate(29px, 18px);
-}
-.skill-tree-nodes-layer.is-compact .skill-node span { display: none; }
-.skill-tree-nodes-layer.is-compact .skill-node.passive { border-radius: 3px; }
-.skill-tree-nodes-layer.is-compact .skill-node.keystone {
-    width: 16px; height: 16px; border-width: 2px; border-radius: 4px;
-    transform: translate(27px, 19px); box-shadow: none;
-}
-.skill-tree-nodes-layer.is-compact .skill-node.keystone:hover,
-.skill-tree-nodes-layer.is-compact .skill-node:hover { transform: translate(29px, 18px); }
-.skill-tree-nodes-layer.is-compact .skill-node.keystone.unlocked,
-.skill-tree-nodes-layer.is-compact .skill-node.unlocked { box-shadow: 0 0 6px rgba(72,184,121,.8); }
-.skill-tree-nodes-layer.is-compact .skill-node.unlockable { box-shadow: 0 0 5px rgba(240,199,94,.8); }

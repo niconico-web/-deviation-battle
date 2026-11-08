@@ -331,6 +331,10 @@
         m.materials = sumCounters(std.materials, sea.materials);
         m.bossDefeats = sumCounters(std.bossDefeats, sea.bossDefeats);
         m.dungeonClears = sumCounters(std.dungeonClears, sea.dungeonClears);
+        // 職業：スタンダードの設定を残し、ツリーの解放はシーズンの分も足す（ポイントはレベルから計算するので、足りなくなることはない）
+        m.classes = (std.classes && std.classes.main) ? std.classes : (sea.classes || { main: null, sub: null });
+        m.classTree = Object.assign({}, sea.classTree || {}, std.classTree || {});
+        Object.keys(sea.classTree || {}).forEach(k => { m.classTree[k] = Array.from(new Set((std.classTree && std.classTree[k] || []).concat(sea.classTree[k] || []))); });
         m.orbs = unionById(std.orbs, sea.orbs);
         m.weapons = unionById(std.weapons, sea.weapons, w => w.source === 'starter');
         m.hp = m.maxHp;

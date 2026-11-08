@@ -138,6 +138,7 @@
 <script src="js/materials.js"></script>
 <script src="js/elements.js"></script>
 <script src="js/action-skills.js"></script>
+<script src="js/classes.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function () {
@@ -206,6 +207,7 @@
         Object.keys(AS.FORMS).forEach(k => {
             const f = AS.FORMS[k];
             const locked = !AS.isFormUnlocked(k);
+            if (f.cls && locked) return;          // 職業専用の形は、その職業のツリーで解放したものだけ出す
             const d = document.createElement('div'); d.className = 'opt' + (draft.form === k ? ' sel' : ''); if (locked) d.style.opacity = '0.5';
             d.innerHTML = f.icon + ' <b>' + f.name + '</b><small>' + (locked ? '🔒 ' + f.unlock.stageName + ' を討伐すると解放されます' : f.desc + '（基本消費' + f.cost + '）') + '</small>';
             d.addEventListener('click', () => { if (locked) { say('🔒 「' + f.name + '」は、' + f.unlock.stageName + ' を討伐すると使えるようになります', true); return; } draft.form = k; draft = AS.normalize(draft); renderBuilder(); });
@@ -218,6 +220,7 @@
             const e = AS.EFFECTS[k];
             const on = draft.effects.indexOf(k) !== -1;
             const locked = unlockedGlyphs.indexOf(k) === -1;
+            if (e.cls && locked) return;          // 職業専用のグリフも、解放したものだけ出す
             const d = document.createElement('div'); d.className = 'opt' + (on ? ' sel' : '') + (locked ? ' off' : '');
             d.innerHTML = e.icon + ' <b>' + e.name + '</b><small>' + e.desc + '（+' + e.cost + '）' + (locked ? '　🔒工房で作成' : '') + '</small>';
             d.addEventListener('click', () => {
@@ -233,7 +236,8 @@
         const aug = document.getElementById('augments'); aug.innerHTML = '';
         Object.keys(AS.AUGMENTS).forEach(k => {
             const a = AS.AUGMENTS[k];
-            const ok = (!a.forms.length || a.forms.indexOf(draft.form) !== -1) && !(k === 'multi' && draft.layout);
+            const clsForm = !!(AS.FORMS[draft.form] && AS.FORMS[draft.form].cls);
+            const ok = (!a.forms.length || a.forms.indexOf(draft.form) !== -1) && !(k === 'multi' && draft.layout) && !(clsForm && k !== 'amplify' && k !== 'swift');
             const cnt = draft.augments.filter(x => x === k).length;
             const d = document.createElement('div'); d.className = 'aug' + (ok ? '' : ' off');
             d.innerHTML = '<div>' + a.icon + ' <b>' + a.name + '</b>（+' + a.cost + '）<small>' + a.desc + (ok ? '' : (k === 'multi' && draft.layout ? '　※自由配置では、数を配置で決めます' : '　※この形では使えません')) + '</small></div>' +

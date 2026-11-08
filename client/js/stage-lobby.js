@@ -487,7 +487,7 @@
                 w.name = clean; w.baseName = clean; HW.save(hack); renderList(); renderDetail();
             });
             wd.querySelector('#sbLock').addEventListener('click', () => { w.locked = !w.locked; HW.save(hack); renderList(); renderDetail(); });
-            wd.querySelector('#sbEq').addEventListener('click', () => { hack.equipped = w.id; HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); });
+            wd.querySelector('#sbEq').addEventListener('click', () => { if (window.ClassSys && !ClassSys.canUseWeaponType(w.type)) { alert('この武器は、選んでいる職業では使えません。（近距離の職業は近接武器、遠距離の職業は弾・魔法の武器）'); return; } hack.equipped = w.id; HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); });
             wd.querySelector('#sbSell').addEventListener('click', () => {
                 if (!confirm(w.name + ' を売却しますか？（はめたオーブは戻ります）')) return;
                 const v = HW.sellWeapon(hack, w.id); if (v > 0) { addCoins(v); HW.save(hack); selId = hack.equipped; renderList(); renderDetail(); }

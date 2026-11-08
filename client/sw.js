@@ -2,7 +2,7 @@
 
 // Keep installation lightweight. Large game modules are cached on first use,
 // rather than downloading the entire game before the service worker activates.
-const CACHE_NAME = 'school-battle-cache-v110';
+const CACHE_NAME = 'school-battle-cache-v111';
 const SHELL_ASSETS = ['/manifest.json', '/css/style.css'];
 
 self.addEventListener('install', (event) => {
