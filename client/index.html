@@ -1,29 +1,29 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
 <script>
-// タッチ端末なら、部品ファイル(js/ui-settings.js)の読み込み前でも操作ボタンが出るよう先にクラスを付けておく
+// �^�b�`�[���Ȃ�A���i�t�@�C��(js/ui-settings.js)�̓ǂݍ��ݑO�ł�����{�^�����o��悤��ɃN���X��t���Ă���
 try { if (window.matchMedia('(pointer: coarse)').matches) document.documentElement.classList.add('touch-ui'); } catch (e) {}
 </script>
 
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>School Battle - 勉強するほど強くなるクイズ×RPGバトル</title>
-    <meta name="description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <title>School Battle - �׋�����قǋ����Ȃ�N�C�Y�~RPG�o�g��</title>
+    <meta name="description" content="�׋�����قǋ����Ȃ�A�N�C�Y�~RPG�o�g���B���ɐ������čU�����A�_���W�����U����I�����C���ΐ�Řr�����B����̖�胊�X�g�ňËL�ɂ��g���閳���u���E�U�Q�[���ł��B">
     <link rel="canonical" href="%%SITE_URL%%/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="School Battle">
     <meta property="og:locale" content="ja_JP">
-    <meta property="og:title" content="School Battle - 勉強するほど強くなるクイズ×RPGバトル">
-    <meta property="og:description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <meta property="og:title" content="School Battle - �׋�����قǋ����Ȃ�N�C�Y�~RPG�o�g��">
+    <meta property="og:description" content="�׋�����قǋ����Ȃ�A�N�C�Y�~RPG�o�g���B���ɐ������čU�����A�_���W�����U����I�����C���ΐ�Řr�����B����̖�胊�X�g�ňËL�ɂ��g���閳���u���E�U�Q�[���ł��B">
     <meta property="og:url" content="%%SITE_URL%%/">
     <meta property="og:image" content="%%SITE_URL%%/images/og-image.jpg">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="School Battle - 勉強するほど強くなるクイズ×RPGバトル">
-    <meta name="twitter:description" content="勉強するほど強くなる、クイズ×RPGバトル。問題に正解して攻撃し、ダンジョン攻略やオンライン対戦で腕試し。自作の問題リストで暗記にも使える無料ブラウザゲームです。">
+    <meta name="twitter:title" content="School Battle - �׋�����قǋ����Ȃ�N�C�Y�~RPG�o�g��">
+    <meta name="twitter:description" content="�׋�����قǋ����Ȃ�A�N�C�Y�~RPG�o�g���B���ɐ������čU�����A�_���W�����U����I�����C���ΐ�Řr�����B����̖�胊�X�g�ňËL�ɂ��g���閳���u���E�U�Q�[���ł��B">
     <meta name="twitter:image" content="%%SITE_URL%%/images/og-image.jpg">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/style-dungeon.css">
@@ -49,230 +49,230 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
 </head>
 <body>
     <div id="install-popup" class="install-popup" style="display: none;">
-        <p>アプリをホーム画面に追加して、より快適にプレイしましょう！</p>
-        <button id="install-button" class="btn btn-primary">インストール</button>
-        <button id="close-install-popup" class="btn btn-secondary">閉じる</button>
+        <p>�A�v�����z�[����ʂɒǉ����āA�����K�Ƀv���C���܂��傤�I</p>
+        <button id="install-button" class="btn btn-primary">�C���X�g�[��</button>
+        <button id="close-install-popup" class="btn btn-secondary">����</button>
     </div>
 
     <div class="app-container">
-        <!-- モバイルメニューボタン（サイドバーの外に配置） -->
-        <button id="mobileMenuToggle" class="mobile-menu-toggle">☰</button>
+        <!-- ���o�C�����j���[�{�^���i�T�C�h�o�[�̊O�ɔz�u�j -->
+        <button id="mobileMenuToggle" class="mobile-menu-toggle">?</button>
         
         <aside class="sidebar sidebar-minimal">
             <nav class="main-menu">
-                <button class="menu-btn" data-section="town"><span class="menu-icon">🗺️</span><span class="menu-label">マップ</span></button>
-                <button class="menu-btn active" data-section="stats"><span class="menu-icon">📝</span><span class="menu-label">ステータス</span></button>
-                <button class="menu-btn" data-section="shop"><span class="menu-icon">🎒</span><span class="menu-label">インベントリ</span></button>
-                <button class="menu-btn" data-section="classes"><span class="menu-icon">🎭</span><span class="menu-label">職業</span></button>
-                <button class="menu-btn" data-section="study"><span class="menu-icon">📖</span><span class="menu-label">勉強</span></button>
-                <button class="menu-btn" data-section="online"><span class="menu-icon">🌐</span><span class="menu-label">オンライン</span></button>
-                <button class="menu-btn" data-section="market"><span class="menu-icon">🏪</span><span class="menu-label">市場</span></button>
-                <button type="button" id="uiSettingsBtn" class="share-menu-btn" data-open-ui-settings aria-label="UI設定"><span>⚙️</span></button>
-                <button type="button" id="guideBtn" class="share-menu-btn" aria-label="遊び方ガイド"><span>❓</span></button>
-                <button type="button" id="pvpBtn" class="share-menu-btn" aria-label="オンラインマッチ"><span>⚔️</span></button>
-                <button type="button" id="seasonBtn" class="share-menu-btn" aria-label="シーズン"><span>🏆</span></button>
-                <button type="button" id="achBtn" class="share-menu-btn" aria-label="実績・称号"><span>🎖️</span></button>
-                <button type="button" id="boardBtn" class="share-menu-btn" aria-label="掲示板"><span>📋</span></button>
-                <button type="button" id="guildBtn" class="share-menu-btn" aria-label="ギルド"><span>🛡️</span></button>
-                <button type="button" id="shareInviteBtn" class="share-menu-btn" aria-label="友達に紹介"><span>📣</span></button>
+                <button class="menu-btn" data-section="town"><span class="menu-icon">???</span><span class="menu-label">�}�b�v</span></button>
+                <button class="menu-btn active" data-section="stats"><span class="menu-icon">??</span><span class="menu-label">�X�e�[�^�X</span></button>
+                <button class="menu-btn" data-section="shop"><span class="menu-icon">??</span><span class="menu-label">�C���x���g��</span></button>
+                <button class="menu-btn" data-section="job"><span class="menu-icon">??</span><span class="menu-label">�E��</span></button>
+                <button class="menu-btn" data-section="study"><span class="menu-icon">??</span><span class="menu-label">�׋�</span></button>
+                <button class="menu-btn" data-section="online"><span class="menu-icon">??</span><span class="menu-label">�I�����C��</span></button>
+                <button class="menu-btn" data-section="market"><span class="menu-icon">??</span><span class="menu-label">�s��</span></button>
+                <button type="button" id="uiSettingsBtn" class="share-menu-btn" data-open-ui-settings aria-label="UI�ݒ�"><span>??</span></button>
+                <button type="button" id="guideBtn" class="share-menu-btn" aria-label="�V�ѕ��K�C�h"><span>?</span></button>
+                <button type="button" id="pvpBtn" class="share-menu-btn" aria-label="�I�����C���}�b�`"><span>??</span></button>
+                <button type="button" id="seasonBtn" class="share-menu-btn" aria-label="�V�[�Y��"><span>??</span></button>
+                <button type="button" id="achBtn" class="share-menu-btn" aria-label="���сE�̍�"><span>???</span></button>
+                <button type="button" id="boardBtn" class="share-menu-btn" aria-label="�f����"><span>??</span></button>
+                <button type="button" id="guildBtn" class="share-menu-btn" aria-label="�M���h"><span>???</span></button>
+                <button type="button" id="shareInviteBtn" class="share-menu-btn" aria-label="�F�B�ɏЉ�"><span>??</span></button>
             </nav>
         </aside>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
 
         <main class="main-content">
             <section id="section-town" class="content-section">
-                <h2>町</h2>
+                <h2>��</h2>
                 <div id="townContainer" class="town-container">
                     <canvas id="townCanvas" width="1600" height="900"></canvas>
                     <div id="townPrompt" class="town-prompt" style="display:none;"></div>
                     <div id="townPlayerList" class="town-player-list"></div>
                     <div id="townControls" class="town-controls">
-                        <button type="button" id="townInteractBtn" class="btn btn-primary town-interact-btn" style="display:none;">入る</button>
+                        <button type="button" id="townInteractBtn" class="btn btn-primary town-interact-btn" style="display:none;">����</button>
                     </div>
                 </div>
-                <p class="town-help-text">スマホは画面左側をドラッグして移動、建物に近づいて「入る」ボタン（または建物をタップ）。PCは矢印キー / WASDで移動しEnterキー。UIの表示・サイズは⚙️から変更できます。</p>
+                <p class="town-help-text">�X�}�z�͉�ʍ������h���b�O���Ĉړ��A�����ɋ߂Â��āu����v�{�^���i�܂��͌������^�b�v�j�BPC�͖��L�[ / WASD�ňړ���Enter�L�[�BUI�̕\���E�T�C�Y��??����ύX�ł��܂��B</p>
             </section>
 
             <section id="section-stats" class="content-section active">
-                <h2>ステータス</h2>
+                <h2>�X�e�[�^�X</h2>
                 <div class="setting-box">
-                    <h3>キャラクター作成 <button type="button" id="tutorialOpenBtn-character" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="キャラクター作成の遊び方">?</button></h3>
-                    <label class="field-label" for="playerName">プレイヤー名</label>
-                    <input id="playerName" type="text" placeholder="名前を入力" autocomplete="nickname">
+                    <h3>�L�����N�^�[�쐬 <button type="button" id="tutorialOpenBtn-character" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�L�����N�^�[�쐬�̗V�ѕ�">?</button></h3>
+                    <label class="field-label" for="playerName">�v���C���[��</label>
+                    <input id="playerName" type="text" placeholder="���O�����" autocomplete="nickname">
                     <div class="stat-allocation">
-                        <h3>ステータス配分</h3>
-                        <p id="statAllocationDesc">持ち点250ポイントを自由に振り分けてください。</p>
+                        <h3>�X�e�[�^�X�z��</h3>
+                        <p id="statAllocationDesc">�����_250�|�C���g�����R�ɐU�蕪���Ă��������B</p>
                         <div class="stat-inputs">
                             <label>HP: <input id="statMaxHp" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>攻撃: <input id="statAtk" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>防御: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>速さ: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>特殊: <input id="statSpecial" type="number" value="50" min="10" max="100" step="1"></label>
-                            <label>学年:
+                            <label>�U��: <input id="statAtk" type="number" value="50" min="10" max="100" step="1"></label>
+                            <label>�h��: <input id="statDef" type="number" value="50" min="10" max="100" step="1"></label>
+                            <label>����: <input id="statSpeed" type="number" value="50" min="10" max="100" step="1"></label>
+                            <label>����: <input id="statSpecial" type="number" value="50" min="10" max="100" step="1"></label>
+                            <label>�w�N:
                                 <select id="statGrade">
-                                    <option value="1">小学1年</option>
-                                    <option value="2">小学2年</option>
-                                    <option value="3">小学3年</option>
-                                    <option value="4">小学4年</option>
-                                    <option value="5">小学5年</option>
-                                    <option value="6">小学6年</option>
-                                    <option value="7">中学1年</option>
-                                    <option value="8">中学2年</option>
-                                    <option value="9">中学3年</option>
-                                    <option value="10">高校1年</option>
-                                    <option value="11">高校2年</option>
-                                    <option value="12">高校3年</option>
+                                    <option value="1">���w1�N</option>
+                                    <option value="2">���w2�N</option>
+                                    <option value="3">���w3�N</option>
+                                    <option value="4">���w4�N</option>
+                                    <option value="5">���w5�N</option>
+                                    <option value="6">���w6�N</option>
+                                    <option value="7">���w1�N</option>
+                                    <option value="8">���w2�N</option>
+                                    <option value="9">���w3�N</option>
+                                    <option value="10">���Z1�N</option>
+                                    <option value="11">���Z2�N</option>
+                                    <option value="12">���Z3�N</option>
                                 </select>
                             </label>
                         </div>
-                        <p id="remainingPoints" class="remaining-points">残り持ち点：0 / 250</p>
+                        <p id="remainingPoints" class="remaining-points">�c�莝���_�F0 / 250</p>
                     </div>
-                    <button type="button" class="btn btn-primary" id="createCharBtn">キャラクター作成</button>
+                    <button type="button" class="btn btn-primary" id="createCharBtn">�L�����N�^�[�쐬</button>
                 </div>
                 <div id="status" class="status-box">
-                    <h2>ステータス</h2>
-                    <p>まだキャラクターが作成されていません。</p>
+                    <h2>�X�e�[�^�X</h2>
+                    <p>�܂��L�����N�^�[���쐬����Ă��܂���B</p>
                 </div>
                 <div id="dataManagement" class="setting-box">
-                    <h3>データ管理</h3>
-                    <p>プレイヤーID: <span id="currentPlayerId">---</span></p>
+                    <h3>�f�[�^�Ǘ�</h3>
+                    <p>�v���C���[ID: <span id="currentPlayerId">---</span></p>
                     <p id="syncStatus" class="help-text"></p>
-                    <button type="button" id="saveDataBtn" class="btn btn-primary" disabled>いますぐ同期</button>
-                    <button type="button" id="loadDataBtn" class="btn btn-secondary">下のIDと連携する</button>
+                    <button type="button" id="saveDataBtn" class="btn btn-primary" disabled>���܂�������</button>
+                    <button type="button" id="loadDataBtn" class="btn btn-secondary">����ID�ƘA�g����</button>
                     <div class="field-group">
-                        <label class="field-label" for="loadPlayerId">連携するプレイヤーID（もう1台の端末のID）</label>
-                        <input type="text" id="loadPlayerId" placeholder="6文字のIDを入力" maxlength="6">
+                        <label class="field-label" for="loadPlayerId">�A�g����v���C���[ID�i����1��̒[����ID�j</label>
+                        <input type="text" id="loadPlayerId" placeholder="6������ID�����" maxlength="6">
                     </div>
-                    <button type="button" id="loadDataBtn" class="btn btn-secondary">この端末を、そのIDと連携する</button>
+                    <button type="button" id="loadDataBtn" class="btn btn-secondary">���̒[�����A����ID�ƘA�g����</button>
                 </div>
-                <button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">プレイヤー削除</button>
+                <button type="button" id="deletePlayerBtn" class="btn btn-danger-outline">�v���C���[�폜</button>
             </section>
 
             <section id="section-study" class="content-section">
-                <h2>勉強 <button type="button" id="tutorialOpenBtn-study" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="勉強の遊び方">?</button></h2>
+                <h2>�׋� <button type="button" id="tutorialOpenBtn-study" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�׋��̗V�ѕ�">?</button></h2>
                 <div class="setting-box">
-                    <h3>勉強タイマー</h3>
-                    <p class="study-desc">勉強時間が長いほど経験値が増えます。1分ごとに選んだステータスが1ポイント上昇します。</p>
-                    <label class="field-label" for="studyFocus">強化するステータス</label>
+                    <h3>�׋��^�C�}�[</h3>
+                    <p class="study-desc">�׋����Ԃ������قǌo���l�������܂��B1�����ƂɑI�񂾃X�e�[�^�X��1�|�C���g�㏸���܂��B</p>
+                    <label class="field-label" for="studyFocus">��������X�e�[�^�X</label>
                     <select id="studyFocus">
-                        <option value="jp">国語（HP・防御）</option>
-                        <option value="math">算数・数学（攻撃・速さ）</option>
-                        <option value="eng">英語（防御・攻撃）</option>
-                        <option value="sci">理科（攻撃・特殊）</option>
-                        <option value="soc">社会（HP・特殊）</option>
+                        <option value="jp">����iHP�E�h��j</option>
+                        <option value="math">�Z���E���w�i�U���E�����j</option>
+                        <option value="eng">�p��i�h��E�U���j</option>
+                        <option value="sci">���ȁi�U���E����j</option>
+                        <option value="soc">�Љ�iHP�E����j</option>
                     </select>
                     <div id="statGrowthInfo" class="help-text"></div>
-                    <details id="elemDetails" style="margin:4px 0"><summary class="help-text" style="cursor:pointer">🔥💧🌪️⛰️⚡ 属性ステータス（勉強で強くなる）</summary><div id="elemPanel"></div></details>
-                    <label for="studyDuration" class="help-text">勉強する時間（最大2時間）</label>
+                    <details id="elemDetails" style="margin:4px 0"><summary class="help-text" style="cursor:pointer">?????????? �����X�e�[�^�X�i�׋��ŋ����Ȃ�j</summary><div id="elemPanel"></div></details>
+                    <label for="studyDuration" class="help-text">�׋����鎞�ԁi�ő�2���ԁj</label>
                     <select id="studyDuration">
-                        <option value="10">10分</option>
-                        <option value="15">15分</option>
-                        <option value="20">20分</option>
-                        <option value="30" selected>30分</option>
-                        <option value="45">45分</option>
-                        <option value="60">1時間</option>
-                        <option value="90">1時間30分</option>
-                        <option value="120">2時間</option>
+                        <option value="10">10��</option>
+                        <option value="15">15��</option>
+                        <option value="20">20��</option>
+                        <option value="30" selected>30��</option>
+                        <option value="45">45��</option>
+                        <option value="60">1����</option>
+                        <option value="90">1����30��</option>
+                        <option value="120">2����</option>
                     </select>
-                    <div class="help-text">※ 時間を決めて、その時間まで勉強します（残り時間を表示）。最後まで続けると報酬がもらえ、途中でやめると報酬はありません。タイマー中にステージやオンラインマッチへ行くと、0に戻ります。</div>
+                    <div class="help-text">�� ���Ԃ����߂āA���̎��Ԃ܂ŕ׋����܂��i�c�莞�Ԃ�\���j�B�Ō�܂ő�����ƕ�V�����炦�A�r���ł�߂�ƕ�V�͂���܂���B�^�C�}�[���ɃX�e�[�W��I�����C���}�b�`�֍s���ƁA0�ɖ߂�܂��B</div>
                     <p id="studyTimer" class="study-timer">00:00:00</p>
-                    <p id="xpDisplay" class="xp-display">経験値：0</p>
+                    <p id="xpDisplay" class="xp-display">�o���l�F0</p>
                     <div class="study-buttons">
-                        <button type="button" id="studyStart" class="btn btn-primary">勉強開始</button>
-                        <button type="button" id="studyStop" class="btn btn-danger" disabled>やめる（報酬なし）</button>
+                        <button type="button" id="studyStart" class="btn btn-primary">�׋��J�n</button>
+                        <button type="button" id="studyStop" class="btn btn-danger" disabled>��߂�i��V�Ȃ��j</button>
                     </div>
                 </div>
 
                 <div class="setting-box">
-                    <h3>学習管理</h3>
-                    <p class="study-desc">学習履歴、統計、目標設定、カレンダーを確認できます。</p>
+                    <h3>�w�K�Ǘ�</h3>
+                    <p class="study-desc">�w�K�����A���v�A�ڕW�ݒ�A�J�����_�[���m�F�ł��܂��B</p>
                     <div class="study-buttons">
-                        <button type="button" id="studyStatsBtn" class="btn btn-primary">学習統計を表示</button>
-                        <button type="button" id="reviewListBtn" class="btn btn-info">復習リストを表示</button>
+                        <button type="button" id="studyStatsBtn" class="btn btn-primary">�w�K���v��\��</button>
+                        <button type="button" id="reviewListBtn" class="btn btn-info">���K���X�g��\��</button>
                     </div>
                 </div>
             </section>
 
             <section id="section-questionlists" class="content-section">
-                <h2>問題リスト</h2>
+                <h2>��胊�X�g</h2>
                 <div class="setting-box">
-                    <h3>自分だけの問題リスト</h3>
-                    <p class="study-desc">自分で問題と正解を登録した「問題リスト」を作れます。通常のバトルやダンジョンでは使われませんが、下の「模擬戦闘」で単語帳のように使うことができます。友達に配布することもできます。</p>
+                    <h3>���������̖�胊�X�g</h3>
+                    <p class="study-desc">�����Ŗ��Ɛ�����o�^�����u��胊�X�g�v�����܂��B�ʏ�̃o�g����_���W�����ł͎g���܂��񂪁A���́u�͋[�퓬�v�ŒP�꒠�̂悤�Ɏg�����Ƃ��ł��܂��B�F�B�ɔz�z���邱�Ƃ��ł��܂��B</p>
                     <div id="questionListsContainer" class="question-list-container">
-                        <!-- renderQuestionListPanel() によってここに一覧が描画される -->
+                        <!-- renderQuestionListPanel() �ɂ���Ă����Ɉꗗ���`�悳��� -->
                     </div>
                     <div class="study-buttons">
-                        <button type="button" id="questionListCreateBtn" class="btn btn-primary">新しい問題リストを作る</button>
-                        <button type="button" id="questionListImportOpenBtn" class="btn btn-secondary">配布されたリストを読み込む</button>
+                        <button type="button" id="questionListCreateBtn" class="btn btn-primary">�V������胊�X�g�����</button>
+                        <button type="button" id="questionListImportOpenBtn" class="btn btn-secondary">�z�z���ꂽ���X�g��ǂݍ���</button>
                     </div>
                 </div>
 
                 <div class="setting-box">
-                    <h3>模擬戦闘</h3>
-                    <p class="study-desc">自分の問題リストを使って、ボットが次々に現れる連続戦闘に挑戦できます。勝っても負けてもリザルト画面には進まず、そのまま戦い続けます（負けてもHPが全回復して続行）。素材はドロップしませんが、戦っている時間はそのまま勉強時間としてカウントされ、選んだステータスが上昇しコインも獲得できます。</p>
-                    <button type="button" id="mockBattleOpenBtn" class="btn btn-primary">模擬戦闘を始める</button>
+                    <h3>�͋[�퓬</h3>
+                    <p class="study-desc">�����̖�胊�X�g���g���āA�{�b�g�����X�Ɍ����A���퓬�ɒ���ł��܂��B�����Ă������Ă����U���g��ʂɂ͐i�܂��A���̂܂ܐ킢�����܂��i�����Ă�HP���S�񕜂��đ��s�j�B�f�ނ̓h���b�v���܂��񂪁A����Ă��鎞�Ԃ͂��̂܂ܕ׋����ԂƂ��ăJ�E���g����A�I�񂾃X�e�[�^�X���㏸���R�C�����l���ł��܂��B</p>
+                    <button type="button" id="mockBattleOpenBtn" class="btn btn-primary">�͋[�퓬���n�߂�</button>
                 </div>
 
-                <!-- 問題リスト作成・編集モーダル -->
+                <!-- ��胊�X�g�쐬�E�ҏW���[�_�� -->
                 <div id="questionListEditModal" class="modal">
                     <div class="modal-content question-list-modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3 id="questionListEditTitle">問題リストを作る</h3>
-                        <label class="field-label" for="questionListNameInput">リスト名</label>
-                        <input type="text" id="questionListNameInput" placeholder="例：社会 歴史人物">
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3 id="questionListEditTitle">��胊�X�g�����</h3>
+                        <label class="field-label" for="questionListNameInput">���X�g��</label>
+                        <input type="text" id="questionListNameInput" placeholder="��F�Љ� ���j�l��">
                         <div id="questionListRowsContainer" class="question-list-rows">
-                            <!-- renderQuestionListEditorRows() によってここに問題の行が描画される -->
+                            <!-- renderQuestionListEditorRows() �ɂ���Ă����ɖ��̍s���`�悳��� -->
                         </div>
-                        <button type="button" id="questionListAddRowBtn" class="btn btn-secondary">+ 問題を追加</button>
+                        <button type="button" id="questionListAddRowBtn" class="btn btn-secondary">+ ����ǉ�</button>
                         <hr>
-                        <button type="button" id="questionListSaveBtn" class="btn btn-primary">保存する</button>
+                        <button type="button" id="questionListSaveBtn" class="btn btn-primary">�ۑ�����</button>
                     </div>
                 </div>
 
-                <!-- 問題リスト配布（エクスポート）モーダル -->
+                <!-- ��胊�X�g�z�z�i�G�N�X�|�[�g�j���[�_�� -->
                 <div id="questionListExportModal" class="modal">
                     <div class="modal-content question-list-modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3>配布用データ</h3>
-                        <p class="help-text">下のテキストを友達にコピーして渡すと、友達がそのまま自分の問題リストとして読み込めます。</p>
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3>�z�z�p�f�[�^</h3>
+                        <p class="help-text">���̃e�L�X�g��F�B�ɃR�s�[���ēn���ƁA�F�B�����̂܂܎����̖�胊�X�g�Ƃ��ēǂݍ��߂܂��B</p>
                         <textarea id="questionListExportTextarea" class="question-list-export-textarea" rows="10" readonly></textarea>
-                        <button type="button" id="questionListCopyBtn" class="btn btn-primary">コピーする</button>
+                        <button type="button" id="questionListCopyBtn" class="btn btn-primary">�R�s�[����</button>
                     </div>
                 </div>
 
-                <!-- 問題リストインポートモーダル -->
+                <!-- ��胊�X�g�C���|�[�g���[�_�� -->
                 <div id="questionListImportModal" class="modal">
                     <div class="modal-content question-list-modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3>配布されたリストを読み込む</h3>
-                        <p class="help-text">友達から受け取ったデータをそのまま貼り付けてください。</p>
-                        <textarea id="questionListImportTextarea" class="question-list-export-textarea" rows="10" placeholder="ここに貼り付け"></textarea>
-                        <button type="button" id="questionListImportSubmitBtn" class="btn btn-primary">読み込む</button>
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3>�z�z���ꂽ���X�g��ǂݍ���</h3>
+                        <p class="help-text">�F�B����󂯎�����f�[�^�����̂܂ܓ\��t���Ă��������B</p>
+                        <textarea id="questionListImportTextarea" class="question-list-export-textarea" rows="10" placeholder="�����ɓ\��t��"></textarea>
+                        <button type="button" id="questionListImportSubmitBtn" class="btn btn-primary">�ǂݍ���</button>
                     </div>
                 </div>
 
-                <!-- 模擬戦闘 開始設定モーダル -->
+                <!-- �͋[�퓬 �J�n�ݒ胂�[�_�� -->
                 <div id="mockBattleSetupModal" class="modal">
                     <div class="modal-content question-list-modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3>模擬戦闘の設定</h3>
-                        <label class="field-label" for="mockBattleListSelect">使う問題リスト</label>
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3>�͋[�퓬�̐ݒ�</h3>
+                        <label class="field-label" for="mockBattleListSelect">�g����胊�X�g</label>
                         <select id="mockBattleListSelect"></select>
-                        <p class="field-label">戦闘前に上昇させるステータスを1つ選んでください</p>
+                        <p class="field-label">�퓬�O�ɏ㏸������X�e�[�^�X��1�I��ł�������</p>
                         <div class="mock-battle-stat-options">
                             <label><input type="radio" name="mockBattleStat" value="maxHp"> HP</label>
-                            <label><input type="radio" name="mockBattleStat" value="atk" checked> 攻撃</label>
-                            <label><input type="radio" name="mockBattleStat" value="def"> 防御</label>
-                            <label><input type="radio" name="mockBattleStat" value="speed"> 速さ</label>
-                            <label><input type="radio" name="mockBattleStat" value="special"> 特殊</label>
+                            <label><input type="radio" name="mockBattleStat" value="atk" checked> �U��</label>
+                            <label><input type="radio" name="mockBattleStat" value="def"> �h��</label>
+                            <label><input type="radio" name="mockBattleStat" value="speed"> ����</label>
+                            <label><input type="radio" name="mockBattleStat" value="special"> ����</label>
                         </div>
-                        <button type="button" id="mockBattleStartBtn" class="btn btn-primary">模擬戦闘を開始する</button>
+                        <button type="button" id="mockBattleStartBtn" class="btn btn-primary">�͋[�퓬���J�n����</button>
                     </div>
                 </div>
             </section>
 
             <section id="section-missions" class="content-section">
-                <h2>デイリーミッション <button type="button" id="tutorialOpenBtn-missions" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="デイリーミッションの遊び方">?</button></h2>
+                <h2>�f�C���[�~�b�V���� <button type="button" id="tutorialOpenBtn-missions" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�f�C���[�~�b�V�����̗V�ѕ�">?</button></h2>
                 <div id="daily-missions-list" class="missions-container">
                     <!-- Daily missions will be rendered here -->
                 </div>
@@ -282,113 +282,113 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
             </section>
 
             <section id="section-shop" class="content-section">
-                <h2>インベントリ</h2>
+                <h2>�C���x���g��</h2>
                 <div class="setting-box">
-                    <p>所持コイン: <span id="coinDisplay">0</span></p>
-                    <button id="refreshShop" class="btn btn-secondary" style="display:none">ショップを更新</button>
+                    <p>�����R�C��: <span id="coinDisplay">0</span></p>
+                    <button id="refreshShop" class="btn btn-secondary" style="display:none">�V���b�v���X�V</button>
                 </div>
                 <div class="setting-box" id="invWeaponGuide">
-                    <p>武器はステージ（ダンジョン＋ボス）のドロップで手に入ります。装備・オーブのはめ込み・売却は「武器庫」でまとめて行います。</p>
-                    <p>装備中の武器：<strong id="invEquipped">-</strong></p>
-                    <button type="button" id="openArmoryFromInv" class="btn btn-primary">🗡 武器庫を開く</button>
-                    <button type="button" id="openStageGateFromInv" class="btn btn-secondary">🚪 ステージゲートへ</button>
+                    <p>����̓X�e�[�W�i�_���W�����{�{�X�j�̃h���b�v�Ŏ�ɓ���܂��B�����E�I�[�u�̂͂ߍ��݁E���p�́u����Ɂv�ł܂Ƃ߂čs���܂��B</p>
+                    <p>�������̕���F<strong id="invEquipped">-</strong></p>
+                    <button type="button" id="openArmoryFromInv" class="btn btn-primary">?? ����ɂ��J��</button>
+                    <button type="button" id="openStageGateFromInv" class="btn btn-secondary">?? �X�e�[�W�Q�[�g��</button>
                 </div>
                 <div id="legacyWeaponShop" style="display:none" aria-hidden="true">
-                <h3>武器ショップ</h3>
+                <h3>����V���b�v</h3>
                 <div id="shopList" class="shop-list">
                     <!-- Shop items will be rendered here -->
                 </div>
-                <h3>オリジナル武器作成 <button type="button" id="tutorialOpenBtn-weapon" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="武器作成の遊び方">?</button></h3>
+                <h3>�I���W�i������쐬 <button type="button" id="tutorialOpenBtn-weapon" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="����쐬�̗V�ѕ�">?</button></h3>
                 <div class="setting-box">
-                    <p>オリジナル武器を作成して、自分だけの最強武器を目指そう！</p>
-                    <button id="showCreateWeaponModalBtn" class="btn btn-primary">オリジナル武器を作成</button>
+                    <p>�I���W�i��������쐬���āA���������̍ŋ������ڎw�����I</p>
+                    <button id="showCreateWeaponModalBtn" class="btn btn-primary">�I���W�i��������쐬</button>
                 </div>
-                <!-- オリジナル武器作成モーダル -->
+                <!-- �I���W�i������쐬���[�_�� -->
                 <div id="createWeaponModal" class="modal">
                     <div class="modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3>オリジナル武器作成</h3>
-                        <p id="createWeaponCost">作成コスト: 0コイン</p>
-                        <label class="field-label" for="weaponName">武器名</label>
-                        <input type="text" id="weaponName" placeholder="武器名を入力" maxlength="20">
-                        <label class="field-label" for="weaponType">武器種</label>
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3>�I���W�i������쐬</h3>
+                        <p id="createWeaponCost">�쐬�R�X�g: 0�R�C��</p>
+                        <label class="field-label" for="weaponName">���햼</label>
+                        <input type="text" id="weaponName" placeholder="���햼�����" maxlength="20">
+                        <label class="field-label" for="weaponType">�����</label>
                         <select id="weaponType">
-                            <option value="sword_shield">片手剣＋盾</option>
-                            <option value="spear">長槍</option>
-                            <option value="greatsword">大剣</option>
-                            <option value="dual_swords">双剣</option>
-                            <option value="scythe">鎌</option>
-                            <option value="pistol">ピストル</option>
-                            <option value="katana">刀</option>
-                            <option value="magic_wand">魔法の杖</option>
-                            <option value="gloves">グローブ</option>
-                            <option value="shoes">シューズ</option>
-                            <option value="bow">弓</option>
-                            <option value="esper">超能力</option>
-                            <option value="rokushaku_staff">六尺杖</option>
-                            <option value="summons_rod">サモンズロッド</option>
+                            <option value="sword_shield">�Ў茕�{��</option>
+                            <option value="spear">����</option>
+                            <option value="greatsword">�匕</option>
+                            <option value="dual_swords">�o��</option>
+                            <option value="scythe">��</option>
+                            <option value="pistol">�s�X�g��</option>
+                            <option value="katana">��</option>
+                            <option value="magic_wand">���@�̏�</option>
+                            <option value="gloves">�O���[�u</option>
+                            <option value="shoes">�V���[�Y</option>
+                            <option value="bow">�|</option>
+                            <option value="esper">���\��</option>
+                            <option value="rokushaku_staff">�Z�ڏ�</option>
+                            <option value="summons_rod">�T�����Y���b�h</option>
                         </select>
-                        <label class="field-label" for="ultimateName">必殺技名</label>
-                        <input type="text" id="ultimateName" placeholder="必殺技名を入力" maxlength="20">
-                        <label class="field-label">使用するオーブ（任意）</label>
+                        <label class="field-label" for="ultimateName">�K�E�Z��</label>
+                        <input type="text" id="ultimateName" placeholder="�K�E�Z�������" maxlength="20">
+                        <label class="field-label">�g�p����I�[�u�i�C�Ӂj</label>
                         <div id="orbSelectContainer" class="orb-select-container">
-                            <!-- 所持オーブの選択肢がここに表示される -->
+                            <!-- �����I�[�u�̑I�����������ɕ\������� -->
                         </div>
-                        <label class="field-label">ボーナス素材（任意・最大3つ）</label>
+                        <label class="field-label">�{�[�i�X�f�ށi�C�ӁE�ő�3�j</label>
                         <div id="materialSelectContainer" class="material-select-container">
-                            <!-- 所持武器素材の選択肢がここに表示される -->
+                            <!-- ��������f�ނ̑I�����������ɕ\������� -->
                         </div>
                         <div id="dualWeaponTypeSelect" class="field-group" style="display: none;">
-                            <label class="field-label" for="dualWeaponType">サブ武器種（デュアルウェポン）</label>
+                            <label class="field-label" for="dualWeaponType">�T�u�����i�f���A���E�F�|���j</label>
                             <select id="dualWeaponType">
-                                <option value="sword_shield">片手剣＋盾</option>
-                                <option value="spear">長槍</option>
-                                <option value="greatsword">大剣</option>
-                                <option value="dual_swords">双剣</option>
-                                <option value="scythe">鎌</option>
-                                <option value="pistol">ピストル</option>
-                                <option value="katana">刀</option>
-                                <option value="magic_wand">魔法の杖</option>
-                                <option value="gloves">グローブ</option>
-                                <option value="shoes">シューズ</option>
-                                <option value="bow">弓</option>
-                                <option value="esper">超能力</option>
-                                <option value="rokushaku_staff">六尺杖</option>
-                                <option value="summons_rod">サモンズロッド</option>
+                                <option value="sword_shield">�Ў茕�{��</option>
+                                <option value="spear">����</option>
+                                <option value="greatsword">�匕</option>
+                                <option value="dual_swords">�o��</option>
+                                <option value="scythe">��</option>
+                                <option value="pistol">�s�X�g��</option>
+                                <option value="katana">��</option>
+                                <option value="magic_wand">���@�̏�</option>
+                                <option value="gloves">�O���[�u</option>
+                                <option value="shoes">�V���[�Y</option>
+                                <option value="bow">�|</option>
+                                <option value="esper">���\��</option>
+                                <option value="rokushaku_staff">�Z�ڏ�</option>
+                                <option value="summons_rod">�T�����Y���b�h</option>
                             </select>
                         </div>
-                        <button type="button" id="createWeaponBtn" class="btn btn-primary">作成する</button>
+                        <button type="button" id="createWeaponBtn" class="btn btn-primary">�쐬����</button>
                     </div>
                 </div>
                 </div>
-                <h3>素材管理 <button type="button" id="tutorialOpenBtn-material" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="素材の遊び方">?</button></h3>
+                <h3>�f�ފǗ� <button type="button" id="tutorialOpenBtn-material" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�f�ނ̗V�ѕ�">?</button></h3>
                 <div class="setting-box">
-                    <p>モンスターから入手した素材を確認できます。素材からのオーブ作成は「オーブ工房」タブで行えます。</p>
-                    <button id="openMaterialManagementBtn" class="btn btn-primary">素材管理</button>
+                    <p>�����X�^�[������肵���f�ނ��m�F�ł��܂��B�f�ނ���̃I�[�u�쐬�́u�I�[�u�H�[�v�^�u�ōs���܂��B</p>
+                    <button id="openMaterialManagementBtn" class="btn btn-primary">�f�ފǗ�</button>
                 </div>
 
-                <!-- 素材管理モーダル -->
+                <!-- �f�ފǗ����[�_�� -->
                 <div id="materialManagementModal" class="modal">
                     <div class="modal-content">
-                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">閉じる</button>
-                        <h3>素材インベントリ</h3>
+                        <button type="button" class="close btn btn-secondary" style="align-self: flex-end;">����</button>
+                        <h3>�f�ރC���x���g��</h3>
                         <div id="materialsInventoryList" class="materials-inventory-list">
-                            <!-- renderMaterialsInventory() によってここに一覧が描画される -->
+                            <!-- renderMaterialsInventory() �ɂ���Ă����Ɉꗗ���`�悳��� -->
                         </div>
                     </div>
                 </div>
 
                 <div id="legacyInventory" style="display:none" aria-hidden="true">
-                <h4>所持武器</h4>
+                <h4>��������</h4>
                 <div id="inventoryList" class="inventory-list">
                     <!-- Inventory items will be rendered here -->
                 </div>
-                <h4>オリジナル武器</h4>
+                <h4>�I���W�i������</h4>
                 <div id="originalWeaponList" class="original-weapon-list">
                     <!-- Original weapons will be rendered here -->
                 </div>
                 </div>
-                <h3>オーブ <small style="font-weight:normal;font-size:.75rem">（武器へのはめ込みは武器庫で）</small></h3>
+                <h3>�I�[�u <small style="font-weight:normal;font-size:.75rem">�i����ւ̂͂ߍ��݂͕���ɂŁj</small></h3>
                 
                 <div id="orbInventory" class="orb-inventory-list">
                     <!-- Orbs will be rendered here -->
@@ -398,43 +398,43 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
 
 
             <section id="section-market" class="content-section">
-                <h2>🏪 市場</h2>
-                <p class="study-desc">プレイヤー同士でアイテムを売り買いできます。武器・防具・アクセサリー・オーブを、まとめて出品することもできます。レア度ごとに「最低出品価格」があります。</p>
+                <h2>?? �s��</h2>
+                <p class="study-desc">�v���C���[���m�ŃA�C�e���𔄂蔃���ł��܂��B����E�h��E�A�N�Z�T���[�E�I�[�u���A�܂Ƃ߂ďo�i���邱�Ƃ��ł��܂��B���A�x���ƂɁu�Œ�o�i���i�v������܂��B</p>
                 <div id="marketRoot"></div>
             </section>
 
             <section id="section-workshop" class="content-section">
-                <h2>オーブ工房</h2>
+                <h2>�I�[�u�H�[</h2>
                 <div class="setting-box">
-                    <h3>勉強でたまる「結晶」</h3>
-                    <p class="study-desc">勉強タイマーや模擬戦闘で勉強すると、勉強時間に応じて結晶が貯まります（累計の勉強時間が10分・30分・60分を超えるたびに、それぞれ1個ずつ）。結晶を使うと、持っているオーブの数値やステータスの種類、固有能力を引き直して「厳選」できます。</p>
+                    <h3>�׋��ł��܂�u�����v</h3>
+                    <p class="study-desc">�׋��^�C�}�[��͋[�퓬�ŕ׋�����ƁA�׋����Ԃɉ����Č��������܂�܂��i�݌v�̕׋����Ԃ�10���E30���E60���𒴂��邽�тɁA���ꂼ��1���j�B�������g���ƁA�����Ă���I�[�u�̐��l��X�e�[�^�X�̎�ށA�ŗL�\�͂����������āu���I�v�ł��܂��B</p>
                     <div id="workshopCurrency" class="workshop-currency">
-                        <!-- renderWorkshopCurrency() によってここに結晶の所持数が描画される -->
+                        <!-- renderWorkshopCurrency() �ɂ���Ă����Ɍ����̏��������`�悳��� -->
                     </div>
                 </div>
 
                 <div class="setting-box">
-                    <h3>素材からオーブを作る <button type="button" id="tutorialOpenBtn-orb" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="オーブの遊び方">?</button></h3>
-                    <p class="study-desc">モンスターから入手した素材を最大5つ選んで、オーブに変換できます。素材の平均レア度（切り捨て）がオーブのティアになりますが、これは5つ使った場合のみです。1〜4つの場合は1段階低いティアになります。</p>
+                    <h3>�f�ނ���I�[�u����� <button type="button" id="tutorialOpenBtn-orb" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�I�[�u�̗V�ѕ�">?</button></h3>
+                    <p class="study-desc">�����X�^�[������肵���f�ނ��ő�5�I��ŁA�I�[�u�ɕϊ��ł��܂��B�f�ނ̕��σ��A�x�i�؂�̂āj���I�[�u�̃e�B�A�ɂȂ�܂����A�����5�g�����ꍇ�݂̂ł��B1?4�̏ꍇ��1�i�K�Ⴂ�e�B�A�ɂȂ�܂��B</p>
                     <div id="materialCraftingContainer">
-                        <!-- showMaterialCraftingUI() によってここにUIが描画される -->
+                        <!-- showMaterialCraftingUI() �ɂ���Ă�����UI���`�悳��� -->
                     </div>
                 </div>
 
                 <div class="setting-box">
-                    <h3>オーブ合成</h3>
-                    <p class="study-desc">同じティアのオーブを複数消費して、1つ上のティアのオーブを1個合成します。材料には、品質の低いオーブから先に使われます（厳選した良いオーブが残ります）。</p>
+                    <h3>�I�[�u����</h3>
+                    <p class="study-desc">�����e�B�A�̃I�[�u�𕡐�����āA1��̃e�B�A�̃I�[�u��1�������܂��B�ޗ��ɂ́A�i���̒Ⴂ�I�[�u�����Ɏg���܂��i���I�����ǂ��I�[�u���c��܂��j�B</p>
                     <div id="workshopSynthesis" class="workshop-synthesis">
-                        <!-- renderWorkshopSynthesis() によってここに描画される -->
+                        <!-- renderWorkshopSynthesis() �ɂ���Ă����ɕ`�悳��� -->
                     </div>
                 </div>
 
                 <div class="setting-box">
-                    <h3>オーブを厳選する</h3>
-                    <p class="study-desc">リロールの結果は「この結果にする」か「元のままにする」を選べます（結晶はどちらを選んでも消費されます）。工房で厳選できるのは所持オーブだけで、武器にセット済みのオーブは対象外です。混沌の結晶はティアが高いオーブほど多く消費します。</p>
-                    <label class="field-label" for="workshopTierFilter">表示するティア</label>
+                    <h3>�I�[�u�����I����</h3>
+                    <p class="study-desc">�����[���̌��ʂ́u���̌��ʂɂ���v���u���̂܂܂ɂ���v��I�ׂ܂��i�����͂ǂ����I��ł������܂��j�B�H�[�Ō��I�ł���̂͏����I�[�u�����ŁA����ɃZ�b�g�ς݂̃I�[�u�͑ΏۊO�ł��B���ׂ̌����̓e�B�A�������I�[�u�قǑ�������܂��B</p>
+                    <label class="field-label" for="workshopTierFilter">�\������e�B�A</label>
                     <select id="workshopTierFilter">
-                        <option value="all">すべて</option>
+                        <option value="all">���ׂ�</option>
                         <option value="tier5">Tier5</option>
                         <option value="tier4">Tier4</option>
                         <option value="tier3">Tier3</option>
@@ -442,11 +442,11 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                         <option value="tier1">Tier1</option>
                     </select>
                     <div id="workshopOrbList" class="workshop-orb-list">
-                        <!-- renderOrbWorkshop() によってここにオーブ一覧が描画される -->
+                        <!-- renderOrbWorkshop() �ɂ���Ă����ɃI�[�u�ꗗ���`�悳��� -->
                     </div>
                 </div>
 
-                <!-- リロール結果モーダル（「この結果にする／元のままにする」を選ぶまで閉じられない） -->
+                <!-- �����[�����ʃ��[�_���i�u���̌��ʂɂ���^���̂܂܂ɂ���v��I�Ԃ܂ŕ����Ȃ��j -->
                 <div id="workshopResultModal" class="modal">
                     <div class="modal-content">
                         <div id="workshopResultBody"></div>
@@ -454,34 +454,46 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 </div>
             </section>
 
-            <section id="section-classes" class="content-section">
-                <h2>🎭 職業</h2>
-                <div id="classesRoot"><p style="color:#9aa6c4;font-size:.85rem">読み込み中…（このまま変わらない場合は、js/classes.js と js/classes-ui.js がサーバーに置かれていません。F12 のコンソールを確認してください）</p></div>
+            <section id="section-job" class="content-section">
+                <h2>�E��</h2>
+                <div class="setting-box">
+                    <h3>�W���u��I��</h3>
+                    <p id="jobCurrent">���݂̃W���u�F---</p>
+                    <div id="jobChoices"></div>
+                </div>
+                <div class="setting-box">
+                    <h3>�X�L���R���N�V����</h3>
+                    <p class="study-desc">�X�L�����������ĐV�����X�L�����쐬�ł��܂��B2?3�̃X�L����I�����č������Ă��������B</p>
+                    <div id="skillCollectionList"></div>
+                    <p id="fusionSelected">�����f�ނ�2?3�I�����Ă��������B</p>
+                    <button type="button" id="fuseSkillsBtn" class="btn btn-primary" disabled>�I�������X�L������������</button>
+                    <p id="fusionMessage" class="fusion-message"></p>
+                </div>
             </section>
 
             <section id="section-skills" class="content-section">
-                <h2>スキル <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="スキルの遊び方">?</button></h2>
-                <p><a href="action-skills.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;">🔮 アクションバトル用スキル工房を開く（形・効果・グリフを組み合わせて作成）</a></p>
+                <h2>�X�L�� <button type="button" id="tutorialOpenBtn-skill" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�X�L���̗V�ѕ�">?</button></h2>
+                <p><a href="action-skills.html" class="btn btn-primary" style="display:inline-block;text-decoration:none;">?? �A�N�V�����o�g���p�X�L���H�[���J���i�`�E���ʁE�O���t��g�ݍ��킹�č쐬�j</a></p>
                 <div class="sub-tabs">
-                    <button class="sub-tab-btn active" data-subtab="skill-tree-content">スキルツリー</button>
-                    <button class="sub-tab-btn" data-subtab="equipped-skills-content">装備中スキル</button>
-                    <button class="sub-tab-btn" data-subtab="custom-skills-content">カスタムスキル</button>
+                    <button class="sub-tab-btn active" data-subtab="skill-tree-content">�X�L���c���[</button>
+                    <button class="sub-tab-btn" data-subtab="equipped-skills-content">�������X�L��</button>
+                    <button class="sub-tab-btn" data-subtab="custom-skills-content">�J�X�^���X�L��</button>
                 </div>
 
                 <div id="skill-tree-content" class="sub-tab-content active">
-                    <h3>スキルツリー</h3>
+                    <h3>�X�L���c���[</h3>
                     <div class="setting-box">
-                        <p>残スキルポイント: <span id="totalSkillPointsDisplay">0</span></p>
-                        <p class="help-text">ノードをクリックすると詳細を表示、習得可能なノードはダブルクリックで習得できます。金色のひし形は、強い効果と代償を持つキーストーンです。</p>
+                        <p>�c�X�L���|�C���g: <span id="totalSkillPointsDisplay">0</span></p>
+                        <p class="help-text">�m�[�h���N���b�N����Əڍׂ�\���A�K���\�ȃm�[�h�̓_�u���N���b�N�ŏK���ł��܂��B���F�̂Ђ��`�́A�������ʂƑ㏞�����L�[�X�g�[���ł��B</p>
                     </div>
-                    <div class="skill-tree-keystone-legend"><span class="keystone-legend-mark">◆</span> キーストーン：戦闘ルールそのものを変える特殊効果</div>
+                    <div class="skill-tree-keystone-legend"><span class="keystone-legend-mark">��</span> �L�[�X�g�[���F�퓬���[�����̂��̂�ς���������</div>
                     <div class="skill-tree-toolbar">
-                        <input id="skillTreeSearch" type="search" placeholder="ノード名・効果を検索" aria-label="パッシブノード検索">
-                        <button type="button" id="skillTreeZoomOut" aria-label="縮小">−</button>
+                        <input id="skillTreeSearch" type="search" placeholder="�m�[�h���E���ʂ�����" aria-label="�p�b�V�u�m�[�h����">
+                        <button type="button" id="skillTreeZoomOut" aria-label="�k��">?</button>
                         <span id="skillTreeZoomLabel">100%</span>
-                        <button type="button" id="skillTreeZoomIn" aria-label="拡大">＋</button>
+                        <button type="button" id="skillTreeZoomIn" aria-label="�g��">�{</button>
                         <button type="button" id="skillTreeZoomReset">100%</button>
-                        <button type="button" id="skillTreeFit">全体表示</button>
+                        <button type="button" id="skillTreeFit">�S�̕\��</button>
                     </div>
                     <div id="skillTreeContainer" class="skill-tree-container">
                         <div id="skillTreeCanvas" class="skill-tree-canvas"></div>
@@ -490,242 +502,242 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 </div>
 
                 <div id="equipped-skills-content" class="sub-tab-content">
-                    <h3>アクティブスキル装備</h3>
+                    <h3>�A�N�e�B�u�X�L������</h3>
                     <div class="setting-box">
-                        <p>攻撃タイプを選択（問題正解時の追撃ダメージに影響）</p>
+                        <p>�U���^�C�v��I���i��萳�����̒ǌ��_���[�W�ɉe���j</p>
                         <div class="attack-type-selector">
-                            <button type="button" class="attack-type-btn active" data-attack-type="attack">⚔️ 攻撃</button>
-                            <button type="button" class="attack-type-btn" data-attack-type="special">✨ 特殊</button>
+                            <button type="button" class="attack-type-btn active" data-attack-type="attack">?? �U��</button>
+                            <button type="button" class="attack-type-btn" data-attack-type="special">? ����</button>
                         </div>
                     </div>
                     <div id="summonMonsterBox" class="setting-box" style="display: none;">
-                        <h3>モンスター選択（サモンズロッド）</h3>
-                        <p class="help-text">素材を1つ消費して、その素材を落とすモンスターを配下にできます（最大3体）。配下のモンスターは、正解するたびに追加攻撃を行います。追加攻撃力は「あなたの攻撃力の何割か」で、その割合はモンスターが強いほど高くなります（相手の防御力の分だけダメージは減ります）。</p>
-                        <p id="summonMonsterSubNote" class="help-text" style="display: none;">サブ武器種（デュアルウェポン）として使っているため、追加攻撃の倍率は低めになります。</p>
+                        <h3>�����X�^�[�I���i�T�����Y���b�h�j</h3>
+                        <p class="help-text">�f�ނ�1����āA���̑f�ނ𗎂Ƃ������X�^�[��z���ɂł��܂��i�ő�3�́j�B�z���̃����X�^�[�́A�������邽�тɒǉ��U�����s���܂��B�ǉ��U���͂́u���Ȃ��̍U���͂̉������v�ŁA���̊����̓����X�^�[�������قǍ����Ȃ�܂��i����̖h��͂̕������_���[�W�͌���܂��j�B</p>
+                        <p id="summonMonsterSubNote" class="help-text" style="display: none;">�T�u�����i�f���A���E�F�|���j�Ƃ��Ďg���Ă��邽�߁A�ǉ��U���̔{���͒�߂ɂȂ�܂��B</p>
                         <div id="summonedMonsterList"></div>
-                        <label class="field-label" for="summonMaterialSelect">素材を選んで召喚</label>
+                        <label class="field-label" for="summonMaterialSelect">�f�ނ�I��ŏ���</label>
                         <select id="summonMaterialSelect"></select>
-                        <button type="button" id="summonMonsterBtn" class="btn btn-primary">召喚する</button>
+                        <button type="button" id="summonMonsterBtn" class="btn btn-primary">��������</button>
                     </div>
                     <div id="skillSlotsContainer" class="skill-slots-container"></div>
-                    <h3>使用可能なアクティブスキル</h3>
+                    <h3>�g�p�\�ȃA�N�e�B�u�X�L��</h3>
                     <div id="availableSkillsList" class="available-skills-list"></div>
                 </div>
 
                 <div id="custom-skills-content" class="sub-tab-content">
-                    <h3>オリジナルスキル作成</h3>
+                    <h3>�I���W�i���X�L���쐬</h3>
                     <div class="setting-box">
-                        <p>自分だけのオリジナルスキルを作成しよう！</p>
-                        <label class="field-label" for="customSkillName">スキル名</label>
-                        <input type="text" id="customSkillName" placeholder="スキル名を入力">
-                        <label class="field-label" for="customSkillDescription">スキルの内容</label>
-                        <textarea id="customSkillDescription" placeholder="例: 次の攻撃のダメージ1.5倍、敵に毒付与"></textarea>
-                        <button id="createCustomSkillBtn" class="btn btn-primary">オリジナルスキル作成</button>
+                        <p>���������̃I���W�i���X�L�����쐬���悤�I</p>
+                        <label class="field-label" for="customSkillName">�X�L����</label>
+                        <input type="text" id="customSkillName" placeholder="�X�L���������">
+                        <label class="field-label" for="customSkillDescription">�X�L���̓��e</label>
+                        <textarea id="customSkillDescription" placeholder="��: ���̍U���̃_���[�W1.5�{�A�G�ɓŕt�^"></textarea>
+                        <button id="createCustomSkillBtn" class="btn btn-primary">�I���W�i���X�L���쐬</button>
                     </div>
 
-                    <h3>オリジナルスキルリスト</h3>
+                    <h3>�I���W�i���X�L�����X�g</h3>
                     <div id="customSkillList" class="custom-skill-list"></div>
                 </div>
             </section>
 
             <section id="section-online" class="content-section">
-                <h2>オンライン <button type="button" id="tutorialOpenBtn-online" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="オンラインの遊び方">?</button></h2>
+                <h2>�I�����C�� <button type="button" id="tutorialOpenBtn-online" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�I�����C���̗V�ѕ�">?</button></h2>
                 <div class="setting-box practice-highlight-box">
-                    <h3>🔰 はじめての方はここから</h3>
-                    <p>スライムを相手に、実際のバトル画面で操作方法を教わりながら練習できます。</p>
-                    <button type="button" id="practiceBotMatch" class="btn btn-primary">スライムと実戦形式で練習する</button>
+                    <h3>?? �͂��߂Ă̕��͂�������</h3>
+                    <p>�X���C���𑊎�ɁA���ۂ̃o�g����ʂő�����@�������Ȃ�����K�ł��܂��B</p>
+                    <button type="button" id="practiceBotMatch" class="btn btn-primary">�X���C���Ǝ���`���ŗ��K����</button>
                 </div>
                 <div class="setting-box">
-                    <h3>ランダムマッチ</h3>
+                    <h3>�����_���}�b�`</h3>
                     <label class="field-label">
-                        <input type="checkbox" id="randomMatchSafeMode"> セーフモード（武器を奪われない）
+                        <input type="checkbox" id="randomMatchSafeMode"> �Z�[�t���[�h�i�����D���Ȃ��j
                     </label>
-                    <button type="button" id="randomMatch" class="btn btn-primary">ランダムマッチ</button>
+                    <button type="button" id="randomMatch" class="btn btn-primary">�����_���}�b�`</button>
                 </div>
                 <div class="setting-box">
-                    <h3>ルームマッチ</h3>
+                    <h3>���[���}�b�`</h3>
                     <label class="field-label">
-                        <input type="checkbox" id="roomMatchSafeMode"> セーフモード（武器を奪われない）
+                        <input type="checkbox" id="roomMatchSafeMode"> �Z�[�t���[�h�i�����D���Ȃ��j
                     </label>
-                    <button type="button" id="createRoom" class="btn btn-secondary">ルーム作成</button>
-                    <label class="field-label" for="roomInput">ルームコード</label>
-                    <input id="roomInput" type="text" placeholder="6文字のコード" maxlength="6" autocapitalize="characters" autocomplete="off">
-                    <button type="button" id="joinRoom" class="btn btn-secondary">ルーム参加</button>
+                    <button type="button" id="createRoom" class="btn btn-secondary">���[���쐬</button>
+                    <label class="field-label" for="roomInput">���[���R�[�h</label>
+                    <input id="roomInput" type="text" placeholder="6�����̃R�[�h" maxlength="6" autocapitalize="characters" autocomplete="off">
+                    <button type="button" id="joinRoom" class="btn btn-secondary">���[���Q��</button>
                 </div>
                 <div class="setting-box">
-                    <h3>ボットバトル</h3>
-                    <label class="field-label" for="botMonsterSelect">対戦するモンスター</label>
+                    <h3>�{�b�g�o�g��</h3>
+                    <label class="field-label" for="botMonsterSelect">�ΐ킷�郂���X�^�[</label>
                     <select id="botMonsterSelect">
-                        <option value="random">おまかせ（ランダム）</option>
+                        <option value="random">���܂����i�����_���j</option>
                     </select>
-                    <button type="button" id="botMatch" class="btn btn-info">ボットと対戦</button>
+                    <button type="button" id="botMatch" class="btn btn-info">�{�b�g�Ƒΐ�</button>
                 </div>
                 <div class="setting-box">
-                    <h3>⚔️ 分身と対戦</h3>
-                    <p style="font-size:13px;color:#aaa;margin:4px 0 8px;">他のプレイヤーの戦闘データをもとにした「分身」と対戦できます。強い相手がいれば自分も強くなった証拠！</p>
-                    <button type="button" id="snapshotMatch" class="btn btn-primary">ランダムな分身と対戦</button>
+                    <h3>?? ���g�Ƒΐ�</h3>
+                    <p style="font-size:13px;color:#aaa;margin:4px 0 8px;">���̃v���C���[�̐퓬�f�[�^�����Ƃɂ����u���g�v�Ƒΐ�ł��܂��B�������肪����Ύ����������Ȃ����؋��I</p>
+                    <button type="button" id="snapshotMatch" class="btn btn-primary">�����_���ȕ��g�Ƒΐ�</button>
                 </div>
-                <h3>パーティ</h3>
+                <h3>�p�[�e�B</h3>
                 <div id="party-info" class="setting-box" style="display: none;">
                     <!-- Party details will be rendered here by JavaScript -->
                 </div>
                 <div id="party-controls" class="setting-box">
-                    <button type="button" id="createPartyBtn" class="btn btn-secondary">パーティ作成</button>
+                    <button type="button" id="createPartyBtn" class="btn btn-secondary">�p�[�e�B�쐬</button>
                     <div id="joinPartyControls">
-                        <label class="field-label" for="partyCodeInput">パーティコード</label>
-                        <input type="text" id="partyCodeInput" placeholder="コードを入力" maxlength="6" autocapitalize="characters" autocomplete="off">
-                        <button type="button" id="joinPartyBtn" class="btn btn-secondary">パーティ参加</button>
+                        <label class="field-label" for="partyCodeInput">�p�[�e�B�R�[�h</label>
+                        <input type="text" id="partyCodeInput" placeholder="�R�[�h�����" maxlength="6" autocapitalize="characters" autocomplete="off">
+                        <button type="button" id="joinPartyBtn" class="btn btn-secondary">�p�[�e�B�Q��</button>
                     </div>
-                    <button type="button" id="leavePartyBtn" class="btn btn-danger" style="display: none;">パーティを抜ける</button>
-                    <button type="button" id="partyReadyBtn" class="btn btn-primary" style="display: none;">準備OK</button>
+                    <button type="button" id="leavePartyBtn" class="btn btn-danger" style="display: none;">�p�[�e�B�𔲂���</button>
+                    <button type="button" id="partyReadyBtn" class="btn btn-primary" style="display: none;">����OK</button>
                 </div>
-                <h3>ソーシャル</h3>
+                <h3>�\�[�V����</h3>
                 <div class="setting-box">
-                    <h4>プレイヤー検索</h4>
-                    <label class="field-label" for="playerIdSearch">プレイヤーID</label>
-                    <input type="text" id="playerIdSearch" placeholder="6文字のIDを入力" maxlength="6">
-                    <button type="button" id="searchPlayerBtn" class="btn btn-primary">検索</button>
+                    <h4>�v���C���[����</h4>
+                    <label class="field-label" for="playerIdSearch">�v���C���[ID</label>
+                    <input type="text" id="playerIdSearch" placeholder="6������ID�����" maxlength="6">
+                    <button type="button" id="searchPlayerBtn" class="btn btn-primary">����</button>
                 </div>
                 <div id="playerSearchResult" class="setting-box" style="display: none;">
                     <div id="searchedPlayerInfo"></div>
-                    <button type="button" id="friendRequestBtn" class="btn btn-primary">フレンド申請</button>
-                    <button type="button" id="challengePlayerBtn" class="btn btn-info">対戦申請</button>
+                    <button type="button" id="friendRequestBtn" class="btn btn-primary">�t�����h�\��</button>
+                    <button type="button" id="challengePlayerBtn" class="btn btn-info">�ΐ�\��</button>
                 </div>
                 <div class="setting-box">
-                    <h4>フレンドリスト</h4>
+                    <h4>�t�����h���X�g</h4>
                     <div id="friendList"></div>
                 </div>
                 <div class="setting-box">
-                    <h4>フレンド申請</h4>
+                    <h4>�t�����h�\��</h4>
                     <div id="friendRequests"></div>
                 </div>
             </section>
 
             <section id="section-boss-battle" class="content-section">
-                <h2>ボスバトル <button type="button" id="tutorialOpenBtn-boss" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="ボスバトルの遊び方">?</button></h2>
+                <h2>�{�X�o�g�� <button type="button" id="tutorialOpenBtn-boss" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�{�X�o�g���̗V�ѕ�">?</button></h2>
                 <div id="soloBossBattleControls" class="setting-box">
-                    <h3>ソロでボスに挑戦</h3>
-                    <label class="field-label" for="soloBossSelect">ボス選択</label>
+                    <h3>�\���Ń{�X�ɒ���</h3>
+                    <label class="field-label" for="soloBossSelect">�{�X�I��</label>
                     <select id="soloBossSelect"></select>
                     <div id="soloBossPreview" class="boss-preview"></div>
-                    <label class="field-label" for="soloBossDifficulty">難易度</label>
+                    <label class="field-label" for="soloBossDifficulty">��Փx</label>
                     <select id="soloBossDifficulty">
-                        <option value="easy">イージー</option>
-                        <option value="medium">ノーマル</option>
-                        <option value="hard">ハード</option>
+                        <option value="easy">�C�[�W�[</option>
+                        <option value="medium">�m�[�}��</option>
+                        <option value="hard">�n�[�h</option>
                     </select>
-                    <button type="button" id="startSoloBossBattleBtn" class="btn btn-danger">ソロで挑戦開始</button>
+                    <button type="button" id="startSoloBossBattleBtn" class="btn btn-danger">�\���Œ���J�n</button>
                 </div>
                 <div id="startBossBattleControls" class="setting-box" style="display: none;">
-                    <h3>パーティでボスに挑戦 (ホストのみ)</h3>
-                    <label class="field-label" for="bossSelect">ボス選択</label>
+                    <h3>�p�[�e�B�Ń{�X�ɒ��� (�z�X�g�̂�)</h3>
+                    <label class="field-label" for="bossSelect">�{�X�I��</label>
                     <select id="bossSelect"></select>
                     <div id="bossPreview" class="boss-preview"></div>
-                    <label class="field-label" for="bossDifficulty">難易度</label>
+                    <label class="field-label" for="bossDifficulty">��Փx</label>
                     <select id="bossDifficulty">
-                        <option value="easy">イージー</option>
-                        <option value="medium">ノーマル</option>
-                        <option value="hard">ハード</option>
+                        <option value="easy">�C�[�W�[</option>
+                        <option value="medium">�m�[�}��</option>
+                        <option value="hard">�n�[�h</option>
                     </select>
-                    <button type="button" id="startBossBattleBtn" class="btn btn-danger">パーティで挑戦開始</button>
+                    <button type="button" id="startBossBattleBtn" class="btn btn-danger">�p�[�e�B�Œ���J�n</button>
                 </div>
             </section>
 
             <section id="section-dungeon" class="content-section">
-                <h2>ダンジョン</h2>
+                <h2>�_���W����</h2>
                 
-                <!-- ダンジョン選択画面 -->
+                <!-- �_���W�����I����� -->
                 <div id="dungeonSelectionScreen" class="setting-box">
-                    <h3>ダンジョンに挑戦</h3>
-                    <p>階層に上限のない無限ダンジョンです。潜れば潜るほど敵がどんどん強くなり、モンスターやボスは完全ランダムに出現します。10階ごとにチェックポイントが記録され、次回はそこから再開できます。</p>
+                    <h3>�_���W�����ɒ���</h3>
+                    <p>�K�w�ɏ���̂Ȃ������_���W�����ł��B����ΐ���قǓG���ǂ�ǂ񋭂��Ȃ�A�����X�^�[��{�X�͊��S�����_���ɏo�����܂��B10�K���ƂɃ`�F�b�N�|�C���g���L�^����A����͂�������ĊJ�ł��܂��B</p>
 
                 </div>
 
-                <!-- ダンジョン情報・開始パネル（dungeon.jsが動的に描画） -->
+                <!-- �_���W�������E�J�n�p�l���idungeon.js�����I�ɕ`��j -->
                 <div id="dungeonInfoContainer" class="setting-box">
                 </div>
 
-                <!-- ダンジョンの説明 -->
+                <!-- �_���W�����̐��� -->
                 <div class="setting-box">
-                    <h3>📖 ダンジョンについて</h3>
+                    <h3>?? �_���W�����ɂ���</h3>
                     <div class="dungeon-guide">
-                        <h4>🎮 ダンジョンの遊び方</h4>
+                        <h4>?? �_���W�����̗V�ѕ�</h4>
                         <ul>
-                            <li><strong>無限階層:</strong> 階層に上限はありません。潜れば潜るほど敵がどんどん強くなります</li>
-                            <li><strong>敵との遭遇:</strong> 各階でランダムな敵と戦闘します（ボットマッチのモンスターや、低確率で強力なボスも出現）</li>
-                            <li><strong>問題出題:</strong> 敵とのバトル中に問題が出題されます</li>
-                            <li><strong>正解でダメージ:</strong> 問題に正解すると敵にダメージを与えます</li>
-                            <li><strong>不正解でダメージ:</strong> 問題に不正解すると敵から反撃を受けます</li>
+                            <li><strong>�����K�w:</strong> �K�w�ɏ���͂���܂���B����ΐ���قǓG���ǂ�ǂ񋭂��Ȃ�܂�</li>
+                            <li><strong>�G�Ƃ̑���:</strong> �e�K�Ń����_���ȓG�Ɛ퓬���܂��i�{�b�g�}�b�`�̃����X�^�[��A��m���ŋ��͂ȃ{�X���o���j</li>
+                            <li><strong>���o��:</strong> �G�Ƃ̃o�g�����ɖ�肪�o�肳��܂�</li>
+                            <li><strong>�����Ń_���[�W:</strong> ���ɐ�������ƓG�Ƀ_���[�W��^���܂�</li>
+                            <li><strong>�s�����Ń_���[�W:</strong> ���ɕs��������ƓG���甽�����󂯂܂�</li>
                         </ul>
 
-                        <h4>🎁 報酬システム</h4>
+                        <h4>?? ��V�V�X�e��</h4>
                         <ul>
-                            <li><strong>階層別報酬:</strong> 各階をクリアするたびにコインと経験値を獲得（階層が深いほど増加）</li>
-                            <li><strong>宝箱:</strong> 階をクリアするたびに一定確率で、オーブ・ステータス再分配チケット・武器オーブスロット追加チケット・武器合成チケットのいずれかが手に入ります</li>
-                            <li><strong>素材ドロップ:</strong> ボットマッチでおなじみのモンスターが出現した場合、倒すとそのモンスター本来の素材がドロップします</li>
-                            <li><strong>チェックポイント:</strong> 10階ごとに記録され、次回そこから再開できます</li>
+                            <li><strong>�K�w�ʕ�V:</strong> �e�K���N���A���邽�тɃR�C���ƌo���l���l���i�K�w���[���قǑ����j</li>
+                            <li><strong>��:</strong> �K���N���A���邽�тɈ��m���ŁA�I�[�u�E�X�e�[�^�X�ĕ��z�`�P�b�g�E����I�[�u�X���b�g�ǉ��`�P�b�g�E���퍇���`�P�b�g�̂����ꂩ����ɓ���܂�</li>
+                            <li><strong>�f�ރh���b�v:</strong> �{�b�g�}�b�`�ł��Ȃ��݂̃����X�^�[���o�������ꍇ�A�|���Ƃ��̃����X�^�[�{���̑f�ނ��h���b�v���܂�</li>
+                            <li><strong>�`�F�b�N�|�C���g:</strong> 10�K���ƂɋL�^����A���񂻂�����ĊJ�ł��܂�</li>
                         </ul>
 
-                        <h4>⚠️ 注意事項</h4>
+                        <h4>?? ���ӎ���</h4>
                         <ul>
-                            <li><strong>敗北時:</strong> このダンジョンで得た報酬はすべて失われ、さらに所持金の半分を失います</li>
-                            <li><strong>放棄:</strong> ダンジョンを放棄した場合、獲得報酬は失われます</li>
-                            <li><strong>同時進行:</strong> 複数のダンジョンを同時に進行することはできません</li>
-                            <li><strong>レベル制限なし:</strong> どのレベルでも挑戦できます</li>
+                            <li><strong>�s�k��:</strong> ���̃_���W�����œ�����V�͂��ׂĎ����A����ɏ������̔����������܂�</li>
+                            <li><strong>����:</strong> �_���W��������������ꍇ�A�l����V�͎����܂�</li>
+                            <li><strong>�����i�s:</strong> �����̃_���W�����𓯎��ɐi�s���邱�Ƃ͂ł��܂���</li>
+                            <li><strong>���x�������Ȃ�:</strong> �ǂ̃��x���ł�����ł��܂�</li>
                         </ul>
 
-                        <h4>🏆 出現するボスについて</h4>
+                        <h4>?? �o������{�X�ɂ���</h4>
                         <table class="boss-info-table">
                             <thead>
                                 <tr>
-                                    <th>ボス名</th>
-                                    <th>特徴</th>
+                                    <th>�{�X��</th>
+                                    <th>����</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>ダークロード</td>
-                                    <td>防御無視攻撃と状態異常</td>
+                                    <td>�_�[�N���[�h</td>
+                                    <td>�h�䖳���U���Ə�Ԉُ�</td>
                                 </tr>
                                 <tr>
-                                    <td>インフェルノドラゴン</td>
-                                    <td>火傷付与と強力な全体攻撃</td>
+                                    <td>�C���t�F���m�h���S��</td>
+                                    <td>�Ώ��t�^�Ƌ��͂ȑS�̍U��</td>
                                 </tr>
                                 <tr>
-                                    <td>古の神</td>
-                                    <td>複数デバフとHP回復</td>
+                                    <td>�Â̐_</td>
+                                    <td>�����f�o�t��HP��</td>
                                 </tr>
                                 <tr>
-                                    <td>至高の存在</td>
-                                    <td>究極のスキル組み合わせ</td>
+                                    <td>�����̑���</td>
+                                    <td>���ɂ̃X�L���g�ݍ��킹</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- ダンジョン統計 -->
+                <!-- �_���W�������v -->
                 <div class="setting-box">
-                    <h3>📊 ダンジョン統計</h3>
+                    <h3>?? �_���W�������v</h3>
                     <div id="dungeonStats" class="dungeon-stats">
-                        <p>統計情報を読み込み中...</p>
+                        <p>���v����ǂݍ��ݒ�...</p>
                     </div>
                 </div>
             </section>
 
             <section id="section-ranking" class="content-section">
-                <h2>戦力ランキング <button type="button" id="tutorialOpenBtn-ranking" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="ランキングの遊び方">?</button></h2>
+                <h2>��̓����L���O <button type="button" id="tutorialOpenBtn-ranking" class="tutorial-open-btn tutorial-open-btn-inline" aria-label="�����L���O�̗V�ѕ�">?</button></h2>
                 <div class="setting-box">
-                    <p>プレイヤーの総合的な戦力を示すランキングです。</p>
-                    <button id="refreshRankingBtn" class="btn btn-secondary">ランキング更新</button>
+                    <p>�v���C���[�̑����I�Ȑ�͂����������L���O�ł��B</p>
+                    <button id="refreshRankingBtn" class="btn btn-secondary">�����L���O�X�V</button>
                 </div>
                 <div id="ranking-list-container">
-                    <p>ランキングを読み込み中...</p>
+                    <p>�����L���O��ǂݍ��ݒ�...</p>
                 </div>
             </section>
 
             <section id="section-help" class="content-section">
-                <h2>ヘルプ</h2>
+                <h2>�w���v</h2>
                 <div class="setting-box">
                     <iframe src="help.html" width="100%" height="800" style="border: none;"></iframe>
                 </div>
@@ -733,17 +745,17 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
         </main>
     </div>
 
-    <!-- 遊び方チュートリアル（キャラクター作成・オーブ・武器・スキル共通） -->
+    <!-- �V�ѕ��`���[�g���A���i�L�����N�^�[�쐬�E�I�[�u�E����E�X�L�����ʁj -->
     <div id="tutorial-overlay" class="tutorial-overlay" style="display: none;">
         <div class="tutorial-modal">
-            <button type="button" id="tutorialSkipBtn" class="tutorial-close" aria-label="閉じる">&times;</button>
-            <div class="tutorial-step-icon" id="tutorialStepIcon">📖</div>
+            <button type="button" id="tutorialSkipBtn" class="tutorial-close" aria-label="����">&times;</button>
+            <div class="tutorial-step-icon" id="tutorialStepIcon">??</div>
             <h2 id="tutorialStepTitle" class="tutorial-step-title"></h2>
             <p id="tutorialStepBody" class="tutorial-step-body"></p>
             <div id="tutorialDots" class="tutorial-dots"></div>
             <div class="tutorial-nav">
-                <button type="button" id="tutorialPrevBtn" class="btn tutorial-btn tutorial-btn-secondary">戻る</button>
-                <button type="button" id="tutorialNextBtn" class="btn tutorial-btn tutorial-btn-primary">次へ</button>
+                <button type="button" id="tutorialPrevBtn" class="btn tutorial-btn tutorial-btn-secondary">�߂�</button>
+                <button type="button" id="tutorialNextBtn" class="btn tutorial-btn tutorial-btn-primary">����</button>
             </div>
         </div>
     </div>
@@ -788,7 +800,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/script.js" defer></script>
     <script src="js/orientation.js" defer></script>
 
-    <!-- 勉強関連は動的読み込み -->
+    <!-- �׋��֘A�͓��I�ǂݍ��� -->
     <script>
         function loadStudyScripts() {
             if (!window.questionsExpandedLoaded) {
@@ -811,7 +823,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
             }
         }
 
-        // 勉強セクションが開かれたときに読み込む
+        // �׋��Z�N�V�������J���ꂽ�Ƃ��ɓǂݍ���
         document.addEventListener('DOMContentLoaded', () => {
             const studySection = document.getElementById('section-study');
             if (studySection) {
@@ -827,8 +839,8 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
         });
     </script>
     <script src="js/hw-weapons.js" defer></script>
-    <script src="js/classes.js" defer></script>
-    <script src="js/classes-ui.js" defer></script>
+    <script src="js/job-skills.js" defer></script>
+    
     <script src="js/pvp-event.js" defer></script>
     <script src="js/debug.js" defer></script>
 
@@ -861,8 +873,8 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
         }
     </script>
 <script>
-// 部品ファイルの読み込み確認：新しく追加した3ファイルがサーバーに無いと、ジョイスティックや⚙️設定が使えない。
-// その場合は原因が分かるように画面に知らせる。
+// ���i�t�@�C���̓ǂݍ��݊m�F�F�V�����ǉ�����3�t�@�C�����T�[�o�[�ɖ����ƁA�W���C�X�e�B�b�N��??�ݒ肪�g���Ȃ��B
+// ���̏ꍇ�͌�����������悤�ɉ�ʂɒm�点��B
 window.addEventListener('load', function () {
     var missing = [];
     if (!window.UISettings) missing.push('js/ui-settings.js');
@@ -878,10 +890,14 @@ window.addEventListener('load', function () {
     if (!missing.length) return;
     var d = document.createElement('div');
     d.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:2147483647;background:#7a1f1f;color:#fff;border:1px solid #ff8a8a;border-radius:10px;padding:10px 12px;font:13px/1.5 sans-serif;';
-    d.textContent = '⚠️ 次のファイルが読み込めていません（サーバーにアップロード／コミットされていない可能性があります）: ' + missing.join(', ');
+    d.textContent = '?? ���̃t�@�C�����ǂݍ��߂Ă��܂���i�T�[�o�[�ɃA�b�v���[�h�^�R�~�b�g����Ă��Ȃ��\��������܂��j: ' + missing.join(', ');
     d.addEventListener('click', function () { d.remove(); });
     document.body.appendChild(d);
 });
 </script>
 </body>
 </html>
+
+
+
+
