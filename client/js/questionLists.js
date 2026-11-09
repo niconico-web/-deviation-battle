@@ -687,6 +687,7 @@ function applyMockBattleRewards(seconds, statKey) {
         dungeonItems: player.dungeonItems || [],
         classes: player.classes || { main: null, sub: null },
         classTree: player.classTree || {},
+        classPerk: player.classPerk || {},
         dungeonCheckpoint: player.dungeonCheckpoint || 0,
         pvpWins: player.pvpWins || 0,
         bossRunCount: player.bossRunCount || 0,

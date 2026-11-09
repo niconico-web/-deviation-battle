@@ -38,7 +38,14 @@
             '#classesRoot .cl-node.can{border-color:#ffd84a}' +
             '#classesRoot .cl-node b{display:block;font-size:.8rem}' +
             '#classesRoot .cl-msg{min-height:1.2em;font-size:.8rem;margin-top:6px;color:#9df0ff}#classesRoot .cl-msg.err{color:#ff9a9a}' +
-            '#classesRoot .cl-role{font-size:.85rem;margin:12px 0 2px;color:#cfd8ff}';
+            '#classesRoot .cl-role{font-size:.85rem;margin:12px 0 2px;color:#cfd8ff}' +
+            '#classesRoot .cl-perks{margin-top:10px;padding-top:8px;border-top:1px dashed #4a5a98}' +
+            '#classesRoot .cl-perk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:6px;margin:6px 0}' +
+            '#classesRoot .cl-perk{background:#241a38;border:1px solid #6a4a98;border-radius:8px;padding:7px;font-size:.74rem;line-height:1.5;text-align:left;color:#fff;cursor:pointer}' +
+            '#classesRoot .cl-perk.done{background:#3a2a10;border-color:#ffd84a;box-shadow:0 0 0 1px #ffd84a66}' +
+            '#classesRoot .cl-perk.off{opacity:.5;cursor:not-allowed}' +
+            '#classesRoot .cl-perk b{display:block;font-size:.82rem}' +
+            '#classesRoot .cl-pro{color:#8fe8a8}#classesRoot .cl-con{color:#ff9a9a}';
         document.head.appendChild(st);
     }
     const rangeLabel = (r) => r === 'melee' ? '近距離（近接武器）' : '遠距離（弾・魔法の武器）';
@@ -68,8 +75,26 @@
             });
             h += '</div>';
         }
+        h += perkHtml(cid, slotLabel);
         h += '<button class="ghost" data-reset="' + cid + '" style="font-size:.72rem">このツリーをリセット（ポイントが戻ります）</button></div>';
         return h;
+    }
+
+    // パーク：1つだけ選べる、大きな長所と大きな代償のセット（メイン職業のツリーだけ）
+    function perkHtml(cid, slotLabel) {
+        const sys = CS(), st = sys.state(), list = sys.perkList(cid); if (!list.length) return '';
+        const cost = sys.perkCost(), picked = st.perk[cid] || null, isMain = cid === st.main;
+        let h = '<div class="cl-perks"><b>🌟 パーク</b> <span class="cl-tag">1つだけ選べる／コスト' + cost + '</span>' +
+            '<div class="cl-note" style="margin:3px 0 4px">' + '使える形（' + sys.slotsOf(cid) + 'つ）をすべて解放すると選べます。選ぶとプレイスタイルが大きく変わる代わりに、重いデメリットがつきます。外すとポイントが戻ります。' + (isMain ? '' : '<br>サブ職業では、3つ目の形を使うパークは選べません。') + '</div>';
+        h += '<div class="cl-perk-grid">';
+        list.forEach(pk => {
+            const done = picked === pk.id, chk = done ? null : sys.canChoosePerk(cid, pk.id);
+            const cls = done ? 'done' : (chk && chk.ok ? '' : 'off');
+            h += '<button class="cl-perk ' + cls + '" data-perk="' + pk.id + '" data-cid="' + cid + '" title="' + esc(done ? '選択中（クリックで外す）' : (chk && chk.ok ? 'クリックで選ぶ' : (chk ? chk.reason : ''))) + '">' +
+                '<b>' + pk.icon + ' ' + esc(pk.name) + (done ? ' <span class="cl-tag">選択中</span>' : '') + '</b>' +
+                '<span class="cl-pro">◎ ' + esc(pk.pro) + '</span><br><span class="cl-con">▼ ' + esc(pk.con) + '</span></button>';
+        });
+        return h + '</div></div>';
     }
 
     function render() {
@@ -87,6 +112,7 @@
             '<div class="cl-sel">' + selectHtml('clMain', '🥇 メイン職業', st.main, st.sub) + selectHtml('clSub', '🥈 サブ職業', st.sub, st.main) + '</div>';
         if (st.main) h += treeHtml(st.main, 'メイン');
         if (st.sub) h += treeHtml(st.sub, 'サブ');
+        Object.keys(st.perk || {}).forEach(cid => { if (cid !== st.main && cid !== st.sub && sys.BY_ID[cid] && st.perk[cid]) { const pk = sys.perkList(cid).find(x => x.id === st.perk[cid]); if (pk) h += '<div class="cl-tree"><b>' + sys.BY_ID[cid].icon + ' ' + esc(sys.BY_ID[cid].name) + '</b> のパーク（いまはメインでもサブでもないので効きません）：' + pk.icon + esc(pk.name) + ' <button class="ghost" data-perk="' + pk.id + '" data-cid="' + cid + '" style="font-size:.72rem">外してポイントを戻す</button></div>'; } });
         h += '<div class="cl-msg' + (msgErr ? ' err' : '') + '" id="clMsg">' + esc(msg) + '</div>';
         // 全職業の一覧
         Object.keys(sys.ROLES).forEach(role => {
@@ -120,6 +146,13 @@
         el.querySelectorAll('.cl-node').forEach(b => b.addEventListener('click', () => {
             const r = sys.unlock(b.dataset.cid, b.dataset.nid);
             say(r.ok ? '「' + r.node.name + '」を解放しました' : r.reason, !r.ok); render();
+        }));
+        el.querySelectorAll('[data-perk]').forEach(b => b.addEventListener('click', () => {
+            const cid = b.dataset.cid, pid = b.dataset.perk, st = sys.state();
+            if (st.perk[cid] === pid) { if (!confirm('このパークを外します（ポイントは戻ります）。よろしいですか？')) return; sys.clearPerk(cid); say('パークを外しました'); render(); return; }
+            const pk = sys.perkList(cid).find(x => x.id === pid);
+            if (pk && sys.canChoosePerk(cid, pid).ok && !confirm('「' + pk.name + '」を選びます。\n◎ ' + pk.pro + '\n▼ ' + pk.con + '\n\nよろしいですか？（あとで外してポイントを戻せます）')) return;
+            const r = sys.choosePerk(cid, pid); say(r.ok ? 'パーク「' + r.perk.name + '」を選びました' : r.reason, !r.ok); render();
         }));
         el.querySelectorAll('[data-reset]').forEach(b => b.addEventListener('click', () => {
             if (!confirm('この職業のツリーをリセットして、使ったポイントを戻します。よろしいですか？')) return;

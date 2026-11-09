@@ -48,12 +48,13 @@
     const flash = (x, y, r, c) => B.ring(x, y, r, c || '#fff3b0');
 
     // ---------- この形専用の弾 ----------
-    function shoot(o) { bullets.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, r: 8, life: 1, mult: 0.3, pierce: 0, bounce: 0, color: '#ffffff', hitAt: new Map(), rehit: 0 }, o)); }
+    function shoot(o) { if (global.ClassPerks && global.ClassPerks.pierceAll()) o.pierce = 99; bullets.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, r: 8, life: 1, mult: 0.3, pierce: 0, bounce: 0, color: '#ffffff', hitAt: new Map(), rehit: 0 }, o)); }
     function updateBullets(dt) {
         const w = B.world(), rocks = B.rocks();
         for (let i = bullets.length - 1; i >= 0; i--) {
             const b = bullets[i];
             b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
+            if (b.home) { const tg = B.nearestEnemy(b.x, b.y, 900); if (tg) { const sp = Math.hypot(b.vx, b.vy) || 1; let da = Math.atan2(tg.y - b.y, tg.x - b.x) - Math.atan2(b.vy, b.vx); da = Math.atan2(Math.sin(da), Math.cos(da)); const na = Math.atan2(b.vy, b.vx) + Math.max(-b.home * dt, Math.min(b.home * dt, da)); b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp; } }
             let dead = b.life <= 0;
             if (b.bounce > 0 || b.bounce === 0 && false) { /* 下で処理 */ }
             // 壁・岩での跳ね返り
@@ -66,6 +67,8 @@
                     else dead = true; break;
                 }
             }
+            if (bounced && b.onBounce) b.onBounce(b);
+            if (b.tick) b.tick(b);
             if (!dead) {
                 for (const e of B.enemies()) {
                     if (e.hp <= 0 || Math.hypot(e.x - b.x, e.y - b.y) > e.r + b.r) continue;
@@ -414,19 +417,19 @@
 
     // ===== ギャンブラー =====
     IMPL.gam_coin = function (ctx) {                     // コイントス：表なら大威力、裏なら小威力
-        const m = mk(ctx), me = B.me(), heads = Math.random() < 0.5;
+        const m = mk(ctx), me = B.me(), heads = (global.ClassPerks && global.ClassPerks.lucky()) || Math.random() < 0.5;
         B.popup(heads ? '🪙 表！' : '🪙 裏…', me.x, me.y - 52, heads ? '#ffd84a' : '#9aa6c4');
         fire(m, heads ? { x: me.x, y: me.y, vx: Math.cos(ctx.ang) * 640, vy: Math.sin(ctx.ang) * 640, r: 15, life: 0.9, mult: 2.2, pierce: 2, color: '#ffd84a' } : { x: me.x, y: me.y, vx: Math.cos(ctx.ang) * 520, vy: Math.sin(ctx.ang) * 520, r: 9, life: 0.9, mult: 0.6, color: '#b0b8c8' });
     };
     IMPL.gam_roul = function (ctx) {                     // ルーレット弾：弾ごとに威力がバラバラ
         const m = mk(ctx), me = B.me(), TABLE = [0.2, 0.2, 0.4, 0.4, 0.6, 1.6];
         for (let i = 0; i < 12; i++) {
-            const a = i * TAU / 12 + ctx.ang, mult = TABLE[Math.floor(Math.random() * 6)], col = mult >= 1.5 ? '#ffd84a' : (mult >= 0.6 ? '#ff9a5a' : '#8c96a8');
+            const a = i * TAU / 12 + ctx.ang, mult = (global.ClassPerks && global.ClassPerks.lucky()) ? TABLE[5] : TABLE[Math.floor(Math.random() * 6)], col = mult >= 1.5 ? '#ffd84a' : (mult >= 0.6 ? '#ff9a5a' : '#8c96a8');
             fire(m, { x: me.x, y: me.y, vx: Math.cos(a) * 400, vy: Math.sin(a) * 400, r: mult >= 1.5 ? 12 : 8, life: 0.95, mult: mult, color: col });
         }
     };
     IMPL.gam_dice = function (ctx) {                     // ダイス爆弾：出目の数だけ爆発する
-        const m = mk(ctx), me = B.me(), tp = targetPoint(ctx, 460, 240), roll = 1 + Math.floor(Math.random() * 6); let t = 0, k = 0;
+        const m = mk(ctx), me = B.me(), tp = targetPoint(ctx, 460, 240), roll = (global.ClassPerks && (global.ClassPerks.luckDice() || (global.ClassPerks.lucky() && 6))) || (1 + Math.floor(Math.random() * 6)); let t = 0, k = 0;
         B.popup('🎲 ' + roll, me.x, me.y - 52, roll >= 5 ? '#ffd84a' : '#ffffff');
         add({ update(dt) {
             t += dt;
@@ -437,12 +440,22 @@
 
     // ---------- 窓口 ----------
     function has(key) { return !!IMPL[key]; }
-    function cast(key, ctx) { if (!B || !IMPL[key]) return false; try { IMPL[key](ctx); return true; } catch (e) { console.warn('[ClassForms] cast failed', key, e); return false; } }
+    const H = { mk, add, after, alive, fire, targetPoint, nearestN, flash, rnd, TAU, ents, bullets, IMPL, base: (key, ctx) => IMPL[key](ctx) };
+    function cast(key, ctx) {
+        if (!B || !IMPL[key]) return false;
+        const PK = global.ClassPerks;
+        try {
+            if (PK) PK.onFormCast(key, ctx);
+            const ov = PK && PK.formOverride(key);
+            if (ov) ov(ctx, H); else IMPL[key](ctx);
+            return true;
+        } catch (e) { console.warn('[ClassForms] cast failed', key, e); return false; }
+    }
     function update(dt) {
         if (!B) return;
         if (bullets.length) updateBullets(dt);
         for (let i = ents.length - 1; i >= 0; i--) { let keep = true; try { keep = ents[i].update(dt) !== false; } catch (e) { keep = false; console.warn('[ClassForms] update failed', e); } if (!keep) ents.splice(i, 1); }
     }
     function draw(c) { if (!B) return; ents.forEach(e => { try { if (e.draw) e.draw(c); } catch (err) { /* 描画の失敗でゲームを止めない */ } }); if (bullets.length) drawBullets(c); }
-    global.ClassForms = { has, cast, update, draw, setBridge, keys: () => Object.keys(IMPL) };
+    global.ClassForms = { has, cast, update, draw, setBridge, H, keys: () => Object.keys(IMPL) };
 })(typeof window !== 'undefined' ? window : globalThis);

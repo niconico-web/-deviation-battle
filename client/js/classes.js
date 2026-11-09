@@ -7,7 +7,8 @@
 //  ・サブ職業は、固有効果とツリーの強化が「半分」：固有効果の強さ×0.5、使える形・グリフ・強化は先頭の2つまで
 //  ・ツリーのポイントは、レベル1につき1ポイント（メインとサブで共有）。使った分は、職業のツリーに残る（職業を変えても戻らない）
 //  ・戦闘での効果は class-fx.js、新しい形の動きは class-forms.js、画面は classes-ui.js
-//  保存先：player.classes = { main, sub } / player.classTree = { 職業ID: [解放したノードID] }
+//  ・「パーク」：使える形をすべて解放した職業（メイン・サブとも）は、5つの中から1つだけ選べる（サブは3つ目の形が要るものを除く）（class-perks.js）。ポイントを PERK_COST 使う。解除すると戻る
+//  保存先：player.classes = { main, sub } / player.classTree = { 職業ID: [解放したノードID] } / player.classPerk = { 職業ID: パークID }
 // ============================================================
 (function (global) {
     'use strict';
@@ -225,11 +226,13 @@
         const main = BY_ID[cl.main] ? cl.main : null;
         const sub = BY_ID[cl.sub] && cl.sub !== main ? cl.sub : null;
         const tree = p.classTree && typeof p.classTree === 'object' ? p.classTree : {};
-        return { main, sub, tree, level: Math.max(1, Number(p.level) || 1) };
+        const perk = p.classPerk && typeof p.classPerk === 'object' ? p.classPerk : {};
+        return { main, sub, tree, perk, level: Math.max(1, Number(p.level) || 1) };
     }
     function spentPoints(st) {
         let sum = 0;
         Object.keys(st.tree).forEach(cid => (st.tree[cid] || []).forEach(nid => { const n = treeNodes(cid).find(x => x.id === nid); if (n) sum += n.cost; }));
+        Object.keys(st.perk || {}).forEach(cid => { if (st.perk[cid] && perkDef(cid, st.perk[cid])) sum += perkCost(); });
         return sum;
     }
     function pointsInfo(p) { const st = state(p); const earned = st.level * POINTS_PER_LEVEL, spent = spentPoints(st); return { earned, spent, available: Math.max(0, earned - spent) }; }
@@ -275,6 +278,46 @@
     function resetTree(cid) {
         const p = readPlayer(); if (!p) return false;
         p.classTree = Object.assign({}, p.classTree || {}); delete p.classTree[cid];
+        if (p.classPerk) { p.classPerk = Object.assign({}, p.classPerk); delete p.classPerk[cid]; }     // 形を手放すので、パークも外れる（ポイントは戻る）
+        return writePlayer(p);
+    }
+
+    // ---------- パーク：専用ツリーの中から1つだけ選べる（メイン・サブ） ----------
+    function perkCost() { return global.ClassPerks ? global.ClassPerks.PERK_COST : 5; }
+    function perkList(cid) { return global.ClassPerks ? global.ClassPerks.list(cid) : []; }
+    function perkDef(cid, pid) { return perkList(cid).find(x => x.id === pid) || null; }
+    // その職業で使える「形」（メイン3つ／サブ2つ）を、すべて解放しているか
+    function formsAllUnlocked(st, cid) { const n = slotsOf(cid, st); return n > 0 && Array.from({ length: n }, (_, i) => i + 1).every(i => isUnlockedNode(st, cid, cid + ':f' + i)); }
+    // そのパークが必要とする形が、この職業の枠（サブは先頭2つ）に入っているか
+    function perkUsable(st, cid, pid) {
+        const d = perkDef(cid, pid); if (!d) return false; const slots = slotsOf(cid, st);
+        return global.ClassPerks.needForms(d).every(k => { const o = FORM_OWNER[k]; return !o || o.idx < slots; });
+    }
+    // いま効いているパークのID（メインかサブで、使える形がすべて解放済みのときだけ）
+    function perkOf(cid, p) {
+        const st = state(p); if (!cid || (cid !== st.main && cid !== st.sub)) return null;
+        const pid = st.perk[cid]; if (!pid || !perkDef(cid, pid)) return null;
+        return formsAllUnlocked(st, cid) && perkUsable(st, cid, pid) ? pid : null;
+    }
+    function canChoosePerk(cid, pid, p) {
+        const st = state(p);
+        if (!perkDef(cid, pid)) return { ok: false, reason: 'パークが見つかりません' };
+        if (cid !== st.main && cid !== st.sub) return { ok: false, reason: 'パークを選べるのは、メインかサブに設定した職業のツリーだけです' };
+        if (!formsAllUnlocked(st, cid)) return { ok: false, reason: '先に、この職業で使える「形」（' + slotsOf(cid, st) + 'つ）をすべて解放してください' };
+        if (!perkUsable(st, cid, pid)) return { ok: false, reason: 'このパークは3つ目の形を使うので、サブ職業では選べません' };
+        if (st.perk[cid]) return { ok: false, reason: st.perk[cid] === pid ? '選択済みです' : 'パークは1つだけです。先に今のパークを外してください' };
+        if (pointsInfo(p).available < perkCost()) return { ok: false, reason: 'ポイントが足りません（必要' + perkCost() + '）' };
+        return { ok: true };
+    }
+    function choosePerk(cid, pid) {
+        const p = readPlayer(); if (!p) return { ok: false, reason: 'キャラクターデータがありません' };
+        const chk = canChoosePerk(cid, pid, p); if (!chk.ok) return chk;
+        p.classPerk = Object.assign({}, p.classPerk || {}); p.classPerk[cid] = pid;
+        writePlayer(p); return { ok: true, perk: perkDef(cid, pid) };
+    }
+    function clearPerk(cid) {
+        const p = readPlayer(); if (!p) return false;
+        p.classPerk = Object.assign({}, p.classPerk || {}); delete p.classPerk[cid];
         return writePlayer(p);
     }
 
@@ -313,6 +356,7 @@
     }
     function mergeInto(agg) {
         const cs = passiveStats();
+        try { const ps = global.ClassPerks ? global.ClassPerks.stats() : {}; Object.keys(ps).forEach(k => { cs[k] = (cs[k] || 0) + ps[k]; }); } catch (e) { /* パークが読めなくても戦える */ }
         agg.stats = agg.stats || {};
         Object.keys(cs).forEach(k => { agg.stats[k] = (agg.stats[k] || 0) + cs[k]; });
         return agg;
@@ -324,7 +368,7 @@
         CLASSES, ROLES, BY_ID, FORM_OWNER, GLYPH_OWNER, SUB_SCALE, SUB_SLOTS, POINTS_PER_LEVEL, KIND_RANGE,
         treeNodes, state, pointsInfo, scaleOf, slotsOf, canUnlock, unlock, resetTree, setClasses,
         isFormUnlocked, isGlyphUnlocked, unlockedGlyphKeys, glyphScale, weaponOk, canUseWeaponType, passiveStats, mergeInto, activeUniques, describeEffect,
-        isUnlockedNode, nodeActive
+        isUnlockedNode, nodeActive, perkOf, perkList, canChoosePerk, choosePerk, clearPerk, perkCost
     };
     if (global.ActionSkills && global.ActionSkills.registerClass) global.ActionSkills.registerClass(CLASSES);     // action-skills.js が先に読まれていれば、ここで専用の形・グリフを登録する
 })(typeof window !== 'undefined' ? window : globalThis);

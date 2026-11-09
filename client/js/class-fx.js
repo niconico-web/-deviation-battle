@@ -22,6 +22,7 @@
         B = bridge; U = {}; S = { rage: 0, stack: 0, stackT: 0, souls: 0, lastEl: null, still: 0, lastX: 0, lastY: 0, traps: [], trapCd: 0, flash: {} };
         try { CS().activeUniques().forEach(u => { U[u.id] = u.scale; }); } catch (e) { U = {}; }
         const me = B && B.me(); if (me) { S.lastX = me.x; S.lastY = me.y; }
+        try { if (global.ClassPerks) global.ClassPerks.setup(bridge); } catch (e) { console.warn('[ClassFx] perk setup', e); }
     }
     const on = id => U[id] || 0;
     const has = () => Object.keys(U).length > 0;
@@ -66,6 +67,7 @@
             if (o.def.self.empower) { me.empowerT = Math.max(me.empowerT || 0, o.def.self.empower * g); }
             if (o.def.self.fortify) { me.fortifyT = Math.max(me.fortifyT || 0, o.def.self.fortify * g); }
         });
+        if (global.ClassPerks) mul *= global.ClassPerks.castMul(p, s, slotIdx);       // パーク
         return mul;
     }
 
@@ -106,6 +108,7 @@
         });
         // 聖なる加護（与ダメージの一部を回復。HPが低いほど増える）
         if ((sc = on('crusader'))) B.heal(dmg * 0.06 * sc * (1 + (1 - me.hp / me.maxHp)));
+        if (global.ClassPerks) dmg = global.ClassPerks.onHit(e, dmg, eff, st);          // パーク
         return Math.round(dmg);
     }
     function applySt(st, add, g) {
@@ -121,16 +124,20 @@
 
     // ---------- 被弾・撃破 ----------
     function incomingMul() {
-        const sc = on('juggernaut'); if (!B || !sc) return 1;
-        return 1 - Math.min(0.35 * sc, 0.07 * sc * S.still);
+        const sc = on('juggernaut'); let m = 1;
+        if (B && sc) m = 1 - Math.min(0.35 * sc, 0.07 * sc * S.still);
+        if (B && global.ClassPerks) m *= global.ClassPerks.incoming();                  // パーク
+        return m;
     }
     function onHurt(dmg) {
+        if (B && global.ClassPerks) global.ClassPerks.onHurt(dmg);
         if (!B || !has()) return;
         const me = B.me(); let sc;
         if ((sc = on('barbarian'))) { const before = S.rage; S.rage = Math.min(100, S.rage + (dmg / me.maxHp) * 220); if (before < 100 && S.rage >= 100) pop('😡 怒り満タン！', '#ff6a5a'); }
         if (on('blademaster') && S.stack > 0) S.stack--;
     }
     function onKill(e) {
+        if (B && global.ClassPerks) global.ClassPerks.onKill(e);
         if (!B || !has()) return;
         const me = B.me(); let sc;
         if ((sc = on('necromancer'))) { S.souls = Math.min(10, S.souls + 1); }
@@ -145,6 +152,7 @@
 
     // ---------- 毎フレーム ----------
     function update(dt) {
+        if (B && global.ClassPerks) global.ClassPerks.update(dt);
         if (!B || !has()) { tickEnemies(dt); return; }
         const me = B.me();
         // 立ち止まっている時間（不動の城・仕掛け）
@@ -190,6 +198,7 @@
     function draw(ctx) {
         if (!B || !has()) return;
         const me = B.me(); if (me.dead) return;
+        if (global.ClassPerks) global.ClassPerks.draw(ctx);
         const x = me.x, y = me.y - me.r - 18;
         const bar = (v, max, color, label) => {
             ctx.save(); ctx.fillStyle = 'rgba(10,12,20,.7)'; ctx.fillRect(x - 24, y, 48, 6);

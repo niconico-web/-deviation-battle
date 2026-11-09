@@ -245,7 +245,7 @@
     function sdAtkMul() { return sdOn() ? 1 + SD.atk * Math.max(0, run.time - SD.start) : 1; }                  // 攻撃力の倍率（上限なし）
     function sdDefMul() { return 1 - sdProg(); }                                                                // 防御力（ダメージ軽減）の効き目
     // 回復系の効果の倍率：難易度（ナイトメア50%・エクストリーム75%低下）と、対人戦のサドンデスの両方がかかる
-    function healMul() { if (A('noHeal') > 0) return 0; return Math.max(0, 1 - (DIFF.healRed || 0) - A('healDown')) * (sdOn() ? Math.max(SD.healMin, 1 - sdProg()) : 1); }      // 渇望：回復不可／血鎧：回復-50%
+    function healMul() { if (A('noHeal') > 0 || (window.ClassPerks && ClassPerks.healBlock())) return 0; return Math.max(0, 1 - (DIFF.healRed || 0) - A('healDown')) * (sdOn() ? Math.max(SD.healMin, 1 - sdProg()) : 1); }      // 渇望：回復不可／血鎧：回復-50%
     function addHp(v) { v = v * healMul(); if (v <= 0 || me.dead) return 0; const before = me.hp; me.hp = Math.min(me.maxHp, me.hp + v); return me.hp - before; }
     let domains = [];            // スキル「領域」。{ id, x, y, r, t, max, own, fx(味方に効く自己強化), ... }
     let popups = [];
@@ -364,6 +364,9 @@
                 break;
             case 'bhit':
                 if (isHost) eBullets = eBullets.filter(b => b.id !== d.id);
+                break;
+            case 'pbar':      // 職業パーク「ガーディアン・スピリット」：味方の盾が自分に跳ね返ってきた → 3秒間、あらゆるダメージを無効化
+                if (d && d.to === myId && !me.dead) { const sec = Math.min(5, Number(d.t) || 3); me.invHard = Math.max(me.invHard || 0, sec); me.inv = Math.max(me.inv, sec); popups.push({ x: me.x, y: me.y - 40, t: 1.2, text: '🛡 聖なるバリア', c: '#fff3b0', big: true }); }
                 break;
             case 'mn':      // 他のプレイヤーのミニオン（位置・向き・攻撃の動作）。対人戦では、相手チームのものは赤く表示する
                 if (a && d && Array.isArray(d.l)) {
@@ -993,6 +996,7 @@
             if ((e.invAt || 0) < Date.now() - 700) { e.invAt = Date.now(); popups.push({ x: e.x, y: e.y - e.r - 8, t: 0.8, text: 'ガード中', c: '#7fffd4' }); }
             e.flash = 0.05; return;
         }
+        if (window.ClassPerks && dmg > 0) dmg = ClassPerks.dealMul(e, dmg);              // 職業パーク：与ダメージの補正
         const els = SE ? (o.el !== undefined ? o.el : WEL) : [];
         if (els && els.length && dmg > 0) dmg += elemHit(e, dmg, els, o);
         const d = { eid: e.id, dmg: dmg, st: o.st || null, kx: o.kx || 0, ky: o.ky || 0, by: myId, crit: !!o.crit };
@@ -1003,6 +1007,7 @@
         e.flash = 0.1;
         if (window.SBSound && dmg > 0) SBSound.sfx(o.crit ? 'crit' : 'hit');
         if (isHost) applyHit(d); else { netSend('hit', d); e.hp = Math.max(0, e.hp - dmg * (e.takeMul || 1)); }
+        if (dmg > 0 && window.ClassPerks) ClassPerks.afterDeal(e, dmg);
         if (dmg > 0 && !accBusy) accEvent('hit');
     }
     function applyHit(d) {
@@ -1313,6 +1318,7 @@
         // 被弾時効果
         if (A('thorns') > 0) { const n = nearestEnemy(me.x, me.y, 140); if (n) dealHit(n, weapon.dmg * P.atkMul * A('thorns'), {}); }
         if (AB('thorn_armor')) { const n = nearestEnemy(me.x, me.y, 170); if (n) dealHit(n, weapon.dmg * P.atkMul * Math.min(6, 0.15 * 40 * (dmg / me.maxHp)), {}); }   // 棘の鎧：受けたダメージの15%ぶんを反射
+        if (me.hp <= 0 && window.ClassPerks && ClassPerks.fatal()) { /* 職業パーク：身代わりの術で、致命傷を回避した */ }
         if (me.hp <= 0 && AB('guts') && !(me.gutsT > 0)) {                       // 根性：致死ダメージをHP1で耐える（45秒に1回）
             me.hp = 1; me.gutsT = 45; me.inv = Math.max(me.inv, 1.0);
             popups.push({ x: me.x, y: me.y - 40, t: 1.3, text: '根性！ HP1で耐えた', c: '#ffd84a', big: true });
@@ -1841,11 +1847,13 @@
 
     function doDash() {
         if (me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.ultT > 0 || me.dashCd > 0 || run.phase !== 'run') return;
+        if (window.ClassPerks && !ClassPerks.dashOk()) { if (me.noDashMsg !== true) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'ダッシュ不可', c: '#ff9a9a' }); me.noDashMsg = true; setTimeout(() => { me.noDashMsg = false; }, 1500); } return; }
         if (A('noDash') > 0) { if (me.noDashMsg !== true) { popups.push({ x: me.x, y: me.y - 30, t: 0.8, text: 'ダッシュ不可', c: '#ff9a9a' }); me.noDashMsg = true; setTimeout(() => { me.noDashMsg = false; }, 1500); } return; }
         let mx = input.mx, my = input.my;
         if (!mx && !my) { mx = Math.cos(me.ang); my = Math.sin(me.ang); }
         const l = Math.hypot(mx, my) || 1;
         me.dashVX = mx / l * 640; me.dashVY = my / l * 640; me.dashT = 0.18; me.dashCd = P.dashCd; me.inv = Math.max(me.inv, 0.22); me.invHard = 0.22;
+        if (window.ClassPerks) ClassPerks.onDash();                                     // 職業パーク：ガンカタ
         fx.push({ k: 'puff', x: me.x, y: me.y, t: 0.25, life: 0.25, c: '#bfe6ff' });
         agg.procs.filter(p => p.on === 'dash').forEach(p => { me.dashBlast = p.v; });
         accEvent('dash');
@@ -1937,6 +1945,14 @@
         const stat = (e, key, sec) => { if (e && e.st) e.st[key] = Math.max(e.st[key] || 0, sec); };
         const bridge = {
             me: () => me, enemies: () => enemies, eBullets: () => eBullets, rocks: () => rocks,
+            // 職業パーク用
+            input: () => input, getStat: k => A(k), setStat: (k, v) => { agg.stats[k] = v; }, def: () => P.def, energyMax: () => ENERGY_MAX,
+            allies: () => allies, addCoins: n => { run.stats.coins = Math.max(0, (run.stats.coins || 0) + Math.round(n)); },
+            stunSelf: sec => { me.stunImm = 0; stunMe(sec); },
+            selfHit: raw => hurtMe(raw),
+            selfDamage: hp => { if (me.dead || hp <= 0) return; me.hp = Math.max(1, me.hp - hp); popups.push({ x: me.x, y: me.y - 24, t: 0.8, text: '-' + Math.round(hp), c: '#ff7b7b', big: true }); },
+            killSelf: () => { if (me.dead) return; me.inv = 0; me.invHard = 0; me.guardT = 0; me.barrierHp = 0; me.shield = false; const d0 = agg.stats.dodge; agg.stats.dodge = 0; try { hurtMe(99); } finally { agg.stats.dodge = d0; } },
+            allyBarrier: (id, sec) => netSend('pbar', { to: id, t: sec }),
             world: () => ({ w: WORLD_W, h: WORLD_H }), isRun: () => run.phase === 'run',
             slots: () => skillSlots, distSeg: distSeg,
             nearestEnemy: (x, y, maxD) => nearestEnemy(x, y, maxD),
@@ -1969,8 +1985,11 @@
         if (!s || me.dead || me.stunT > 0 || me.ultT > 0 || run.phase !== 'run') return;
         if (!charged) {
             if (s.cdLeft > 0 || me.cast || me.gch > 0) return;
-            if (me.energy < s.cost) { flashEnergy(); return; }
-            me.energy -= s.cost; s.cdLeft = s.cooldown * (1 + A('skillCdUp')); updateEnergyUI();
+            classInit();
+            if (window.ClassPerks && !ClassPerks.castOk(s)) return;                      // 職業パーク：使えない条件
+            const pCost = s.cost * (window.ClassPerks ? ClassPerks.costMul(s) : 1), pCd = window.ClassPerks ? ClassPerks.cdMul(s) : 1;
+            if (me.energy < pCost) { flashEnergy(); return; }
+            me.energy -= pCost; s.cdLeft = s.cooldown * (1 + A('skillCdUp')) * pCd; updateEnergyUI();
             if (window.SBSound) SBSound.sfx('skill');
             const cs = CHARGE_SEC[s.params.form] || 0;
             if (cs > 0) {      // 溜め開始：エネルギーとクールタイムは先に使う。発動の向きと狙いは、溜め終わりの瞬間に決まる
@@ -1980,6 +1999,7 @@
             }
         }
         accEvent('skill');
+        if (window.ClassPerks) ClassPerks.onCast(s);                                  // 職業パーク
         if (GMK === 'dimension' && G.dp === 1) { if (isHost) hostReflect(me.x, me.y); else netSend('refl', { x: Math.round(me.x), y: Math.round(me.y) }); }   // スキルのタイミングで放射弾を跳ね返す
         const p = s.params, ang = aimAngle(); me.ang = ang;
         popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: s.skill.name, c: '#9df0ff' });
@@ -2436,14 +2456,15 @@
         let my = (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) - (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0) + input.stick.y;
         const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
         input.mx = mx; input.my = my;
-        const sp = P.move * (me.haste > 0 ? 1.3 : 1);
+        if (window.ClassPerks) { const pf = ClassPerks.moveFilter(mx, my); mx = pf[0]; my = pf[1]; }      // 職業パーク：移動の制限
+        const sp = P.move * (me.haste > 0 ? 1.3 : 1) * (window.ClassPerks ? ClassPerks.moveMul() : 1);
         if (me.dashT > 0) {
             me.dashT -= dt; moveSolid(me, me.dashVX * dt, me.dashVY * dt, me.r);
             if (me.dashT <= 0 && me.dashBlast) { const v = me.dashBlast; me.dashBlast = 0; fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 130, t: 0.3, life: 0.3, c: '#cfe8ff' }); enemies.forEach(e => { if (e.hp > 0 && dist(e.x, e.y, me.x, me.y) < 140 + e.r) dealHit(e, weapon.dmg * P.atkMul * v, { kx: (e.x - me.x) * 3, ky: (e.y - me.y) * 3 }); }); }
         } else if (!stunned) { moveSolid(me, mx * sp * dt, my * sp * dt, me.r); }
         pushOutOfRocks(me, me.r);
         if (input.aimOn && !isTouch) me.ang = Math.atan2(input.aimY - (VH / 2 + (me.y - cam.y)), input.aimX - (VW / 2 + (me.x - cam.x)));
-        if (!stunned && wantsAttack() && me.atkCd <= 0 && run.phase === 'run') doAttack();
+        if (!stunned && wantsAttack() && me.atkCd <= 0 && run.phase === 'run' && (!window.ClassPerks || ClassPerks.attackOk())) { doAttack(); if (window.ClassPerks) ClassPerks.afterAttack(); }
         if (me.orb) updateOrbit(dt);
         // 持続回復
         if (A('regen') > 0) addHp(me.maxHp * A('regen') * dt);
