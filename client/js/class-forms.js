@@ -74,7 +74,8 @@
                     if (e.hp <= 0 || Math.hypot(e.x - b.x, e.y - b.y) > e.r + b.r) continue;
                     const last = b.hitAt.get(e) || -9; if (b.rehit <= 0 ? b.hitAt.has(e) : (b.t0 - b.life) - last < b.rehit) continue;
                     b.hitAt.set(e, b.t0 - b.life);
-                    if (b.onHit) b.onHit(e, b); else b.ctxm.hit(e, b.mult, Math.atan2(b.vy, b.vx));
+                    if (B.proj) B.proj(true);                      // 対人戦：飛び道具のダメージの目印
+                    try { if (b.onHit) b.onHit(e, b); else b.ctxm.hit(e, b.mult, Math.atan2(b.vy, b.vx)); } finally { if (B.proj) B.proj(false); }
                     if (b.pierce-- <= 0) { dead = true; break; }
                 }
             }
@@ -84,6 +85,24 @@
     function fire(ctxm, o) { const t0 = o.life == null ? 1 : o.life; shoot(Object.assign({ ctxm, t0 }, o)); }
     function drawBullets(c) {
         bullets.forEach(b => { c.save(); c.fillStyle = b.color; c.globalAlpha = 0.9; c.beginPath(); c.arc(b.x, b.y, b.r, 0, TAU); c.fill(); c.globalAlpha = 0.35; c.beginPath(); c.arc(b.x - b.vx * 0.02, b.y - b.vy * 0.02, b.r * 1.5, 0, TAU); c.fill(); c.restore(); });
+    }
+
+    // ---------- 対人戦：相手の飛び道具を止める ----------
+    // 対人戦では、相手の弾は見た目だけが自分の画面に出て、当たり判定は撃った人の画面で行われる。
+    // そのため「弾を消す」は、(1)見た目の弾を消す (2)受けるダメージを止める（hurtPvp から pvpBlock が呼ばれる）の2つで行う。
+    const PV = { cut: { t: 0 }, reflect: { t: 0, mult: 0.8 }, absorb: { t: 0 } };
+    function pvpArm(kind, t, opt) { const k = PV[kind]; if (!k) return; k.t = t; k.cb = opt && opt.onBlock || null; if (opt && opt.mult != null) k.mult = opt.mult; }
+    function ghostNear(x, y, R) {       // 相手の見た目の弾を、範囲内ぶんだけ消す。消した数を返す
+        const g = B && B.ghostShots ? B.ghostShots() : null; if (!g) return 0; let n = 0;
+        for (let i = g.length - 1; i >= 0; i--) if (Math.hypot(g[i].x - x, g[i].y - y) <= R) { g.splice(i, 1); n++; }
+        return n;
+    }
+    function pvpBlock(f, by) {
+        if (!B) return false; const me = B.me();
+        if (PV.reflect.t > 0) { B.popup('跳ね返し！', me.x, me.y - 44, '#9df0ff'); if (by && B.pvpReflect) B.pvpReflect(by, f * PV.reflect.mult); if (PV.reflect.cb) PV.reflect.cb('reflect'); return true; }
+        if (PV.cut.t > 0) { B.popup('魔断ち！', me.x, me.y - 44, '#9df0ff'); B.barrier(Math.min(me.maxHp * 0.15, me.maxHp * 0.015)); if (PV.cut.cb) PV.cut.cb('cut'); return true; }
+        if (PV.absorb.t > 0) { B.popup('吸収！', me.x, me.y - 44, '#9df0ff'); if (PV.absorb.cb) PV.absorb.cb('absorb'); return true; }
+        return false;
     }
 
     // ---------- 形の実装 ----------
@@ -394,12 +413,13 @@
     IMPL.spb_cut = function (ctx) {                      // 魔断ち：広く斬り払い、弾を消す
         const m = mk(ctx), me = B.me(); m.cone(me.x, me.y, ctx.ang, 135, 2.8, 1.0); B.fxArc(me.x, me.y, ctx.ang, 135, 2.8, '#9df0ff');
         const bl = B.eBullets(); let n = 0; for (let i = bl.length - 1; i >= 0; i--) { if (Math.hypot(bl[i].x - me.x, bl[i].y - me.y) <= 175) { bl.splice(i, 1); n++; } }
+        n += ghostNear(me.x, me.y, 175); pvpArm('cut', 0.5);      // 対人戦：見た目の弾を消し、斬っている間に当たる飛び道具のダメージも止める
         if (n > 0) B.barrier(Math.min(me.maxHp * 0.15, me.maxHp * 0.015 * n));
     };
     IMPL.spb_reflect = function (ctx) {                  // 反射の構え：当たった弾を跳ね返す
-        const m = mk(ctx); let t = 0;
+        const m = mk(ctx); let t = 0; pvpArm('reflect', 2.5, { mult: 0.8 });
         add({ update(dt) {
-            if (!alive()) return false; t += dt; const me = B.me(), bl = B.eBullets();
+            if (!alive()) return false; t += dt; const me = B.me(), bl = B.eBullets(); ghostNear(me.x, me.y, 78);
             for (let i = bl.length - 1; i >= 0; i--) {
                 const b = bl[i]; if (Math.hypot(b.x - me.x, b.y - me.y) <= 78) {
                     bl.splice(i, 1); const tg = B.nearestEnemy(me.x, me.y, 700); const a = tg ? Math.atan2(tg.y - me.y, tg.x - me.x) : Math.atan2(-b.vy, -b.vx);
@@ -440,7 +460,7 @@
 
     // ---------- 窓口 ----------
     function has(key) { return !!IMPL[key]; }
-    const H = { mk, add, after, alive, fire, targetPoint, nearestN, flash, rnd, TAU, ents, bullets, IMPL, base: (key, ctx) => IMPL[key](ctx) };
+    const H = { mk, add, after, alive, fire, targetPoint, nearestN, flash, rnd, TAU, ents, bullets, IMPL, pvp: { arm: pvpArm, ghostNear }, base: (key, ctx) => IMPL[key](ctx) };
     function cast(key, ctx) {
         if (!B || !IMPL[key]) return false;
         const PK = global.ClassPerks;
@@ -453,9 +473,10 @@
     }
     function update(dt) {
         if (!B) return;
+        Object.keys(PV).forEach(k => { if (PV[k].t > 0) PV[k].t -= dt; });
         if (bullets.length) updateBullets(dt);
         for (let i = ents.length - 1; i >= 0; i--) { let keep = true; try { keep = ents[i].update(dt) !== false; } catch (e) { keep = false; console.warn('[ClassForms] update failed', e); } if (!keep) ents.splice(i, 1); }
     }
     function draw(c) { if (!B) return; ents.forEach(e => { try { if (e.draw) e.draw(c); } catch (err) { /* 描画の失敗でゲームを止めない */ } }); if (bullets.length) drawBullets(c); }
-    global.ClassForms = { has, cast, update, draw, setBridge, H, keys: () => Object.keys(IMPL) };
+    global.ClassForms = { has, cast, update, draw, setBridge, H, pvpBlock, keys: () => Object.keys(IMPL) };
 })(typeof window !== 'undefined' ? window : globalThis);

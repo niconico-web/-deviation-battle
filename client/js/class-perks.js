@@ -707,6 +707,8 @@
             form: { spb_cut(ctx, H) {
                 const m = H.mk(ctx), mm = B.me(); m.cone(mm.x, mm.y, ctx.ang, 135, 2.8, 1.0); B.fxArc(mm.x, mm.y, ctx.ang, 135, 2.8, '#9df0ff');
                 const bl = B.eBullets(); let n = 0; for (let i = bl.length - 1; i >= 0; i--) if (Math.hypot(bl[i].x - mm.x, bl[i].y - mm.y) <= 175) { bl.splice(i, 1); n++; }
+                n += H.pvp.ghostNear(mm.x, mm.y, 175);                                               // 対人戦：見た目の弾も消す
+                H.pvp.arm('cut', 0.5, { onBlock: () => { (B.slots() || []).forEach(s => { if (s) s.cdLeft = 0; }); } });     // 対人戦：斬っている間に当たる飛び道具を止めて、リセット
                 if (n > 0) { (B.slots() || []).forEach(s => { if (s) s.cdLeft = 0; }); popup('♻ クールダウン全リセット', '#9df0ff'); }
                 else { (B.slots() || []).forEach(s => { if (s) s.cdLeft = Math.max(s.cdLeft || 0, 10); }); popup('空振り… 10秒ペナルティ', '#ff9a9a'); }
             } }
@@ -714,9 +716,9 @@
     def('spellbreaker', 'spb_mirror', 'ミラー・フォース', '🪞',
         '「反射の構え」で跳ね返した弾丸が巨大化し、威力が3倍になって敵を自動追尾する。', '反射の構えの発動持続時間が「0.5秒（一瞬）」になり、タイミングを完璧に合わせないと直撃を食らう超シビアな仕様になる。', {
             form: { spb_reflect(ctx, H) {
-                const m = H.mk(ctx); let t = 0;
+                const m = H.mk(ctx); let t = 0; H.pvp.arm('reflect', 0.5, { mult: 2.4 });                  // 対人戦：0.5秒の間に当たる飛び道具を、3倍弱にして跳ね返す
                 H.add({ update(dt) {
-                    if (!H.alive()) return false; t += dt; const mm = B.me(), bl = B.eBullets();
+                    if (!H.alive()) return false; t += dt; const mm = B.me(), bl = B.eBullets(); H.pvp.ghostNear(mm.x, mm.y, 90);
                     for (let i = bl.length - 1; i >= 0; i--) { const b = bl[i]; if (Math.hypot(b.x - mm.x, b.y - mm.y) <= 90) { bl.splice(i, 1); const tg = B.nearestEnemy(mm.x, mm.y, 800), a = tg ? angTo(mm, tg) : Math.atan2(-b.vy, -b.vx);
                         H.fire(m, { x: mm.x, y: mm.y, vx: Math.cos(a) * 480, vy: Math.sin(a) * 480, r: 28, life: 2.5, mult: 2.4, home: 5, color: '#9df0ff' }); } }
                     return t < 0.5;
@@ -746,11 +748,12 @@
             attackOk: () => !S.eating, incoming() { return S.eating && S.absorbed < 10 ? 99999 : 1; },
             form: { spb_reflect(ctx, H) {
                 const m = H.mk(ctx); let t = 0; S.eating = true; S.absorbed = 0; const a0 = ctx.ang;
+                H.pvp.arm('absorb', 5, { onBlock: () => { S.absorbed++; } });                              // 対人戦：当たる飛び道具のダメージを吸収して貯める
                 H.add({ update(dt) {
-                    if (!H.alive()) { S.eating = false; return false; } t += dt; const mm = B.me(), bl = B.eBullets();
+                    if (!H.alive()) { S.eating = false; H.pvp.arm('absorb', 0); return false; } t += dt; const mm = B.me(), bl = B.eBullets(); H.pvp.ghostNear(mm.x, mm.y, 95);
                     for (let i = bl.length - 1; i >= 0; i--) if (Math.hypot(bl[i].x - mm.x, bl[i].y - mm.y) <= 95) { bl.splice(i, 1); S.absorbed++; }
                     if (S.absorbed >= 10 || t >= 5) {
-                        S.eating = false; const a = B.nearestEnemy(mm.x, mm.y, 900) ? angTo(mm, B.nearestEnemy(mm.x, mm.y, 900)) : a0, L = 2600, k = 1 + S.absorbed * 0.5;
+                        S.eating = false; H.pvp.arm('absorb', 0); const a = B.nearestEnemy(mm.x, mm.y, 900) ? angTo(mm, B.nearestEnemy(mm.x, mm.y, 900)) : a0, L = 2600, k = 1 + S.absorbed * 0.5;
                         m.line(mm.x, mm.y, mm.x + Math.cos(a) * L, mm.y + Math.sin(a) * L, 110, 3.0 * k); B.fxLine(mm.x, mm.y, mm.x + Math.cos(a) * L, mm.y + Math.sin(a) * L, '#9df0ff', 110); popup('🌈 放出！', '#9df0ff');
                         if (S.absorbed < 10) { S.absorbed = 10; } return false;
                     } return true;

@@ -231,6 +231,7 @@
     let eBullets = [];
     let telegraphs = [];
     let myShots = [];            // 自分の弾（命中判定は自分側でやる）
+    let pvpProj = false;      // 対人戦：いま「飛び道具」のダメージを与えている最中（相手の魔断ち・反射の構えが効くかの目印）
     let ghostShots = [];         // 他のプレイヤーが撃った弾（見た目だけ。命中判定は撃った本人の画面でやる）
     let fx = [];                 // 見た目の演出
     let minions = [];            // スキル「ミニオン召喚」の自分のミニオン。{ id, x, y, r, t, max, sid, idx, atkT, cc, base, hasDmg, eff, fx, c, ... }
@@ -406,7 +407,7 @@
                 if (!isHost && !PVP) applySnap(d);
                 break;
             case 'pvph':
-                if (PVP && d.to === myId) hurtPvp(d.f, d.kx, d.ky, d.st, m.from);
+                if (PVP && d.to === myId) hurtPvp(d.f, d.kx, d.ky, d.st, m.from, d.pj);
                 break;
             case 'pvpd':   // 誰かが誰かに与えた実ダメージ（最大HPに対する%）：時間切れの勝敗に使う
                 if (PVP && d && d.by) tallyDmg(String(d.by).slice(0, 60), clamp(Number(d.p) || 0, 0, 100000));
@@ -928,11 +929,12 @@
         popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
         run.stats.dmg += f * 100; e.flash = 0.1;
         const st = o.st && o.st.stun ? { stun: Math.min(PVP_STUN_MAX, typeof o.st.stun === 'number' ? o.st.stun : 1) } : null;
-        netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st });
+        netSend('pvph', { to: e.pid, f: +f.toFixed(4), kx: Math.round(o.kx || 0), ky: Math.round(o.ky || 0), st: st, pj: pvpProj ? 1 : 0 });
     }
     // 相手の攻撃を受けたとき（ダメージは自分の最大HPの割合）
-    function hurtPvp(f, kx, ky, st, by) {
+    function hurtPvp(f, kx, ky, st, by, pj) {
         if (me.dead || me.invHard > 0 || run.phase !== 'run' || me.inv > 0) return;
+        if (pj && window.ClassForms && ClassForms.pvpBlock && ClassForms.pvpBlock(f, by)) return;      // 職業：魔断ち・反射の構え・スペル・イーターが、相手の飛び道具を消す
         if (me.guardT > 0) { guardBlock(); return; }
         if (Math.random() < Math.min(0.5, A('dodge'))) { popups.push({ x: me.x, y: me.y - 24, t: 0.6, text: 'MISS', c: '#9fe0ff' }); me.inv = 0.1; return; }
         if (me.shield) { me.shield = false; popups.push({ x: me.x, y: me.y - 24, t: 0.7, text: 'BARRIER', c: '#9fe0ff' }); me.inv = 0.4; return; }
@@ -1946,6 +1948,8 @@
         const bridge = {
             me: () => me, enemies: () => enemies, eBullets: () => eBullets, rocks: () => rocks,
             // 職業パーク用
+            ghostShots: () => ghostShots, proj: v => { pvpProj = !!v; }, isPvp: () => !!(PVP && run.pvpMode),
+            pvpReflect: (to, f) => netSend('pvph', { to: to, f: +Number(f).toFixed(4), kx: 0, ky: 0, st: null, pj: 0 }),
             input: () => input, getStat: k => A(k), setStat: (k, v) => { agg.stats[k] = v; }, def: () => P.def, energyMax: () => ENERGY_MAX,
             allies: () => allies, addCoins: n => { run.stats.coins = Math.max(0, (run.stats.coins || 0) + Math.round(n)); },
             stunSelf: sec => { me.stunImm = 0; stunMe(sec); },
@@ -2514,12 +2518,13 @@
                 for (const e of enemies) {
                     if (e.hp <= 0 || s.hit[e.id]) continue;
                     if (dist(s.x, s.y, e.x, e.y) < s.r + e.r) {
-                        s.hit[e.id] = 1;
+                        s.hit[e.id] = 1; pvpProj = true;
                         if (s.skill) skillHit(e, s.skill.base, s.skill.hasDmg, s.skill.eff, Math.atan2(s.vy, s.vx));
                         else {      // 通常攻撃の弾：当たった手応えと、必殺ゲージ（1回の射撃につき1回だけ溜まる。散弾でも増えすぎない）
                             const hh = strike(e, s.m || 1, 30); hitFeel(e, { fin: !!s.fin, i: s.cs | 0, ult: true }, hh);
                             if (s.vol && s.vol !== me.ultGainShot) { me.ultGainShot = s.vol; ultGain(s.fin ? 8 : 2.5); }
                         }
+                        pvpProj = false;
                         if (s.aoe) { boomMine(s.x, s.y, s.aoe); s.aoe = 0; }     // 魔導砲：着弾点で爆発（周囲の敵にも当たる）
                         if (s.pierce-- <= 0) { dead = true; break; }
                     }
