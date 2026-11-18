@@ -5,19 +5,31 @@
 //  発動は practice.js の castSkill から ClassForms.cast(形のキー, ctx) で呼ばれる。毎フレーム update(dt) と draw(ctx) が呼ばれる。
 //   ctx = { base: 1ヒットの基準ダメージ, hasDmg, eff: 付いている効果, ang: 狙った向き, p: compute の params, skill }
 //  ダメージは、すべて B.skillHit（通常のスキルと同じ処理＝グリフ・属性・職業の固有効果が乗る）を通る。
-//  見た目は自分の画面にだけ出る（ほかのプレイヤーの画面には出ない）。
+//  ほかのプレイヤーの画面には、撃った人が発動した合図（'cf'）を受け取って、同じ動きを「見た目だけ」で再現する（castRemote）。
+//   ・再現は、持ち主（owner）を覚えたまま動く。そのあいだ、B.me() は撃った人（allies）の位置を返し、ダメージ・回復・バフ・移動など、
+//     自分の状態を変える処理（B.skillHit など）は、すべて何もしない。ダメージは撃った人の画面だけで決まる。
 // ============================================================
 (function (global) {
     'use strict';
-    let B = null;
+    let B = null, RAWB = null, CUR = null;      // RAWB：本物の橋渡し。CUR：いま動かしているものの持ち主（null＝自分、それ以外＝ほかのプレイヤーのid。見た目だけ）
     const ents = [];        // 動いているもの（設置物・分身・弾など）
     const bullets = [];     // この形専用の弾
     const rnd = (a, b) => a + Math.random() * (b - a);
     const TAU = Math.PI * 2;
     const ELCOL = { fire: '#ff7a3d', water: '#4aa8ff', wind: '#9dffd2', earth: '#c9a15a', thunder: '#ffe14a', ice: '#bfeaff', venom: '#b46bff', light: '#fff3b0', dark: '#8a63d2' };
 
-    function setBridge(b) { B = b; ents.length = 0; bullets.length = 0; }
-    function add(o) { ents.push(o); return o; }
+    // 見た目だけの再現のとき、自分の状態を変えない橋渡し：読むだけの関数と、見た目の関数だけを通す。それ以外は、何もしない
+    const REMOTE_OK = { enemies: 1, eBullets: 1, rocks: 1, world: 1, isRun: 1, distSeg: 1, nearestEnemy: 1, allies: 1, getStat: 1, def: 1, energyMax: 1, slots: 1, isPvp: 1, ghostShots: 1, unitDmg: 1, popup: 1, ring: 1, line: 1, fxLine: 1, fxArc: 1 };
+    const NOOP = () => undefined;
+    function makeBridge(raw) {
+        return new Proxy(raw, { get(t, k) {
+            const v = t[k]; if (typeof v !== 'function' || CUR === null) return v;
+            if (k === 'me') return () => (t.allies()[CUR] || { x: -9999, y: -9999, hp: 0, maxHp: 1, dead: true, r: 16, ang: 0 });
+            return REMOTE_OK[k] ? v : NOOP;
+        } });
+    }
+    function setBridge(b) { RAWB = b; B = makeBridge(b); ents.length = 0; bullets.length = 0; CUR = null; }
+    function add(o) { o.owner = CUR; ents.push(o); return o; }
     function after(sec, fn) { return add({ w: sec, update(dt) { this.w -= dt; if (this.w <= 0) { fn(); return false; } return true; } }); }
     const alive = () => B && B.isRun() && !B.me().dead;
 
@@ -48,11 +60,11 @@
     const flash = (x, y, r, c) => B.ring(x, y, r, c || '#fff3b0');
 
     // ---------- この形専用の弾 ----------
-    function shoot(o) { if (global.ClassPerks && global.ClassPerks.pierceAll()) o.pierce = 99; bullets.push(Object.assign({ x: 0, y: 0, vx: 0, vy: 0, r: 8, life: 1, mult: 0.3, pierce: 0, bounce: 0, color: '#ffffff', hitAt: new Map(), rehit: 0 }, o)); }
+    function shoot(o) { if (CUR === null && global.ClassPerks && global.ClassPerks.pierceAll()) o.pierce = 99; bullets.push(Object.assign({ owner: CUR, x: 0, y: 0, vx: 0, vy: 0, r: 8, life: 1, mult: 0.3, pierce: 0, bounce: 0, color: '#ffffff', hitAt: new Map(), rehit: 0 }, o)); }
     function updateBullets(dt) {
         const w = B.world(), rocks = B.rocks();
         for (let i = bullets.length - 1; i >= 0; i--) {
-            const b = bullets[i];
+            const b = bullets[i]; CUR = b.owner || null;
             b.life -= dt; b.x += b.vx * dt; b.y += b.vy * dt;
             if (b.home) { const tg = B.nearestEnemy(b.x, b.y, 900); if (tg) { const sp = Math.hypot(b.vx, b.vy) || 1; let da = Math.atan2(tg.y - b.y, tg.x - b.x) - Math.atan2(b.vy, b.vx); da = Math.atan2(Math.sin(da), Math.cos(da)); const na = Math.atan2(b.vy, b.vx) + Math.max(-b.home * dt, Math.min(b.home * dt, da)); b.vx = Math.cos(na) * sp; b.vy = Math.sin(na) * sp; } }
             let dead = b.life <= 0;
@@ -81,6 +93,7 @@
             }
             if (dead) bullets.splice(i, 1);
         }
+        CUR = null;
     }
     function fire(ctxm, o) { const t0 = o.life == null ? 1 : o.life; shoot(Object.assign({ ctxm, t0 }, o)); }
     function drawBullets(c) {
@@ -458,6 +471,40 @@
         }, draw(c) { c.save(); if (t < 0.5) { const f = t / 0.5; c.font = '26px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎲', me.x + (tp.x - me.x) * f, me.y + (tp.y - me.y) * f - Math.sin(f * Math.PI) * 70); } else { c.font = '26px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🎲', tp.x, tp.y); } c.restore(); } });
     };
 
+
+    // ===== テイマー =====
+    IMPL.tam_wolf = function (ctx) {                     // 狼の突撃：敵をつらぬいて駆け抜け、主人のもとへ戻ってくる
+        const m = mk(ctx), me = B.me(), tp = targetPoint(ctx, 520, 340), a0 = Math.atan2(tp.y - me.y, tp.x - me.x), L = Math.min(430, Math.max(260, Math.hypot(tp.x - me.x, tp.y - me.y) + 120));
+        const sx = me.x, sy = me.y, ex = sx + Math.cos(a0) * L, ey = sy + Math.sin(a0) * L, wolf = { x: sx, y: sy }; let t = 0, acc = 0;
+        add({ update(dt) {
+            t += dt; acc += dt;
+            if (t < 0.45) { const f = t / 0.45; wolf.x = sx + (ex - sx) * f; wolf.y = sy + (ey - sy) * f; }
+            else { const mm = B.me(), f = Math.min(1, (t - 0.45) / 0.45); wolf.x = ex + (mm.x - ex) * f; wolf.y = ey + (mm.y - ey) * f; }
+            if (acc >= 0.06) { acc = 0; m.circle(wolf.x, wolf.y, 44, t < 0.45 ? 0.38 : 0.16); }
+            return t < 0.9;
+        }, draw(c) { c.save(); c.globalAlpha = 0.3; c.strokeStyle = '#cfd8e8'; c.lineWidth = 14; c.lineCap = 'round'; c.beginPath(); c.moveTo(sx, sy); c.lineTo(wolf.x, wolf.y); c.stroke(); c.globalAlpha = 1; c.font = '30px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🐺', wolf.x, wolf.y); c.restore(); } });
+    };
+    IMPL.tam_hawk = function (ctx) {                     // 鷹の急降下：敵の上を旋回してから急降下。当たった敵に「印」を付ける
+        const m = mk(ctx), tp = targetPoint(ctx, 560, 260), tg = tp.e; let t = 0, hit = false;
+        add({ update(dt) {
+            t += dt; const x = tg ? tg.x : tp.x, y = tg ? tg.y : tp.y;
+            if (!hit && t >= 0.9) { hit = true; if (tg && tg.hp > 0) { m.hit(tg, 1.6); B.setSt(tg, { curse: 1 }); } else m.circle(x, y, 70, 1.0); flash(x, y, 70, '#d8f0ff'); }
+            return t < 1.2;
+        }, draw(c) {
+            const x = tg ? tg.x : tp.x, y = tg ? tg.y : tp.y; c.save(); c.font = '28px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+            if (t < 0.9) { const a = t * 9; c.strokeStyle = 'rgba(216,240,255,.6)'; c.setLineDash([5, 5]); c.lineWidth = 2; c.beginPath(); c.arc(x, y, 50, 0, TAU); c.stroke(); c.setLineDash([]); c.fillText('🦅', x + Math.cos(a) * 70 * (1 - t / 0.9 * 0.6), y - 70 + Math.sin(a) * 24); }
+            else { const f = Math.min(1, (t - 0.9) / 0.15); c.fillText('🦅', x, y - 70 + 70 * f); } c.restore();
+        } });
+    };
+    IMPL.tam_bear = function (ctx) {                     // 熊の守り：熊が主人を守って暴れる（周囲の敵を怯ませ、バリアも張る）
+        const m = mk(ctx); B.barrier(B.me().maxHp * 0.12); let t = 0, acc = 0;
+        add({ update(dt) {
+            if (!B.isRun()) return false; t += dt; acc += dt; const me = B.me();
+            if (acc >= 0.5) { acc = 0; m.circle(me.x + 36, me.y, 115, 0.4, e => { if (!e.boss) B.setStun(e, 0.5); }); }
+            return t < 6;
+        }, draw(c) { const me = B.me(); c.save(); c.globalAlpha = Math.min(1, (6 - t) / 1.2 + 0.2); c.font = '38px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🐻', me.x + 36, me.y - 6); c.strokeStyle = 'rgba(180,120,60,.5)'; c.lineWidth = 3; c.beginPath(); c.arc(me.x + 36, me.y, 115, 0, TAU); c.stroke(); c.restore(); } });
+    };
+
     // ---------- 窓口 ----------
     function has(key) { return !!IMPL[key]; }
     const H = { mk, add, after, alive, fire, targetPoint, nearestN, flash, rnd, TAU, ents, bullets, IMPL, pvp: { arm: pvpArm, ghostNear }, base: (key, ctx) => IMPL[key](ctx) };
@@ -474,9 +521,30 @@
     function update(dt) {
         if (!B) return;
         Object.keys(PV).forEach(k => { if (PV[k].t > 0) PV[k].t -= dt; });
-        if (bullets.length) updateBullets(dt);
-        for (let i = ents.length - 1; i >= 0; i--) { let keep = true; try { keep = ents[i].update(dt) !== false; } catch (e) { keep = false; console.warn('[ClassForms] update failed', e); } if (!keep) ents.splice(i, 1); }
+        try {
+            if (bullets.length) updateBullets(dt);
+            const al = RAWB && RAWB.allies ? RAWB.allies() : {};
+            for (let i = ents.length - 1; i >= 0; i--) {
+                const en = ents[i]; CUR = en.owner || null; let keep = true;
+                if (CUR !== null && (!al[CUR] || al[CUR].dead && !en.keepDead)) keep = false;      // 撃った人がいなくなったら、その人の見た目も消す
+                else { try { keep = en.update(dt) !== false; } catch (e) { keep = false; console.warn('[ClassForms] update failed', e); } }
+                if (!keep) ents.splice(i, 1);
+            }
+        } finally { CUR = null; }
     }
-    function draw(c) { if (!B) return; ents.forEach(e => { try { if (e.draw) e.draw(c); } catch (err) { /* 描画の失敗でゲームを止めない */ } }); if (bullets.length) drawBullets(c); }
-    global.ClassForms = { has, cast, update, draw, setBridge, H, pvpBlock, keys: () => Object.keys(IMPL) };
+    function draw(c) { if (!B) return; try { ents.forEach(e => { CUR = e.owner || null; try { if (e.draw) e.draw(c); } catch (err) { /* 描画の失敗でゲームを止めない */ } }); } finally { CUR = null; } if (bullets.length) drawBullets(c); }
+    // ほかのプレイヤーが発動した形を、見た目だけで再現する。id：撃った人（allies のキー）、o：{ ang, p }
+    const REMOTE_MAX_PER_OWNER = 14, REMOTE_MAX_ALL = 140;
+    const usesPv = key => /\bPV\./.test(String(IMPL[key]));      // 対人戦の「止める・跳ね返す」を自分の状態として持つ形は、再現しない（自分の弾が止まってしまうため）
+    function castRemote(id, key, o) {
+        if (!B || !RAWB || !IMPL[key] || usesPv(key)) return false;
+        const who = RAWB.allies()[id]; if (!who || who.dead) return false;
+        let mine = 0; ents.forEach(e => { if (e.owner === id) mine++; });
+        if (mine >= REMOTE_MAX_PER_OWNER || ents.length >= REMOTE_MAX_ALL) return false;      // 見た目の数に上限を設ける（重くならないように）
+        const prev = CUR; CUR = id;
+        try { IMPL[key]({ base: 0, hasDmg: false, eff: {}, ang: Number(o && o.ang) || 0, p: Object.assign({}, o && o.p), skill: {} }); return true; }
+        catch (e) { console.warn('[ClassForms] remote cast failed', key, e); return false; }
+        finally { CUR = prev; }
+    }
+    global.ClassForms = { has, cast, castRemote, update, draw, setBridge, H, pvpBlock, keys: () => Object.keys(IMPL), remoteKeys: () => Object.keys(IMPL).filter(k => !usesPv(k)) };
 })(typeof window !== 'undefined' ? window : globalThis);

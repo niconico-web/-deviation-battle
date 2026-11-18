@@ -46,7 +46,7 @@
 
     // ---------- パレット ----------
     function palPerson(cloth, hair) { return { k: '#14121c', h: hair, H: shade(hair, -0.35), s: '#f2c9a0', S: '#d9a577', e: '#1a1a24', c: cloth, C: shade(cloth, -0.4), l: shade(cloth, 0.35), b: '#4a3020', w: '#ffffff' }; }
-    function palWeapon(col) { return { a: shade(col, 0.55), b: col, c: shade(col, -0.45), d: shade(col, -0.7), h: '#8a5a2b', H: '#5b3a1c', g: '#f2c14e', G: '#b88a1e', s: '#b4bcc9', S: '#6b7384', r: '#d84a4a', w: '#ffffff', k: '#14121c' }; }
+    function palWeapon(col) { return { a: shade(col, 0.55), b: col, c: shade(col, -0.45), d: shade(col, -0.7), h: '#8a5a2b', H: '#5b3a1c', g: '#f2c14e', G: '#b88a1e', s: '#b4bcc9', S: '#6b7384', r: '#d84a4a', w: '#ffffff', k: '#14121c', R: '#ff5a3a', B: '#4ac8ff', P: '#c06aff' }; }
     function palEnemy(col) { return { m: col, M: shade(col, -0.4), L: shade(col, 0.4), k: '#14121c', w: '#ffffff', e: '#ff3b3b', y: '#ffe14a', r: '#ff4a4a' }; }
     const HAIRS = ['#4a2c1a', '#222233', '#d8b03a', '#b5392b', '#6a3fa0', '#2f7d6d', '#e8e8f0', '#d86a9a'];
     function hairOf(name) { let h = 0; const s = String(name || ''); for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return HAIRS[h % HAIRS.length]; }
@@ -57,7 +57,8 @@
         const rows = D.BODY_TOP.concat(D.LEGS[frame] || D.LEGS.idle);
         return get('p:' + cloth + ':' + hair + ':' + frame, rows, palPerson(cloth, hair), scale, flash, mirror);
     }
-    function weapon(type, color, scale, mythic) {
+    function weapon(type, color, scale, mythic, custom) {
+        if (custom && custom.rows) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }      // 自分で描いたドット絵（オリジナル武器）
         const M = mythic && D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[mythic];      // 神話の武器は、専用のドット絵
         if (M) { const sm = get('wm:' + mythic + ':' + color, M.rows, palWeapon(color), scale); sm.grip = M.grip * scale; sm.orbiters = M.orbiters | 0; return sm; }
         const W = D.WEAPONS[type] || D.WEAPONS.default, s = get('w:' + (D.WEAPONS[type] ? type : 'default') + ':' + color, W.rows, palWeapon(color), scale);
@@ -82,7 +83,7 @@
     }
     // 武器：手の位置(x,y)に持ち手を合わせて、角度 a の向きに向ける。swing(0〜1)があれば振る動き
     function drawWeapon(ctx, x, y, a, type, color, o) {
-        o = o || {}; const sc = o.scale || 2, sp = weapon(type, color, sc, o.mythic);
+        o = o || {}; const sc = o.scale || 2, sp = weapon(type, color, sc, o.mythic, o.custom);
         let rot = a + Math.PI / 2, ox = 0, oy = 0, k = o.swing;
         if (k != null && k >= 0 && k <= 1) {
             const dir = o.dir || 1, kind = o.kind || 'cone';
@@ -117,7 +118,11 @@
         if (o.alpha != null) ctx.globalAlpha = ga;
     }
 
+    // 自分で描いたドット絵（{rows, pal, grip}）を、描画用に整える。key は絵の中身から決まる（同じ絵なら同じ key）
+    function customKey(px) { const t = px.rows.join('|') + JSON.stringify(px.pal); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); }
+    function prepCustom(px) { return px && px.rows ? { rows: px.rows, pal: px.pal, grip: px.grip | 0, key: customKey(px) } : null; }
     window.SBPix = {
+        customKey: customKey, prepCustom: prepCustom,
         on: () => enabled, setOn: v => { enabled = !!v; try { localStorage.setItem(KEY, enabled ? '1' : '0'); } catch (e) { /* 保存できなくてもよい */ } },
         hasEnemy: a => !!D.ENEMIES[a], hasMythic: id => !!(D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[id]), hasWeapon: t => !!D.WEAPONS[t], weaponTypes: () => Object.keys(D.WEAPONS),
         hairOf: hairOf, shade: shade, drawPerson: drawPerson, drawWeapon: drawWeapon, drawEnemy: drawEnemy,

@@ -21,7 +21,7 @@
 // ============================================
 
 const MAX_MEMBERS = 4;
-const MAX_BY_STAGE = { pvp_3v3: 6 };            // 3v3 は6人まで（ほかは4人）
+const MAX_BY_STAGE = { pvp_3v3: 6, raid_duality: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
 const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room
@@ -32,7 +32,7 @@ function cleanName(v, max) {
 }
 function cleanDiff(v) {
     const n = parseInt(v, 10);
-    return n >= 0 && n <= 3 ? n : 0;   // 0〜2＝通常ステージの難易度、3＝ボスラッシュのエクストリーム
+    return n >= 0 && n <= 4 ? n : 0;   // 0〜4＝通常ステージの難易度（3=エクストリーム、4=インフェルノ）。ボスラッシュは0〜3
 }
 function cleanFloor(v) {      // 無限回廊の、部屋のスタート階層（1以上）
     const n = parseInt(v, 10);

@@ -130,6 +130,7 @@ require("./socket/survival")(io);
 require("./socket/guild")(io);
 require("./socket/board")(io);
 require("./socket/pvp")(io);
+require("./socket/ghost")(io);
 require("./managers/SupabaseSync").start();      // 以降、ファイルが変わるたびに Supabase へ保存する（�?�機�?�を読み込んだあとに呼ぶ?�?
 
 app.get("/api/unique/claims", (req, res) => {

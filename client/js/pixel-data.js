@@ -87,6 +87,10 @@
             '.....aa.....', '....abba....', '....abwb....', '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...'
             , '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...', '..kabwwbck..', 'gGgGgggGgGgg', 'gG.kGggGk.Gg', '...kkhhkk...'
             , '.....hH.....', '.....hh.....', '.....hH.....', '.....gg.....', '....gGGg....'] },
+        duality: { grip: 15, rows: [
+            '.....Pw.....', '....RwwB....', '....RwwB....', '...RRwwBB...', '...RRwwBB...', '...RRwwBB...', '...RRwwBB...', '...RRwwBB...',
+            '..RRRwwBBB..', '..RRRwwBBB..', '..RRrwwbBB..', '...Rr.wb.B..', '..kkgGGGgkk.', '.kggGPPGggk.', '...kkhHhkk..', '.....hHh....',
+            '.....hhh....', '.....hHh....', '.....GgG....', '....gGGGg...'] },
         supportstaff: { grip: 12, rows: [
             '..ggg..', '.gaaag.', '.gawag.', '.gaaag.', '..ggg..', '..hhh..', '...h...', '...H...', '...h...', '...h...', '...h...', '...H...', '..ggg..', '...h...', '...H...', '...g...'] }
     };
@@ -341,6 +345,11 @@
             '.....aa.....', '....abba....', '....abwb....', '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...'
             , '...abwwbc...', '...abwwbc...', '...abwwbc...', '...abwwbc...', '..kabwwbck..', 'gGgGgggGgGgg', 'gG.kGggGk.Gg', '...kkhhkk...'
             , '.....hH.....', '.....hh.....', '.....hH.....', '.....gg.....', '....gGGg....'] },
+        legend_duality: { grip: 21, rows: [
+            '......Pw.......', '.....RwwB......', '.....RwwB......', '....RRwwBB.....', '....RRwwBB.....', '....RRwwBB.....', '...RRRwwBBB....', '...RRRwwBBB....',
+            '...RRRwwBBB....', '...RRRwwBBB....', '..RRRRwwBBBB...', '..RRRRwwBBBB...', '..RRrRwwBbBB...', '..RRrRwwBbBB...', '...RrRwwBbB....', '...RrR.wBbB....',
+            '....Rr.ww.bB...', '..kkkgGGGGgkkk.', '.kgGGgPPPPgGGgk', '..kkkghHHhgkkk.', '.....hHHh......', '.....hhHh......', '.....hHHh......', '.....hhHh......',
+            '.....GgGg......', '....gGPPGg.....', '.....gGGg......'] },
         yggdrasil: { grip: 15, rows: [
             '..a.a..a.a..', '.aaa.aaaaaa.', 'aabaaabbbaaa', '.aabbbwwbbaa', '..abbwwwwba.', '..aabwwwbaa.', '.a.aabwbaa.a', '..a..hbh..a.', '.....hhh....', '....hHhh....', '.....hhH....', '....hhhh....', '.....hHh....', '....hhhh....', '.....hhh....', '.....hHh....', '....hhhh....', '.....hhH....', '.....hHh....', '....GgggG...', '.....hhh....', '.....hHh....', '......g.....'] }
     };

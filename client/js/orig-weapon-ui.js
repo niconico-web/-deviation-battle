@@ -1,0 +1,354 @@
+// ============================================
+// School Battle
+// orig-weapon-ui.js（オリジナル武器：キット作成・武器作成・工房・ドット絵エディタ・金床）
+// ============================================
+// 中身のルールは hw-weapons.js（キット・成長・レア度アップ）にある。ここは画面だけ。
+//   1. 素材からキットを作る  2. キットから武器を作る（武器種・名前・ドット絵・攻撃エフェクトの色）
+//   3. 工房：素材を与えて成長／見た目を描き直す／レア度アップ（金床でハンマーを叩く）
+(function (global) {
+    'use strict';
+    const L = () => global.SBLobbyUI;
+    const esc = s => (L() ? L().esc(s) : String(s));
+    const num = n => Number(n || 0).toLocaleString();
+
+    // ---------- プレイヤーデータ（コイン・素材）----------
+    const player = () => { try { return global.getPlayerData ? global.getPlayerData() : JSON.parse(localStorage.getItem('player') || 'null'); } catch (e) { return null; } };
+    const savePlayer = p => { try { localStorage.setItem('player', JSON.stringify(p)); } catch (e) { /* 保存できなくても続ける */ } };
+    const coins = () => { const p = player(); return p ? (p.coins || 0) : 0; };
+    function addCoins(v) { const p = player(); if (!p) return; p.coins = (p.coins || 0) + v; savePlayer(p); }
+    function mats() { const p = player(); const m = p && p.materials && !Array.isArray(p.materials) ? p.materials : {}; return m; }
+    function takeMats(used) {      // used: { id: n }。足りなければ false
+        const p = player(); if (!p) return false; if (!p.materials || Array.isArray(p.materials)) p.materials = {};
+        for (const id of Object.keys(used)) if ((p.materials[id] | 0) < used[id]) return false;
+        Object.keys(used).forEach(id => { p.materials[id] = (p.materials[id] | 0) - used[id]; if (p.materials[id] <= 0) delete p.materials[id]; });
+        savePlayer(p); return true;
+    }
+    // MATERIAL_DATA は materials.js の const（window の持ち物ではない）なので、グローバルの名前で直接読む
+    const matInfo = id => { try { return (typeof MATERIAL_DATA !== 'undefined' && MATERIAL_DATA[id]) || null; } catch (e) { return null; } };
+    const tagChips = (tags, small) => (tags || []).map(t => '<span style="display:inline-block;background:#2b3550;border-radius:10px;padding:1px 7px;margin:1px 2px 1px 0;font-size:' + (small ? '.68' : '.74') + 'rem;color:#cfe0ff">' + esc(HW.TAGS[t] || t) + '</span>').join('');
+    const biasChips = b => { const top = HW.biasTop(b); return top.length ? tagChips(top) : '<span style="color:#778;font-size:.78rem">（偏りなし）</span>'; };
+    const RC = k => (HW.RARITIES[k] || HW.RARITIES.normal);
+
+    // ============================================================
+    // ドット絵エディタ
+    // ============================================================
+    const PALETTE0 = ['#ffffff', '#c9d3e6', '#8fa0bf', '#5a6a8c', '#2a3350', '#14121c', '#8a5a2b', '#5b3a1c', '#f2c14e', '#b88a1e', '#ff5a3a', '#ffa13a', '#4ac8ff', '#3a6ee8', '#7fd13b', '#c06aff'];
+    const FX_PRESETS = ['#ff5a3a', '#ffa13a', '#ffe14a', '#7fd13b', '#4ac8ff', '#3a6ee8', '#c06aff', '#ff6ad5', '#ffffff', '#9aa6c0'];
+    function pixelEditor(box, init, type) {
+        const W = 16, H = 24, CH = HW.PIX_CHARS;
+        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20, undo: [], fx: (init && init.fxColor) || '#ff5a3a' };
+        for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1));
+        function loadPix(px) {      // 保存された絵（rows / pal / grip）を読み込む
+            const c = HW.cleanPix(px); if (!c) return false;
+            const used = {}, order = [];
+            c.rows.forEach(r => { for (const ch of r) if (ch !== '.' && !(ch in used)) { used[ch] = true; order.push(ch); } });
+            const idx = {}; st.pal = PALETTE0.slice();
+            CH.split('').forEach((ch, i) => { if (c.pal[ch]) { st.pal[i] = c.pal[ch]; idx[ch] = i; } });
+            st.grid = []; for (let y = 0; y < H; y++) { const row = new Array(W).fill(-1); const r = c.rows[y] || ''; for (let x = 0; x < Math.min(W, r.length); x++) if (r[x] !== '.' && idx[r[x]] != null) row[x] = idx[r[x]]; st.grid.push(row); }
+            st.grip = Math.min(H - 1, c.grip); return true;
+        }
+        function loadTemplate(t) {      // 武器種の標準の絵を、下書きとして読み込む
+            const D = global.SBPIX_DATA, W0 = D && D.WEAPONS && (D.WEAPONS[t] || D.WEAPONS.default); if (!W0) return;
+            const pal = SBPix._palWeapon('#8fb0ff'), letters = []; W0.rows.forEach(r => { for (const ch of r) if (ch !== '.' && ch !== ' ' && pal[ch] && letters.indexOf(ch) < 0) letters.push(ch); });
+            const map = {}; st.pal = PALETTE0.slice(); letters.slice(0, 16).forEach((ch, i) => { map[ch] = i; st.pal[i] = pal[ch]; });
+            const w0 = Math.max.apply(null, W0.rows.map(r => r.length)), ox = Math.floor((W - w0) / 2), oy = Math.max(0, H - W0.rows.length - 1);
+            st.grid = []; for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1));
+            W0.rows.forEach((r, ry) => { for (let rx = 0; rx < r.length; rx++) { const ch = r[rx]; if (ch === '.' || ch === ' ' || map[ch] == null) continue; const x = rx + ox, y = ry + oy; if (x >= 0 && x < W && y >= 0 && y < H) st.grid[y][x] = map[ch]; } });
+            st.grip = Math.min(H - 1, (W0.grip | 0) + oy);
+        }
+        if (!(init && init.pix && loadPix(init.pix))) loadTemplate(type || 'sword');
+        const cell = Math.max(8, Math.min(14, Math.floor((Math.min(global.innerWidth || 360, 420) - 56) / W)));
+        box.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">' +
+            '<div><canvas id="pxeCv" width="' + W * cell + '" height="' + H * cell + '" style="touch-action:none;border:2px solid #3a4666;border-radius:6px;background:#10131c;cursor:crosshair;max-width:100%"></canvas></div>' +
+            '<div style="flex:1;min-width:190px">' +
+            '<div style="font-size:.78rem;color:#9fb3d9;margin-bottom:3px">色（タップで選ぶ。選んだ色は下で変えられます）</div><div id="pxePal" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:240px"></div>' +
+            '<div style="margin:5px 0"><input type="color" id="pxeCol" style="width:44px;height:30px;padding:0;border:0;background:none;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
+            '<div id="pxeTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
+            '<div style="margin:6px 0;font-size:.8rem"><label><input type="checkbox" id="pxeMir" checked> 左右対称に描く</label></div>' +
+            '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）<input type="range" id="pxeGrip" min="0" max="' + (H - 1) + '" value="' + st.grip + '" style="width:100%"></div>' +
+            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="pxeUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="pxeClear" style="padding:5px 10px">全消し</button><button type="button" class="sbl-btn gray" id="pxeTpl" style="padding:5px 10px">下書き（武器種）</button></div>' +
+            '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">攻撃エフェクトの色</div><div id="pxeFx" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>' +
+            '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">プレビュー</div><canvas id="pxePv" width="150" height="130" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas>' +
+            '</div></div>';
+        const cv = box.querySelector('#pxeCv'), g = cv.getContext('2d'), pv = box.querySelector('#pxePv'), pg = pv.getContext('2d');
+        function toPix() {
+            const rows = st.grid.map(r => r.map(i => i < 0 ? '.' : CH[i]).join(''));
+            const pal = {}; CH.split('').forEach((ch, i) => { pal[ch] = st.pal[i]; });
+            return HW.cleanPix({ rows: rows, pal: pal, grip: st.grip });
+        }
+        function drawPreview() {
+            pg.clearRect(0, 0, pv.width, pv.height);
+            const px = toPix(); if (!px) { pg.fillStyle = '#556'; pg.font = '12px sans-serif'; pg.fillText('絵を描いてください', 24, 70); return; }
+            const col = st.fx;
+            pg.save(); pg.globalAlpha = 0.9; pg.strokeStyle = col; pg.lineWidth = 8; pg.lineCap = 'round'; pg.beginPath(); pg.arc(75, 118, 78, -2.6, -0.55); pg.stroke();
+            pg.globalAlpha = 0.5; pg.lineWidth = 16; pg.beginPath(); pg.arc(75, 118, 78, -2.5, -0.65); pg.stroke(); pg.restore();
+            try { SBPix.drawWeapon(pg, 75, 112, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 2 }); } catch (e) { /* 描けなくてもエディタは使える */ }
+        }
+        function render() {
+            g.clearRect(0, 0, cv.width, cv.height);
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+                g.fillStyle = (x + y) % 2 ? '#161a26' : '#1b2030'; g.fillRect(x * cell, y * cell, cell, cell);
+                const i = st.grid[y][x]; if (i >= 0) { g.fillStyle = st.pal[i]; g.fillRect(x * cell, y * cell, cell, cell); }
+            }
+            g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; g.beginPath();
+            for (let x = 0; x <= W; x++) { g.moveTo(x * cell + .5, 0); g.lineTo(x * cell + .5, H * cell); } for (let y = 0; y <= H; y++) { g.moveTo(0, y * cell + .5); g.lineTo(W * cell, y * cell + .5); } g.stroke();
+            g.strokeStyle = '#ff4a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, st.grip * cell + cell / 2); g.lineTo(W * cell, st.grip * cell + cell / 2); g.stroke();
+            if (st.mirror) { g.strokeStyle = 'rgba(120,200,255,.35)'; g.beginPath(); g.moveTo(W * cell / 2, 0); g.lineTo(W * cell / 2, H * cell); g.stroke(); }
+            drawPreview();
+        }
+        function palUi() {
+            const pe = box.querySelector('#pxePal');
+            pe.innerHTML = st.pal.map((c, i) => '<button type="button" data-i="' + i + '" style="height:26px;border-radius:5px;border:2px solid ' + (i === st.cur && st.tool !== 'erase' ? '#ffd84a' : '#2b3550') + ';background:' + c + ';cursor:pointer"></button>').join('');
+            pe.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.cur = +b.dataset.i; if (st.tool === 'erase') st.tool = 'pen'; box.querySelector('#pxeCol').value = st.pal[st.cur]; palUi(); toolUi(); }));
+            box.querySelector('#pxeCol').value = st.pal[st.cur];
+        }
+        const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし'], ['pick', '💧 スポイト']];
+        function toolUi() {
+            const te = box.querySelector('#pxeTools');
+            te.innerHTML = TOOLS.map(t => '<button type="button" data-t="' + t[0] + '" class="sbl-btn ' + (st.tool === t[0] ? '' : 'gray') + '" style="padding:5px 9px;margin:0;font-size:.8rem">' + t[1] + '</button>').join('');
+            te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; palUi(); toolUi(); }));
+        }
+        function fxUi() {
+            const fe = box.querySelector('#pxeFx');
+            fe.innerHTML = FX_PRESETS.map(c => '<button type="button" data-c="' + c + '" style="width:24px;height:24px;border-radius:50%;border:2px solid ' + (c === st.fx ? '#fff' : '#2b3550') + ';background:' + c + ';cursor:pointer"></button>').join('') +
+                '<input type="color" id="pxeFxCol" value="' + st.fx + '" style="width:34px;height:28px;padding:0;border:0;background:none">';
+            fe.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', () => { st.fx = b.dataset.c; fxUi(); drawPreview(); }));
+            fe.querySelector('#pxeFxCol').addEventListener('input', e => { st.fx = e.target.value; drawPreview(); });
+        }
+        function snap() { st.undo.push(JSON.stringify(st.grid)); if (st.undo.length > 25) st.undo.shift(); }
+        function setCell(x, y, v) { if (x < 0 || x >= W || y < 0 || y >= H) return; st.grid[y][x] = v; if (st.mirror) st.grid[y][W - 1 - x] = v; }
+        function fill(x, y, v) {
+            const t = st.grid[y][x]; if (t === v) return; const stack = [[x, y]]; let n = 0;
+            while (stack.length && n++ < 800) { const p = stack.pop(), px = p[0], py = p[1]; if (px < 0 || px >= W || py < 0 || py >= H || st.grid[py][px] !== t) continue; st.grid[py][px] = v; stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]); }
+        }
+        function at(ev) { const r = cv.getBoundingClientRect(), sx = cv.width / r.width, sy = cv.height / r.height; return [Math.floor((ev.clientX - r.left) * sx / cell), Math.floor((ev.clientY - r.top) * sy / cell)]; }
+        let down = false;
+        function act(ev, first) {
+            const p = at(ev), x = p[0], y = p[1]; if (x < 0 || x >= W || y < 0 || y >= H) return;
+            if (st.tool === 'pick') { if (first && st.grid[y][x] >= 0) { st.cur = st.grid[y][x]; st.tool = 'pen'; palUi(); toolUi(); } return; }
+            if (st.tool === 'fill') { if (first) { snap(); fill(x, y, st.cur); if (st.mirror) { /* 塗りつぶしは対称にしない */ } render(); } return; }
+            setCell(x, y, st.tool === 'erase' ? -1 : st.cur); render();
+        }
+        cv.addEventListener('pointerdown', ev => { ev.preventDefault(); down = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ } if (st.tool === 'pen' || st.tool === 'erase') snap(); act(ev, true); });
+        cv.addEventListener('pointermove', ev => { if (down && (st.tool === 'pen' || st.tool === 'erase')) act(ev, false); });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { down = false; }));
+        box.querySelector('#pxeCol').addEventListener('input', e => { st.pal[st.cur] = e.target.value; palUi(); render(); });
+        box.querySelector('#pxeMir').addEventListener('change', e => { st.mirror = e.target.checked; render(); });
+        box.querySelector('#pxeGrip').addEventListener('input', e => { st.grip = +e.target.value; render(); });
+        box.querySelector('#pxeUndo').addEventListener('click', () => { const t = st.undo.pop(); if (t) { st.grid = JSON.parse(t); render(); } });
+        box.querySelector('#pxeClear').addEventListener('click', () => { snap(); st.grid = []; for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1)); render(); });
+        box.querySelector('#pxeTpl').addEventListener('click', () => { if (!confirm('いまの絵を消して、武器種の標準の絵を下書きとして読み込みます。よろしいですか？')) return; snap(); loadTemplate(type || 'sword'); box.querySelector('#pxeGrip').value = st.grip; palUi(); render(); });
+        palUi(); toolUi(); fxUi(); render();
+        return { pix: toPix, fx: () => st.fx, setType: t => { type = t; drawPreview(); } };
+    }
+
+    // ============================================================
+    // 武器の小さな見た目（一覧・金床で使う）
+    // ============================================================
+    function iconCanvas(w, size) {
+        const cv = document.createElement('canvas'); cv.width = size; cv.height = size; cv.style.cssText = 'image-rendering:pixelated;background:#10131c;border-radius:8px;border:1px solid #3a4666';
+        const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+        try {
+            const px = w.pix ? HW.cleanPix(w.pix) : null;
+            SBPix.drawWeapon(g, size / 2, size * 0.78, -Math.PI / 2 + 0.35, w.type, HW.rarityOf(w).color, { custom: px ? SBPix.prepCustom(px) : null, scale: Math.max(2, Math.round(size / 40)) });
+        } catch (e) { /* 描けなければ空のまま */ }
+        return cv;
+    }
+
+    // ============================================================
+    // 1. キット作成
+    // ============================================================
+    function openKits(hack, onChange) {
+        if (!L() || !global.HW) { alert('読み込みに失敗しました'); return; }
+        const m = L().modal('🔨 オリジナル武器キット', () => { if (onChange) onChange(); });
+        const used = {};
+        function draw() {
+            const have = mats(), ids = Object.keys(have).filter(id => have[id] > 0 && matInfo(id)).sort((a, b) => (matInfo(b).rarity | 0) - (matInfo(a).rarity | 0) || a.localeCompare(b));
+            const kv = HW.kitValue(used, matInfo), ok = kv.n >= HW.KIT_NEED_COUNT && kv.v >= HW.KIT_NEED_VALUE;
+            const bias = {}; Object.keys(used).forEach(id => { if (used[id] > 0) HW.matTags(matInfo(id)).forEach(t => { bias[t] = (bias[t] || 0) + used[id] * (matInfo(id).rarity | 0 || 1); }); });
+            const kits = hack.kits || [];
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
+                '<div style="font-size:.84rem;color:#9fb3d9;line-height:1.6">素材を使って「オリジナル武器キット」を作ります。キットから、武器の種類・見た目（ドット絵）・攻撃エフェクトの色を決めて、自分だけの武器を作れます。<b>使った素材の系統で、あとで付きやすい効果が変わります</b>（炎の素材なら炎系の効果、など）。</div>' +
+                '<div class="sbl-sec">持っているキット（' + kits.length + '）</div>' +
+                (kits.length ? kits.map(k => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center;gap:6px;cursor:default"><span>キット <small style="display:inline">素材' + k.n + '個</small> ' + biasChips(k.bias) + '</span><button type="button" class="sbl-btn orange" data-kit="' + k.id + '" style="margin:0">武器を作る</button></div>').join('') : '<div style="color:#778;font-size:.82rem">まだありません。</div>') +
+                '<div class="sbl-sec">キットの材料（素材' + HW.KIT_NEED_COUNT + '個以上、レア度の合計が' + HW.KIT_NEED_VALUE + '以上）</div>' +
+                '<div style="font-size:.84rem;margin:2px 0 6px">選んだ素材：<b>' + kv.n + '</b>個　レア度の合計：<b style="color:' + (kv.v >= HW.KIT_NEED_VALUE ? '#7aff9a' : '#ffb06a') + '">' + kv.v + ' / ' + HW.KIT_NEED_VALUE + '</b>　偏り：' + biasChips(bias) + '</div>' +
+                '<button type="button" class="sbl-btn green" id="kitMake"' + (ok ? '' : ' disabled style="opacity:.5"') + '>キットを作る</button>' +
+                '<div style="margin-top:6px">' + (ids.length ? ids.map(id => { const mi = matInfo(id), u = used[id] | 0; return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #232a3d;font-size:.84rem"><span style="flex:1;min-width:0">' + esc(mi.name) + ' <small style="color:#9fb3d9">★' + mi.rarity + '</small><br>' + tagChips(HW.matTags(mi), true) + '</span><span style="color:#9fb3d9">所持' + have[id] + '</span><button type="button" class="sbl-btn gray" data-m="' + id + '" data-d="-1" style="margin:0;padding:3px 9px">−</button><b style="min-width:22px;text-align:center">' + u + '</b><button type="button" class="sbl-btn" data-m="' + id + '" data-d="1" style="margin:0;padding:3px 9px"' + (u >= have[id] ? ' disabled' : '') + '>＋</button></div>'; }).join('') : '<div style="color:#778;font-size:.84rem">素材がありません。ステージで敵を倒すと素材が手に入ります。</div>') + '</div></div>';
+            m.body.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { const id = b.dataset.m, d = +b.dataset.d; used[id] = Math.max(0, Math.min(mats()[id] | 0, (used[id] | 0) + d)); if (!used[id]) delete used[id]; draw(); }));
+            const mk = m.body.querySelector('#kitMake'); if (mk) mk.addEventListener('click', () => {
+                if (!ok) return;
+                if (!confirm('選んだ素材 ' + kv.n + ' 個を使って、キットを作ります。よろしいですか？')) return;
+                if (!takeMats(used)) { alert('素材が足りません。'); return; }
+                const kit = HW.makeKit(hack, used, matInfo); if (!kit) { alert('キットを作れませんでした。'); return; }
+                HW.save(hack); Object.keys(used).forEach(k => delete used[k]); draw();
+            });
+            m.body.querySelectorAll('[data-kit]').forEach(b => b.addEventListener('click', () => openCreate(hack, b.dataset.kit, () => { draw(); })));
+        }
+        draw();
+    }
+
+    // ============================================================
+    // 2. キットから武器を作る
+    // ============================================================
+    function openCreate(hack, kitId, onDone) {
+        const kit = (hack.kits || []).find(k => k.id === kitId); if (!kit) return;
+        const types = HW.availableTypes(hack);
+        let type = types.indexOf('sword') >= 0 ? 'sword' : types[0], name = '', els = [], ed = null;
+        const m = L().modal('✨ 武器を作る', null);
+        m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"></div>'; const box = m.body.firstChild;
+        function frame() {
+            box.innerHTML = '<div style="font-size:.84rem;color:#9fb3d9">素材の偏り：' + biasChips(kit.bias) + '　最初はノーマルの武器です。素材を与えて成長させ、上限まで育ったらお金でレア度を上げていきます。</div>' +
+                '<div class="sbl-sec">武器の種類（攻撃の仕方が変わります）</div><select id="ocType" style="padding:5px;max-width:100%">' + types.map(t => '<option value="' + t + '"' + (t === type ? ' selected' : '') + '>' + esc(HW.TYPES[t].label) + '</option>').join('') + '</select>' +
+                '<div class="sbl-sec">名前（' + HW.FORGE_NAME_MAX + '文字まで）</div><input id="ocName" type="text" maxlength="' + HW.FORGE_NAME_MAX + '" placeholder="例：勇者の剣" value="' + esc(name) + '" style="width:100%;box-sizing:border-box;padding:6px">' +
+                (global.SBElem ? '<div class="sbl-sec">属性（任意・最大2つ）</div><div id="ocEl" style="display:flex;flex-wrap:wrap;gap:4px">' + SBElem.ORDER.map(id => { const e = SBElem.ELEMS[id], on = els.indexOf(id) >= 0; return '<button type="button" data-el="' + id + '" class="sbl-btn ' + (on ? '' : 'gray') + '" style="margin:0;padding:4px 9px;font-size:.8rem">' + esc(e.icon || '') + esc(e.label || id) + '</button>'; }).join('') + '</div>' : '') +
+                '<div class="sbl-sec">見た目（ドット絵を自分で描く）と、攻撃エフェクトの色</div><div id="ocPx"></div>' +
+                '<div style="margin-top:10px"><button type="button" class="sbl-btn orange" id="ocGo">この武器を作る</button><button type="button" class="sbl-btn gray" id="ocCancel">やめる</button></div><div id="ocMsg" style="font-size:.82rem;color:#ff9a9a;margin-top:4px"></div>';
+            ed = pixelEditor(box.querySelector('#ocPx'), null, type);
+            box.querySelector('#ocType').addEventListener('change', e => { type = e.target.value; name = box.querySelector('#ocName').value; if (ed) ed.setType(type); });
+            box.querySelector('#ocName').addEventListener('input', e => { name = e.target.value; });
+            box.querySelectorAll('#ocEl [data-el]').forEach(b => b.addEventListener('click', () => { const id = b.dataset.el, i = els.indexOf(id); if (i >= 0) els.splice(i, 1); else { els.push(id); if (els.length > 2) els.shift(); } b.parentNode.querySelectorAll('[data-el]').forEach(x => { x.classList.toggle('gray', els.indexOf(x.dataset.el) < 0); }); }));
+            box.querySelector('#ocCancel').addEventListener('click', () => m.close());
+            box.querySelector('#ocGo').addEventListener('click', () => {
+                const msg = box.querySelector('#ocMsg'); name = box.querySelector('#ocName').value; const clean = HW.cleanName(name);
+                if (clean) { const v = (typeof global.validateName === 'function') ? global.validateName(clean) : { valid: true }; if (!v.valid) { msg.textContent = v.reason; return; } }
+                if (hack.weapons.length >= HW.STORAGE_LIMIT) { msg.textContent = '武器庫がいっぱいです。不要な武器を売却してください。'; return; }
+                const pix = ed.pix(); if (!pix) { msg.textContent = '見た目の絵を描いてください（何も描かれていません）。'; return; }
+                if (!confirm((clean || 'オリジナル' + HW.TYPES[type].label) + ' を作ります（キットを1つ使います）。よろしいですか？')) return;
+                const w = HW.forgeFromKit(hack, kitId, { type: type, name: clean, elems: els.slice(), pix: pix, fxColor: ed.fx() });
+                if (!w) { msg.textContent = 'この武器種は、まだ作れません。'; return; }
+                hack.weapons.push(w); HW.save(hack); m.close(); if (onDone) onDone(w);
+                try { alert('「' + w.name + '」ができました！ 武器庫の「⚒ 工房」で、素材を与えて育てましょう。'); } catch (e) { /* 通知できなくても作成は完了 */ }
+            });
+        }
+        frame();
+    }
+
+    // ============================================================
+    // 3. 工房（成長・見た目・レア度アップ）
+    // ============================================================
+    function openWorkshop(hack, w, onChange) {
+        if (!L() || !w || !w.custom) return;
+        HW.ensureGrowth(w);
+        const m = L().modal('⚒ 工房　' + w.name, () => { if (onChange) onChange(); });
+        function fxList() { return (w.effects || []).length ? w.effects.map(f => '<div class="sbl-fx">◆ ' + esc(HW.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>'; }
+        function draw() {
+            const inf = HW.rankUpInfo(w), R = RC(w.rarity), cap = HW.growCap(w), exp = w.exp || 0, pc = Math.min(100, Math.round(exp / cap * 100));
+            const have = mats(), ids = Object.keys(have).filter(id => have[id] > 0 && matInfo(id)).sort((a, b) => (matInfo(b).rarity | 0) - (matInfo(a).rarity | 0));
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div style="display:flex;gap:10px;align-items:center"><span id="wkIcon"></span><div><div style="font-weight:bold;color:' + R.color + '">' + esc(w.name) + '</div><div style="font-size:.82rem;color:#9fb3d9">[' + R.label + '] ' + esc((HW.TYPES[w.type] || {}).label || w.type) + '　攻撃力 ' + HW.pctLabel(w) + '</div></div></div>' +
+                '<div class="sbl-sec">成長（' + R.label + 'の上限まで）</div><div style="background:#10131c;border-radius:8px;overflow:hidden;height:16px;border:1px solid #2b3550"><div style="height:100%;width:' + pc + '%;background:linear-gradient(90deg,#3a6ee8,#7fd13b)"></div></div><div style="font-size:.8rem;color:#9fb3d9">経験値 ' + exp + ' / ' + cap + '（' + pc + '%）　付きやすい効果：' + biasChips(w.bias) + '</div>' +
+                '<div class="sbl-sec">特殊効果</div>' + fxList() +
+                (w.anvil ? '<div class="sbl-sec">⚠ 金床の作業の途中です</div><button type="button" class="sbl-btn orange" id="wkResume">🔨 金床に戻る</button>' :
+                    '<div style="margin-top:8px"><button type="button" class="sbl-btn" id="wkLook">🎨 見た目を描き直す（無料）</button>' + (inf.ok ? '<button type="button" class="sbl-btn orange" id="wkRank"' + (inf.ready ? '' : ' disabled style="opacity:.5"') + '>🔨 ' + RC(inf.next).label + 'へ（金床・' + num(inf.cost) + 'コイン）</button>' : '') + '</div>' +
+                    (inf.ok && !inf.ready ? '<div style="font-size:.78rem;color:#9fb3d9">成長が上限になると、お金で次のレア度へ進めます。</div>' : '') +
+                    '<div class="sbl-sec">素材を与えて成長させる（与えた素材の系統で、次のレア度の効果が付きやすくなります）</div>' +
+                    (exp >= cap ? '<div style="color:#7aff9a;font-size:.84rem">上限まで成長しました。' + (inf.ok ? 'レア度アップができます。' : '') + '</div>' : (ids.length ? ids.map(id => { const mi = matInfo(id), e1 = HW.expOfMaterial(mi), need = Math.ceil((cap - exp) / e1), mx = Math.min(have[id], need); return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #232a3d;font-size:.84rem"><span style="flex:1;min-width:0">' + esc(mi.name) + ' <small style="color:#9fb3d9">★' + mi.rarity + '　+' + e1 + 'EXP</small><br>' + tagChips(HW.matTags(mi), true) + '</span><span style="color:#9fb3d9">所持' + have[id] + '</span><button type="button" class="sbl-btn" data-f="' + id + '" data-n="1" style="margin:0;padding:4px 9px">×1</button>' + (mx > 1 ? '<button type="button" class="sbl-btn green" data-f="' + id + '" data-n="' + mx + '" style="margin:0;padding:4px 9px">×' + mx + '</button>' : '') + '</div>'; }).join('') : '<div style="color:#778;font-size:.84rem">素材がありません。ステージで素材を集めましょう。</div>'))) + '</div>';
+            m.body.querySelector('#wkIcon').appendChild(iconCanvas(w, 72));
+            const lk = m.body.querySelector('#wkLook'); if (lk) lk.addEventListener('click', () => openLook(hack, w, draw));
+            const rk = m.body.querySelector('#wkRank'); if (rk) rk.addEventListener('click', () => { if (!rk.disabled) openRankMode(hack, w, draw); });
+            const rs = m.body.querySelector('#wkResume'); if (rs) rs.addEventListener('click', () => openAnvil(hack, w, draw));
+            m.body.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
+                const id = b.dataset.f, n = +b.dataset.n; if (!takeMats(Object.fromEntries([[id, n]]))) { alert('素材が足りません。'); return; }
+                const r = HW.feedMaterial(w, matInfo(id), n); if (!r) { alert('いまは素材を与えられません。'); return; }
+                const back = n - (r.used || 0); if (back > 0) { const p = player(); if (p) { p.materials = p.materials || {}; p.materials[id] = (p.materials[id] | 0) + back; savePlayer(p); } }      // 上限を超えた分は返す
+                HW.save(hack); draw();
+            }));
+        }
+        draw();
+    }
+    function openLook(hack, w, onDone) {
+        const m = L().modal('🎨 見た目を描き直す　' + w.name, null);
+        m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div id="lkPx"></div><div style="margin-top:8px"><button type="button" class="sbl-btn orange" id="lkSave">この見た目にする</button><button type="button" class="sbl-btn gray" id="lkCancel">やめる</button></div><div id="lkMsg" style="font-size:.82rem;color:#ff9a9a"></div></div>';
+        const ed = pixelEditor(m.body.querySelector('#lkPx'), { pix: w.pix, fxColor: w.fxColor }, w.type);
+        m.body.querySelector('#lkCancel').addEventListener('click', () => m.close());
+        m.body.querySelector('#lkSave').addEventListener('click', () => {
+            const px = ed.pix(); if (!px) { m.body.querySelector('#lkMsg').textContent = '何も描かれていません。'; return; }
+            if (!HW.setLook(w, { pix: px, fxColor: ed.fx() })) { m.body.querySelector('#lkMsg').textContent = '保存できませんでした。'; return; }
+            HW.save(hack); m.close(); if (onDone) onDone();
+        });
+    }
+
+    // ---------- レア度アップ：やり方を選ぶ ----------
+    function openRankMode(hack, w, onDone) {
+        const inf = HW.rankUpInfo(w); if (!inf.ok || !inf.ready) return;
+        const rn = RC(inf.next), nextR = HW.RARITIES[inf.next], curN = (w.effects || []).length, allTaps = Math.max(curN, nextR.fx[0]);
+        const m = L().modal('🔨 ' + rn.label + 'へ', null);
+        const enough = coins() >= inf.cost;
+        m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div style="font-size:.86rem;line-height:1.7">「' + esc(w.name) + '」を <b style="color:' + rn.color + '">' + rn.label + '</b> にします。必要なコイン：<b style="color:' + (enough ? '#7aff9a' : '#ff9a9a') + '">' + num(inf.cost) + '</b>（所持 ' + num(coins()) + '）<br>金床でハンマーを叩くたびに、効果が1つずつロールされます。素材で偏らせた系統の効果が出やすくなっています。</div>' +
+            '<div class="sbl-sec">どちらにしますか？</div>' +
+            '<div class="sbl-card" id="rmAll" style="cursor:pointer"><b>🎲 効果をすべて変える</b><small>いまの効果 ' + curN + ' 個をすべて捨てて、新しい効果にロールし直します（ハンマー ' + allTaps + ' 回）。</small></div>' +
+            '<div class="sbl-card" id="rmAdd" style="cursor:pointer;' + (inf.canAdd ? '' : 'opacity:.45') + '"><b>➕ 効果をつけ足す</b><small>いまの効果は残して（レア度に合わせて少し強化）、新しい効果をロールして足します（最大 ' + inf.addMax + ' 個）。' + (inf.canAdd ? '' : '　⚠ いまは効果が上限なので、選べません。') + '</small></div>' +
+            '<div id="rmMsg" style="font-size:.82rem;color:#ff9a9a;margin-top:6px"></div><div style="margin-top:8px"><button type="button" class="sbl-btn gray" id="rmCancel">やめる</button></div></div>';
+        m.body.querySelector('#rmCancel').addEventListener('click', () => m.close());
+        function go(mode) {
+            const msg = m.body.querySelector('#rmMsg');
+            if (mode === 'add' && !inf.canAdd) { msg.textContent = '効果が上限なので、つけ足せません。'; return; }
+            if (coins() < inf.cost) { msg.textContent = 'コインが足りません。'; return; }
+            if (global.SBCost && hack.equipped === w.id) { const r = SBCost.canEquip(hack, { patchWeapon: w, patch: { rarity: inf.next } }); if (!r.ok) { msg.textContent = '装備中の武器は、レア度を上げるとコストが上限を超えます（' + r.after.cost + ' / 上限 ' + r.after.cap + '）。いったん装備を外すか、ステータス合計（勉強）を上げてください。'; return; } }
+            if (!confirm(rn.label + 'へ進めます（' + num(inf.cost) + ' コイン）。' + (mode === 'all' ? 'いまの効果はすべて変わります。' : '') + 'よろしいですか？')) return;
+            const a = HW.startRankUp(w, mode); if (!a) { msg.textContent = '始められませんでした。'; return; }
+            addCoins(-inf.cost); HW.save(hack); m.close(); openAnvil(hack, w, onDone);
+        }
+        m.body.querySelector('#rmAll').addEventListener('click', () => go('all'));
+        m.body.querySelector('#rmAdd').addEventListener('click', () => go('add'));
+    }
+
+    // ---------- 金床：タップでハンマーを叩く ----------
+    function injectAnvilStyle() {
+        if (document.getElementById('sbAnvilStyle')) return;
+        const st = document.createElement('style'); st.id = 'sbAnvilStyle';
+        st.textContent = '.av-scene{position:relative;height:210px;background:radial-gradient(ellipse at 50% 85%,#3a2418 0,#171b26 70%);border-radius:12px;border:2px solid #3a2f28;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation;cursor:pointer}' +
+            '.av-anvil{position:absolute;left:50%;bottom:22px;width:150px;height:46px;margin-left:-75px;background:linear-gradient(#6b7384,#3a4152);border-radius:6px 6px 14px 14px;box-shadow:0 6px 0 #232733}' +
+            '.av-anvil:before{content:"";position:absolute;left:-26px;top:4px;width:44px;height:16px;background:#5b6377;border-radius:12px 0 0 12px}' +
+            '.av-anvil:after{content:"";position:absolute;left:30px;bottom:-26px;width:90px;height:26px;background:#2b3040;border-radius:0 0 8px 8px}' +
+            '.av-wpn{position:absolute;left:50%;bottom:68px;margin-left:-40px;transition:transform .08s}' +
+            '.av-wpn.hit{transform:translateY(5px) scale(1.04)}' +
+            '.av-hammer{position:absolute;left:62%;top:6px;font-size:64px;transform-origin:20% 90%;transform:rotate(-35deg);transition:transform .14s ease-out;filter:drop-shadow(0 4px 2px rgba(0,0,0,.5))}' +
+            '.av-hammer.swing{transform:rotate(30deg) translate(-26px,40px)}' +
+            '.av-spark{position:absolute;font-size:18px;pointer-events:none;animation:avSpark .6s ease-out forwards}' +
+            '@keyframes avSpark{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.4)}}' +
+            '.av-new{animation:avNew .8s ease-out}@keyframes avNew{0%{background:#ffd84a55;transform:scale(1.04)}100%{background:transparent;transform:scale(1)}}';
+        document.head.appendChild(st);
+    }
+    function openAnvil(hack, w, onDone) {
+        if (!w.anvil) return; injectAnvilStyle();
+        const m = L().modal('🔨 金床　' + w.name, () => { if (onDone) onDone(); });
+        let busy = false, last = null, finished = false;
+        const nextR = RC(w.anvil.next);
+        function draw() {
+            const a = w.anvil, done = a ? a.rolled.length : 0, total = a ? a.total : 0;
+            const shown = a ? (a.mode === 'add' ? (w.effects || []).map(f => ({ f: f, n: false })).concat(a.rolled.map(f => ({ f: f, n: true }))) : a.rolled.map(f => ({ f: f, n: true }))) : (w.effects || []).map(f => ({ f: f, n: false }));
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
+                '<div style="text-align:center;font-size:.9rem;margin-bottom:6px">' + (finished ? '<b style="color:' + nextR.color + '">✨ ' + nextR.label + 'に進化しました！</b>' : '金床をタップして、ハンマーを叩こう！　<b>あと ' + (total - done) + ' 回</b>') + '</div>' +
+                '<div class="av-scene" id="avScene"><div class="av-anvil"></div><div class="av-wpn" id="avWpn"></div><div class="av-hammer" id="avHam">🔨</div></div>' +
+                '<div class="sbl-sec">' + (a ? (a.mode === 'all' ? '新しい効果（すべて変わります）' : '足された効果') : '効果') + '</div>' +
+                (a && a.mode === 'add' ? '<div style="font-size:.78rem;color:#9fb3d9">もとの効果は残っています（' + (w.effects || []).length + '個）</div>' : '') +
+                '<div id="avList">' + (shown.length ? shown.map((x, i) => '<div class="sbl-fx' + (x.n && last && x.f === last ? ' av-new' : '') + '" style="' + (x.n ? 'color:#ffe08a' : '') + '">' + (x.n ? '🆕 ' : '◆ ') + esc(HW.describeEffect(x.f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">まだありません</div>') + '</div>' +
+                '<div style="margin-top:8px">' + (finished ? '<button type="button" class="sbl-btn green" id="avClose">できあがり</button>' : '<button type="button" class="sbl-btn orange" id="avHit">🔨 叩く</button><div style="font-size:.76rem;color:#8a97b8;margin-top:4px">途中で閉じても、次に工房を開くと続きから叩けます。</div>') + '</div></div>';
+            const wp = m.body.querySelector('#avWpn'); wp.appendChild(iconCanvas(w, 80));
+            const sc = m.body.querySelector('#avScene'); if (sc && !finished) sc.addEventListener('click', hit);
+            const hb = m.body.querySelector('#avHit'); if (hb) hb.addEventListener('click', hit);
+            const cb = m.body.querySelector('#avClose'); if (cb) cb.addEventListener('click', () => m.close());
+        }
+        function sparks() {
+            const sc = m.body.querySelector('#avScene'); if (!sc) return;
+            for (let i = 0; i < 9; i++) { const s = document.createElement('span'); s.className = 'av-spark'; s.textContent = i % 3 ? '✨' : '🔥'; s.style.left = (45 + Math.random() * 10) + '%'; s.style.bottom = '78px'; s.style.setProperty('--dx', (Math.random() * 120 - 60) + 'px'); s.style.setProperty('--dy', (-30 - Math.random() * 90) + 'px'); sc.appendChild(s); setTimeout(() => s.remove(), 650); }
+        }
+        function hit() {
+            if (busy || finished || !w.anvil) return; busy = true;
+            const ham = m.body.querySelector('#avHam'), wp = m.body.querySelector('#avWpn');
+            if (ham) ham.classList.add('swing');
+            setTimeout(() => {
+                if (wp) wp.classList.add('hit'); sparks();
+                try { if (global.SBSound && SBSound.sfx) SBSound.sfx('hit'); } catch (e) { /* 音が出なくても続ける */ }
+                const r = HW.hammer(w);
+                if (!r) { busy = false; if (ham) ham.classList.remove('swing'); alert('これ以上ロールできません。'); return; }
+                last = r.fx; finished = !!r.finished; HW.save(hack);
+                setTimeout(() => { draw(); busy = false; }, 150);
+            }, 140);
+        }
+        draw();
+    }
+
+    global.SBOrigUI = { openKits: openKits, openCreate: openCreate, openWorkshop: openWorkshop, openAnvil: openAnvil, pixelEditor: pixelEditor };
+})(window);

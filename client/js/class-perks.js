@@ -1,5 +1,5 @@
 // ============================================================
-//  職業ごとの「パーク」60個（1職業につき5つ。専用ツリーの中から1つだけ選べる）
+//  職業ごとの「パーク」65個（1職業につき5つ。専用ツリーの中から1つだけ選べる）
 // ------------------------------------------------------------
 //  ・1つ選ぶとプレイスタイルが大きく変わる代わりに、重いデメリットがつく。メインとサブ、それぞれのツリーで1つずつ
 //  ・選ぶには、その職業で使える「形」（メイン3つ／サブ2つ）をすべて解放していて、ポイントが PERK_COST 必要。解除するとポイントは戻る
@@ -803,6 +803,40 @@
         });
 
     // =========================================================================
+    //  🐾 テイマー
+    // =========================================================================
+    const isBeast = s => !!(s && s.params && typeof s.params.classForm === 'string' && s.params.classForm.indexOf('tam_') === 0);
+    function twice(key, ang) { return (ctx, H) => { H.base(key, ctx); H.after(0.22, () => { if (B.isRun()) H.base(key, Object.assign({}, ctx, { ang: ctx.ang + ang })); }); }; }
+    def('tamer', 'tam_pack', '群れの王', '🐺',
+        '獣のスキルが2体同時に出る（2体目は少し遅れて、少し角度をずらして出る）。', '最大HPが30%減る。', {
+            stats() { return { hpPct: -0.3 }; },
+            form: { tam_wolf: twice('tam_wolf', 0.6), tam_hawk: twice('tam_hawk', 0.4), tam_bear: twice('tam_bear', 0) }
+        });
+    def('tamer', 'tam_feral', '野生解放', '🐾',
+        'スキルの威力が+60%、移動速度が+25%になる。', 'あらゆる回復が無効になり、「絆」が溜まらなくなる。', {
+            stats() { return { skillPct: 0.6, moveSpd: 0.25 }; }, healBlock: () => true, noBond: true,
+            needForm: ['tam_wolf']
+        });
+    def('tamer', 'tam_bond', '魂の絆', '💞',
+        '獣のスキルを使うたびに、最大HPの5%を回復する。', '獣のスキルのクールダウンが60%長くなる。', {
+            needForm: ['tam_wolf'], cdMul: s => isBeast(s) ? 1.6 : 1,
+            onFormCast(key) { if (key.indexOf('tam_') === 0) B.heal(me().maxHp * 0.05); }
+        });
+    def('tamer', 'tam_guard', '身代わりの獣', '🛡️',
+        '受けるダメージを、4秒に1回、獣が完全に肩代わりしてくれる。', '獣のスキルのエネルギー消費が2倍になる。', {
+            needForm: ['tam_bear'], costMul: s => isBeast(s) ? 2 : 1,
+            setup() { S.tamGuard = 0; },
+            update(dt) { if (S.tamGuard > 0) S.tamGuard -= dt; },
+            incoming() { if ((S.tamGuard || 0) > 0) return 1; S.tamGuard = 4; popup('🐻 かばった！', '#d8c8a0'); return 0; }
+        });
+    def('tamer', 'tam_hunt', '狩りの掟', '🏹',
+        '敵を倒すたびに「絆」が+2溜まり、獣のスキルのクールダウンが15%短くなる。', '与えるダメージ（通常攻撃もスキルも）が20%減る。', {
+            needForm: ['tam_hawk'], cdMul: s => isBeast(s) ? 0.85 : 1,
+            onKill() { const fx = global.ClassFx; if (fx && fx.addBond) fx.addBond(2); },
+            dealMul(e, dmg) { return dmg * 0.8; }
+        });
+
+    // =========================================================================
     //  窓口
     // =========================================================================
     function chosen() {      // 今ついているパーク（メインとサブ、それぞれのツリーで選んだもの。メインが先）
@@ -845,6 +879,7 @@
         afterAttack() { each(p => { if (p.afterAttack) p.afterAttack(); }); },
         onDash() { each(p => { if (p.onDash) p.onDash(); }); },
         pierceAll() { return curs.some(p => p.pierceAll); },
+        noBond() { return curs.some(p => p.noBond); },
         lucky() { return curs.some(p => { try { return !!(p.lucky && p.lucky()); } catch (e) { return false; } }); },
         luckDice() { let v = 0; each(p => { if (p.luckDice) v = p.luckDice() || v; }); return v; },
         update(dt) { if (!curs.length || !B) return; if (S.lockT > 0) S.lockT -= dt; each(p => { if (p.update) p.update.call(p, dt); }); },

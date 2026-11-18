@@ -57,7 +57,7 @@ function renderQuestionListPanel() {
     let html = "";
     html += '<div class="question-list-item question-list-default">';
     html += '<div class="question-list-main"><strong>デフォルト問題リスト</strong>';
-    html += '<p class="help-text">通常のバトル・ダンジョンで出題される、学年・教科に応じた問題です。編集はできません。</p></div>';
+    html += '<p class="help-text">通常のバトル・ダンジョンで出題される、学年・教科に応じた問題です。編集はできません。自作の問題リストに切り替えるには、「📈 復習・統計」で選びます。</p></div>';
     html += '</div>';
 
     if (lists.length === 0) {

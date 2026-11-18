@@ -39,7 +39,7 @@
           check: c => { const l = parse(localStorage.getItem('sb_action_skills')); return { done: Array.isArray(l) && l.length > 0 }; } },
         { id: 'loadout', icon: '🔥', title: 'スキルを装備しよう', hint: '作ったスキルをZ・X・C・Vの枠にセットすると、戦闘中に使えるよ（エネルギーはクイズ正解で溜まる）', reward: 200, target: '.menu-btn[data-section="skills"]',
           check: c => { const l = parse(localStorage.getItem('sb_action_loadout')); return { done: Array.isArray(l) && l.some(Boolean) }; } },
-        { id: 'forge', icon: '🔨', title: 'コインでオリジナル武器を作ろう', hint: '武器庫の「🔨 オリジナル武器を作る」で、好きな名前の武器が作れる（ノーマルは100コインから）', reward: 500, target: '#openArmoryFromInv',
+        { id: 'forge', icon: '🔨', title: '素材でオリジナル武器を作ろう', hint: '武器庫の「🔨 オリジナル武器キット」で、素材からキットを作り、ドット絵を描いて自分だけの武器にしよう（素材5個〜）', reward: 500, target: '#openArmoryFromInv',
           check: c => ({ done: !!(c.h && c.h.weapons && c.h.weapons.some(w => w.custom)) }) },
         { id: 'pvp', icon: '⚔️', title: 'オンラインマッチに参加しよう', hint: '右上の「⚔️」から。1人で出発すればボット練習になるよ', reward: 300, target: '#pvpBtn',
           check: c => ({ done: !!(c.h && c.h.pvpPlayed) }) },

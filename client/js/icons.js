@@ -58,6 +58,14 @@ const WEAPON_ICON_DATA = {
         <line x1="16" y1="32" x2="42" y2="32"/>
         <path d="M42 32 L36 28 L36 36 Z" fill="currentColor" stroke="none"/>
     ` },
+    duality: { color: "#c06aff", inner: `
+        <path d="M32 6 L32 40" stroke="#ff5a3a"/>
+        <path d="M32 6 L40 40 L32 46 Z" fill="#4ac8ff" stroke="none"/>
+        <path d="M32 6 L24 40 L32 46 Z" fill="#ff5a3a" stroke="none"/>
+        <line x1="20" y1="44" x2="44" y2="44"/>
+        <line x1="32" y1="46" x2="32" y2="58"/>
+        <circle cx="32" cy="60" r="2" fill="currentColor" stroke="none"/>
+    ` },
     unbreakable: { color: "#ff2a4a", inner: `
         <circle cx="32" cy="32" r="7" fill="currentColor" stroke="none"/>
         <line x1="32" y1="25" x2="32" y2="8"/>

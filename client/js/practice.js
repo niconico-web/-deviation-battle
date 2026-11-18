@@ -25,8 +25,13 @@
     }
     const hack = HW.load();
     const weapon = HW.getEquipped(hack);
+    const MYPC = (weapon && weapon.pix && window.SBPix && SBPix.prepCustom) ? SBPix.prepCustom(HW.cleanPix(weapon.pix)) : null;      // 自分で描いた武器のドット絵
+    const FXCOL = (weapon && weapon.fxColor && HW.cleanColor(weapon.fxColor)) || null;                                              // 自分で決めた攻撃エフェクトの色
     const agg = HW.aggregate(weapon);
     try { if (window.SBArmor) SBArmor.merge(agg, hack); } catch (e) { /* 防具が読めなくても戦える */ }
+    // コスト制度：装備とスキルのコストが、ステータス合計で決まる上限を超えていたら、武器・防具の効果とスキルの威力をまとめて弱める（cost.js）
+    const COSTCHK = window.SBCost ? (function () { try { return SBCost.breakdown(hack, SBCost.totalOf(pdata)); } catch (e) { return null; } })() : null;
+    if (COSTCHK && COSTCHK.over) SBCost.scaleAgg(agg, COSTCHK.ratio);
     try { if (window.ClassSys) ClassSys.mergeInto(agg); } catch (e) { /* 職業の強化が読めなくても戦える */ }
     const A = k => agg.stats[k] || 0;
     const AB = k => !!(agg.flags && agg.flags[k]);     // Tier4オーブの固有能力のうち、特別な処理が要るもの（hw-weapons.js の ORB_ABILITY_MAP）
@@ -37,12 +42,17 @@
     const DBG = (launch && launch.debug && typeof launch.debug === 'object') ? launch.debug : null;   // デバッグ戦闘（debug.js）：報酬・クリア記録なし。god=無敵 / energy=エネルギー無限 / hp=ボスHP倍率 / cores=核の数
     const RUSH_ON = !!stage.rush;                              // ボスラッシュ（フェーズ制のボス連戦）
     const CORR_ON = !!stage.corridor;                          // 無限回廊（迷路のダンジョン）
+    const RAID = !!stage.raid;                                 // 大討伐戦（最大20人のレイド）
+    // 大討伐戦のボスの強さ：無限回廊の「不壊の悪魔」と同じ式（パーティの平均ステータス合計 × 階層の倍率 × ボスの倍率1.9 × 1.35）の、RAID_MUL 倍。
+    //  ・不壊の悪魔が出るのは地下40階あたりから（RAID_REF_FLOOR）。ステージ側の stage.raidMul で、ボスごとに倍率を変えられる（この世界の最強種たちを、順に強くしていける）
+    //  ・不壊の悪魔は5つのステータスをランダムに割り振るが、大討伐戦のボスは毎回同じ（割り振りは全部1.0）。人数が多いほどHPが増える（partyScale）
+    const RAID_MUL = 5, RAID_REF_FLOOR = 40, RAID_TIME_MIN = 30;
     const TEAM = stage.pvpTeam || 0;                          // チーム戦（2v2 / 3v3）なら1チームの人数。0＝乱戦
     let teamMap = {};                                         // 選手ID → チーム(0=青 / 1=赤)。出発の瞬間に、部屋の参加順で交互に決める
     const sameTeam = (id) => !!TEAM && teamMap[id] !== undefined && teamMap[id] === teamMap[myId];
-    let WORLD_W = PVP ? 1500 : (RUSH_ON ? 1700 : 2400), WORLD_H = PVP ? 1000 : (RUSH_ON ? 1100 : 1600);   // ボスラッシュは弾幕が避けやすい広さに。無限回廊は階層ごとに変わる
+    let WORLD_W = PVP ? 1500 : (RAID ? 2800 : (RUSH_ON ? 1700 : 2400)), WORLD_H = PVP ? 1000 : (RAID ? 1800 : (RUSH_ON ? 1100 : 1600));   // ボスラッシュは弾幕が避けやすい広さに。無限回廊は階層ごとに変わる
     const MAX_PARTY = 4;
-    const TIME_LIMIT = PVP ? 180 : (CORR_ON ? Infinity : (RUSH_ON ? 99 * 60 : (stage.standardOnly ? 25 * 60 : 9 * 60)));   // ボスラッシュは全体ではなく「1フェーズごと」の制限時間（難易度で決まる）。無限回廊は無制限   // 時間切れ（スタンダードワールドは長丁場）
+    const TIME_LIMIT = PVP ? 180 : (RAID ? RAID_TIME_MIN * 60 : (CORR_ON ? Infinity : (RUSH_ON ? 99 * 60 : (stage.standardOnly ? 25 * 60 : 9 * 60))));   // 大討伐戦は RAID_TIME_MIN 分。ボスラッシュは全体ではなく「1フェーズごと」の制限時間（難易度で決まる）。無限回廊は無制限   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 75;               // ボス出現に必要な討伐数（1人）。敵が弱く数が多いぶん、以前（45）より多め
     const ENEMY_CAP_BASE = 50;           // 同時に出る敵の数の上限（以前は30）
     const MOB_HP_MUL = 0.6, MOB_DMG_MUL = 0.85, MOB_GROUP_MUL = 1.5;   // 雑魚の体力・攻撃は下げ、1グループの数を増やす（爽快感のため。精鋭とボスは変えない）
@@ -264,11 +274,12 @@
     //  敵のHP・攻撃・速さと敵レベル（ilvl）をその強さに引き上げる。
     //  ボスHPが固定値のステージ（スタンダードワールド）と、強さが別途決まる
     //  ボスラッシュ・無限回廊・対人戦は対象外。
-    if (!PVP && !RUSH_ON && !CORR_ON && !stage.bossHp && typeof window.STAGE_DATA.ilvlForReq === 'function') {
+    if (!PVP && !RUSH_ON && !CORR_ON && !RAID && !stage.bossHp && typeof window.STAGE_DATA.ilvlForReq === 'function') {
         const pt = corrPartyTotal();
         if (pt > (stage.req || 0)) {
             applyScale(pt, window.STAGE_DATA.ilvlForReq(pt), PW);
-            announce('⚔ 強い気配を感じる…　このステージの敵が強くなった！', 2200);
+            // ここは起動の途中で、画面の部品（el）がまだ使えない。少しあとに知らせる（直前の版では、ここでエラーになってステージが始まらなかった）
+            setTimeout(() => { try { announce('⚔ 強い気配を感じる…　このステージの敵が強くなった！', 2200); } catch (e) { /* お知らせが出せなくても、ステージは続ける */ } }, 700);
         }
     }
 
@@ -331,6 +342,8 @@
             case 'pos':
                 if (a && !(d.q < a.pq)) { a.pq = d.q; a.vx = clamp(+d.vx || 0, -900, 900); a.vy = clamp(+d.vy || 0, -900, 900); a.pt = performance.now(); if (d.tp) { a.x = d.x; a.y = d.y; a.vx = 0; a.vy = 0; } }
                 if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; a.g = !!d.g; if (d.tt > 0) a.tt = d.tt; if (typeof d.wt === 'string' && window.SBPix && SBPix.hasWeapon(d.wt)) a.wt = d.wt;
+        if (d.wp === 0) a.wpc = null;
+        else if (d.wp && typeof d.wp === 'object') { const cp = HW.cleanPix(d.wp); if (cp && window.SBPix && SBPix.customKey) { const ck = SBPix.customKey(cp); if (!a.wpc || a.wpc.key !== ck) a.wpc = SBPix.prepCustom(cp); } }      // 仲間が自分で描いた武器のドット絵（形式と大きさを確認してから使う）
         if (typeof d.wm === 'string') a.wm = (d.wm && window.SBPix && SBPix.hasMythic(d.wm)) ? d.wm : null;
         if (typeof d.av === 'string' && d.av.length < 80 && window.SBPix && SBPix.cleanAvatar) a.av = SBPix.cleanAvatar(d.av);
         if (d.ti !== undefined) a.ti = (window.SBAch && SBAch.isTitleText(d.ti)) ? d.ti : ''; }
@@ -384,6 +397,9 @@
                         })
                     };
                 }
+                break;
+            case 'cf':      // 他のプレイヤーの職業スキルの動き（設置物・召喚・剣など）を、見た目だけで再現する。ダメージは撃った人の画面で決まる
+                if (d && d.from !== myId && typeof d.k === 'string' && window.ClassForms && ClassForms.castRemote && (cfRate[d.from] = (cfRate[d.from] || 0) + 1) <= 8) ClassForms.castRemote(d.from, d.k.slice(0, 24), { ang: clamp(Number(d.a) || 0, -7, 7), p: { element: typeof d.e === 'string' ? d.e.slice(0, 12) : undefined } });
                 break;
             case 'dom':     // 他のプレイヤーのスキル「領域」：自分の画面にも領域を描く。味方のものは中にいる間だけ回復・バフが効く（対人戦の相手チームのものは、赤い見た目だけ）
                 if (d && d.from !== myId && domains.length < 16) {
@@ -738,7 +754,7 @@
                 a.spin += dt * 9; a.acc += dt;
                 while (a.acc >= 1 / 14) {
                     a.acc -= 1 / 14;
-                    for (let i = 0; i < a.arms; i++) bullet(e.x, e.y, a.spin + i * Math.PI * 2 / a.arms, a.spd, a.dmg, 7, 4, bdef(e).color);
+                    for (let i = 0; i < a.arms; i++) bullet(e.x, e.y, a.spin + i * Math.PI * 2 / a.arms, a.spd, a.dmg, 7, 4, a.c || bdef(e).color);
                 }
                 if (a.el >= a.dur) m.act = null;
             }
@@ -752,7 +768,7 @@
         const k = ed(e) * (en ? 1.15 : 1);
         const dmg = k * (s.dm || 0);
         const tm = en ? 0.85 : 1;                                   // 激昂中は予告が少し短い
-        const c = s.stun ? '#ffd84a' : bdef(e).color;
+        const c = s.stun ? '#ffd84a' : (s.c || bdef(e).color);
         const aimNow = () => { const p = nearestPlayer(e.x, e.y); return p ? Math.atan2(p.y - e.y, p.x - e.x) : m.ang; };
         const ang = (s.aim === 'l' ? m.ang : aimNow()) + (s.off || 0) * Math.PI / 180;
         const shape = { stun: s.stun, rep: s.rep, gap: s.gap };
@@ -861,9 +877,9 @@
                 });
                 break;
             }
-            case 'fan': { const n = Math.round(s.n * (en ? 1.3 : 1)); for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * s.sp, s.spd, dmg, 8, 3.4, bdef(e).color); break; }
-            case 'rad': { const n = Math.round(s.n * (en ? 1.3 : 1)), off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, s.spd, dmg, 8, 4, bdef(e).color); break; }
-            case 'spiral': m.act = { k: 'spiral', el: 0, dur: s.dur, spd: s.spd, arms: s.arms || 2, acc: 0, spin: rnd(0, 6.28), dmg: dmg }; break;
+            case 'fan': { const n = Math.round(s.n * (en ? 1.3 : 1)); for (let i = 0; i < n; i++) bullet(e.x, e.y, ang + (i - (n - 1) / 2) * s.sp, s.spd, dmg, 8, 3.4, s.c || bdef(e).color); break; }
+            case 'rad': { const n = Math.round(s.n * (en ? 1.3 : 1)), off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, s.spd, dmg, 8, 4, s.c || bdef(e).color); break; }
+            case 'spiral': m.act = { k: 'spiral', el: 0, dur: s.dur, spd: s.spd, arms: s.arms || 2, acc: 0, spin: rnd(0, 6.28), dmg: dmg, c: s.c || null }; break;
             case 'summon': {
                 const def = stage.enemies[0], n = Math.round(s.n * (en ? 1.4 : 1));
                 for (let i = 0; i < n; i++) { const mm = spawnEnemy(def, e.x + rnd(-120, 120), e.y + rnd(-120, 120), false); mm.hp = mm.maxHp = Math.round(mm.maxHp * 0.7); }
@@ -924,6 +940,7 @@
         enemies = list;
     }
     function dealPvp(e, dmg, o) {
+        if (e.ghost) { ghostHurt(e, dmg, o); return; }      // ゴースト戦：通信せず、その場で当てる
         // 1発のダメージ（相手の最大HPに対する割合）。上限はなし（通信の異常値だけ弾く）。サドンデスで時間とともに攻撃力が上がる
         let f = PVP_BASE * dmg / PVP_REF * sdAtkMul(); if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
         popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
@@ -1015,7 +1032,8 @@
     function applyHit(d) {
         const e = enemies.find(x => x.id === d.eid);
         if (!e || e.hp <= 0 || e.inv) return;
-        const amp = (e.st.curseT > 0 ? 1.2 : 1) * (e.vuln > 0 ? 1.3 : 1);
+        const duM = GMK === 'duality' ? duHitMul(e, d) : 1; if (duM <= 0) return;      // 大討伐戦：バリア・クリスタルの色の判定
+        const amp = (e.st.curseT > 0 ? 1.2 : 1) * (e.vuln > 0 ? 1.3 : 1) * duM;
         e.hp -= d.dmg * amp * (e.takeMul || 1);      // 防御（無限回廊の敵）
         e.kx += d.kx; e.ky += d.ky;
         const s = d.st;
@@ -1129,6 +1147,7 @@
         { const al = A('rarePct') + DIFF.luck;      // アクセサリー：ボス・精鋭・雑魚の順に出にくい
           if (ev.boss && Math.random() < 0.45 + 0.1 * al) rollAcc(al, 'magic', ev.x + 14, ev.y); else if (ev.elite && Math.random() < 0.05 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); else if (!ev.part && !ev.boss && Math.random() < 0.004 * (1 + al)) rollAcc(al, 'normal', ev.x, ev.y); }
         if (CORR_ON) { corrKillReward(ev); return; }        // 無限回廊：専用の報酬
+        if (RAID) { raidKillReward(ev); return; }           // 大討伐戦：専用の報酬
         const coin = Math.round((1 + stage.ilvl * 0.8) * (ev.boss ? 25 : 1) * (1 + A('goldPct')));
         run.stats.coins += coin;
         const luck = A('dropPct');
@@ -1180,6 +1199,29 @@
         popups.push({ x: x, y: y - 24, t: 2.4, text: '✦ ' + w.name, c: '#ff2a4a', big: true });
         fx.push({ k: 'ring', x: x, y: y, r: 0, max: 120, t: 0.8, life: 0.8, c: '#ff2a4a' }); announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3200);
         refreshLootLog();
+    }
+    // 双界の覇竜ツイン・エレメンタルを倒した報酬：専用の神話装備「Legend of Duality」（1本だけ。持っていたら出ない）
+    function giveDuality(x, y) {
+        const hasIt = (arr) => (arr || []).some(w => w && w.mythicId === 'legend_duality');
+        if (hasIt(hwLoad().weapons)) { popups.push({ x: x, y: y - 20, t: 1.6, text: '双界の力は、すでにあなたの中に', c: '#d9a0ff' }); return; }
+        const w = HW.makeMythic('legend_duality'); if (!w) return;
+        const d = hwLoad(); d.weapons.push(w); hwSave(d);      // ドロップの保存と同じ経路（まとめ保存の途中で上書きされないように）
+        run.stats.loot.push(w);
+        popups.push({ x: x, y: y - 24, t: 2.4, text: '✦ ' + w.name, c: '#c06aff', big: true });
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: 140, t: 0.8, life: 0.8, c: '#ff5a3a' }); fx.push({ k: 'ring', x: x, y: y, r: 0, max: 100, t: 0.8, life: 0.8, c: '#4ac8ff' });
+        announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3400);
+        refreshLootLog();
+    }
+    // 大討伐戦のボスを倒した報酬（全員が自分の分を受け取る）
+    function raidKillReward(ev) {
+        const rb = A('rarePct') + DIFF.luck;
+        run.stats.coins += Math.round((1 + 46 * 0.8) * 60 * (1 + A('goldPct')));
+        rollMats('boss', ev.x, ev.y); rollMats('boss', ev.x + 20, ev.y);
+        const pool = (window.STAGE_DATA.RUSH && window.STAGE_DATA.RUSH.lootPool) ? window.STAGE_DATA.RUSH.lootPool(5).bossDrops : [];
+        if (pool.length) { rollLoot(pool, rb + 1.2, 'epic', ev.x, ev.y, 'raid'); rollLoot(pool, rb + 1.6, 'epic', ev.x + 24, ev.y, 'raid'); }
+        rollArmor(rb + 1.2, 'epic', ev.x, ev.y - 22, 'raid'); rollAcc(rb + 1.4, 'epic', ev.x - 30, ev.y + 30);
+        giveDuality(ev.x, ev.y);
+        try { if (window.SBAch && !DBG) SBAch.report('raid', 1, 'raid_duality'); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
     }
     function rollLoot(pool, luck, minR, x, y, src) {
         const w = HW.roll({ ilvl: L().ilvl, baseIds: pool, luck: luck, minRarity: minR, source: L().id + ':' + src });
@@ -1246,6 +1288,8 @@
             else if (p.key === 'killBoom') boomMine(me.x, me.y, 110);
             else if (p.key === 'killHaste') me.haste = 3;
             else if (p.key === 'killEnergy') addEnergy(8);
+            else if (p.key === 'killNova') boomMine(me.x, me.y, 230);
+            else if (p.key === 'killGuard') me.shield = true;
         });
     }
 
@@ -1309,6 +1353,7 @@
         let dmg = raw * REF_HP * (1 - red) * (1 - Math.min(0.75, Math.max(-0.5, A('dr') + (me.hp / me.maxHp <= 0.3 ? A('lowHpDr') : 0)))) * (1 + A('dmgTaken'));
         if (AB('re_miserable')) dmg *= 0.8;                                    // リ・ミゼラブル：敵の攻撃0.8倍
         if (window.ClassFx) dmg *= ClassFx.incomingMul();                       // 職業：不動の城
+        if (GMK === 'duality' && me.chill > 0) dmg *= 1 + Math.min(0.5, me.chill * 0.05);      // 悪寒：防御DOWN
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
@@ -1328,6 +1373,9 @@
         agg.procs.filter(p => p.on === 'hurt').forEach(p => {
             if (Math.random() >= p.v) return;
             if (p.key === 'hurtShield') me.shield = true;
+            if (p.key === 'hurtHeal') addHp(me.maxHp * 0.03);
+            if (p.key === 'hurtHaste') me.haste = Math.max(me.haste || 0, 2);
+            if (p.key === 'hurtFrost') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 190, t: 0.35, life: 0.35, c: '#9fe0ff' }); enemies.forEach(e => { if (e.hp > 0 && !e.pvp && dist(e.x, e.y, me.x, me.y) < 190) dealHit(e, weapon.dmg * P.atkMul * 0.05, { st: { slow: 1 } }); }); }
             if (p.key === 'hurtNova') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.35, life: 0.35, c: '#ffe08a' }); enemies.forEach(e => { if (dist(e.x, e.y, me.x, me.y) < 170) { const a = Math.atan2(e.y - me.y, e.x - me.x); dealHit(e, weapon.dmg * P.atkMul * 0.8, { kx: Math.cos(a) * 300, ky: Math.sin(a) * 300 }); } }); }
         });
         if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
@@ -1388,7 +1436,7 @@
         let extra = false;
         const base = weapon.dmg * P.atkMul;
         agg.procs.forEach(p => {
-            if (p.on === 'crit') { if (h.crit && Math.random() < p.v) boomMine(e.x, e.y, 100); return; }
+            if (p.on === 'crit') { if (h.crit && Math.random() < p.v) { if (p.key === 'critHeal') addHp(me.maxHp * 0.02); else boomMine(e.x, e.y, 100); } return; }
             if (p.on !== 'hit') return;
             if (Math.random() >= p.v) return;
             switch (p.key) {
@@ -1399,6 +1447,12 @@
                 case 'stun': st.stun = 1; break;
                 case 'curse': st.curse = 1; break;
                 case 'double': extra = true; break;
+                case 'splash': boomMine(e.x, e.y, 70); break;
+                case 'echo': setTimeout(() => { if (!run.ended && e.hp > 0) dealHit(e, base * 0.55, {}); }, 220); break;
+                case 'toxcloud': enemies.forEach(o => { if (o !== e && o.hp > 0 && dist(o.x, o.y, e.x, e.y) < 140) dealHit(o, base * 0.05, { st: { poison: base * 0.22 } }); }); fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 140, t: 0.35, life: 0.35, c: '#7fd13b' }); st.poison = base * 0.22; break;
+                case 'ignite2': st.burn = base * 0.35; st.bleed = base * 0.3; break;
+                case 'vacuum': enemies.forEach(o => { if (o !== e && !o.boss && o.hp > 0 && !o.pvp) { const d0 = dist(o.x, o.y, e.x, e.y); if (d0 < 220 && d0 > 1) { const k = Math.min(60, d0 * 0.4) / d0; o.x += (e.x - o.x) * k; o.y += (e.y - o.y) * k; } } }); fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 100, t: 0.3, life: 0.3, c: '#b49aff' }); break;
+                case 'leech': addHp(me.maxHp * 0.01); break;
                 case 'shock': {
                     let c = 0; fx.push({ k: 'bolt', x: e.x, y: e.y, t: 0.25, life: 0.25, pts: [] });
                     enemies.forEach(o => { if (o !== e && o.hp > 0 && c < 3 && dist(o.x, o.y, e.x, e.y) < 190) { c++; fx.push({ k: 'line', x: e.x, y: e.y, x2: o.x, y2: o.y, t: 0.2, life: 0.2, c: '#ffe84a' }); dealHit(o, base * 0.6, {}); } });
@@ -1488,6 +1542,7 @@
     //  通常の必殺技（ULT_TYPES）と同じ型（slash/quake/lance/volley/storm/nova）で、回数・威力が大きく、さらに次の効果が付く：
     //   heal=終わりに最大HPの割合を回復 / guard=終わりに結界（秒）/ exec=HP30%以下のザコを即座に倒す級の大ダメージ / lastMult=最後の一撃の倍率 / finale=最後の大爆発 {radius,mult}
     const MYTHIC_ULT = {
+        legend_duality: { name: '双界終焉・紅蓮と氷獄', st: 'duality', R: 520, w: 70, n: 16, gap: 150, step: 0.30, mult: 1.25, finale: { radius: 440, mult: 7 } },      // 赤と青の光刃が逆向きに全周を薙ぎ払い、最後に紫の大爆発（ツイン・エレメンタルの大技を、自分のまわりに）
         legend_unbreakable: { name: '不壊の怒り・全方位照射', st: 'unbreak', R: 620, w: 54, n: 22, step: 0.37, gap: 120, mult: 0.8 },      // 不壊の悪魔の大技（壁から大量のビームを撃ち切り、逆回転でもう一度）を、自分のまわりの広い範囲に放つ
         eternal_serenity: { name: '万象開門・千剣', st: 'keeper', swordMult: 1.5, beamMult: 2.8, R: 430 },      // ゲートキーパーの大技（g1_ult）をプレイヤー側で再現
         twin_sirius:      { name: '次元の咆哮・瞬影連牙', st: 'slash', n: 30, gap: 36, mult: 0.9, range: 1.2, arc: 2.4, blink: 140, lastMult: 4, finale: { radius: 420, mult: 5 } },      // フェンリルの「瞬影突進」で切り抜け、「次元の咆哮」で薙ぎ払う
@@ -1513,9 +1568,9 @@
     function castUlt() {
         if (PVP || me.dead || me.stunT > 0 || me.cast || me.gch > 0 || me.ultT > 0 || run.phase !== 'run') return;
         if ((me.ult || 0) < ULT_MAX) { popups.push({ x: me.x, y: me.y - 34, t: 0.8, text: '必殺ゲージ ' + Math.floor(me.ult || 0) + '%', c: '#ffe08a' }); return; }
-        const U = ultDef(), col = HW.rarityOf(weapon).color; me.ult = 0; curUlt = U;
-        const dur = U.st === 'unbreak' ? 7.0 : U.st === 'keeper' ? 5.0 : U.st === 'meteor' ? (U.wind + U.n * U.gap) / 1000 + 1.0 : U.st === 'cross' ? U.n * U.gap / 1000 + 0.5 : U.st === 'slash' ? U.n * U.gap / 1000 + 0.3 : U.st === 'quake' ? U.waves * U.gap / 1000 + 0.4 : U.st === 'lance' ? U.rep * U.gap / 1000 + 0.4 : U.st === 'volley' ? U.n * U.gap / 1000 + 0.3 : (U.wind || 400) / 1000 + (U.n ? U.n * U.gap / 1000 : U.waves * 0.25) + 0.3;
-        const lockT = (U.st === 'keeper' || U.st === 'unbreak') ? 1.0 : dur, godT = U.st === 'keeper' ? 2.2 : (U.st === 'unbreak' ? 2.6 : dur);      // ゲートキーパーの大技は、門が働いている間も動ける（動けないのは最初の1秒だけ）
+        const U = ultDef(), col = FXCOL || HW.rarityOf(weapon).color; me.ult = 0; curUlt = U;
+        const dur = U.st === 'duality' ? 0.9 + U.n * U.gap / 1000 + 1.4 : U.st === 'unbreak' ? 7.0 : U.st === 'keeper' ? 5.0 : U.st === 'meteor' ? (U.wind + U.n * U.gap) / 1000 + 1.0 : U.st === 'cross' ? U.n * U.gap / 1000 + 0.5 : U.st === 'slash' ? U.n * U.gap / 1000 + 0.3 : U.st === 'quake' ? U.waves * U.gap / 1000 + 0.4 : U.st === 'lance' ? U.rep * U.gap / 1000 + 0.4 : U.st === 'volley' ? U.n * U.gap / 1000 + 0.3 : (U.wind || 400) / 1000 + (U.n ? U.n * U.gap / 1000 : U.waves * 0.25) + 0.3;
+        const lockT = (U.st === 'keeper' || U.st === 'unbreak' || U.st === 'duality') ? 1.0 : dur, godT = U.st === 'keeper' ? 2.2 : (U.st === 'unbreak' ? 2.6 : (U.st === 'duality' ? dur : dur));      // ゲートキーパーの大技は、門が働いている間も動ける（動けないのは最初の1秒だけ）
         me.ultT = lockT; me.invHard = Math.max(me.invHard || 0, godT); me.inv = Math.max(me.inv, godT); me.dashT = 0; me.ang = aimAngle();
         ultFlashT = 0.3; addShake(4, 0.25); announce('⚡ ' + U.name, 1500);
         if (window.SBSound) SBSound.sfx('ult');
@@ -1609,6 +1664,24 @@
             const t0 = 500, t1 = t0 + per * U.gap + 450;
             for (let k = 0; k < per; k++) beam(off + k * step, t0 + k * U.gap);                        // 順回転
             for (let k = 0; k < per; k++) beam(off + (per - 1 - k) * step + 0.18, t1 + k * U.gap);     // 逆回転でもう一度
+        } else if (U.st === 'duality') {      // 双界終焉：赤い光刃は時計回り、青い光刃は反時計回りに、自分を中心にぐるりと全周を薙ぎ払う。最後に2色が混ざった紫の大爆発
+            const cx = me.x, cy = me.y, R = U.R, W = U.w, N = U.n, off = Math.random() * 6.28, RED = '#ff5a3a', BLUE = '#4ac8ff';
+            fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: R, t: 0.8, life: 0.8, c: RED }); fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: R * 0.7, t: 0.8, life: 0.8, c: BLUE });
+            netSend('atk', { k: 'ring', x: cx, y: cy, a: 0, rad: R, c: '#c06aff', fin: 0 });
+            const blade = (theta, col, atMs) => ultLater(atMs, () => {
+                const x2 = cx + Math.cos(theta) * R, y2 = cy + Math.sin(theta) * R;
+                ultFx({ k: 'line', x: cx, y: cy, a: theta, rng: R, w: W, fin: 1, c: col });
+                enemies.forEach(e => { if (e.hp > 0 && e.act !== false && distSeg(e.x, e.y, cx, cy, x2, y2) < W / 2 + e.r) ultHit(e, U.mult, 140, false); });
+            });
+            const t0 = 700;
+            for (let k = 0; k < N; k++) { blade(off + k * U.step, RED, t0 + k * U.gap); blade(off + Math.PI - k * U.step, BLUE, t0 + k * U.gap); }
+            const tEnd = t0 + N * U.gap + 350;
+            ultLater(tEnd, () => {
+                const F = U.finale; addShake(7, 0.3); hitStop(0.09);
+                fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: F.radius, t: 0.5, life: 0.5, c: '#c06aff', fill: true }); fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: F.radius * 0.6, t: 0.4, life: 0.4, c: '#ffffff', fill: true });
+                netSend('atk', { k: 'ring', x: cx, y: cy, a: 0, rad: F.radius, c: '#c06aff', fin: 1 });
+                enemies.forEach(e => { if (e.hp > 0 && e.act !== false && dist(cx, cy, e.x, e.y) < F.radius + e.r) ultHit(e, F.mult, 360, true); });
+            });
         } else if (U.st === 'keeper') {      // ゲートキーパーの大技：周囲に12の門を開き、剣の雨とビームを降らせる（時間の流れは boss-moves.js の g1_ult と同じ）
             const cx = me.x, cy = me.y, R = U.R || 430, gates = [], off = Math.random() * 6.28;
             const aimAt = (gx, gy) => { const ts = ultTargets(900); let best = null, bd = 1e9; ts.forEach(e => { const dd = dist(gx, gy, e.x, e.y); if (dd < bd) { bd = dd; best = e; } }); return best ? Math.atan2(best.y - gy, best.x - gx) : Math.atan2(cy - gy, cx - gx); };
@@ -1685,6 +1758,7 @@
     //   wave=剣気（前方の長い範囲に追撃。値は届く距離の倍率）/ quake=その場に衝撃波（値は半径）/ heal=当てるたび最大HPの割合を回復 / xs=弾が増える本数 / homing=弾が追尾
     const MYTHIC_COMBO = {
         legend_unbreakable: [{ m: 1, cd: 1 }],      // 不壊：1回の攻撃で7本のレーザー。コンボは無し
+        legend_duality: [{ m: 1.0, dir: 1 }, { m: 1.0, dir: -1, r: 1.05 }, { m: 1.15, dir: 1, r: 1.1, lunge: 14 }, { m: 3.4, r: 1.35, a: 1.5, cd: 1.8, kn: 3, lunge: 32, dir: -1, fin: true, quake: 170, wave: 1.9 }],      // 双界：炎と氷のX字斬りを3回、4段目は紫に光る大斬撃（衝撃波つき）
         eternal_serenity: [{ m: 1.1, dir: 1, keeper: 1 }, { m: 1.1, r: 1.1, dir: -1, keeper: 1 }, { m: 1.3, r: 1.2, dir: 1, wave: 1.7, keeper: 2 }, { m: 1.3, r: 1.2, dir: -1, wave: 1.9, lunge: 20, keeper: 2 }, { m: 3.4, r: 1.6, a: 1.6, cd: 1.7, kn: 3, lunge: 40, dir: 1, fin: true, quake: 150, wave: 2.4, keeper: 5 }],      // keeper=ゲートキーパーの剣を飛ばす本数
         twin_sirius: [{ m: 0.8, dir: 1 }, { m: 0.8, dir: -1 }, { m: 0.85, dir: 1, r: 1.05 }, { m: 0.85, dir: -1, r: 1.05 }, { m: 0.9, dir: 1, r: 1.1, lunge: 16 }, { m: 2.8, r: 1.35, a: 1.4, cd: 2.0, kn: 3, lunge: 36, dir: -1, fin: true, quake: 110 }],
         orbit: [{ m: 1.2, a: 1.2, r: 1.1, dir: 1, wave: 1.7 }, { m: 1.3, a: 1.3, r: 1.15, dir: -1, wave: 1.9, quake: 110 }, { m: 3.2, a: 1.9, r: 1.4, cd: 1.7, kn: 2.5, dir: 1, fin: true, wave: 2.3, quake: 240 }],      // 光輪（quake）が広がる
@@ -1742,7 +1816,7 @@
     }
     function hitFeel(e, cs, h) {      // 当たった手応え：ドットの火花・画面の揺れ・ヒットストップ
         if (!cs.ult && me.comboAt !== me.ultGainAt) { me.ultGainAt = me.comboAt; ultGain(cs.fin ? 8 : 2.5); }      // 必殺ゲージ：1振りにつき1回だけ溜まる
-        const base = Math.atan2(e.y - me.y, e.x - me.x), col = (h && h.crit) ? '#ffd84a' : HW.rarityOf(weapon).color, n = cs.fin ? 14 : 6;
+        const base = Math.atan2(e.y - me.y, e.x - me.x), col = (h && h.crit) ? '#ffd84a' : (FXCOL || HW.rarityOf(weapon).color), n = cs.fin ? 14 : 6;
         const nn = Math.max(0, Math.min(LITE() ? Math.min(n, 3) : n, sparkBudget)); sparkBudget -= nn;
         if (fx.length < (LITE() ? 120 : 260)) for (let i = 0; i < nn; i++) { const a = base + (Math.random() - 0.5) * (cs.fin ? 2.4 : 1.6), v = 160 + Math.random() * (cs.fin ? 420 : 260); fx.push({ k: 'pspark', x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, sz: Math.random() < 0.3 ? 8 : 4, t: 0.25 + Math.random() * 0.2, life: 0.45, c: Math.random() < 0.35 ? '#fff' : col }); }
         if (cs.fin) { addShake(3.2, 0.12); hitStop(0.06); fx.push({ k: 'pring', x: e.x, y: e.y, r: 0, max: 46, t: 0.22, life: 0.22, c: col }); }
@@ -1768,7 +1842,7 @@
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         const cs = nextComboStep(); me.atkCd = cdv * (cs.cd || 1);
         const hit = (e, base) => { const h = strike(e, (base || 1) * cs.m, (T.knock || 0) * (cs.kn || 1)); hitFeel(e, cs, h); return h; };
-        const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range * (cs.r || 1), arc: (T.arc || 0) * (cs.a || 1), rad: (P.radius || T.radius) * (cs.r || 1), w: (T.width || 0) * (cs.w || 1), c: HW.rarityOf(weapon).color, cs: cs.i, dir: cs.dir || 1, fin: cs.fin ? 1 : 0 };
+        const d = { k: T.kind, x: me.x, y: me.y, a: ang, rng: P.range * (cs.r || 1), arc: (T.arc || 0) * (cs.a || 1), rad: (P.radius || T.radius) * (cs.r || 1), w: (T.width || 0) * (cs.w || 1), c: FXCOL || HW.rarityOf(weapon).color, cs: cs.i, dir: cs.dir || 1, fin: cs.fin ? 1 : 0 };
         spawnAtkFx(d); netSend('atk', d); mySwing(d);
         if (window.SBSound) SBSound.sfx('swing');
         if (cs.wave || cs.quake || cs.heal || cs.keeper) mythicExtras(cs, d, ang);
@@ -1805,6 +1879,16 @@
             const cx = me.x + Math.cos(ang) * (T.reach || 60), cy = me.y + Math.sin(ang) * (T.reach || 60);
             fx.push({ k: 'pring', x: cx, y: cy, r: 0, max: d.rad, t: 0.3, life: 0.3, c: '#ffcf8a', fill: true });
             enemies.forEach(e => { if (e.hp > 0 && dist(cx, cy, e.x, e.y) < d.rad + e.r) hit(e, 1); });
+        } else if (T.kind === 'duality') {
+            // 双界：炎（左前）と氷（右前）の2つの扇で斬る。両方の扇に入った敵は「共鳴」して、もう一度ダメージが入る（正面で斬るほど強い）
+            const range = d.rng, arc = d.arc, sp = 0.42 * (cs.dir || 1);
+            const inCone = (e, a0) => { const dd = dist(me.x, me.y, e.x, e.y); if (dd > range + e.r) return false; let da = Math.atan2(e.y - me.y, e.x - me.x) - a0; da = Math.atan2(Math.sin(da), Math.cos(da)); return Math.abs(da) <= arc / 2 || dd < e.r + 18; };
+            enemies.forEach(e => {
+                if (e.hp <= 0) return;
+                const r = inCone(e, ang - sp), b = inCone(e, ang + sp);
+                if (r || b) hit(e, 1);
+                if (r && b) { const h2 = strike(e, 0.5 * cs.m, 0); popups.push({ x: e.x, y: e.y - e.r - 14, t: 0.5, text: '共鳴', c: '#d9a0ff' }); if (h2 && window.SBPix) fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 40, t: 0.2, life: 0.2, c: '#c06aff' }); }
+            });
         } else if (T.kind === 'lasers') {
             // 不壊：自分の周りに並ぶ発射口から、7本のレーザーを近くの敵へ自動で狙って当てる（敵が少ないときは、同じ敵に重ねて当たる）
             const N = (T.count || 7) + Math.round(A('projExtra')), R = d.rng, tt = performance.now() / 1000, ls = [];
@@ -1844,6 +1928,12 @@
             fx.push({ k: 'line', x: nn(0), y: nn(1), x2: nn(2), y2: nn(3), t: 0.15, life: 0.15, c: col, w: 5 });
             fx.push({ k: 'line', x: nn(0), y: nn(1), x2: nn(2), y2: nn(3), t: 0.15, life: 0.15, c: '#ffffff', w: 2 });
         });
+        else if (d.k === 'duality') {      // 双界：赤い炎の斬撃と青い氷の斬撃が、X字に交差する（dir で上下が入れ替わる）
+            const sp = 0.42 * (d.dir || 1), arc = d.arc || 1.15;
+            fx.push({ k: 'pslash', x: d.x, y: d.y, a: d.a - sp, rng: d.rng, arc: arc, dir: 1, fin: !!d.fin, t: L, life: L, c: '#ff5a3a' });
+            fx.push({ k: 'pslash', x: d.x, y: d.y, a: d.a + sp, rng: d.rng, arc: arc, dir: -1, fin: !!d.fin, t: L, life: L, c: '#4ac8ff' });
+            if (d.fin) fx.push({ k: 'pring', x: d.x, y: d.y, r: 0, max: d.rng * 0.9, t: 0.3, life: 0.3, c: '#c06aff', fill: false });
+        }
         else if (d.k === 'smash') fx.push({ k: 'pring', x: d.x + Math.cos(d.a) * 60, y: d.y + Math.sin(d.a) * 60, r: 0, max: d.rad || 90, t: 0.25, life: 0.25, c: d.c, fill: !!d.fin });
     }
 
@@ -1864,7 +1954,7 @@
     // ---------- アクティブスキル（従来のモジュール式スキル：投射／レーザー／斬撃／衝撃波）----------
     // 形・効果・強化は action-skills.js のものをそのまま使う。Z X C V で発動。エネルギーを消費し、
     // エネルギーはクイズ正解で溜まる。威力は「装備武器の攻撃力 × スキル倍率」で決まる。
-    const skillSlots = (window.ActionSkills ? ActionSkills.loadLoadout() : []).map(sk => (sk && ActionSkills.isFormUnlocked(sk.form)) ? Object.assign(ActionSkills.compute(sk), { cdLeft: 0 }) : null);   // 討伐で解放していない形のスキルは使えない
+    const skillSlots = (window.ActionSkills ? ActionSkills.loadLoadout() : []).map(sk => (sk && ActionSkills.isFormUnlocked(sk.form)) ? Object.assign(ActionSkills.compute(sk), { cdLeft: 0 }) : null).map(x => { if (x && x.params && COSTCHK && COSTCHK.over) x.params.dmgMult *= COSTCHK.ratio; return x; });      // コスト超過：スキルの威力も弱まる   // 討伐で解放していない形のスキルは使えない
     while (skillSlots.length < 4) skillSlots.push(null);
     const SELF_FX = ['fortify', 'haste', 'regenerate', 'empower', 'barrier'];
 
@@ -1984,6 +2074,8 @@
         if (window.ClassForms) ClassForms.setBridge(bridge);
     }
 
+    const cfRate = {};      // 他のプレイヤーの職業スキルの再現を、1秒に8回までにする（送られすぎ対策）
+    setInterval(() => { for (const k in cfRate) delete cfRate[k]; }, 1000);
     function castSkill(slot, charged) {      // charged=true は、溜めが終わって実際に発動するとき
         const s = skillSlots[slot];
         if (!s || me.dead || me.stunT > 0 || me.ultT > 0 || run.phase !== 'run') return;
@@ -2016,7 +2108,7 @@
         // 職業：固有効果による威力の倍率（怒りゲージ・剣気・賭け…）。専用の形は、ここから class-forms.js が動かす
         classInit();
         const base = base0 * (window.ClassFx ? ClassFx.castMul(p, s, slot) : 1);
-        if (p.classForm && window.ClassForms && ClassForms.cast(p.classForm, { base: base, hasDmg: hasDmg, eff: eff, ang: ang, p: p, skill: s.skill })) return;
+        if (p.classForm && window.ClassForms && ClassForms.cast(p.classForm, { base: base, hasDmg: hasDmg, eff: eff, ang: ang, p: p, skill: s.skill })) { netSend('cf', { k: p.classForm, a: Math.round(ang * 1000) / 1000, e: typeof p.element === 'string' ? p.element : undefined }); return; }      // ほかのプレイヤーの画面にも、同じ動きを見た目だけで出す
 
         if (p.pieces) { castPieces(p, base, hasDmg, eff, ang, later, s.skill.id); return; }   // 自由配置のスキル、突き、一閃
 
@@ -2461,7 +2553,7 @@
         const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l; }
         input.mx = mx; input.my = my;
         if (window.ClassPerks) { const pf = ClassPerks.moveFilter(mx, my); mx = pf[0]; my = pf[1]; }      // 職業パーク：移動の制限
-        const sp = P.move * (me.haste > 0 ? 1.3 : 1) * (window.ClassPerks ? ClassPerks.moveMul() : 1);
+        const sp = P.move * (me.haste > 0 ? 1.3 : 1) * (window.ClassPerks ? ClassPerks.moveMul() : 1) * (GMK === 'duality' && me.chill > 0 ? 1 - Math.min(0.45, me.chill * 0.045) : 1);
         if (me.dashT > 0) {
             me.dashT -= dt; moveSolid(me, me.dashVX * dt, me.dashVY * dt, me.r);
             if (me.dashT <= 0 && me.dashBlast) { const v = me.dashBlast; me.dashBlast = 0; fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 130, t: 0.3, life: 0.3, c: '#cfe8ff' }); enemies.forEach(e => { if (e.hp > 0 && dist(e.x, e.y, me.x, me.y) < 140 + e.r) dealHit(e, weapon.dmg * P.atkMul * v, { kx: (e.x - me.x) * 3, ky: (e.y - me.y) * 3 }); }); }
@@ -2585,7 +2677,7 @@
     function gmBoss() { return enemies.find(e => e.boss && !e.echo && e.hp > 0) || null; }
     function gmUpdate(dt) {          // ホストだけ
         if (!GMK || !run.bossSpawned || run.phase !== 'run' || run.ended) return;
-        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt);
+        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt); else if (GMK === 'duality') dualityHost(dt);
     }
     // --- 死神：スティグマ ---
     function stigmaHost(dt) {
@@ -2687,16 +2779,279 @@
         eBullets = eBullets.filter(x => !x.refl);
         netAnnounce('⛩ 核がすべて砕けた！　ゲートキーパーの真の姿が現れる…', 3600);
     }
+    // ============================================================
+    // ゴースト戦：オンラインマッチに相手がいないとき、ほかのプレイヤーの「分身」（ゴースト）と戦う
+    //  ・ゴーストは、相手の名前・武器の種類・レア度を借りたAI。ダメージは対人戦と同じ「最大HPの割合」なので、ステータスの差は関係ない
+    //  ・ロビーで取得した相手（localStorage sbGhostFoe）が無ければ、練習用のゴーストが出る。勝敗はPvPの勝利数には数えない
+    // ============================================================
+    const GHOST_PRESETS = [
+        { name: '剣のゴースト', wtype: 'sword', rar: 'rare' }, { name: '弓のゴースト', wtype: 'bow', rar: 'rare' }, { name: '槍のゴースト', wtype: 'spear', rar: 'rare' },
+        { name: '杖のゴースト', wtype: 'wand', rar: 'rare' }, { name: '大剣のゴースト', wtype: 'greatsword', rar: 'epic' }, { name: '拳銃のゴースト', wtype: 'pistol', rar: 'epic' }
+    ];
+    let GH = null;
+    function ghostLoad() {
+        let g = null;
+        try { g = JSON.parse(localStorage.getItem('sbGhostFoe') || 'null'); localStorage.removeItem('sbGhostFoe'); } catch (e) { g = null; }
+        if (!g || typeof g.wtype !== 'string' || !HW.TYPES[g.wtype]) { const pr = GHOST_PRESETS[Math.floor(Math.random() * GHOST_PRESETS.length)]; g = Object.assign({ practice: 1 }, pr); if (!HW.TYPES[g.wtype]) g.wtype = Object.keys(HW.TYPES).find(k => !HW.TYPES[k].exclusive) || 'sword'; }
+        g.name = String(g.name || 'ゴースト').slice(0, 12);
+        return g;
+    }
+    function startGhost() {
+        run.bossSpawned = true; G = {}; enemies = [];
+        const g = ghostLoad(), T = HW.TYPES[g.wtype] || HW.TYPES.sword;
+        const e = { id: 'pv:ghost', pvp: true, ghost: true, pid: 'ghost', def: { name: g.name, icon: '👻', color: '#cfd8ff' }, arch: 'chaser', boss: false, elite: false, r: 16, maxHp: 100, hp: 100, flash: 0, kx: 0, ky: 0, state: 0, air: 0, x: WORLD_W - 300, y: WORLD_H / 2, spd: 0, dmg: 0, st: { burn: 0, burnT: 0, poison: 0, poisonT: 0, bleed: 0, bleedT: 0, slowT: 0, stunT: 0, weakenT: 0, blindT: 0, curseT: 0 } };
+        enemies.push(e);
+        GH = { e: e, g: g, T: T, cd: 1.4, dashCd: 3, dashT: 0, dvx: 0, dvy: 0, inv: 0, strafe: 1, strafeT: 1, stun: 0, ultT: 18, ultWind: 0, ultX: 0, ultY: 0, bolts: [], ang: Math.PI, dmgDone: 0 };
+        me.x = 300; me.y = WORLD_H / 2; me.ang = 0; window.__ghostDbg = { name: g.name, wtype: g.wtype, practice: !!g.practice };
+        announce('👻 ゴースト「' + g.name + '」が現れた！　武器：' + (T.label || g.wtype) + (g.practice ? '（練習用）' : ''), 3200);
+    }
+    function ghostHurt(e, dmg, o) {      // プレイヤーの攻撃がゴーストに当たった
+        if (!GH || e.hp <= 0) return;
+        let f = PVP_BASE * dmg / PVP_REF; if (!isFinite(f) || f < 0) f = 0; f = Math.min(f, 100);
+        if (GH.inv > 0) { popups.push({ x: e.x, y: e.y - 26, t: 0.5, text: 'MISS', c: '#9fe0ff' }); return; }
+        if (Math.random() < 0.12) { popups.push({ x: e.x, y: e.y - 26, t: 0.6, text: 'GUARD', c: '#cfd8ff' }); e.flash = 0.05; return; }      // ときどき防ぐ
+        popups.push({ x: e.x + rnd(-8, 8), y: e.y - e.r - 6, t: 0.7, text: (f * 100).toFixed(1) + '%', c: o.crit ? '#ffd84a' : '#fff', big: !!o.crit });
+        run.stats.dmg += f * 100; GH.dmgDone += f * 100; e.hp = Math.max(0, e.hp - f * 100); e.flash = 0.1;
+        e.x = clamp(e.x + (o.kx || 0) * 0.05, 40, WORLD_W - 40); e.y = clamp(e.y + (o.ky || 0) * 0.05, 40, WORLD_H - 40);
+        if (o.st && o.st.stun) GH.stun = Math.max(GH.stun, Math.min(PVP_STUN_MAX, typeof o.st.stun === 'number' ? o.st.stun : 1));
+    }
+    function ghostUpdate(dt) {
+        if (!GH || run.phase !== 'run') return;
+        const e = GH.e, T = GH.T, kind = T.kind || 'cone';
+        if (e.hp <= 0) { endGhost(true, 'ko'); return; }
+        if (me.dead) { endGhost(false, 'ko'); return; }
+        if (run.time >= TIME_LIMIT) { endGhost((e.hp / 100) < (me.hp / me.maxHp), 'time'); return; }
+        GH.inv = Math.max(0, GH.inv - dt);
+        const dx = me.x - e.x, dy = me.y - e.y, d = Math.hypot(dx, dy) || 1, a = Math.atan2(dy, dx);
+        GH.ang = a;
+        // 弾
+        GH.bolts.forEach(b => { b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt; if (dist(b.x, b.y, me.x, me.y) < b.r + me.r) { hurtPvp(b.f, b.vx * 0.2, b.vy * 0.2, null, 'ghost', 1); b.life = 0; } });
+        GH.bolts = GH.bolts.filter(b => b.life > 0 && b.x > 0 && b.y > 0 && b.x < WORLD_W && b.y < WORLD_H);
+        if (GH.stun > 0) { GH.stun -= dt; return; }
+        // 大技：ときどき、足もとに予告の輪を出して、少しあとに爆発する
+        if (GH.ultWind > 0) {
+            GH.ultWind -= dt;
+            if (GH.ultWind <= 0) { fx.push({ k: 'ring', x: GH.ultX, y: GH.ultY, r: 0, max: 210, t: 0.4, life: 0.4, c: '#cfd8ff', fill: true }); addShake(4, 0.2); if (dist(GH.ultX, GH.ultY, me.x, me.y) < 210 + me.r) hurtPvp(0.16, Math.cos(a) * 300, Math.sin(a) * 300, { stun: 1 }, 'ghost', 0); }
+        } else if ((GH.ultT -= dt) <= 0) { GH.ultT = 20 + rnd(0, 8); GH.ultWind = 1.0; GH.ultX = me.x; GH.ultY = me.y; fx.push({ k: 'warn', x: GH.ultX, y: GH.ultY, r: 210, t: 1.0, life: 1.0, c: '#cfd8ff' }); popups.push({ x: e.x, y: e.y - 40, t: 1.0, text: '👻 ゴーストの大技！', c: '#cfd8ff', big: true }); }
+        // 移動：武器に合った間合いを保つ。ときどき横へ避ける
+        const melee = kind === 'cone' || kind === 'line' || kind === 'smash' || kind === 'chain' || kind === 'duality' || kind === 'ring';
+        const want = melee ? Math.max(50, (T.range || 80) * 0.7) : Math.max(220, Math.min(380, (T.range || 300) * 0.65));
+        if ((GH.strafeT -= dt) <= 0) { GH.strafe = Math.random() < 0.5 ? 1 : -1; GH.strafeT = 0.8 + rnd(0, 1.4); }
+        let vx = 0, vy = 0; const sp = 205;
+        if (GH.dashT > 0) { GH.dashT -= dt; vx = GH.dvx; vy = GH.dvy; }
+        else {
+            if (d > want + 30) { vx += Math.cos(a) * sp; vy += Math.sin(a) * sp; } else if (d < want - 50 && !melee) { vx -= Math.cos(a) * sp; vy -= Math.sin(a) * sp; }
+            vx += -Math.sin(a) * GH.strafe * sp * 0.55; vy += Math.cos(a) * GH.strafe * sp * 0.55;
+            GH.dashCd -= dt;
+            if (GH.dashCd <= 0 && d < 190) { GH.dashCd = 3.5 + rnd(0, 2.5); GH.dashT = 0.18; GH.inv = 0.22; GH.dvx = -Math.sin(a) * GH.strafe * 600; GH.dvy = Math.cos(a) * GH.strafe * 600; }
+        }
+        moveSolid(e, vx * dt, vy * dt, e.r); pushOutOfRocks(e, e.r);
+        // 攻撃
+        if ((GH.cd -= dt) <= 0) {
+            const R = T.range || 100, base = 0.8 * PVP_BASE * (T.mult || 0.8);
+            if ((kind === 'cone' || kind === 'line' || kind === 'smash' || kind === 'chain' || kind === 'duality') && d <= R + me.r) {
+                GH.cd = (T.cd || 0.5) * 1.25 * (0.9 + rnd(0, 0.4));
+                fx.push({ k: 'pslash', x: e.x, y: e.y, a: a, rng: R, arc: T.arc || 1.4, dir: Math.random() < 0.5 ? 1 : -1, t: 0.2, life: 0.2, c: '#cfd8ff' });
+                hurtPvp(base * (kind === 'duality' ? 1.6 : 1), Math.cos(a) * 200, Math.sin(a) * 200, null, 'ghost', 0);
+            } else if (kind === 'ring' && d <= (T.range || 100) + me.r) {
+                GH.cd = (T.cd || 0.6) * 1.25; fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: T.range || 100, t: 0.25, life: 0.25, c: '#cfd8ff' });
+                hurtPvp(base, Math.cos(a) * 150, Math.sin(a) * 150, null, 'ghost', 0);
+            } else if ((kind === 'proj' || kind === 'lasers') && d <= Math.max(R, 520)) {
+                GH.cd = (T.cd || 0.5) * 1.35 * (0.9 + rnd(0, 0.5));
+                const n = kind === 'lasers' ? 3 : Math.max(1, T.n || T.count || 1), spread = T.spread || 0.18;
+                for (let i = 0; i < n; i++) { const an = a + (i - (n - 1) / 2) * spread + rnd(-0.05, 0.05); GH.bolts.push({ x: e.x, y: e.y, vx: Math.cos(an) * (T.speed || 560), vy: Math.sin(an) * (T.speed || 560), r: T.radius || 8, life: 1.3, f: base / Math.max(1, n * 0.6) }); }
+            } else GH.cd = 0.12;
+        }
+    }
+    function endGhost(win, reason) { if (run.phase === 'end') return; finish(win, { reason: reason }); }
+    function drawGhost() {
+        if (!GH) return;
+        const e = GH.e, p = { x: e.x, y: e.y, ang: GH.ang, name: '👻 ' + GH.g.name, hp: e.hp, maxHp: 100, rar: GH.g.rar || 'normal', dead: e.hp <= 0, wt: GH.g.wtype, wm: GH.g.mythicId || '', stun: GH.stun > 0, ti: GH.g.title || '', id: 'ghost' };
+        ctx.save(); ctx.strokeStyle = '#cfd8ff'; ctx.globalAlpha = 0.5; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y, 24, 0, 7); ctx.stroke(); ctx.restore();
+        drawPlayer(p, false);
+        GH.bolts.forEach(b => { ctx.fillStyle = '#cfd8ff'; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
+    }
+
+    // --- 双界の覇竜ツイン・エレメンタル（大討伐戦）---
+    //  ・戦場は左（赤い炎）と右（青い氷）に割れている。赤に長くいると「熱狂」（攻撃UP＋持続ダメージ）、青に長くいると「悪寒」（移動DOWN＋被ダメージUP）が溜まる
+    //  ・属性シールド：ボスが赤バリアを張ったら、青エリアにいる人の攻撃がバリアに大ダメージ（逆も同様）。割るとボスが怯んで大チャンス
+    //  ・カタストロフ・レイン：全員に赤（隕石）か青（氷塊）の印。印と同じ色のエリアにいると被弾。反対の色のエリアへ逃げれば相殺
+    //  ・HP50%以下：臨界突破・紫炎の崩壊（攻撃がすべて紫になり、威力と速さが上がる）
+    //  ・双界終焉：HPが一定を切るか、時間がたつと発動。赤と青のクリスタルを、制限時間内に全員で手分けして「同時に」壊せばボスがダウン。失敗すると全滅級の大技
+    const FIELD_NEUTRAL = 70, DU_STACK_MAX = 10, EOD_AT = [0.72, 0.42, 0.16], EOD_EVERY = 200, EOD_SEC = 26;
+    const DU_COL = { r: '#ff5a3a', b: '#4ac8ff', n: '#c06aff' };
+    let DU = {};                 // ホストだけが持つ進行管理（タイマーなど）。みんなに見せるものは G に入れる
+    let crLocal = null, crMarks = {};      // カタストロフ・レイン：自分の画面でのカウントダウンと、全員の印（'r'|'b'）
+    const fieldOf = x => x < WORLD_W / 2 - FIELD_NEUTRAL ? 'r' : (x > WORLD_W / 2 + FIELD_NEUTRAL ? 'b' : 'n');
+    const duOpp = c => c === 'r' ? 'b' : 'r';
+    function duPlayers() { const l = []; if (!me.dead) l.push(myId); Object.keys(allies).forEach(id => { if (!allies[id].dead && !allies[id].esc) l.push(id); }); return l; }
+    function dualityHost(dt) {
+        const b = gmBoss(); if (!b) return;
+        if (!DU.init) { DU = { init: 1, t: 0, shT: 12, sh: 0, shHp: 0, shMax: 0, shLeft: 0, crT: 22, eodN: 0, eodNext: EOD_EVERY, eod: null }; G = { ph: 1 }; b.bset = (BM && BM.SETS && BM.SETS.raid_duality) || null; }
+        DU.t += dt; if (window.__raidDbg) window.__raidDbg.hpNow = Math.round(b.hp);
+        // ---- 臨界突破：紫炎の崩壊（HP50%以下）----
+        if (G.ph === 1 && b.hp / b.maxHp <= 0.5 && !DU.eod) {
+            G.ph = 2; b.bset = (BM && BM.SETS && BM.SETS.raid_duality2) || null; b.mv = null; b.state = 0; b.t = -2; b.mvIdx = 0; b.mvCount = 0; b.ultN = 0;
+            b.rage = 1.3; b.enraged = true; b.spd *= 1.2; eBullets = []; telegraphs = [];
+            fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 520, t: 0.8, life: 0.8, c: '#b060ff', fill: true }); addShake(8, 0.5);
+            netSend('gm', { k: 'ph2', x: Math.round(b.x), y: Math.round(b.y) });
+            netAnnounce('⚠ 臨界突破：紫炎の崩壊！　赤と青が混ざった、紫の力が解き放たれる…', 3600);
+        }
+        if (DU.eod) duEod(b, dt);
+        else {
+            // ---- 属性シールド ----
+            if (!DU.sh) { DU.shT -= dt; if (DU.shT <= 0 && !crLocal) duShieldStart(b); }
+            else { DU.shLeft -= dt; if (DU.shLeft <= 0) duShieldFail(b); }
+            // ---- カタストロフ・レイン ----
+            DU.crT -= dt;
+            if (DU.crT <= 0) {
+                DU.crT = G.ph === 2 ? 26 : 34;
+                const marks = {}; duPlayers().forEach(id => { marks[id] = Math.random() < 0.5 ? 'r' : 'b'; });
+                const dm = ed(b) * (G.ph === 2 ? 2.2 : 1.8);
+                crStart(marks, dm); netSend('gm', { k: 'cr', m: marks, dm: +dm.toFixed(4) });
+                netAnnounce('☄ カタストロフ・レイン！　赤い印は青エリアへ、青い印は赤エリアへ逃げろ！', 2800);
+            }
+            // ---- 双界終焉（HPが一定を切る／時間がたつ）----
+            if (!DU.sh && !crLocal && (DU.eodN < EOD_AT.length && b.hp / b.maxHp <= EOD_AT[DU.eodN] || DU.t >= DU.eodNext)) duEodStart(b);
+        }
+        // みんなに見せる状態
+        G.sh = DU.sh || 0; G.shp = DU.sh ? Math.max(0, Math.round(DU.shHp / DU.shMax * 100)) : 0; G.shL = DU.sh ? Math.max(0, Math.ceil(DU.shLeft)) : 0;
+        const E = DU.eod; G.eT = E ? Math.max(0, Math.ceil(E.t)) : 0; G.eN = E ? E.list.length : 0; G.eA = E ? E.list.filter(it => it.dAt == null).length : 0;
+    }
+    function duShieldStart(b) {
+        DU.sh = Math.random() < 0.5 ? 'r' : 'b'; DU.shMax = DU.shHp = Math.max(1, b.maxHp * 0.03); DU.shLeft = 22;
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 260, t: 0.5, life: 0.5, c: DU_COL[DU.sh], fill: true });
+        netAnnounce('🛡 ' + (DU.sh === 'r' ? '赤' : '青') + 'いバリア！　' + (DU.sh === 'r' ? '青' : '赤') + 'エリアから攻撃して破れ！', 3000);
+    }
+    function duShieldBreak(b) {       // バリア破壊：ボスが怯んで、受けるダメージが増える
+        DU.sh = 0; DU.shT = 28; b.st.stunT = Math.max(b.st.stunT, 5); b.vuln = 8; b.mv = null; b.state = 0;
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 320, t: 0.5, life: 0.5, c: '#ffffff', fill: true }); addShake(5, 0.3);
+        netAnnounce('💥 バリア破壊！　ボスが怯んだ！　総攻撃！', 2600);
+    }
+    function duShieldFail(b) {       // 破れなかった：バリアが弾けて、全域に反撃
+        const col = DU_COL[DU.sh] || '#c06aff'; DU.sh = 0; DU.shT = 24;
+        telegraph(b.x, b.y, 1100, 1.8, ed(b) * 2.0, col);
+        netAnnounce('⚠ バリアが弾ける！　距離を取れ！', 2200);
+    }
+    function crStart(marks, dm) {
+        crMarks = marks || {}; crLocal = { t: 4.0, dm: Number(dm) || 1 };
+        const m = crMarks[myId];
+        if (m && !me.dead) popups.push({ x: me.x, y: me.y - 52, t: 1.6, text: '☄ ' + (m === 'r' ? '赤い隕石' : '青い氷塊') + '！ → ' + (m === 'r' ? '青' : '赤') + 'エリアへ', c: DU_COL[m], big: true });
+    }
+    function crResolve() {
+        const m = crMarks[myId], dm = crLocal ? crLocal.dm : 1; crLocal = null; const keep = crMarks; crMarks = {};
+        if (!m || me.dead) return;
+        const f = fieldOf(me.x);
+        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 130, t: 0.5, life: 0.5, c: DU_COL[m], fill: true });
+        if (f === m || f === 'n') { popups.push({ x: me.x, y: me.y - 40, t: 0.9, text: '直撃！', c: DU_COL[m], big: true }); hurtMe(dm); }
+        else popups.push({ x: me.x, y: me.y - 40, t: 0.9, text: '相殺！', c: '#7fffd4', big: true });
+        void keep;
+    }
+    function duEodStart(b) {
+        DU.eodN++; DU.eodNext = DU.t + EOD_EVERY; DU.sh = 0; DU.shT = 30;
+        const alive = Math.max(1, duPlayers().length); let n = Math.min(10, Math.max(2, Math.round(alive * 0.6))); if (n % 2) n++;
+        DU.crHp = Math.max(1, b.maxHp * 0.03 / n);       // クリスタル全部の合計HPは、ボスのHPの約3%
+        DU.eod = { t: EOD_SEC, list: [] };
+        b.inv = true; b.st.stunT = EOD_SEC + 3; b.mv = null; b.state = 0; eBullets = []; telegraphs = [];
+        const off = rnd(0, 6.28);
+        for (let i = 0; i < n; i++) {
+            const c = i % 2 ? 'b' : 'r', a = off + i * Math.PI * 2 / n, x = clamp(WORLD_W / 2 + Math.cos(a) * 760, 80, WORLD_W - 80), y = clamp(WORLD_H / 2 + Math.sin(a) * 560, 80, WORLD_H - 80);
+            DU.eod.list.push({ c: c, x: x, y: y, e: duCrystal(c, x, y), dAt: null });
+        }
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 700, t: 1.0, life: 1.0, c: '#c06aff' }); addShake(6, 0.5);
+        netAnnounce('⚠ 双界終焉！　赤いクリスタルは青エリアから、青いクリスタルは赤エリアから攻撃して、' + EOD_SEC + '秒以内に「全部を同時に」破壊しろ！', 4200);
+    }
+    function duCrystal(c, x, y) {
+        const v = spawnEnemy({ name: c === 'r' ? '赤のクリスタル' : '青のクリスタル', icon: c === 'r' ? '🔴' : '🔵', arch: 'tank', color: DU_COL[c] }, x, y, false);
+        v.valve = true; v.noLoot = true; v.noContact = true; v.spd = 0; v.crystal = c; v.maxHp = v.hp = Math.max(1, Math.round(DU.crHp));
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: 90, t: 0.4, life: 0.4, c: DU_COL[c], fill: true });
+        return v;
+    }
+    function duEod(b, dt) {
+        const E = DU.eod; E.t -= dt; const L = E.list;
+        L.forEach(it => { const e = it.e; if (e && (e.dead || e.hp <= 0)) { if (it.dAt == null) it.dAt = DU.t; } else it.dAt = null; });
+        if (L.length && L.every(it => it.dAt != null)) {      // 全部が同時に壊れている：成功
+            DU.eod = null; b.inv = false; b.st.stunT = 9; b.vuln = 10; b.mv = null; b.state = 0;
+            enemies.forEach(o => { if (o.crystal) { o.hp = 0; o.dead = true; } });
+            fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 520, t: 0.7, life: 0.7, c: '#ffffff', fill: true }); addShake(7, 0.4);
+            netAnnounce('✨ 全てのクリスタルを同時に破壊！　ボスがダウンした！　総攻撃のチャンス！', 3600);
+            return;
+        }
+        L.forEach(it => { if (it.dAt != null && DU.t - it.dAt > 5) { it.e = duCrystal(it.c, it.x, it.y); it.dAt = null; popups.push({ x: it.x, y: it.y - 30, t: 1.2, text: 'クリスタルが復活！（同時に壊せ）', c: DU_COL[it.c], big: true }); } });      // 他が残ったまま5秒たつと復活する
+        if (E.t <= 0) {      // 失敗：全域が消し飛ぶ
+            DU.eod = null; b.inv = false; b.st.stunT = 0; b.t = -3; enemies.forEach(o => { if (o.crystal) { o.hp = 0; o.dead = true; } });
+            netSend('gm', { k: 'wipe' }); duWipe();
+            netAnnounce('☠ 双界終焉が放たれた…！', 3000);
+        }
+    }
+    function duWipe() {
+        fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 400, t: 0.6, life: 0.6, c: '#ffffff', fill: true }); addShake(9, 0.6);
+        if (me.dead) return;
+        if (me.guardT > 0 || me.invHard > 0) { popups.push({ x: me.x, y: me.y - 40, t: 1.2, text: '防いだ！', c: '#7fffd4', big: true }); return; }
+        me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('☠ 双界終焉に飲み込まれた…', 3000);
+    }
+    // ホスト：ヒットの補正。バリアは「反対の色のエリア」からの攻撃で大きく削れる。クリスタルも同じ。0なら、ボスのHPには入らない
+    function duHitMul(e, d) {
+        const ax = d.by === myId ? me.x : (allies[d.by] ? allies[d.by].x : null), f = ax == null ? 'n' : fieldOf(ax);
+        if (e.crystal) return f === duOpp(e.crystal) ? 1 : 0.1;
+        if (e.boss && !e.echo && DU.sh) {
+            DU.shHp -= d.dmg * (f === duOpp(DU.sh) ? 3 : 0.25);
+            if (DU.shHp <= 0) duShieldBreak(e);
+            return 0;
+        }
+        return 1;
+    }
+    // 各自の画面：エリアの効果（熱狂／悪寒）とカタストロフ・レインの判定
+    function duLocal(dt) {
+        if (me.hot == null) { me.hot = 0; me.chill = 0; }
+        if (me.dead) { me.hot = 0; me.chill = 0; }
+        else {
+            const f = fieldOf(me.x);
+            if (f === 'r') { me.hot = Math.min(DU_STACK_MAX, me.hot + dt); me.chill = Math.max(0, me.chill - 2 * dt); }
+            else if (f === 'b') { me.chill = Math.min(DU_STACK_MAX, me.chill + dt); me.hot = Math.max(0, me.hot - 2 * dt); }
+            else { me.hot = Math.max(0, me.hot - dt); me.chill = Math.max(0, me.chill - dt); }
+            if (me.hot >= 1) {      // 熱狂：攻撃力UP＋持続ダメージ
+                me.empowerT = Math.max(me.empowerT || 0, 0.2);
+                me.hp -= me.maxHp * 0.0022 * me.hot * dt;
+                if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; announce('🔥 熱狂の炎に焼かれた…　赤と青を行き来しよう', 2600); }
+            }
+        }
+        if (crLocal) { crLocal.t -= dt; if (crLocal.t <= 0) crResolve(); }
+    }
+    function drawDualityField() {
+        const cx = WORLD_W / 2, t = performance.now() / 1000;
+        ctx.save();
+        ctx.globalAlpha = 0.2 + 0.04 * Math.sin(t * 2); ctx.fillStyle = DU_COL.r; ctx.fillRect(0, 0, cx - FIELD_NEUTRAL, WORLD_H);
+        ctx.fillStyle = DU_COL.b; ctx.fillRect(cx + FIELD_NEUTRAL, 0, WORLD_W - cx - FIELD_NEUTRAL, WORLD_H);
+        ctx.globalAlpha = 0.16; ctx.fillStyle = DU_COL.n; ctx.fillRect(cx - FIELD_NEUTRAL, 0, FIELD_NEUTRAL * 2, WORLD_H);
+        ctx.globalAlpha = 0.5; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.setLineDash([16, 12]);
+        ctx.beginPath(); ctx.moveTo(cx - FIELD_NEUTRAL, 0); ctx.lineTo(cx - FIELD_NEUTRAL, WORLD_H); ctx.moveTo(cx + FIELD_NEUTRAL, 0); ctx.lineTo(cx + FIELD_NEUTRAL, WORLD_H); ctx.stroke(); ctx.setLineDash([]);
+        const b = enemies.find(e => e.boss && !e.echo && e.hp > 0);
+        if (b) {
+            if (G.ph === 2) { ctx.globalAlpha = 0.35 + 0.1 * Math.sin(t * 5); ctx.strokeStyle = '#b060ff'; ctx.lineWidth = 8; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 26, 0, 7); ctx.stroke(); }
+            if (G.sh) { ctx.globalAlpha = 0.5 + 0.15 * Math.sin(t * 6); ctx.strokeStyle = DU_COL[G.sh]; ctx.lineWidth = 10; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 40, 0, 7); ctx.stroke(); ctx.globalAlpha = 0.14; ctx.fillStyle = DU_COL[G.sh]; ctx.fill(); }
+        }
+        ctx.restore();
+    }
+    function drawDualityMarks() {      // カタストロフ・レイン：全員の頭の上に、印の色の円
+        if (!crLocal) return;
+        const at = id => id === myId ? me : allies[id];
+        Object.keys(crMarks).forEach(id => { const p = at(id); if (!p || p.dead) return; const x = p.x, y = p.y - 44 + Math.sin(performance.now() / 160) * 3; ctx.fillStyle = DU_COL[crMarks[id]]; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.fill(); ctx.globalAlpha = 1; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); });
+    }
     // --- 全員が自分の画面で行う処理 ---
     function gmPullStart(x, y, dur, f) { pullFx = { x: x, y: y, t: dur, f: f }; fx.push({ k: 'ring', x: x, y: y, r: 0, max: 320, t: 0.8, life: 0.8, c: '#9a8aff' }); }
     function onGm(d) {               // ホストからの通知（クライアント側）
         if (d.k === 'pull') gmPullStart(Number(d.x) || 0, Number(d.y) || 0, Math.min(4, Number(d.dur) || 1), Math.min(600, Number(d.f) || 200));
         else if (d.k === 'refl') fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: REFL_R, t: 0.4, life: 0.4, c: '#7fffd4' });
         else if (d.k === 'core') fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: 200, t: 0.5, life: 0.5, c: '#ff7aff', fill: true });
+        else if (d.k === 'cr' && GMK === 'duality') crStart(d.m && typeof d.m === 'object' ? d.m : {}, Number(d.dm) || 1);
+        else if (d.k === 'wipe' && GMK === 'duality') duWipe();
+        else if (d.k === 'ph2') { fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: 520, t: 0.8, life: 0.8, c: '#b060ff', fill: true }); addShake(8, 0.5); }
     }
     function gmApplySnap(g) { G = (g && typeof g === 'object') ? g : {}; }
     function gmLocal(dt) {
         if (!GMK || !run.bossSpawned || run.phase !== 'run') return;
+        if (GMK === 'duality') duLocal(dt);
         if (pullFx && pullFx.t > 0) {
             pullFx.t -= dt;
             if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { moveSolid(me, dx / d * pullFx.f * dt, dy / d * pullFx.f * dt, me.r); } }
@@ -2713,21 +3068,38 @@
         if (!run.bossSpawned) return '';
         if (GMK === 'stigma') return '☠ スティグマ ' + (me.stg || 0) + ' / ' + STIGMA_MAX + '　次の刻印まで ' + Math.max(0, Math.ceil(G.sT == null ? STIGMA_EVERY : G.sT)) + '秒';
         if (GMK === 'pressure' && G.cT > 0) return '♨ 圧力爆発まで ' + Math.ceil(G.cT) + '秒　安全弁 あと ' + (G.vl || 0);
+        if (GMK === 'duality') {
+            const parts = ['🔥熱狂 ' + Math.floor(me.hot || 0) + '　❄悪寒 ' + Math.floor(me.chill || 0)];
+            if (G.eT > 0) parts.push('⚠ 双界終焉まで ' + G.eT + '秒　クリスタル ' + ((G.eN || 0) - (G.eA || 0)) + ' / ' + (G.eN || 0) + ' 破壊中（全部を同時に壊せ！）');
+            else {
+                if (G.sh) parts.push('🛡 ' + (G.sh === 'r' ? '赤' : '青') + 'バリア ' + (G.shp || 0) + '%　' + (G.sh === 'r' ? '青' : '赤') + 'エリアから攻撃！（あと' + (G.shL || 0) + '秒）');
+                if (crLocal && crMarks[myId]) parts.push('☄ あなたは' + (crMarks[myId] === 'r' ? '赤' : '青') + 'の印　' + (crMarks[myId] === 'r' ? '青' : '赤') + 'エリアへ！ ' + Math.ceil(crLocal.t));
+            }
+            return parts.join('　');
+        }
         if (GMK === 'twin' && G.rv) return '⚠ ' + G.rv.n + ' が蘇るまで ' + Math.ceil(G.rv.t) + '秒　先に倒せ！';
         if (GMK === 'dimension') return G.dp === 2 ? (G.dw ? '🚪 ゲートの主が出現中：倒さないとキーパーは無敵' : '🚪 歴代ラスボスの召喚 ' + (G.de || 0) + ' / ' + DK_ECHO.length) : '💠 核 ' + (G.dc == null ? 6 : G.dc) + ' / 6　（放射弾をスキルで跳ね返すと砕ける）';
         return '';
     }
 
+    function raidBossStats(b) {
+        const mul = stage.raidMul || RAID_MUL, S = Math.round(corrPartyTotal() * corrMul(RAID_REF_FLOOR) * 1.9 * 1.35 * mul), st = enemyStats(b.def, true, false, S);
+        b.maxHp = b.hp = st.maxHp; b.dmg = st.dmg; b.spd = st.spd; b.takeMul = 1; b.dmgMul = 1; b.sh = [1, 1, 1, 1, 1];
+        window.__raidDbg = { total: corrPartyTotal(), S: S, hp: st.maxHp, dmg: st.dmg, ps: partyScale(), refHp: REF_HP };      // 調整用（コンソールで確認できる）
+    }
     function startBoss() {
+        if (PVP && run.ghostMode) { startGhost(); return; }      // アリーナにひとりで入った：ゴースト戦
         run.bossSpawned = true; G = {};
         if (window.SBSound) { SBSound.sfx('boss'); SBSound.bgm('boss'); }
         enemies.forEach(e => { if (!e.boss) { e.hp = 0; fx.push({ k: 'puff', x: e.x, y: e.y, t: 0.3, life: 0.3, c: '#aaa' }); } });
         enemies = enemies.filter(e => e.hp > 0);
+        if (RAID) { DU = {}; applyScale(Math.round(corrPartyTotal()), 46, { hp: 1, dmg: 1, spd: Math.min(1.3, 1 + RAID_REF_FLOOR * 0.005) }); SC.hpMul = 1; }      // 基準はパーティの合計ステータス。ボスの強さは raidBossStats が「合計ステータス」から決める（無限回廊と同じ）
         const defs = stage.bosses || [stage.boss];
         defs.forEach((bd, i) => {
-            const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W / 2 + (bd.dx || 0), WORLD_H / 2 - 200, true);
+            const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W / 2 + (bd.dx || 0), RAID ? WORLD_H * 0.28 : WORLD_H / 2 - 200, true);
             b.spd = 78 * (1 + SC.ilvl * 0.012) * PW.spd;
-            b.bd = bd; b.pairIdx = i;
+            b.bd = bd; b.pairIdx = i; if (RAID) b.r = 78;
+            if (RAID) raidBossStats(b);
             if (bd.set) b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null;
             if (bd.hp) b.maxHp = b.hp = Math.round(b.maxHp * bd.hp);       // ニコイチのボスは1体ぶんのHPを少なめにする
             if (DBG && DBG.hp > 0) b.maxHp = b.hp = Math.max(1, Math.round(b.maxHp * DBG.hp));
@@ -3393,7 +3765,9 @@
     function beginRun() {
         if (run.phase !== 'wait') return;
         run.phase = 'run'; run.time = 0;
-        run.pvpMode = PVP && partyCount() > 1;
+        run.pvpMode = PVP && partyCount() > 1; run.ghostMode = PVP && !TEAM && !run.pvpMode;      // 1人でアリーナに入ったら、ゴースト戦
+        if (run.ghostMode) startGhost();
+        if (COSTCHK && (PVP || COSTCHK.over)) setTimeout(() => { if (run.phase === 'run') announce(SBCost.summaryText(COSTCHK), 3400); }, 3300);      // コスト制度の結果を知らせる（ステージでは、超過しているときだけ）
         document.getElementById('waitRoom').style.display = 'none';
         if (run.pvpMode && TEAM && room) {
             // チーム戦：部屋の参加順に、青(0)・赤(1)へ交互に振り分ける（全員が同じ順番を持っているので一致する）。青は左、赤は右に並ぶ
@@ -3407,6 +3781,11 @@
             const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId), a = i / ids.length * Math.PI * 2;
             me.x = WORLD_W / 2 + Math.cos(a) * 380; me.y = WORLD_H / 2 + Math.sin(a) * 300; pushOutOfRocks(me, me.r);
             announce('⚔ 最後まで立っていた人の勝ち！（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 2600);
+        } else if (RAID) {
+            // 大討伐戦：全員が同じ並びで、南側（手前）に横一列に並ぶ。ボスは北の中央
+            const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId), n = ids.length, per = 10, row = Math.floor(i / per), col = i % per, cnt = Math.min(per, n - row * per);
+            me.x = WORLD_W / 2 + (col - (cnt - 1) / 2) * 90; me.y = WORLD_H - 260 + row * 80; pushOutOfRocks(me, me.r);
+            announce('🐉 大討伐戦　双界の覇竜が待ち受ける…　色の通りに動け！（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 3200);
         } else if (RUSH_ON) announce('🏆 ボスラッシュ（' + DIFF.name + '）　フェーズ1〜5とFinal！', 2600);
         else if (CORR_ON) {
             corrMakeRetreatBtn();
@@ -3438,6 +3817,7 @@
         }
         const p = getPlayerData();
         if (PVP && run.pvpMode) run.stats.coins += win ? 400 : 120;      // 対人戦：勝てば400、負けても120
+        if (PVP && run.ghostMode) run.stats.coins += win ? 200 : 60;      // ゴースト戦：勝てば200、負けても60
         if (PVP && run.pvpMode && window.SBPvpEvent) run.evGain = SBPvpEvent.award(win);   // シーズン最終週のPvPイベント：イベントポイント
         if (p) {
             p.coins = (p.coins || 0) + run.stats.coins;
@@ -3461,7 +3841,7 @@
             HW.save(h);
         }
         HW.save(h);
-        try { if (window.SBAch) { if (PVP) SBAch.report('pvp', win ? 1 : 0, weapon.type); if (RUSH_ON && win && diffIdx === RUSHD_EXTREME) SBAch.report('rushEx', 1, weapon.type); if (win && !PVP && !CORR_ON) SBAch.report('clear', stage.id); SBAch.evaluate(); } } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
+        try { if (window.SBAch) { if (PVP && !run.ghostMode) SBAch.report('pvp', win ? 1 : 0, weapon.type); if (RUSH_ON && win && diffIdx === RUSHD_EXTREME) SBAch.report('rushEx', 1, weapon.type); if (win && !PVP && !CORR_ON) SBAch.report('clear', stage.id); SBAch.evaluate(); } } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
         showResult(win, d || {});
     }
 
@@ -3487,6 +3867,7 @@
         ctx.beginPath(); for (let x = 0; x <= WORLD_W; x += 100) { ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_H); } for (let y = 0; y <= WORLD_H; y += 100) { ctx.moveTo(0, y); ctx.lineTo(WORLD_W, y); } ctx.stroke();
         }
         ctx.strokeStyle = 'rgba(0,0,0,0.55)'; ctx.lineWidth = 6; ctx.strokeRect(0, 0, WORLD_W, WORLD_H);
+        if (GMK === 'duality') drawDualityField();
         if (CORR_ON) corrDrawWorld();
         // 岩
         rocks.forEach(k => { if (pxOn) { SBPix.drawRock(ctx, k.x, k.y, k.r); return; } ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.arc(k.x + 4, k.y + 6, k.r, 0, 7); ctx.fill(); ctx.fillStyle = '#6b6f78'; ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.fill(); ctx.fillStyle = '#868b95'; ctx.beginPath(); ctx.arc(k.x - k.r * 0.25, k.y - k.r * 0.3, k.r * 0.55, 0, 7); ctx.fill(); });
@@ -3506,7 +3887,9 @@
         }
         // 味方
         Object.keys(allies).forEach(id => drawPlayer(allies[id], false));
+        if (GH) drawGhost();
         drawPlayer(me, true);
+        if (GMK === 'duality') drawDualityMarks();
         // 演出
         fx.forEach(f => drawFx(f));
         if (window.ClassForms) ClassForms.draw(ctx);       // 職業の専用の形（世界座標）
@@ -3705,7 +4088,7 @@
         if (!isMe && p.wm && HW.MYTHICS && HW.MYTHICS[p.wm]) rarC = HW.MYTHICS[p.wm].color;      // 仲間の神話の武器の色
         const swAt = isMe ? me.swingAt : p.swingAt, life = (isMe ? me.swingFin : p.swingFin) ? 320 : 220;
         const k = swAt ? (now - swAt) / life : -1, swinging = k >= 0 && k <= 1;
-        const wo = { mythic: isMe ? weapon.mythicId : p.wm, scale: 2, swing: swinging ? k : null, dir: (isMe ? me.swingDir : p.swingDir) || 1, fin: !!(isMe ? me.swingFin : p.swingFin), kind: swinging ? ((isMe ? me.swingKind : p.swingKind) || 'cone') : 'cone', glint: rar === 'legendary' || rar === 'mythic', alpha: p.dead ? 0.35 : null, now: now };
+        const wo = { mythic: isMe ? weapon.mythicId : p.wm, custom: isMe ? MYPC : p.wpc, scale: 2, swing: swinging ? k : null, dir: (isMe ? me.swingDir : p.swingDir) || 1, fin: !!(isMe ? me.swingFin : p.swingFin), kind: swinging ? ((isMe ? me.swingKind : p.swingKind) || 'cone') : 'cone', glint: rar === 'legendary' || rar === 'mythic', alpha: p.dead ? 0.35 : null, now: now };
         const hx = p.x + ca * 7, hy = p.y + 3 + sa * 5, behind = sa < -0.35;
         if (!p.dead && behind) SBPix.drawWeapon(ctx, hx, hy, a, wt, rarC, wo);
         const av = isMe ? MY_AV : p.av;
@@ -4014,14 +4397,14 @@
         el('waitMembers').innerHTML = room ? room.members.map((m, i) => '<div class="mem">' + (TEAM ? (i % 2 === 0 ? '🔵 ' : '🔴 ') : '') + (m.id === room.hostId ? '👑 ' : '') + escapeHtml(m.name) + '<small> ' + escapeHtml(m.wname || '') + '</small></div>').join('') : '';
         const startBtn = el('waitStart');
         startBtn.style.display = isHost ? 'inline-block' : 'none';
-        showWaitMsg(isHost ? (TEAM ? ('チーム戦 ' + TEAM + 'v' + TEAM + '：参加した順に 青・赤・青・赤… と振り分けられます。人数が足りなくても出発できます。1人で「出発」するとボット練習になります（途中参加はできません）') : PVP ? '2〜4人の乱戦です。1人で「出発」するとボット練習になります（途中参加はできません）' : '準備ができたら「出発」を押してください（途中参加はできません）') : 'ホストの出発を待っています…');
+        showWaitMsg(isHost ? (TEAM ? ('チーム戦 ' + TEAM + 'v' + TEAM + '：参加した順に 青・赤・青・赤… と振り分けられます。人数が足りなくても出発できます。1人で「出発」するとボット練習になります（途中参加はできません）') : RAID ? '大討伐戦：最大20人まで参加できます。人数が揃ったら「出発」を押してください（途中参加はできません）' : PVP ? '2〜4人の乱戦です。1人で「出発」すると、ゴースト（他のプレイヤーの分身）との対戦になります（途中参加はできません）' : '準備ができたら「出発」を押してください（途中参加はできません）') : 'ホストの出発を待っています…');
     }
 
     // ---------- 結果 ----------
     function showResult(win, d) {
         const o = el('result'); o.style.display = 'flex';
         const loot = run.stats.loot.slice().sort((a, b) => HW.RARITY_ORDER.indexOf(b.rarity) - HW.RARITY_ORDER.indexOf(a.rarity));
-        el('resTitle').textContent = (PVP && run.pvpMode) ? (win ? '🏆 勝利！最後の1人' : (d.reason === 'time' ? '⌛ 時間切れ…（総合ダメージ量で判定）' : '💀 敗北…')) : (win ? '🏆 ステージクリア！' : (d.reason === 'time' ? '⌛ 時間切れ…' : '💀 全滅…'));
+        el('resTitle').textContent = run.ghostMode ? (win ? '👻 ゴーストに勝利！' : (d.reason === 'time' ? '⌛ 時間切れ…（残りHPで判定）' : '💀 ゴーストに敗北…')) : (PVP && run.pvpMode) ? (win ? '🏆 勝利！最後の1人' : (d.reason === 'time' ? '⌛ 時間切れ…（総合ダメージ量で判定）' : '💀 敗北…')) : (win ? '🏆 ステージクリア！' : (d.reason === 'time' ? '⌛ 時間切れ…' : '💀 全滅…'));
         if (TEAM && run.pvpMode) el('resTitle').textContent = win ? '🏆 勝利！相手チームを倒した' : (d.winnerTeam === -1 ? '🤝 引き分け' : (d.reason === 'time' ? '⌛ 時間切れ…（チームの総合ダメージ量で判定）' : '💀 敗北…相手チームに倒された'));
         if (run.evGain) el('resTitle').textContent += '　⚔PvPイベント +' + run.evGain + 'EP';
         if (RUSH_ON) { const rr = run.rushReached | 0; el('resTitle').textContent = win ? '🏆 ボスラッシュ制覇！（' + DIFF.name + '）' : ((d.reason === 'time' ? '⌛ 時間切れ…' : '💀 敗北…') + '　' + (rr > 0 ? rushPd(rr).label + 'までクリア' : 'フェーズ1で敗退') + '（' + DIFF.name + '）'); }
@@ -4046,8 +4429,21 @@
     // ---------- クイズ（正解でエネルギー）----------
     let quizOn = true, quizPool = null, curQ = null, quizLock = false, streak = 0;
     function grade() { const g = clamp(parseInt(pdata.grade, 10) || 1, 1, 12); return g <= 6 ? { l: 'elementary', g: g } : (g <= 9 ? { l: 'junior_high', g: g - 6 } : { l: 'high_school', g: g - 9 }); }
+    // 出題元：オンラインマッチ以外では、「復習・統計」画面で選んだ自作の問題リスト（4問以上）から出題できる（localStorage の sbQuizList）
+    let quizSrc = 'd';
+    function customList() {
+        if (PVP) return null;
+        try {
+            const id = localStorage.getItem('sbQuizList'); if (!id) return null;
+            const l = ((window.getPlayerData ? getPlayerData() : pdata).questionLists || []).find(x => x && x.id === id);
+            const qs = l && Array.isArray(l.questions) ? l.questions.filter(x => x && String(x.question || '').trim() && String(x.answer || '').trim()) : [];
+            return qs.length >= 4 ? { id: l.id, qs: qs } : null;
+        } catch (e) { return null; }
+    }
     function buildPool() {
-        const pool = {}; if (typeof QUESTIONS_DATA === 'undefined') return pool;
+        const pool = {}; quizSrc = 'd';
+        const cl = customList(); if (cl) { quizSrc = 'l:' + cl.id; pool.list = cl.qs; return pool; }
+        if (typeof QUESTIONS_DATA === 'undefined') return pool;
         const gi = grade(), lv = QUESTIONS_DATA[gi.l], gd = lv && lv[String(gi.g)]; if (!gd) return pool;
         ['math', 'jp', 'eng'].forEach(s => { if (gd[s] && gd[s].length) pool[s] = gd[s]; });
         return pool;
@@ -4064,15 +4460,25 @@
     function nextQuiz() {
         if (!quizPool) quizPool = buildPool();
         const subs = Object.keys(quizPool);
-        if (!subs.length) curQ = { q: '3 + 4 = ?', a: '7', o: ['7', '6', '8', '12'] };
-        else { const s = subs[Math.floor(Math.random() * subs.length)], qs = quizPool[s], q = qs[Math.floor(Math.random() * qs.length)]; curQ = { q: q.question, a: String(q.answer), o: opts(q, qs) }; }
+        if (!subs.length) curQ = { q: '3 + 4 = ?', a: '7', o: ['7', '6', '8', '12'], subj: 'math', src: 'd', rev: false, noLog: true };
+        else {
+            // 復習のタイミングを過ぎた問題を、ときどき混ぜる（忘却曲線：memory.js）
+            let pick = null, rev = false;
+            if (window.SBMemory && Math.random() < SBMemory.reviewChance()) {
+                const flat = []; subs.forEach(s => quizPool[s].forEach(q => flat.push({ q: q.question, a: String(q.answer), s: s, raw: q })));
+                pick = SBMemory.pickDue(flat, () => quizSrc); rev = !!pick;
+            }
+            if (!pick) { const s = subs[Math.floor(Math.random() * subs.length)], qs = quizPool[s], q = qs[Math.floor(Math.random() * qs.length)]; pick = { q: q.question, a: String(q.answer), s: s, raw: q }; }
+            curQ = { q: pick.q, a: pick.a, o: opts(pick.raw, quizPool[pick.s]), subj: pick.s, src: quizSrc, rev: rev };
+        }
         quizLock = false;
-        el('quizQ').textContent = curQ.q;
+        el('quizQ').textContent = (curQ.rev ? '🔁 ' : '') + curQ.q;
         const box = el('quizC'); box.innerHTML = '';
         curQ.o.forEach((o, i) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = (i + 1) + '. ' + o; b.dataset.v = o; b.addEventListener('click', () => answer(o, b)); box.appendChild(b); });
     }
     function answer(o, b) {
         if (quizLock || !curQ || run.phase === 'end') return; quizLock = true;
+        if (window.SBMemory && !curQ.noLog) SBMemory.record({ q: curQ.q, a: curQ.a, subj: curQ.subj, src: curQ.src, ok: o === curQ.a });      // 忘却曲線の記録
         if (o === curQ.a) { streak++; b.classList.add('ok'); if (window.SBSound) SBSound.sfx('correct'); addEnergy((25 + (streak >= 3 ? 10 : 0)) * P.energyMul); popups.push({ x: me.x, y: me.y - 40, t: 0.8, text: '+ENERGY', c: '#7fe3ff' }); setTimeout(nextQuiz, 300); }
         else { streak = 0; b.classList.add('ng'); if (window.SBSound) SBSound.sfx('wrong'); Array.from(el('quizC').children).forEach(x => { if (x.dataset.v === curQ.a) x.classList.add('ok'); }); setTimeout(nextQuiz, 1300); }
     }
@@ -4099,6 +4505,7 @@
             updateMe(dt); updateShots(dt); classInit(); if (window.ClassFx) ClassFx.update(dt); if (window.ClassForms) ClassForms.update(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
             if (DBG) { if (DBG.god) { me.invHard = 99; if (me.dead) { me.dead = false; me.hp = me.maxHp; } } if (DBG.energy !== false) me.energy = ENERGY_MAX; }   // デバッグ：無敵・エネルギー無限
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
+            else if (PVP && run.ghostMode) { ghostUpdate(dt); }
             else if (isHost) { updateHost(dt); } else lerpRemote(dt);
             // 位置の送信
             posT -= dt; if (posT <= 0) {
@@ -4107,7 +4514,7 @@
                 const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
                 const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
                 posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
-                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, wm: (posSeq % 20 === 0) ? (weapon.mythicId || '') : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, wp: (posSeq % 20 === 0) ? (weapon.pix || 0) : undefined, wm: (posSeq % 20 === 0) ? (weapon.mythicId || '') : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
             }
             snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { const sn = makeSnap(); snapT = 1 / (snapBytes > 11000 ? 10 : SNAP_HZ); netSend('snap', sn); }      // 大きいスナップショットのときは送る回数を減らす（回線が細い人が詰まらないように）
         } else if (run.phase === 'end') { updateShots(dt); }

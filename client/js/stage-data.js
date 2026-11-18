@@ -572,6 +572,18 @@
         enemies: [E('ボット', '🤖', 'chaser', '#9ab')], boss: { name: 'スパーリングボット', icon: '🤖', color: '#9ab0c0', patterns: ['charge', 'volley', 'slam'] },
         drops: [], bossDrops: [] });
 
+    // ============================================================
+    // 大討伐戦（最大20人のレイド）。町の「大討伐戦」から入る（ステージゲートには出ない：world 0）
+    //  ・ボス1体。ボスの強さは「不壊の悪魔」の約5倍（practice.js の RAID_MUL）。人数が多いほどHPも増える
+    //  ・第一幕：双界の覇竜ツイン・エレメンタル（赤い炎のエリア／青い氷のエリア。gimmick: 'duality'）
+    //  ・報酬：専用の神話装備「Legend of Duality」（1本だけ）と、称号「双界を切り開くもの」（実績）
+    // ============================================================
+    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第一幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
+        desc: '最大20人で挑む大討伐戦。戦場は「赤い炎のエリア」と「青い氷のエリア」に割れている。色の通りに動け。',
+        enemies: [E('双界の眷属', '🔥', 'chaser', '#ff7a5a')],
+        boss: { name: '双界の覇竜ツイン・エレメンタル', icon: '🐲', color: '#c06aff', patterns: ['radial', 'volley', 'slam'], stand: true, gate: false, gimmick: 'duality' },
+        drops: [], bossDrops: [] });
+
     // 追加の武器種のベースを、近いレベルのステージのドロップに加える（各ベース：tier±3のステージの通常ドロップ、最上位は最も近いボスのドロップにも）
     (function addNewWeaponDrops() {
         const types = ['rod', 'sling', 'claws', 'flail', 'fan', 'boomerang', 'trident', 'chime', 'lance', 'chainsaw', 'flamethrower', 'mortar', 'prism', 'comet', 'voidblade', 'supportstaff'];
@@ -579,7 +591,7 @@
             chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46], supportstaff: [5, 15, 26, 36, 44] };
         types.forEach(ty => tiers[ty].forEach((tr, i) => {
             const id = ty + '_' + (i + 1);
-            const pool = S.filter(st => !st.pvp && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
+            const pool = S.filter(st => !st.pvp && !st.raid && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
             pool.forEach(st => { if (st.drops.indexOf(id) < 0) st.drops.push(id); });
             if (i === 2 && pool.length) { const bs = pool.reduce((a, b) => (Math.abs(b.ilvl - tr) < Math.abs(a.ilvl - tr) ? b : a)); if (bs.bossDrops && bs.bossDrops.indexOf(id) < 0) bs.bossDrops.push(id); }
         }));
@@ -632,7 +644,7 @@
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
     ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end'].forEach(id => { MATS[id] = W5M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });
@@ -681,7 +693,10 @@
     const DIFFS = [
         { name: 'ノーマル',   hp: 1.0, dmg: 1.0, spd: 1.0,  elite: 0.10, luck: 0.0, healRed: 0,    color: '#3a6ee8', note: '標準。装備を整えながら進める難易度。' },
         { name: 'ハード',     hp: 2.2, dmg: 1.6, spd: 1.08, elite: 0.16, luck: 0.7, healRed: 0,    color: '#d9812a', note: '敵が硬く強い。高レア武器が出やすい。' },
-        { name: 'ナイトメア', hp: 4.5, dmg: 2.4, spd: 1.16, elite: 0.24, luck: 1.6, healRed: 0.5,  color: '#b03a3a', note: '被弾が痛い上級者向け。伝説武器を狙える。回復系の効果（回復スキル・吸血・自然回復など）が50%低下。' }
+        { name: 'ナイトメア', hp: 4.5, dmg: 2.4, spd: 1.16, elite: 0.24, luck: 1.6, healRed: 0.5,  color: '#b03a3a', note: '被弾が痛い上級者向け。伝説武器を狙える。回復系の効果（回復スキル・吸血・自然回復など）が50%低下。' },
+        // ---- ここから下は、さらに上の難易度。ひとつ下の難易度で、そのステージをクリアすると解放される ----
+        { name: 'エクストリーム', hp: 9,  dmg: 3.6, spd: 1.2,  elite: 0.30, luck: 2.6, healRed: 0.75, color: '#8a3ad0', note: '一撃が致命傷になる超高難度。ナイトメアをクリアすると解放。伝説武器がさらに出やすい。回復系の効果が75%低下。' },
+        { name: 'インフェルノ',   hp: 18, dmg: 5.5, spd: 1.26, elite: 0.38, luck: 3.8, healRed: 0.9,  color: '#e8402a', note: '最上位の難易度。ほぼ全ての攻撃を避けきる腕前と、完成した装備が必要。エクストリームをクリアすると解放。回復系の効果が90%低下。' }
     ];
 
     // ボスラッシュの難易度（イージー／ハード／ナイトメア／エクストリーム）
@@ -713,11 +728,11 @@
     };
     // フェーズN で出るボスの候補：第N世界の通常ステージのボス（ミニ・門・ギミックボス・双子ボスは除く）
     RUSH.pool = function (world) {
-        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
+        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
     };
     // 戦利品の表（ドロップ武器・ボス武器）：その世界の通常ステージの表をまとめたもの
     RUSH.lootPool = function (world) {
-        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
+        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
         const uniq = a => a.filter((v, i) => a.indexOf(v) === i);
         let drops = [], boss = [];
         L.forEach(st => { drops = drops.concat(st.drops); boss = boss.concat(st.bossDrops || []); });

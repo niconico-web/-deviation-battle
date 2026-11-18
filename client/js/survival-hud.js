@@ -224,7 +224,7 @@
                     '<div class="pc"><b>スキル（Z X C V）</b>' + (skills.length ? skills.slice(0, 4).map((s, i) => '<div class="ps">' + KEYS[i] + '　' + esc(s && s.name || '（空き）') + '</div>').join('') : '<div class="pe">スキルは「ステージ」のスキル工房で作ると、ここで使えます</div>') + '</div>' +
                     '<div class="pc"><b>操作（ステージと同じ）</b><small>移動：WASD／左スティック　攻撃：Space・クリック／右スティック　スキル：Z X C V　必殺・神器：R　集中：B　スキップ：Shift　使う：E　クイズ：1〜4</small></div>' +
                     '<div class="pb"><button type="button" id="svpGo">出撃する</button><button type="button" id="svpNo">やめる</button></div></div>';
-                $('svpW').addEventListener('change', (e) => { const dd = H.load(); dd.equipped = e.target.value || null; H.save(dd); draw(); });
+                $('svpW').addEventListener('change', (e) => { const dd = H.load(); const nw = (dd.weapons || []).find(x => x.id === e.target.value); if (nw && window.SBCost) { const r = SBCost.canEquip(dd, { weapon: nw }); if (!r.ok) { alert(r.msg); draw(); return; } } dd.equipped = e.target.value || null; H.save(dd); draw(); });
                 $('svpGo').addEventListener('click', () => { const g = gatherFn(), on = Array.from(box.querySelectorAll('input[type=checkbox]')).filter((c) => c.checked).map((c) => g[Number(c.dataset.i)]).filter(Boolean); box.remove(); resolve(on); });
                 $('svpNo').addEventListener('click', () => { box.remove(); resolve(null); });
             };

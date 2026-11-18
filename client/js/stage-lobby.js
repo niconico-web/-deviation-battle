@@ -114,7 +114,7 @@
         // シーズンキャラは、進行状況に加えて「週ごとの解放」も必要。スタンダード専用の領域は、スタンダードキャラだけ
         const worldOpen = w => progressOpen(w) && (!SS || SS.canEnterWorld(w.id));
         const timeLocked = () => (SS && SS.isSeasonChar()) ? WORLDS.filter(w => w.id > 1 && !w.standardOnly && progressOpen(w) && !SS.canEnterWorld(w.id)) : [];
-        const worldStages = () => allStages.filter(s => !s.pvp && (s.world || 1) === world && gateOpen(s));
+        const worldStages = () => allStages.filter(s => !s.pvp && !s.raid && (s.world || 1) === world && gateOpen(s));
         // ボスラッシュ／無限回廊：解放条件（ディメンション・キーパー討伐／ボスラッシュのクリア。無限回廊はスタンダードキャラならいつでもOK）
         const stageUnlocked = s => { const u = s.unlock; if (!u) return true; if (s.anyChar && stdChar()) return true; if (u.cleared) return (hack.cleared[u.cleared] || 0) > 0; if (u.flag) return !!hack[u.flag]; return true; };
         const RD = window.STAGE_DATA.RUSH_DIFFS, RUSH = window.STAGE_DATA.RUSH;
@@ -128,7 +128,9 @@
         world = (WORLDS.find(w => worldOpen(w) && !(w.anyChar && stdChar())) || WORLDS.find(worldOpen) || { id: 1 }).id;      // 無限回廊は最初に開かない（スタンダードキャラはまずスタンダードワールド）
         if (!worldStages().length) { alert(SS && SS.isSeasonChar() ? 'いま入れるステージがありません。' : 'スタンダードキャラは「スタンダードワールド」に挑戦できます。シーズンワールド（第一〜第五世界）はシーズンキャラで遊べます。'); return; }
         let selId = worldStages()[0].id;
-        let selDiff = Math.min(2, parseInt(hack.lastDiff, 10) || 0);
+        let selDiff = Math.min(window.STAGE_DATA.DIFFS.length - 1, parseInt(hack.lastDiff, 10) || 0);
+        // エクストリーム以上は、ひとつ下の難易度でそのステージをクリアしていると解放される
+        const diffGate = (s, i) => (s && !s.rush && !s.corridor && i >= 3 && !((((hack.clearedDiff || {})[s.id]) || {})[i - 1] > 0)) ? window.STAGE_DATA.DIFFS[i - 1].name + 'でこのステージをクリアすると解放されます。' : '';
         if (window.SeasonSys) while (selDiff > 0 && !window.SeasonSys.canUseDiff(selDiff)) selDiff--;
         const m = modal('🚪 ステージゲート', () => { const sk = getSock(); if (sk) sk.off('stage:rooms', onRooms); });
         m.body.innerHTML = '<div class="sbl-col sbl-left" id="sbStageList"></div><div class="sbl-col sbl-right" id="sbStageDetail"></div>';
@@ -144,7 +146,7 @@
             const openWorlds = WORLDS.filter(worldOpen);
             const tabs = openWorlds.length > 1 ? '<div style="margin-bottom:6px">' + openWorlds.map(w => '<button class="sbl-btn' + (w.id === world ? '' : ' gray') + '" data-world="' + w.id + '" style="' + (w.id === world ? 'background:' + w.color : '') + '">' + w.icon + ' ' + esc(w.name) + '</button>').join('') + '</div>' : '';
             const locks = timeLocked().map(w => '<div style="font-size:.78rem;color:#ffb86a;margin-bottom:3px">🔒 ' + w.icon + ' ' + esc(w.name) + '：シーズン' + SS.worldOpenWeek(w.id) + '週目から解放</div>').join('');
-            listEl.innerHTML = tabs + locks + (world > 1 ? '<div style="font-size:.8rem;color:#d8b8ff;margin-bottom:4px">' + esc(wdef.note || '') + '</div>' : '') + '<div class="sbl-sec">ダンジョン＋ボス（約5分／最大4人で協力）</div><div class="sbl-grid">' + worldStages().map(s => {
+            listEl.innerHTML = costBannerHtml() + tabs + locks + (world > 1 ? '<div style="font-size:.8rem;color:#d8b8ff;margin-bottom:4px">' + esc(wdef.note || '') + '</div>' : '') + '<div class="sbl-sec">ダンジョン＋ボス（約5分／最大4人で協力）</div><div class="sbl-grid">' + worldStages().map(s => {
                 const c = hack.cleared[s.id] || 0;
                 if (s.rush || s.corridor) {
                     const un = stageUnlocked(s), best = s.rush ? Math.max.apply(null, [0].concat(Object.keys(hack.rushBest || {}).map(k => hack.rushBest[k] | 0))) : (hack.corridorBest | 0);
@@ -234,13 +236,13 @@
                 '<div class="sbl-sec">ボス</div><div style="font-size:.9rem">' + s.boss.icon + ' <b>' + esc(s.boss.name) + '</b></div>' +
                 '<div class="sbl-sec">ドロップする武器（敵）</div><div style="font-size:.82rem">' + dropNames(s.drops) + '</div>' +
                 '<div class="sbl-sec">ボス専用ドロップ（レア以上確定）</div><div style="font-size:.82rem;color:#ffd84a">' + dropNames(s.bossDrops) + '</div>' +
-                '<div class="sbl-sec">難易度</div><div id="sbDiffs">' + DIFFS.map((d, i) => { const lk = SS && !SS.canUseDiff(i); return '<button class="sbl-btn' + (i === selDiff && !lk ? '' : ' gray') + '" data-diff="' + i + '" style="' + (i === selDiff && !lk ? 'background:' + d.color : '') + (lk ? ';opacity:.55' : '') + '">' + (lk ? '🔒 ' : '') + d.name + (lk ? '（' + SS.diffOpenWeek(i) + '週目〜）' : '') + '</button>'; }).join('') + '</div><div style="font-size:.78rem;color:#9fb3d9;margin-top:2px">' + esc(DIFFS[selDiff].note) + '</div>' +
+                '<div class="sbl-sec">難易度</div><div id="sbDiffs">' + DIFFS.map((d, i) => { const gt = diffGate(s, i), lk = (SS && !SS.canUseDiff(i)) || !!gt; return '<button class="sbl-btn' + (i === selDiff && !lk ? '' : ' gray') + '" data-diff="' + i + '" style="' + (i === selDiff && !lk ? 'background:' + d.color : '') + (lk ? ';opacity:.55' : '') + '">' + (lk ? '🔒 ' : '') + d.name + (lk && !gt ? '（' + SS.diffOpenWeek(i) + '週目〜）' : '') + '</button>'; }).join('') + '</div><div style="font-size:.78rem;color:#9fb3d9;margin-top:2px">' + esc(DIFFS[selDiff].note) + '</div>' +
                 '<div class="sbl-sec">落ちる素材（グリフ工房の材料）</div><div style="font-size:.8rem;color:#c8f7a0">' + matLine(s) + '</div>' +
                 '<div class="sbl-sec">装備中：<span style="color:' + HW.rarityOf(eq).color + '">' + esc(eq.name) + '</span></div>' +
                 '<div><button class="sbl-btn green" id="sbSolo">ソロで出発</button><button class="sbl-btn" id="sbCreate">部屋を作って募集</button><button class="sbl-btn orange" id="sbQuick">クイック参加</button></div>' +
                 '<div class="sbl-sec">募集中の部屋 <button class="sbl-btn gray" id="sbRefresh" style="padding:3px 8px;font-size:.75rem">更新</button></div>' +
                 '<div id="sbRooms">' + (rooms.length ? rooms.filter(r => r.stageId === selId).map(r => '<div class="sbl-room"><span>' + esc(r.members[0] ? r.members[0].name : '?') + ' の部屋 (' + r.members.length + '/' + r.max + ')</span><button class="sbl-btn" data-room="' + r.id + '" style="margin:0">参加</button></div>').join('') || '<div style="font-size:.8rem;color:#889">このステージの募集はありません</div>' : '<div style="font-size:.8rem;color:#889">このステージの募集はありません</div>') + '</div>';
-            detEl.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => { const di = parseInt(b.dataset.diff, 10); if (SS && !SS.canUseDiff(di)) { alert('この難易度は、シーズン' + SS.diffOpenWeek(di) + '週目から解放されます。'); return; } selDiff = di; hack.lastDiff = selDiff; HW.save(hack); renderDetail(); }));
+            detEl.querySelectorAll('[data-diff]').forEach(b => b.addEventListener('click', () => { const di = parseInt(b.dataset.diff, 10); const gt = diffGate(s, di); if (gt) { alert(gt); return; } if (SS && !SS.canUseDiff(di)) { alert('この難易度は、シーズン' + SS.diffOpenWeek(di) + '週目から解放されます。'); return; } selDiff = di; hack.lastDiff = selDiff; HW.save(hack); renderDetail(); }));
             detEl.querySelector('#sbSolo').addEventListener('click', () => launch('solo'));
             detEl.querySelector('#sbCreate').addEventListener('click', () => launch('create'));
             detEl.querySelector('#sbQuick').addEventListener('click', () => launch('quick'));
@@ -251,10 +253,12 @@
             const st = window.getStageById(selId);
             if (!stageUnlocked(st)) { alert(st.unlock.text); return; }
             let useDiff = selDiff;
+            { const gt = diffGate(st, selDiff); if (gt) { alert(gt); return; } }
             if (st.rush) { if (diffLocked(st, selRush)) { alert('エクストリームは、ディメンション・キーパーを「ナイトメア」でクリアすると挑戦できます。'); return; } useDiff = selRush; }
             if (st.corridor) useDiff = 0;
             if (st.corridor && mode === 'join') { const rm = rooms.find(x => x.id === roomId); if (rm && !corrRoomOk(rm)) { alert('この部屋は地下' + (rm.startFloor || 1) + '階からです。まだ到達していないので、参加できません。'); return; } }
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
+            if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
             try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
             location.href = 'lesson.html';
@@ -269,12 +273,39 @@
     //  ・ダメージはステータスに関係なく相手の最大HPの割合。武器・スキル・特殊効果・立ち回りの勝負
     //  ・1人で出発すると、スパーリングボットとの練習になる
     // ============================================================
+    // ---------- コスト制度：ステージゲートの上に、いまの装備・スキルのコストを表示 ----------
+    function costBannerHtml() {
+        if (!window.SBCost) return '';
+        let b, p; try { p = (typeof getPlayerData === 'function') ? getPlayerData() : null; if (!p) return ''; b = SBCost.breakdown(HW.load(), SBCost.totalOf(p)); } catch (e) { return ''; }
+        const col = b.over ? '#ff9a6a' : '#7aff9a';
+        return '<details style="margin-bottom:6px;border:1px solid ' + col + ';border-radius:6px;padding:4px 8px"><summary style="cursor:pointer;color:' + col + ';font-size:.82rem">' + esc(SBCost.summaryText(b)) + '</summary>' +
+            '<div style="font-size:.78rem;color:#cfe0ff;line-height:1.55;margin-top:3px">' + b.items.map(x => esc(x.label) + '：' + (Math.round(x.cost * 10) / 10)).join('<br>') + '</div>' +
+            '<div style="font-size:.74rem;color:#9fb3d9;margin-top:3px">装備とスキルは、同じコスト上限を分け合います。上限は<b>勉強でステータス合計が増えるほど上がります</b>（いまの合計 ' + b.total.toLocaleString() + '）。</div></details>';
+    }
+    // ---------- ゴースト戦：自分の「分身」を預けて、ほかのプレイヤーの分身をもらう ----------
+    function myGhostLoadout() {
+        try {
+            const w = HW.getEquipped(HW.load()); if (!w) return null;
+            const p = JSON.parse(localStorage.getItem('player') || '{}');
+            return { id: String(p.id || p.playerId || p.name || 'anon'), ghost: { name: p.name || 'あなた', wtype: w.type, wname: w.name, rar: w.rarity, mythicId: w.mythicId || '', title: (window.SBAch && SBAch.titleText && SBAch.titleText()) || '' } };
+        } catch (e) { return null; }
+    }
+    function saveMyGhost() { const sk = getSock(), g = myGhostLoadout(); if (sk && g) { const go = () => sk.emit('ghost:save', g); if (sk.connected) go(); else sk.once('connect', go); } }
+    function launchGhost() {      // ほかのプレイヤーの分身を取ってから出発（取れなければ、練習用のゴーストが出る）
+        const sk = getSock(), me = myGhostLoadout(); let done = false;
+        const go = foe => { if (done) return; done = true; try { if (foe) localStorage.setItem('sbGhostFoe', JSON.stringify(foe)); else localStorage.removeItem('sbGhostFoe'); } catch (e) {} launchPvp('solo'); };
+        if (!sk || !sk.connected) { go(null); return; }
+        setTimeout(() => go(null), 1500);
+        try { sk.emit('ghost:get', { id: me ? me.id : '' }, foe => go(foe)); } catch (e) { go(null); }
+    }
     function launchPvp(mode, roomId, stageId) {
+        if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
         if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
         try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: stageId || 'pvp_arena', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
         location.href = 'lesson.html';
     }
     function openPvpArena() {
+        saveMyGhost();      // いまの装備を「ゴースト」として預ける（ほかのプレイヤーが戦える）
         bmEvent('pvp');
         if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
         let rooms = [], evRank = null;
@@ -302,7 +333,7 @@
                 return box('⚔ <b>PvPイベント</b>：シーズン' + W + '週目から開催！（あと約 ' + days + ' 日）<br>オンラインマッチで勝つほど、豪華な報酬がもらえます。');
             }
             const r = EV.rec();
-            let h = '<b style="color:#ffd36a">⚔ PvPイベント開催中！</b>　勝利 +' + EV.EP_WIN + 'EP ／ 負け +' + EV.EP_LOSE + 'EP（2人以上のオンラインマッチのみ。ボット練習はEPなし）<br>' +
+            let h = '<b style="color:#ffd36a">⚔ PvPイベント開催中！</b>　勝利 +' + EV.EP_WIN + 'EP ／ 負け +' + EV.EP_LOSE + 'EP（2人以上のオンラインマッチのみ。ゴースト戦はEPなし）<br>' +
                 'あなたのEP：<b style="color:#ffd84a;font-size:1.05rem">' + r.pts + '</b>　（' + r.plays + '戦 ' + r.wins + '勝）';
             h += '<div class="sbl-sec">報酬</div>' + EV.MILESTONES.map((mm, i) => {
                 const got = !!r.claimed[i], can = !got && r.pts >= mm.ep;
@@ -316,16 +347,25 @@
             } else h += '<div style="color:#9fb3d9">' + (sock && sock.connected ? '読み込み中…' : 'サーバーに接続すると表示されます') + '</div>';
             return box(h, '#8a6adf');
         }
+        // コスト制度：装備のコストと、勉強（ステータス合計）で決まる上限
+        function costHtml(p) {
+            if (!window.SBCost || !p) return '';
+            let b; try { b = SBCost.breakdown(HW.load(), SBCost.totalOf(p)); } catch (e) { return ''; }
+            const col = b.over ? '#ff9a6a' : '#7aff9a';
+            return '<div class="sbl-card" style="border-color:' + col + ';margin:8px 0"><div style="font-weight:bold;color:' + col + '">' + esc(SBCost.summaryText(b)) + '</div>' +
+                '<div style="font-size:.8rem;color:#cfe0ff;line-height:1.6;margin-top:3px">' + b.items.map(x => esc(x.label) + '：' + (Math.round(x.cost * 10) / 10)).join('<br>') + '</div>' +
+                '<div style="font-size:.78rem;color:#9fb3d9;margin-top:4px">装備とスキルのコストが上限を超えると、<b>装備できず、出撃もできません</b>（ステージでも同じです）。上限は<b>勉強でステータス合計が増えるほど上がります</b>（いまの合計 ' + b.total.toLocaleString() + '）。</div></div>';
+        }
         function draw() {
             const p = (typeof getPlayerData === 'function') ? getPlayerData() : null;
             m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
                 '<div style="font-size:.9rem;color:#cfe0ff;line-height:1.6">いまの武器とスキルで戦う、リアルタイムの対人戦です。<br>' +
                 '・2〜4人の乱戦。<b>最後まで立っていた人の勝ち</b>（制限時間3分、切れたらHPの割合で判定）<br>' +
                 '・ダメージは<b>ステータスに関係なく、相手の最大HPの割合</b>で決まります。武器の種類・スキル・特殊効果・立ち回りの勝負！<br>' +
-                '・勝てばコイン+400、負けても+120。1人で出発するとボット練習になります。</div>' +
-                '<div style="margin:8px 0;font-size:.85rem;color:#ffd36a">通算勝利：' + ((p && p.pvpWins) || 0) + '勝</div>' + eventHtml() +
+                '・勝てばコイン+400、負けても+120。相手がいないときは「👻 ゴースト戦」で、ほかのプレイヤーの分身（武器・名前を借りたAI）と戦えます（勝てばコイン+200、負けても+60。勝利数・イベントには数えません）。</div>' +
+                '<div style="margin:8px 0;font-size:.85rem;color:#ffd36a">通算勝利：' + ((p && p.pvpWins) || 0) + '勝</div>' + costHtml(p) + eventHtml() +
                 '<div><button class="sbl-btn orange" id="pvQuick">ランダムマッチ</button><button class="sbl-btn" id="pvCreate">部屋を作る</button>' +
-                '<button class="sbl-btn gray" id="pvCode">部屋コードで参加</button><button class="sbl-btn gray" id="pvBot">ボットと練習</button></div>' +
+                '<button class="sbl-btn gray" id="pvCode">部屋コードで参加</button><button class="sbl-btn gray" id="pvBot">👻 ゴースト戦</button></div>' +
                 '<div class="sbl-sec">チーム戦（2v2・3v3）</div>' +
                 '<div style="font-size:.8rem;color:#9fb3d9;line-height:1.5;margin-bottom:4px">参加した順に 🔵青・🔴赤 へ交互に振り分けられます。味方には攻撃が当たらず、<b>相手チームを全員倒したら勝ち</b>。人数が足りなくてもホストが出発できます（1人だとボット練習）。</div>' +
                 '<div><button class="sbl-btn orange" data-team="pvp_2v2:quick">2v2 ランダム</button><button class="sbl-btn" data-team="pvp_2v2:create">2v2 部屋を作る</button>' +
@@ -339,7 +379,7 @@
             }));
             m.body.querySelector('#pvQuick').addEventListener('click', () => launchPvp('quick'));
             m.body.querySelector('#pvCreate').addEventListener('click', () => launchPvp('create'));
-            m.body.querySelector('#pvBot').addEventListener('click', () => launchPvp('solo'));
+            m.body.querySelector('#pvBot').addEventListener('click', () => launchGhost());
             m.body.querySelector('#pvCode').addEventListener('click', () => { const c = (prompt('部屋コード（4文字）を入力してください') || '').trim().toUpperCase(); if (!c) return; const r = rooms.find(x => String(x.id).toUpperCase() === c); launchPvp('join', c, r ? r.stageId : 'pvp_arena'); });   // 部屋の種類（乱戦・2v2・3v3）は一覧から調べる
             m.body.querySelectorAll('[data-team]').forEach(b => b.addEventListener('click', () => { const t = b.dataset.team.split(':'); launchPvp(t[1], null, t[0]); }));
             m.body.querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', () => launchPvp('join', b.dataset.room, b.dataset.stage || 'pvp_arena')));
@@ -347,6 +387,59 @@
         draw(); refresh();
     }
     window.openPvpArena = openPvpArena;
+
+    // ============================================================
+    // 大討伐戦（最大20人のレイド）
+    //  ・ボス1体。ボスの強さは「不壊の悪魔」の約5倍。人数が多いほどHPも増える
+    //  ・第一幕：双界の覇竜ツイン・エレメンタル（赤と青のエリア）。報酬は専用装備「Legend of Duality」と称号「双界を切り開くもの」
+    // ============================================================
+    const RAID_ID = 'raid_duality';
+    function launchRaid(mode, roomId) {
+        if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
+        if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
+        try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: RAID_ID, mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
+        location.href = 'lesson.html';
+    }
+    function openRaidLobby() {
+        if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
+        let rooms = [];
+        const sock = getSock();
+        const onRooms = list => { rooms = (list || []).filter(r => r.stageId === RAID_ID); draw(); };
+        const m = modal('🐉 大討伐戦（最大20人）', () => { if (sock) sock.off('stage:rooms', onRooms); });
+        if (sock) { sock.on('stage:rooms', onRooms); sock.on('connect', refresh); }
+        function refresh() { if (sock && sock.connected) sock.emit('stage:list', { stageId: RAID_ID }); }
+        function owned() { try { return HW.load().weapons.some(w => w && w.mythicId === 'legend_duality'); } catch (e) { return false; } }
+        function draw() {
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
+                '<div class="sbl-card" style="border-color:#c06aff"><div style="font-size:1.1rem;font-weight:bold">第一幕　双界の覇竜 ツイン・エレメンタル</div>' +
+                '<div style="font-size:.85rem;line-height:1.6;margin-top:4px;color:#e4d4ff">戦場は<b style="color:#ff7a5a">赤い炎のエリア</b>と<b style="color:#6ad4ff">青い氷のエリア</b>に割れています。色の通りに動けば生き残れる！<br>' +
+                '・赤に長くいると「熱狂」（攻撃UP・持続ダメージ）、青に長くいると「悪寒」（移動DOWN・被ダメージUP）。ときどき反対の色へ移ろう<br>' +
+                '・赤いバリアは<b>青エリア</b>から、青いバリアは<b>赤エリア</b>から攻撃すると大ダメージ。全員で声を掛け合って大移動！<br>' +
+                '・「カタストロフ・レイン」は、印の色と反対のエリアへ逃げると相殺できる<br>' +
+                '・HP50%以下で「紫炎の崩壊」。「双界終焉」は赤と青のクリスタルを全員で同時に壊せ！<br>' +
+                '・ボスの強さは不壊の悪魔の約5倍。人数が多いほどHPも増えます（推奨：ステータス合計 10万以上）</div>' +
+                '<div style="margin-top:6px;font-size:.85rem;color:#ffd36a">報酬：専用の神話装備「Legend of Duality」' + (owned() ? '（入手済み）' : '') + '／称号「双界を切り開くもの」</div></div>' +
+                '<div style="margin-top:8px"><button class="sbl-btn orange" id="rdQuick">ランダム参加</button><button class="sbl-btn" id="rdCreate">部屋を作る</button>' +
+                '<button class="sbl-btn gray" id="rdCode">部屋コードで参加</button><button class="sbl-btn gray" id="rdSolo">1人で挑む</button></div>' +
+                '<div class="sbl-sec">募集中の部屋</div>' +
+                (rooms.length ? rooms.map(r => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center"><span>' + esc(r.members.map(x => x.name).join('、')) + '　(' + r.members.length + '/' + r.max + ')　[' + esc(r.id) + ']</span><button class="sbl-btn" data-room="' + esc(r.id) + '">参加</button></div>').join('') : '<div style="opacity:.7;font-size:.85rem">いまは募集中の部屋はありません。「部屋を作る」で仲間を集めよう。</div>') +
+                '</div>';
+            m.body.querySelector('#rdQuick').addEventListener('click', () => launchRaid('quick'));
+            m.body.querySelector('#rdCreate').addEventListener('click', () => launchRaid('create'));
+            m.body.querySelector('#rdSolo').addEventListener('click', () => launchRaid('solo'));
+            m.body.querySelector('#rdCode').addEventListener('click', () => { const c = (prompt('部屋コード（4文字）を入力してください') || '').trim().toUpperCase(); if (c) launchRaid('join', c); });
+            m.body.querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', () => launchRaid('join', b.dataset.room)));
+        }
+        draw(); refresh();
+    }
+    window.openRaidLobby = openRaidLobby;
+    window.SBLobbyUI = { modal: modal, esc: esc };      // オリジナル武器の画面（orig-weapon-ui.js）が、同じ見た目の窓を使えるように
+    document.addEventListener('click', function (e) {
+        const b = e.target && e.target.closest && e.target.closest('#raidBtn');
+        if (!b) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        openRaidLobby();
+    }, true);
 
     // これまでのオンラインマッチのボタン（ランダム／ルーム作成／ルーム参加／ボット戦）は、アクション対戦につなぎ直す
     document.addEventListener('click', function (e) {
@@ -356,7 +449,7 @@
         if (b.id === 'randomMatch') launchPvp('quick');
         else if (b.id === 'createRoom') launchPvp('create');
         else if (b.id === 'joinRoom') { const c = (prompt('部屋コード（4文字）を入力してください') || '').trim().toUpperCase(); if (c) launchPvp('join', c); }
-        else if (b.id === 'botMatch' || b.id === 'practiceBotMatch') launchPvp('solo');
+        else if (b.id === 'botMatch' || b.id === 'practiceBotMatch') launchGhost();
         else openPvpArena();
     }, true);
 
@@ -392,6 +485,10 @@
     }
     function applyItem(hack, kind, target, isWeapon, idxs) {
         if (HW.itemCount(hack, kind) < 1) return false;
+        if (kind === 'rarity' && isWeapon && window.SBCost && hack.equipped === target.id) {      // 装備中の武器のコストが上がって、上限を超えるなら使えない
+            const nr = HW.RARITY_ORDER[HW.RARITY_ORDER.indexOf(target.rarity) + 1], patch = nr ? { rarity: nr } : { plus: (target.plus | 0) + 1 }, r = SBCost.canEquip(hack, { patchWeapon: target, patch: patch });
+            if (!r.ok) { alert(r.msg + '\n（装備中の武器は、コストが上がるため強化できません。いったん外すか、上限を上げてください）'); return false; }
+        }
         let ok = false;
         if (kind === 'slot') ok = isWeapon && HW.addSocket(target);
         else if (kind === 'rarity') ok = isWeapon && HW.upgradeRarity(target);
@@ -425,7 +522,7 @@
             wl.innerHTML = '<div class="sbl-sec">所持武器 ' + hack.weapons.length + ' 本（コイン ' + coins() + '）</div>' +
                 '<select id="sbFilter" style="margin-bottom:6px;padding:4px"><option value="all">すべて</option><option value="eq">装備中</option>' + Object.keys(types).map(t => '<option value="' + t + '"' + (filter === t ? ' selected' : '') + '>' + esc((HW.TYPES[t] || {}).label || t) + '</option>').join('') + '</select> ' +
                 '<button class="sbl-btn gray" id="sbBulk" style="padding:4px 8px;font-size:.75rem">🗑 一括売却</button>' +
-                '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器を作る</button>' +
+                '<button class="sbl-btn orange" id="sbForge" style="padding:4px 8px;font-size:.75rem">🔨 オリジナル武器キット</button>' +
                 '<button class="sbl-btn green" id="sbArmorBtn" style="padding:4px 8px;font-size:.75rem">🛡 防具（頭・胴・脚）</button>' +
                 '<button class="sbl-btn orange" id="sbAccBtn" style="padding:4px 8px;font-size:.75rem">✨ アクセサリー（スキル）</button>' +
                 sorted().map(w => '<div class="sbl-wl' + (w.id === selId ? ' sel' : '') + (w.id === hack.equipped ? ' eq' : '') + '" data-id="' + w.id + '"><span style="color:' + HW.rarityOf(w).color + '">' + (w.id === hack.equipped ? '【装備中】' : '') + esc(w.name) + (w.elems && w.elems.length && window.SBElem ? ' ' + SBElem.ELEMS[w.elems[0]].icon + (w.elems.length > 1 ? SBElem.ELEMS[w.elems[1]].icon : '') : '') + '</span><span style="color:#9fb3d9">' + (w.locked ? '🔒 ' : '') + '攻' + HW.pctLabel(w) + ' 穴' + w.sockets + '</span></div>').join('');
@@ -433,7 +530,7 @@
             wl.querySelector('#sbFilter').addEventListener('change', (e) => { filter = e.target.value; renderList(); });
             wl.querySelectorAll('.sbl-wl').forEach(r => r.addEventListener('click', () => { selId = r.dataset.id; renderList(); renderDetail(); }));
             wl.querySelector('#sbBulk').addEventListener('click', openBulk);
-            wl.querySelector('#sbForge').addEventListener('click', openForge);
+            wl.querySelector('#sbForge').addEventListener('click', () => { if (window.SBOrigUI) SBOrigUI.openKits(hack, () => { try { refreshInvInfo(); } catch (e) {} selId = hack.equipped; renderList(); renderDetail(); }); else openForge(); });
             const ab = wl.querySelector('#sbArmorBtn'); if (ab) ab.addEventListener('click', openArmor);
             const ac = wl.querySelector('#sbAccBtn'); if (ac) ac.addEventListener('click', openAccessory);
         }
@@ -447,7 +544,7 @@
             const slots = []; for (let i = 0; i < w.sockets; i++) slots.push('<span class="sbl-slot' + (w.orbs[i] ? ' full' : '') + '" data-slot="' + i + '" title="' + (w.orbs[i] ? esc(orbLabel(w.orbs[i])) : '空きソケット') + '">' + (w.orbs[i] ? '💎' : '＋') + '</span>');
             wd.innerHTML =
                 '<h3 style="margin:0;color:' + R.color + '">' + esc(w.name) + '</h3>' +
-                '<div style="font-size:.82rem;color:#9fb3d9">[' + R.label + '] ' + esc(T.label || w.type) + '　Lv' + w.ilvl + '　攻撃力 ' + HW.pctLabel(w) + (w.custom ? '　★オリジナル' : '') + '</div>' +
+                '<div style="font-size:.82rem;color:#9fb3d9">[' + R.label + '] ' + esc(T.label || w.type) + '　Lv' + w.ilvl + '　攻撃力 ' + HW.pctLabel(w) + (w.custom ? '　★オリジナル' + (w.v2 || w.exp != null ? '（成長 ' + Math.round(HW.growFrac(w) * 100) + '%）' : '') : '') + '</div>' +
                 (T.sup ? '<div style="font-size:.78rem;color:#9fe0a0">🩹 支援武器：' + ({ all: '攻撃すると、自分と近くの味方を回復＆鼓舞（攻撃・防御アップ）し、当てた敵を弱体化・減速させて受けるダメージを増やす' }[T.sup] || '') + '</div>' : '') +
                 (w.elems && w.elems.length && window.SBElem ? '<div class="sbl-sec">属性</div><div style="font-size:.82rem">' + SBElem.labels(w.elems) + '</div><div style="font-size:.76rem">' + SBElem.styleHtml(w.elems) + '</div>' : '<div style="font-size:.76rem;color:#778">無属性</div>') +
                 '<div class="sbl-sec">特殊効果</div>' + (w.effects.length ? w.effects.map(f => '<div class="sbl-fx">◆ ' + esc(HW.describeEffect(f)) + '</div>').join('') : '<div class="sbl-fx" style="color:#778">なし</div>') +
@@ -457,6 +554,8 @@
                 '<button class="sbl-btn red" id="sbSell"' + (w.id === hack.equipped || w.locked ? ' disabled' : '') + '>売却 (' + HW.sellValue(w) + ')</button>' +
                 '<button class="sbl-btn gray" id="sbLock">' + (w.locked ? '🔓 ロック解除' : '🔒 ロック') + '</button></div>' +
                 '<div class="sbl-note" style="font-size:.74rem;color:#8a97b8;margin-top:3px">ロックした武器は、一括売却の対象になりません。</div>' +
+                (window.SBCost && hack.equipped !== w.id ? (function () { const r = SBCost.canEquip(hack, { weapon: w }); return '<div style="margin-top:6px;font-size:.8rem;color:' + (r.ok ? '#7aff9a' : '#ff9a6a') + '">⚖ 装備すると コスト ' + r.after.cost + ' / 上限 ' + r.after.cap + (r.ok ? '' : '　⚠ 装備できません') + '</div>'; })() : '') +
+                (w.custom && window.SBOrigUI ? '<div style="margin-top:6px"><button class="sbl-btn orange" id="sbWork">⚒ 工房（成長・見た目・レア度アップ）</button></div>' : '') +
                 (w.custom ? '<div class="sbl-sec">名前を変更（オリジナル武器は、いつでも無料で変えられます）</div><div style="display:flex;gap:4px"><input id="sbRnName" type="text" maxlength="' + HW.FORGE_NAME_MAX + '" value="' + esc(w.name) + '" style="flex:1;min-width:0;padding:5px;box-sizing:border-box"><button class="sbl-btn orange" id="sbRnGo">変更</button></div><div id="sbRnMsg" style="font-size:.8rem;color:#ff9a9a;margin-top:3px"></div>' +
                     '<div class="sbl-sec">武器種を変更（作成費用の1/4：' + HW.typeChangeCost(w).toLocaleString() + ' コイン）</div><div style="display:flex;gap:4px"><select id="sbTyType" style="flex:1;min-width:0;padding:5px">' + HW.availableTypes(hack).map(t => '<option value="' + t + '"' + (t === w.type ? ' selected' : '') + '>' + esc(HW.TYPES[t].label) + '</option>').join('') + '</select><button class="sbl-btn orange" id="sbTyGo">変更する</button></div><div id="sbTyMsg" style="font-size:.8rem;color:#ff9a9a;margin-top:3px"></div>' : '') +
                 itemPanelHtml(hack, ['slot', 'rarity', 'reroll'], w, true) +
@@ -486,8 +585,9 @@
                 if (!v.valid) { msg.textContent = v.reason; return; }
                 w.name = clean; w.baseName = clean; HW.save(hack); renderList(); renderDetail();
             });
+            const wk = wd.querySelector('#sbWork'); if (wk) wk.addEventListener('click', () => SBOrigUI.openWorkshop(hack, w, () => { try { refreshInvInfo(); } catch (e) {} renderList(); renderDetail(); }));
             wd.querySelector('#sbLock').addEventListener('click', () => { w.locked = !w.locked; HW.save(hack); renderList(); renderDetail(); });
-            wd.querySelector('#sbEq').addEventListener('click', () => { if (window.ClassSys && !ClassSys.canUseWeaponType(w.type)) { alert('この武器は、選んでいる職業では使えません。（近距離の職業は近接武器、遠距離の職業は弾・魔法の武器）'); return; } hack.equipped = w.id; HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); });
+            wd.querySelector('#sbEq').addEventListener('click', () => { if (window.ClassSys && !ClassSys.canUseWeaponType(w.type)) { alert('この武器は、選んでいる職業では使えません。（近距離の職業は近接武器、遠距離の職業は弾・魔法の武器）'); return; } if (window.SBCost) { const r = SBCost.canEquip(hack, { weapon: w }); if (!r.ok) { alert(r.msg); return; } } hack.equipped = w.id; HW.save(hack); refreshInvInfo(); renderList(); renderDetail(); });
             wd.querySelector('#sbSell').addEventListener('click', () => {
                 if (!confirm(w.name + ' を売却しますか？（はめたオーブは戻ります）')) return;
                 const v = HW.sellWeapon(hack, w.id); if (v > 0) { addCoins(v); HW.save(hack); selId = hack.equipped; renderList(); renderDetail(); }
@@ -672,7 +772,7 @@
                 if (!confirm('「' + a.name + '」の効果のうち、選んだ ' + idxs.length + ' 個を引き直します。いまの効果は失われます。よろしいですか？')) return;
                 if (applyItem(hack, 'reroll', a, false, idxs)) { HW.save(hack); renderList(); renderDetail(); } else alert('この防具には使えません。');
             }));
-            R.querySelector('#arEq').addEventListener('click', () => { if (eqId(a)) SBArmor.unequip(hack, a.slot); else SBArmor.equip(hack, a.id); HW.save(hack); renderList(); renderDetail(); });
+            R.querySelector('#arEq').addEventListener('click', () => { if (eqId(a)) SBArmor.unequip(hack, a.slot); else { if (window.SBCost) { const r = SBCost.canEquip(hack, { armor: a }); if (!r.ok) { alert(r.msg); return; } } SBArmor.equip(hack, a.id); } HW.save(hack); renderList(); renderDetail(); });
             R.querySelector('#arLock').addEventListener('click', () => { a.locked = !a.locked; HW.save(hack); renderList(); renderDetail(); });
             R.querySelector('#arSell').addEventListener('click', () => {
                 if (!confirm(a.name + ' を売却しますか？')) return;

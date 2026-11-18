@@ -1,5 +1,5 @@
 // ============================================================
-//  職業の戦闘効果（ステージ戦闘）：固有効果12種と、専用グリフの動き
+//  職業の戦闘効果（ステージ戦闘）：固有効果13種と、専用グリフの動き
 // ------------------------------------------------------------
 //  practice.js が、次の場面でここを呼ぶ（職業を選んでいないときは、何もしない）：
 //    ClassFx.setup(bridge)      戦闘の開始
@@ -19,7 +19,7 @@
     const rnd = (a, b) => a + Math.random() * (b - a);
 
     function setup(bridge) {
-        B = bridge; U = {}; S = { rage: 0, stack: 0, stackT: 0, souls: 0, lastEl: null, still: 0, lastX: 0, lastY: 0, traps: [], trapCd: 0, flash: {} };
+        B = bridge; U = {}; S = { rage: 0, stack: 0, stackT: 0, souls: 0, bond: 0, lastEl: null, still: 0, lastX: 0, lastY: 0, traps: [], trapCd: 0, flash: {} };
         try { CS().activeUniques().forEach(u => { U[u.id] = u.scale; }); } catch (e) { U = {}; }
         const me = B && B.me(); if (me) { S.lastX = me.x; S.lastY = me.y; }
         try { if (global.ClassPerks) global.ClassPerks.setup(bridge); } catch (e) { console.warn('[ClassFx] perk setup', e); }
@@ -41,6 +41,14 @@
             S.stack = Math.min(5, S.stack + 1); S.stackT = 6;
         }
         if ((sc = on('necromancer'))) mul *= 1 + 0.03 * S.souls * sc;
+        if ((sc = on('tamer'))) {      // 絆：スキルを使うたびに溜まる。獣のスキルの威力が上がり、満タンなら「大咆哮」
+            const beast = !!(p && typeof p.classForm === 'string' && p.classForm.indexOf('tam_') === 0), noBond = !!(global.ClassPerks && global.ClassPerks.noBond && global.ClassPerks.noBond());
+            if (beast) {
+                mul *= 1 + 0.06 * S.bond * sc;
+                if (S.bond >= 5) { S.bond = 0; pop('🐾 大咆哮！', '#7fd13b'); B.ring(me.x, me.y, 190, '#7fd13b'); B.enemies().forEach(e => { if (e.hp > 0 && Math.hypot(e.x - me.x, e.y - me.y) <= 190 + e.r) { if (e.boss) B.setSt(e, { slow: 1 }); else B.setStun(e, 0.6 * sc); } }); }
+            }
+            if (!noBond) S.bond = Math.min(5, S.bond + 1);
+        }
         if ((sc = on('elementalist'))) {
             const el = p && p.element;
             if (el) { if (S.lastEl && S.lastEl !== el) { mul *= 1 + 0.25 * sc; pop('🔮 共鳴！', '#c9a8ff'); } S.lastEl = el; }
@@ -211,6 +219,7 @@
         if (on('barbarian')) { bar(S.rage, 100, S.rage >= 100 ? '#ff3b2f' : '#e0614a', '怒り'); }
         else if (on('blademaster')) { bar(S.stack, 5, '#9df0ff', '剣気 ' + S.stack); }
         else if (on('necromancer')) { bar(S.souls, 10, '#b46bff', '魂 ' + S.souls); }
+        else if (on('tamer')) { bar(S.bond, 5, S.bond >= 5 ? '#c8ff7a' : '#7fd13b', '絆 ' + S.bond); }
         else if (on('juggernaut')) { bar(Math.min(S.still, 5), 5, '#b0bcc9', '不動'); }
         // 罠
         S.traps.forEach(tr => {
@@ -226,5 +235,6 @@
         });
     }
 
-    global.ClassFx = { setup, castMul, onHit, incomingMul, onHurt, onKill, update, draw, _state: () => S, _setU: (u) => { U = u; } };
+    function addBond(n) { if (B && on('tamer')) S.bond = Math.min(5, S.bond + (n | 0)); }      // パーク「狩りの掟」など
+    global.ClassFx = { addBond, setup, castMul, onHit, incomingMul, onHurt, onKill, update, draw, _state: () => S, _setU: (u) => { U = u; } };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -60,6 +60,9 @@
         // ---- 専用武器種：神話「Legend of Unbreakable」だけが持つ（通常のドロップや工房には出ない：world 99）----
         //  lasers：自分の周りから count 本のレーザーを出して、近くの敵へオートエイムで当てる（range 内の敵に1本ずつ。敵が少ないときは同じ敵に重ねて当たる）
         unbreakable: { label: '不壊',      kind: 'lasers', range: 520, count: 7, cd: 0.62, mult: 0.3, knock: 20, world: 99, exclusive: true },
+        // ---- 専用武器種：神話「Legend of Duality」だけが持つ（大討伐戦の報酬。通常のドロップや工房には出ない：world 99）----
+        //  duality：炎(赤)と氷(青)の2つの三日月の斬撃を、X字に交差させて同時に放つ。2つの斬撃が重なる正面は「共鳴」して、もう一度ダメージが入る
+        duality:     { label: '双界',      kind: 'duality', range: 128, arc: 1.15, cd: 0.46, mult: 0.62, knock: 60, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
         twinblade:  { label: '双刃',       kind: 'cone',  range: 64,  arc: 1.8, cd: 0.30, mult: 0.62, knock: 20, multi: 2, crit: 0.08, world: 2 },
@@ -370,7 +373,52 @@
         { id: 'rk_onehit',  kind: 'risk', risk: true, key: 'rk_onehit',  name: '一撃必殺',   range: [0.80, 1.60], mods: v => ({ atkPct: v, aspd: -0.4 }),         desc: v => `⚠ 攻撃速度 -40%／攻撃力 +${pct(v)}` },
         { id: 'rk_edge',    kind: 'risk', risk: true, key: 'rk_edge',    name: '諸刃',       range: [0.20, 0.40], mods: v => ({ critRate: v, nonCritDown: 0.3 }), desc: v => `⚠ クリティカルでない攻撃のダメージ -30%／クリティカル率 +${pct(v)}` },
         { id: 'rk_drain',   kind: 'risk', risk: true, key: 'rk_drain',   name: '消耗',       range: [0.30, 0.60], mods: v => ({ atkPct: v, energyUp: -0.5 }),     desc: v => `⚠ クイズで得るエネルギー -50%／攻撃力 +${pct(v)}` },
-        { id: 'rk_vamp',    kind: 'risk', risk: true, key: 'rk_vamp',    name: '呪われた吸血', range: [0.06, 0.12], mods: v => ({ lifesteal: v, dmgTaken: 0.25 }), desc: v => `⚠ 被ダメージ +25%／与ダメージの${pct(v)}をHP回復` }
+        { id: 'rk_vamp',    kind: 'risk', risk: true, key: 'rk_vamp',    name: '呪われた吸血', range: [0.06, 0.12], mods: v => ({ lifesteal: v, dmgTaken: 0.25 }), desc: v => `⚠ 被ダメージ +25%／与ダメージの${pct(v)}をHP回復` },
+        // ===== 追加の効果（オリジナル武器の素材で付きやすさが変わる。組み合わせ型は、複数のステータスがまとめて上がる）=====
+        { id: 'hy_rush',    kind: 'stat', key: 'hy_rush',    name: '猛進',       range: [0.06, 0.12], mods: v => ({ atkPct: v * 0.7, moveSpd: v * 0.6 }),                 desc: v => `攻撃力 +${pct(v * 0.7)}／移動速度 +${pct(v * 0.6)}` },
+        { id: 'hy_sniper',  kind: 'stat', key: 'hy_sniper',  name: '狙撃手',     range: [0.06, 0.12], mods: v => ({ critRate: v * 0.5, critDmg: v * 2.2, rangePct: v * 0.8 }), desc: v => `クリティカル率 +${pct(v * 0.5)}／クリティカルダメージ +${pct(v * 2.2)}／攻撃範囲 +${pct(v * 0.8)}` },
+        { id: 'hy_bulwark', kind: 'stat', key: 'hy_bulwark', name: '城壁',       range: [0.06, 0.12], mods: v => ({ defPct: v * 1.1, dr: v * 0.5 }),                       desc: v => `防御力 +${pct(v * 1.1)}／被ダメージ -${pct(v * 0.5)}` },
+        { id: 'hy_vital',   kind: 'stat', key: 'hy_vital',   name: '不屈の肉体', range: [0.06, 0.12], mods: v => ({ hpPct: v * 1.2, regen: v * 0.05 }),                    desc: v => `最大HP +${pct(v * 1.2)}／毎秒 最大HPの${(v * 5).toFixed(1)}%回復` },
+        { id: 'hy_scholar', kind: 'stat', key: 'hy_scholar', name: '学者の瞳',   range: [0.08, 0.16], mods: v => ({ energyUp: v * 1.6, expPct: v * 1.0 }),                 desc: v => `エネルギー獲得 +${pct(v * 1.6)}／経験値 +${pct(v)}` },
+        { id: 'hy_hunter',  kind: 'stat', key: 'hy_hunter',  name: '大物狩り',   range: [0.08, 0.16], mods: v => ({ dmgBoss: v * 1.3, dropPct: v * 0.7 }),                 desc: v => `ボスへのダメージ +${pct(v * 1.3)}／装備ドロップ率 +${pct(v * 0.7)}` },
+        { id: 'hy_swarm',   kind: 'stat', key: 'hy_swarm',   name: '掃討',       range: [0.08, 0.16], mods: v => ({ dmgMob: v * 1.2, aoePct: v * 1.2 }),                   desc: v => `ボス以外へのダメージ +${pct(v * 1.2)}／爆発・範囲 +${pct(v * 1.2)}` },
+        { id: 'hy_phantom', kind: 'stat', key: 'hy_phantom', name: '幻影',       range: [0.04, 0.08], mods: v => ({ dodge: v * 0.9, iframe: v * 2.5, moveSpd: v * 0.8 }),  desc: v => `回避率 +${pct(v * 0.9)}／被弾後の無敵 +${(v * 2.5).toFixed(2)}秒／移動速度 +${pct(v * 0.8)}` },
+        { id: 'hy_duelist', kind: 'stat', key: 'hy_duelist', name: '決闘者',     range: [0.10, 0.20], mods: v => ({ dmgFull: v * 1.3, critRate: v * 0.3 }),                desc: v => `HP満タンの敵へのダメージ +${pct(v * 1.3)}／クリティカル率 +${pct(v * 0.3)}` },
+        { id: 'hy_reaper',  kind: 'stat', key: 'hy_reaper',  name: '死神の鎌',   range: [0.10, 0.20], mods: v => ({ dmgLow: v * 1.3, lifesteal: v * 0.2 }),                desc: v => `HP30%以下の敵へのダメージ +${pct(v * 1.3)}／与ダメージの${pct(v * 0.2)}を回復` },
+        { id: 'hy_gale',    kind: 'stat', key: 'hy_gale',    name: '疾風',       range: [0.05, 0.10], mods: v => ({ aspd: v * 0.9, moveSpd: v * 0.9 }),                    desc: v => `攻撃速度 +${pct(v * 0.9)}／移動速度 +${pct(v * 0.9)}` },
+        { id: 'hy_titan',   kind: 'stat', key: 'hy_titan',   name: '巨躯',       range: [0.06, 0.12], mods: v => ({ hpPct: v * 1.0, defPct: v * 0.8, knock: v * 1.5 }),    desc: v => `最大HP +${pct(v)}／防御力 +${pct(v * 0.8)}／ノックバック +${pct(v * 1.5)}` },
+        { id: 'hy_blaze',   kind: 'stat', key: 'hy_blaze',   name: '烈火の心',   range: [0.06, 0.12], mods: v => ({ atkPct: v * 0.8, aspd: v * 0.5, aoePct: v * 0.8 }),    desc: v => `攻撃力 +${pct(v * 0.8)}／攻撃速度 +${pct(v * 0.5)}／爆発・範囲 +${pct(v * 0.8)}` },
+        { id: 'hy_glacier', kind: 'stat', key: 'hy_glacier', name: '氷河の守り', range: [0.06, 0.12], mods: v => ({ defPct: v * 0.9, dr: v * 0.45, regen: v * 0.04 }),    desc: v => `防御力 +${pct(v * 0.9)}／被ダメージ -${pct(v * 0.45)}／毎秒 最大HPの${(v * 4).toFixed(1)}%回復` },
+        { id: 'hy_storm',   kind: 'stat', key: 'hy_storm',   name: '嵐の申し子', range: [0.05, 0.10], mods: v => ({ aspd: v * 0.7, critRate: v * 0.4, dashCdr: v * 1.2 }), desc: v => `攻撃速度 +${pct(v * 0.7)}／クリティカル率 +${pct(v * 0.4)}／ダッシュ待機 -${pct(v * 1.2)}` },
+        { id: 'hy_venom',   kind: 'stat', key: 'hy_venom',   name: '蝕む刃',     range: [0.06, 0.12], mods: v => ({ atkPct: v * 0.6, critDmg: v * 1.4, lifesteal: v * 0.15 }), desc: v => `攻撃力 +${pct(v * 0.6)}／クリティカルダメージ +${pct(v * 1.4)}／与ダメージの${pct(v * 0.15)}を回復` },
+        { id: 'hy_holy',    kind: 'stat', key: 'hy_holy',    name: '聖なる加護', range: [0.06, 0.12], mods: v => ({ hpPct: v * 0.8, regen: v * 0.06, dr: v * 0.35 }),      desc: v => `最大HP +${pct(v * 0.8)}／毎秒 最大HPの${(v * 6).toFixed(1)}%回復／被ダメージ -${pct(v * 0.35)}` },
+        { id: 'hy_shadow',  kind: 'stat', key: 'hy_shadow',  name: '影の刃',     range: [0.06, 0.12], mods: v => ({ critRate: v * 0.5, dmgFull: v * 0.9, moveSpd: v * 0.4 }), desc: v => `クリティカル率 +${pct(v * 0.5)}／HP満タンの敵へのダメージ +${pct(v * 0.9)}／移動速度 +${pct(v * 0.4)}` },
+        { id: 'hy_fortune', kind: 'stat', key: 'hy_fortune', name: '福の神',     range: [0.08, 0.16], mods: v => ({ goldPct: v * 1.2, dropPct: v * 0.8, rarePct: v * 0.5 }), desc: v => `コイン +${pct(v * 1.2)}／装備ドロップ +${pct(v * 0.8)}／高レア度 +${pct(v * 0.5)}` },
+        { id: 'hy_mage',    kind: 'stat', key: 'hy_mage',    name: '賢者の杖',   range: [0.08, 0.16], mods: v => ({ skillPct: v * 0.9, energyUp: v * 0.9 }),              desc: v => `スキルの威力 +${pct(v * 0.9)}／エネルギー獲得 +${pct(v * 0.9)}` },
+        { id: 'hy_pierce',  kind: 'stat', key: 'hy_pierce',  name: '穿つもの',   range: [0.06, 0.12], mods: v => ({ rangePct: v * 1.0, dmgBoss: v * 0.8, critDmg: v * 1.0 }), desc: v => `攻撃範囲 +${pct(v)}／ボスへのダメージ +${pct(v * 0.8)}／クリティカルダメージ +${pct(v)}` },
+        { id: 'hy_thorn',   kind: 'stat', key: 'hy_thorn',   name: '茨の鎧',     range: [0.10, 0.20], mods: v => ({ thorns: v * 1.6, defPct: v * 0.5 }),                   desc: v => `被弾時に攻撃力の${pct(v * 1.6)}を反射／防御力 +${pct(v * 0.5)}` },
+        { id: 'hy_wind',    kind: 'stat', key: 'hy_wind',    name: '追い風',     range: [0.06, 0.12], mods: v => ({ moveSpd: v * 1.0, dashCdr: v * 1.4, dodge: v * 0.3 }), desc: v => `移動速度 +${pct(v)}／ダッシュ待機 -${pct(v * 1.4)}／回避率 +${pct(v * 0.3)}` },
+        { id: 'hy_giant',   kind: 'stat', key: 'hy_giant',   name: '巨人の剛腕', range: [0.06, 0.12], mods: v => ({ atkPct: v * 0.9, knock: v * 2.0, dmgBoss: v * 0.5 }),  desc: v => `攻撃力 +${pct(v * 0.9)}／ノックバック +${pct(v * 2)}／ボスへのダメージ +${pct(v * 0.5)}` },
+        // --- 新しい発動(proc)系（practice.js で処理）---
+        { id: 'splash',     kind: 'proc', on: 'hit',  key: 'splash',    name: '飛沫',       range: [0.10, 0.22], desc: v => `命中時${pct(v)}で、当てた敵の周囲に小さな爆発` },
+        { id: 'echo',       kind: 'proc', on: 'hit',  key: 'echo',      name: '残響',       range: [0.10, 0.22], desc: v => `命中時${pct(v)}で、少し遅れてもう一度命中する` },
+        { id: 'toxcloud',   kind: 'proc', on: 'hit',  key: 'toxcloud',  name: '毒霧',       range: [0.08, 0.18], desc: v => `命中時${pct(v)}で、周囲の敵もまとめて毒にする` },
+        { id: 'ignite2',    kind: 'proc', on: 'hit',  key: 'ignite2',   name: '焦熱の傷',   range: [0.08, 0.18], desc: v => `命中時${pct(v)}で、燃やしながら出血させる` },
+        { id: 'vacuum',     kind: 'proc', on: 'hit',  key: 'vacuum',    name: '引力',       range: [0.08, 0.16], desc: v => `命中時${pct(v)}で、近くの敵を引き寄せる` },
+        { id: 'leech',      kind: 'proc', on: 'hit',  key: 'leech',     name: '生命吸収',   range: [0.08, 0.18], desc: v => `命中時${pct(v)}で、最大HPの1%回復` },
+        { id: 'crit_heal',  kind: 'proc', on: 'crit', key: 'critHeal',  name: '会心の癒し', range: [0.10, 0.25], desc: v => `クリティカル時${pct(v)}で、最大HPの2%回復` },
+        { id: 'kill_nova',  kind: 'proc', on: 'kill', key: 'killNova',  name: '終焉の波',   range: [0.10, 0.22], desc: v => `敵撃破時${pct(v)}で、広範囲の大爆発` },
+        { id: 'kill_guard', kind: 'proc', on: 'kill', key: 'killGuard', name: '勝者の守り', range: [0.08, 0.18], desc: v => `敵撃破時${pct(v)}でバリア（次の被ダメージ無効）` },
+        { id: 'hurt_heal',  kind: 'proc', on: 'hurt', key: 'hurtHeal',  name: '逆境の癒し', range: [0.15, 0.30], desc: v => `被弾時${pct(v)}で、最大HPの3%回復` },
+        { id: 'hurt_haste', kind: 'proc', on: 'hurt', key: 'hurtHaste', name: '怒りの加速', range: [0.15, 0.30], desc: v => `被弾時${pct(v)}で、移動・攻撃が2秒加速` },
+        { id: 'hurt_frost', kind: 'proc', on: 'hurt', key: 'hurtFrost', name: '霜の返し',   range: [0.15, 0.30], desc: v => `被弾時${pct(v)}で、周囲の敵を凍らせる` },
+        // --- 新しいリスキー・尖った効果 ---
+        { id: 'rk_pact',    kind: 'risk', risk: true, key: 'rk_pact',    name: '悪魔の契約', range: [0.40, 0.80], mods: v => ({ atkPct: v, dmgTaken: 0.3, noHeal: 1 }),              desc: v => `⚠ 被ダメージ +30%／HPがいっさい回復しない／攻撃力 +${pct(v)}` },
+        { id: 'rk_hasty',   kind: 'risk', risk: true, key: 'rk_hasty',   name: '短気',       range: [0.20, 0.45], mods: v => ({ aspd: v, atkPct: -0.2 }),                           desc: v => `⚠ 攻撃力 -20%／攻撃速度 +${pct(v)}` },
+        { id: 'rk_fast',    kind: 'risk', risk: true, key: 'rk_fast',    name: '加速の代償', range: [0.25, 0.50], mods: v => ({ moveSpd: v, hpPct: -0.25 }),                        desc: v => `⚠ 最大HP -25%／移動速度 +${pct(v)}` },
+        { id: 'rk_sage',    kind: 'risk', risk: true, key: 'rk_sage',    name: '賢者の孤独', range: [0.30, 0.60], mods: v => ({ skillPct: v, atkPct: -0.35 }),                      desc: v => `⚠ 攻撃力 -35%／スキルの威力 +${pct(v)}` },
+        { id: 'rk_stone',   kind: 'risk', risk: true, key: 'rk_stone',   name: '石の肌',     range: [0.20, 0.40], mods: v => ({ defPct: v * 1.5, dr: v * 0.4, moveSpd: -0.25 }),   desc: v => `⚠ 移動速度 -25%／防御力 +${pct(v * 1.5)}／被ダメージ -${pct(v * 0.4)}` },
+        { id: 'rk_wager',   kind: 'risk', risk: true, key: 'rk_wager',   name: '大博打',     range: [0.40, 0.90], mods: v => ({ critRate: v * 0.5, critDmg: v * 1.5, nonCritDown: 0.45 }), desc: v => `⚠ クリティカルでない攻撃のダメージ -45%／クリティカル率 +${pct(v * 0.5)}／クリティカルダメージ +${pct(v * 1.5)}` }
     ];
     const EFFECT_BY_ID = {};
     EFFECTS.forEach(e => { EFFECT_BY_ID[e.id] = e; });
@@ -880,6 +928,7 @@
         while (w.effects.length < rn.fx[0] && fxPool.length) w.effects.push(rollEffect(takeFx(fxPool), w.ilvl || 1, nk));
         const minS = rn.sockets[0]; if ((w.sockets | 0) < minS) { w.sockets = minS; w.orbs = Array.isArray(w.orbs) ? w.orbs.slice() : []; while (w.orbs.length < w.sockets) w.orbs.push(null); }
         if (!w.custom) { w.prefix = pick(rn.prefixes); w.name = displayName(w); }
+        else { w.exp = w.v2 ? 0 : growCap(w); delete w.anvil; applyGrowth(w); }      // オリジナル武器：新しいレア度の成長に合わせる
         return true;
     }
     // 追加効果の振り直し：idxs（効果の番号の配列。いくつでも選べる）の効果だけを、別の効果に引き直す。省略すると全部
@@ -893,6 +942,173 @@
         return true;
     }
 
+
+
+    // ============================================================
+    // オリジナル武器（キット方式）
+    //  1. 素材を使って「オリジナル武器キット」を作る（使った素材の種類で、あとで付く効果の偏りが決まる）
+    //  2. キットから、武器種・見た目（ドット絵）・攻撃エフェクトの色・名前を決めて武器にする。最初はノーマル
+    //  3. 素材を与えると経験値がたまって成長する（攻撃の％が上がる）。素材の種類で、付きやすい効果が変わる
+    //  4. そのレア度の上限まで成長したら、お金で次のレア度へ。そのとき「効果をすべて変える」か「効果をつけ足す」かを選び、
+    //     金床でハンマーを叩くたびに、変える分（またはつけ足す分）の効果が1つずつロールされる
+    // ============================================================
+    const TAGS = { fire: '炎', ice: '氷', thunder: '雷', poison: '毒', dark: '闇', holy: '聖', power: '力', guard: '守', magic: '魔', speed: '速', heal: '癒', luck: '運' };
+    const TAG_ORDER = ['fire', 'ice', 'thunder', 'poison', 'dark', 'holy', 'power', 'guard', 'magic', 'speed', 'heal', 'luck'];
+    const FX_TAGS = {
+        atk_up: 'power', crit_rate: 'power speed', crit_dmg: 'power dark', aspd: 'speed', range_up: 'power', pierce: 'power magic', proj_extra: 'magic', knock_up: 'power', dmg_boss: 'power', dmg_low: 'dark', dmg_full: 'power', dmg_swarm: 'power',
+        aoe_up: 'fire magic', lowhp_atk: 'fire dark', hp_up: 'guard heal', def_up: 'guard', dr: 'guard', regen: 'heal holy', lifesteal: 'dark heal', thorns: 'guard poison', dodge: 'speed', iframe: 'speed', move_up: 'speed', dash_cdr: 'speed',
+        energy_up: 'magic', gold_up: 'luck', exp_up: 'magic luck', drop_up: 'luck', rare_up: 'luck', orb_up: 'luck magic', burn: 'fire', poison: 'poison', freeze: 'ice', shock: 'thunder', bleed: 'dark power', stun: 'thunder guard', doublehit: 'speed',
+        curse: 'dark', meteor: 'fire magic', critnova: 'fire', kill_heal: 'heal holy', kill_boom: 'fire', kill_haste: 'speed', kill_energy: 'magic', hurt_shield: 'guard holy', hurt_nova: 'thunder', dash_blast: 'speed thunder',
+        hy_rush: 'power speed', hy_sniper: 'power magic', hy_bulwark: 'guard', hy_vital: 'heal guard', hy_scholar: 'magic luck', hy_hunter: 'power luck', hy_swarm: 'fire power', hy_phantom: 'speed dark', hy_duelist: 'power', hy_reaper: 'dark',
+        hy_gale: 'speed thunder', hy_titan: 'guard power', hy_blaze: 'fire', hy_glacier: 'ice guard', hy_storm: 'thunder speed', hy_venom: 'poison dark', hy_holy: 'holy heal', hy_shadow: 'dark speed', hy_fortune: 'luck', hy_mage: 'magic',
+        hy_pierce: 'power', hy_thorn: 'guard poison', hy_wind: 'speed', hy_giant: 'power', splash: 'fire thunder', echo: 'magic speed', toxcloud: 'poison', ignite2: 'fire dark', vacuum: 'magic dark', leech: 'dark heal', crit_heal: 'holy heal',
+        kill_nova: 'fire thunder', kill_guard: 'guard holy', hurt_heal: 'heal holy', hurt_haste: 'speed', hurt_frost: 'ice', rk_pact: 'dark', rk_hasty: 'speed', rk_fast: 'speed', rk_sage: 'magic', rk_stone: 'guard', rk_wager: 'luck dark'
+    };
+    EFFECTS.forEach(e => { e.tags = (FX_TAGS[e.id] || (e.risk ? 'dark' : '')).split(' ').filter(Boolean); });
+    // 素材の説明文から、どの系統の素材かを決める（素材ごとに表を作らなくても、新しい素材が増えても動く）
+    const MAT_TAG_RULES = [['fire', /火|炎|ファイア|溶岩|フェニックス|ドラゴン|マグマ|太陽/], ['ice', /氷|冷気|アイス|雪|フロスト|霜/], ['thunder', /雷|ライトニング|電|稲妻/], ['poison', /毒|ヒドラ|蛇|キノコ|蜘蛛|猛毒/],
+        ['dark', /闇|ダーク|影|魂|ゴースト|虚無|悪魔|呪|死|骨|混沌/], ['holy', /聖|銀|光|天使|ユニコーン|神|女神/], ['guard', /防具|鱗|鎧|皮|硬|甲|殻|盾|岩|毛皮/], ['power', /武器|牙|角|爪|拳|刃|鉄|剣|突き|打撃|強力|鍛造/],
+        ['magic', /魔|巻物|粉|オーブ|結晶|エッセンス|知識|予知|触媒/], ['speed', /羽|翼|風|軽|尾|俊/], ['heal', /回復|薬草|ゼリー|癒|再生|蘇/], ['luck', /幸運|金貨|宝|コイン|星|運/]];
+    function matTags(m) {
+        if (!m) return ['power'];
+        const text = String(m.name || '') + ' ' + String(m.description || ''), t = [];
+        MAT_TAG_RULES.forEach(r => { if (r[1].test(text) && t.length < 3) t.push(r[0]); });
+        return t.length ? t : ['power'];
+    }
+    function pickFxBiased(pool, bias) {      // 効果の候補から、素材で決まった偏り（bias）を考えて1つ選ぶ。リスキーな効果は出にくい（約12%）
+        bias = bias || {};
+        const risky = pool.filter(e => e.risk), safe = pool.filter(e => !e.risk);
+        const src = (risky.length && (!safe.length || Math.random() < 0.12)) ? risky : safe;
+        const wt = e => 1 + Math.min(8, (e.tags || []).reduce((a, t) => a + Math.min(40, bias[t] || 0) * 0.18, 0));
+        let sum = 0; const ws = src.map(e => { const w = wt(e); sum += w; return w; });
+        let r = Math.random() * sum;
+        for (let i = 0; i < src.length; i++) { r -= ws[i]; if (r <= 0) return src[i]; }
+        return src[src.length - 1];
+    }
+    function takeFxBiased(pool, bias) { const e = pickFxBiased(pool, bias); pool.splice(pool.indexOf(e), 1); return e; }
+    function biasTop(bias) { return TAG_ORDER.filter(t => (bias && bias[t] || 0) > 0).sort((a, b) => bias[b] - bias[a]).slice(0, 3); }
+
+    // ---- キット ----
+    const KIT_NEED_COUNT = 5, KIT_NEED_VALUE = 14;      // 素材5個以上、レア度の合計が14以上（レア度1の素材なら14個、レア度2なら7個）
+    function kitValue(used, info) { let n = 0, v = 0; Object.keys(used || {}).forEach(id => { const c = Math.max(0, used[id] | 0); n += c; v += c * ((info(id) && info(id).rarity) || 1); }); return { n: n, v: v }; }
+    function makeKit(d, used, info) {      // used: { 素材id: 個数 }。素材を減らすのは呼び出し側。戻り値：キット / null
+        const kv = kitValue(used, info);
+        if (kv.n < KIT_NEED_COUNT || kv.v < KIT_NEED_VALUE) return null;
+        const bias = {};
+        Object.keys(used).forEach(id => { const c = Math.max(0, used[id] | 0); if (!c) return; const m = info(id); matTags(m).forEach(t => { bias[t] = Math.min(40, (bias[t] || 0) + c * ((m && m.rarity) || 1)); }); });
+        d.kits = Array.isArray(d.kits) ? d.kits : [];
+        const kit = { id: uid(), bias: bias, n: kv.n, value: kv.v, at: Date.now() };
+        d.kits.push(kit); return kit;
+    }
+    // ---- 見た目のドット絵・色の検査（自分で描いた絵は、味方にも送るので、形式と大きさを厳しく確認する）----
+    const PIX_MAX_W = 24, PIX_MAX_H = 32, PIX_CHARS = 'ABCDEFGHIJKLMNOP';
+    const HEX = /^#[0-9a-fA-F]{6}$/;
+    function cleanColor(c) { return typeof c === 'string' && HEX.test(c) ? c.toLowerCase() : null; }
+    function cleanPix(px) {
+        if (!px || typeof px !== 'object' || !Array.isArray(px.rows) || !px.pal || typeof px.pal !== 'object') return null;
+        const h = px.rows.length; if (h < 4 || h > PIX_MAX_H) return null;
+        let w = 0; const rows = [];
+        for (let i = 0; i < h; i++) { const r = px.rows[i]; if (typeof r !== 'string' || r.length > PIX_MAX_W) return null; w = Math.max(w, r.length); rows.push(r); }
+        if (w < 3) return null;
+        const pal = {}; let used = 0;
+        for (let i = 0; i < PIX_CHARS.length; i++) { const ch = PIX_CHARS[i], c = cleanColor(px.pal[ch]); if (c) pal[ch] = c; }
+        const out = rows.map(r => { let o = ''; for (let i = 0; i < w; i++) { const ch = r[i] || '.'; if (ch !== '.' && pal[ch]) { o += ch; used++; } else o += '.'; } return o; });
+        if (!used) return null;
+        const grip = Math.max(0, Math.min(h - 1, px.grip | 0));
+        return { w: w, h: h, rows: out, pal: pal, grip: grip };
+    }
+    // ---- 成長 ----
+    const GROW_CAP = { normal: 20, magic: 60, rare: 150, epic: 400, legendary: 1000 };      // そのレア度で、成長が頭打ちになる経験値
+    const MAT_EXP = [0, 1, 3, 8, 20, 50, 120, 250];                                         // 素材のレア度（1〜）ごとの経験値
+    const GROW_START = 0.55;                                                                // 成長0のときの攻撃％は、そのレア度の上限の55%
+    function growCap(w) { return GROW_CAP[w && w.rarity] || GROW_CAP.legendary; }
+    function ensureGrowth(w) { if (w && w.custom && w.exp == null) { w.exp = growCap(w); w.bias = w.bias || {}; } return w; }      // 昔の作り方で作ったオリジナル武器は、成長しきった状態として扱う
+    function growFrac(w) { ensureGrowth(w); return Math.max(0, Math.min(1, ((w && w.exp) || 0) / growCap(w))); }
+    function growStart(w) {      // 成長0のときの割合。前のレア度で成長しきった攻撃より、下がらないようにする（レア度アップで弱くならない）
+        const i = RARITY_ORDER.indexOf(w.rarity), R = RARITIES[w.rarity] || RARITIES.normal;
+        return i > 0 ? Math.min(0.9, Math.max(GROW_START, RARITIES[RARITY_ORDER[i - 1]].orig / R.orig + 0.02)) : GROW_START;
+    }
+    function origPctNow(w) { const R = RARITIES[w.rarity] || RARITIES.normal, g0 = growStart(w); return Math.min(PCT_CAP, R.orig * (g0 + (1 - g0) * growFrac(w))); }
+    function applyGrowth(w) {
+        let pc = origPctNow(w); if (w.rarity === 'legendary' && (w.plus | 0) > 0) pc = pc * (1 + PLUS_STEP * (w.plus | 0));
+        w.pct = Math.round(pc * 10000) / 10000; w.dmg = dmgFromPct(w.pct); if (w.pct0 != null) w.pct0 = Math.round(origPctNow(w) * 10000) / 10000;
+    }
+    function expOfMaterial(m) { return MAT_EXP[Math.max(1, Math.min(MAT_EXP.length - 1, (m && m.rarity) | 0 || 1))]; }
+    // 素材を与える。戻り値：{ gained, full }（full: 上限まで成長した）
+    function feedMaterial(w, m, n) {
+        ensureGrowth(w); n = Math.max(1, n | 0);
+        if (!w || !w.custom || w.anvil) return null;
+        const cap = growCap(w), before = w.exp || 0; if (before >= cap) return { gained: 0, full: true };
+        const need = Math.ceil((cap - before) / expOfMaterial(m)), use = Math.min(n, Math.max(1, need)), gain = Math.min(cap - before, use * expOfMaterial(m));
+        w.exp = before + gain; w.bias = w.bias || {};
+        matTags(m).forEach(t => { w.bias[t] = Math.min(40, (w.bias[t] || 0) + use * ((m && m.rarity) || 1)); });
+        applyGrowth(w);
+        return { gained: gain, used: use, full: w.exp >= cap };
+    }
+    // ---- キットから武器を作る ----
+    function forgeFromKit(d, kitId, o) {
+        const ki = (d.kits || []).findIndex(k => k.id === kitId); if (ki < 0) return null;
+        const type = o && o.type; if (!type || availableTypes(d).indexOf(type) < 0) return null;
+        const kit = d.kits[ki], ilvl = forgeIlvl(d), rar = RARITIES.normal;
+        const name = cleanName(o.name) || ('オリジナル' + TYPES[type].label);
+        const elems = []; ((o && o.elems) || []).forEach(id => { if (window.SBElem && SBElem.ELEMS[id] && elems.indexOf(id) < 0 && elems.length < 2) elems.push(id); });
+        const w = { id: uid(), baseId: 'orig_' + type, type: type, rarity: 'normal', prefix: '', baseName: name, name: name, ilvl: ilvl, effects: [], sockets: rint(rar.sockets[0], rar.sockets[1]), source: 'kit', custom: true, v2: true,
+            exp: 0, bias: Object.assign({}, kit.bias), createdAt: Date.now() };
+        w.orbs = new Array(w.sockets).fill(null); applyGrowth(w);
+        const nFx = rint(rar.fx[0], rar.fx[1]), pool = EFFECTS.slice();
+        for (let i = 0; i < nFx && pool.length; i++) w.effects.push(rollEffect(takeFxBiased(pool, w.bias), ilvl, 'normal'));
+        if (elems.length) w.elems = elems;
+        const px = cleanPix(o && o.pix); if (px) w.pix = px;
+        const fc = cleanColor(o && o.fxColor); if (fc) w.fxColor = fc;
+        d.kits.splice(ki, 1);
+        return w;
+    }
+    function setLook(w, o) {      // 見た目（ドット絵・エフェクトの色）は、いつでも無料で描き直せる
+        if (!w || !w.custom) return false;
+        if (o && 'pix' in o) { const px = cleanPix(o.pix); if (o.pix === null) delete w.pix; else if (px) w.pix = px; else return false; }
+        if (o && 'fxColor' in o) { const fc = cleanColor(o.fxColor); if (o.fxColor === null) delete w.fxColor; else if (fc) w.fxColor = fc; else return false; }
+        return true;
+    }
+    // ---- レア度アップ（金床）----
+    function rankUpInfo(w) {
+        ensureGrowth(w);
+        if (!w || !w.custom || !canUpgradeRarity(w)) return { ok: false, why: w && w.rarity === 'legendary' ? 'これ以上のレア度はありません。' : 'オリジナル武器ではありません。' };
+        const next = RARITY_ORDER[RARITY_ORDER.indexOf(w.rarity) + 1], rn = RARITIES[next], cap = growCap(w);
+        return { ok: true, next: next, cost: rn.forge, ready: (w.exp || 0) >= cap, exp: w.exp || 0, cap: cap, canAdd: (w.effects || []).length < rn.fx[1], addMax: Math.max(0, rn.fx[1] - (w.effects || []).length) };
+    }
+    // 開始：お金の引き落としは呼び出し側。mode: 'all'（効果をすべて変える）／'add'（効果をつけ足す）
+    function startRankUp(w, mode) {
+        const inf = rankUpInfo(w); if (!inf.ok || !inf.ready || w.anvil) return null;
+        const rn = RARITIES[inf.next], cur = (w.effects || []).length;
+        let total;
+        if (mode === 'add') { if (!inf.canAdd) return null; total = Math.max(1, Math.min(inf.addMax, rint(rn.fx[0], rn.fx[1]) - cur)); }
+        else { mode = 'all'; total = Math.max(cur, rn.fx[0]); }
+        w.anvil = { mode: mode, next: inf.next, total: total, rolled: [] };
+        return w.anvil;
+    }
+    // ハンマー1回：効果を1つロールする。戻り値：{ fx, done, total, finished }
+    function hammer(w) {
+        const a = w && w.anvil; if (!a) return null;
+        const keep = a.mode === 'add' ? (w.effects || []).map(f => f.id) : [], got = a.rolled.map(f => f.id);
+        const pool = EFFECTS.filter(e => keep.indexOf(e.id) < 0 && got.indexOf(e.id) < 0);
+        if (!pool.length) return null;
+        const fx = rollEffect(takeFxBiased(pool, w.bias), w.ilvl || 1, a.next);
+        a.rolled.push(fx);
+        const finished = a.rolled.length >= a.total;
+        if (finished) finishRankUp(w);
+        return { fx: fx, done: finished ? a.total : a.rolled.length, total: a.total, finished: finished };
+    }
+    function finishRankUp(w) {
+        const a = w.anvil; if (!a) return false;
+        const old = w.rarity, nk = a.next, rn = RARITIES[nk], io = RARITY_ORDER.indexOf(old), ratioFx = (1 + (io + 1) * 0.22) / (1 + io * 0.22);
+        if (a.mode === 'add') {
+            (w.effects || []).forEach(f => { const e = EFFECT_BY_ID[f.id]; if (!e || e.int) return; let v = f.v * ratioFx; if (e.kind === 'proc' || e.key === 'critRate' || e.key === 'dodge') v = Math.min(v, e.kind === 'proc' ? 0.85 : 0.5); if (e.risk) v = Math.min(v, e.range[1] * 2.2); f.v = Math.round(v * 1000) / 1000; });
+            w.effects = (w.effects || []).concat(a.rolled);
+        } else w.effects = a.rolled.slice();
+        w.rarity = nk; w.exp = 0;
+        const minS = rn.sockets[0]; if ((w.sockets | 0) < minS) { w.sockets = minS; w.orbs = Array.isArray(w.orbs) ? w.orbs.slice() : []; while (w.orbs.length < w.sockets) w.orbs.push(null); }
+        applyGrowth(w); delete w.anvil; return true;
+    }
 
     // ---------- 実績の報酬：神話の武器（他のどこからも手に入らない）----------
     //  神話は、レジェンドとは別次元の強さ：基礎ダメージが約2倍（レジェンドの上限は pct 0.5。神話は 2.0〜）、
@@ -934,6 +1150,10 @@
         legend_unbreakable: { name: 'Legend of Unbreakable', prefix: '', type: 'unbreakable', color: '#ff2a4a', ilvl: 50, tag: '不壊', boss: '不壊の悪魔', tech: '不壊の連射／不壊の怒り・全方位照射', source: 'unbreakable',
             desc: '不壊の悪魔の力を宿す、剣でも銃でもない専用の武器。通常攻撃は、自分の周りから7本のレーザーを放ち、近くの敵へ自動で狙いを定めて当てる。必殺技「不壊の怒り・全方位照射」は、自分のまわりのかなり広い範囲に、不壊の悪魔の大技（ぐるりと並んだ砲門から降りそそぐ大量のビーム。撃ち切ったあと、逆回転でもう一度）を放つ',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['range_up', 0.4], ['dmg_swarm', 0.7], ['dr', 0.15], ['energy_up', 0.5]] },
+        // 双界の覇竜ツイン・エレメンタル（大討伐戦のボス）を倒すと手に入る、専用の神話武器。武器種は「双界」だけ
+        legend_duality: { name: 'Legend of Duality', prefix: '', type: 'duality', color: '#c06aff', ilvl: 50, tag: '双界', boss: '双界の覇竜ツイン・エレメンタル', tech: '双極斬／双界終焉・紅蓮と氷獄', source: 'raid_duality',
+            desc: '双界の覇竜の力を宿す、赤と青に割れた専用の剣。通常攻撃は、炎の斬撃と氷の斬撃をX字に交差させて同時に放ち、2つが重なる正面では「共鳴」して追加ダメージが入る。必殺技「双界終焉・紅蓮と氷獄」は、赤と青の巨大な光刃が逆向きにぐるりと全周を薙ぎ払い、最後に2色が混ざった紫の大爆発を起こす',
+            fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['burn', 0.5], ['freeze', 0.4], ['dmg_boss', 0.5], ['energy_up', 0.5]] },
         yggdrasil: { name: '世界樹の杖', prefix: 'ユグドラシルの', type: 'wand', color: '#6dff8a', ilvl: 50, tag: '世界樹', boss: '嘆きの樹母', tech: '這う根／若木の呼び声',
             desc: '嘆きの樹母の根を宿す杖。必殺技「若木の呼び声・世界樹の根」は、足もとから根を突き上げ、体力も癒やす',
             fx: [['atk_up', 0.9], ['aoe_up', 0.8], ['energy_up', 0.8], ['regen', 0.02], ['hp_up', 0.5], ['crit_dmg', 0.8], ['burn', 0.5], ['freeze', 0.4], ['proj_extra', 1]] }
@@ -964,6 +1184,7 @@
         STORAGE_LIMIT, typesOfWorld,
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal, typeChangeCost, changeType,
-        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP
+        MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP,
+        TAGS, TAG_ORDER, matTags, biasTop, KIT_NEED_COUNT, KIT_NEED_VALUE, kitValue, makeKit, cleanPix, cleanColor, PIX_MAX_W, PIX_MAX_H, PIX_CHARS, GROW_CAP, growCap, ensureGrowth, growFrac, applyGrowth, expOfMaterial, feedMaterial, forgeFromKit, setLook, rankUpInfo, startRankUp, hammer, finishRankUp
     };
 })();

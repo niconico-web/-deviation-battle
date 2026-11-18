@@ -1,7 +1,7 @@
 // ============================================================
 //  職業システム（データ・選択・ツリー）
 // ------------------------------------------------------------
-//  ・12の職業（タンク4／アタッカー5／サポーター3）。メイン職業とサブ職業を1つずつ設定できる
+//  ・13の職業（タンク4／アタッカー5／サポーター4）。メイン職業とサブ職業を1つずつ設定できる
 //  ・どちらの職業の武器も使える（近距離の職業＝近接武器、遠距離の職業＝弾・魔法の武器）。職業を何も選んでいない間は制限なし
 //  ・職業ごとに「固有効果」「専用スキルツリー」がある。専用ツリーを進めると、その職業だけの「スキルの形」3つと「グリフ」3つが手に入る
 //  ・サブ職業は、固有効果とツリーの強化が「半分」：固有効果の強さ×0.5、使える形・グリフ・強化は先頭の2つまで
@@ -25,7 +25,7 @@
     };
 
     // 武器の種類(kind) → 近距離／遠距離（hw-weapons.js の TYPES の kind）
-    const KIND_RANGE = { cone: 'melee', line: 'melee', smash: 'melee', chain: 'melee', proj: 'ranged', lasers: 'ranged', ring: 'ranged' };
+    const KIND_RANGE = { cone: 'melee', line: 'melee', smash: 'melee', chain: 'melee', proj: 'ranged', lasers: 'ranged', ring: 'ranged', duality: 'melee' };
 
     // ---------- 職業の定義 ----------
     //  passives : 専用ツリーの「強化」3つ（段階1〜3）。キーは戦闘エンジンの A() が読む値（atkPct・hpPct など）
@@ -149,6 +149,19 @@
               { key: 'cg_nec_1', name: '腐敗', icon: '🦠', tpl: 'dot', pct: 0.5, sec: 5, desc: '敵を腐らせる（5秒間、与ダメージの50%）。' },
               { key: 'cg_nec_2', name: '死の刻印', icon: '☠️', tpl: 'mark', mul: 0.2, sec: 6, desc: '敵に刻印を刻む。受けるダメージ+20%（6秒）。' },
               { key: 'cg_nec_3', name: '生命吸引', icon: '🩸', tpl: 'leech', pct: 0.12, desc: '与えたダメージの12%を回復する。' }] },
+
+        { id: 'tamer', name: 'テイマー', role: 'supporter', icon: '🐾', range: 'ranged',
+          blurb: '獣を呼んで共に戦う、絆の調教師。',
+          unique: { name: '絆', icon: '🐾', desc: 'スキルを使うたびに「絆」が1溜まる（最大5）。絆1つにつき、獣のスキルの威力+6%。絆が満タンで獣のスキルを使うと、獣が「大咆哮」して周囲の敵を0.6秒怯ませる（絆は空になる）。' },
+          passives: [{ n: '獣の心', e: { atkPct: 0.03, hpPct: 0.03 } }, { n: '野生の勘', e: { moveSpd: 0.04, dodge: 0.02 } }, { n: '群れの長', e: { skillPct: 0.07, regen: 0.002 } }],
+          forms: [
+              { key: 'tam_wolf', name: '狼の突撃', icon: '🐺', cost: 30, cd: 8, dmg: 1.0, desc: '狼を呼ぶ。敵をつらぬいて駆け抜け、主人のもとへ戻ってくる。' },
+              { key: 'tam_hawk', name: '鷹の急降下', icon: '🦅', cost: 28, cd: 7, dmg: 1.2, desc: '鷹が敵の上を旋回し、急降下する。当たった敵には「印」が付いて、受けるダメージが増える。' },
+              { key: 'tam_bear', name: '熊の守り', icon: '🐻', cost: 36, cd: 12, dmg: 0.6, desc: '熊が主人を守って暴れる。周囲の敵を怯ませ、バリアも張る。' }],
+          glyphs: [
+              { key: 'cg_tam_1', name: '絆の癒し', icon: '💞', tpl: 'leech', pct: 0.1, desc: '与えたダメージの10%を回復する。' },
+              { key: 'cg_tam_2', name: '野生の牙', icon: '🦷', tpl: 'dot', pct: 0.5, sec: 4, desc: '敵に噛みつく（4秒間、与ダメージの50%）。' },
+              { key: 'cg_tam_3', name: '群れの号令', icon: '📣', tpl: 'chain', n: 2, pct: 0.4, r: 220, desc: '近くの敵2体に、40%のダメージが連鎖する。' }] },
 
         { id: 'alchemist', name: 'アルケミスト', role: 'supporter', icon: '⚗️', range: 'ranged',
           blurb: '調合した薬で戦い、仲間も自分も強くする錬金術師。',

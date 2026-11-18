@@ -140,6 +140,9 @@
 <script src="js/action-skills.js"></script>
 <script src="js/class-perks.js"></script>
 <script src="js/classes.js"></script>
+<script src="js/hw-weapons.js"></script>
+<script src="js/armor.js"></script>
+<script src="js/cost.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 (function () {
@@ -161,6 +164,15 @@
     document.getElementById('maxAug').textContent = AS.MAX_AUGMENTS;
 
     function persist() { AS.saveSkills(skills); AS.saveLoadout(loadoutIds); }
+    // セットするスキルを変えたときの、コストの確認（武器・防具のコストも合わせて、同じ上限）
+    function skillCostCheck(beforeIds, afterIds, strict) {
+        try {
+            if (!window.SBCost || !window.HW) return { ok: true, after: { cost: 0, cap: 0 } };
+            const pick = ids => ids.map(id => skills.find(s => s.id === id)).filter(Boolean).filter(sk => AS.isFormUnlocked(sk.form));
+            if (strict) { const b = SBCost.breakdown(HW.load(), SBCost.totalOf(SBCost.player()), { skills: pick(afterIds) }); return { ok: !b.over, after: b }; }      // 作り替えたあと：超えているかだけを見る
+            return SBCost.canEquip(HW.load(), { skills: pick(afterIds), beforeSkills: pick(beforeIds) });
+        } catch (e) { return { ok: true, after: { cost: 0, cap: 0 } }; }      // 判定に失敗したときは、使えなくならないように通す
+    }
     function say(t, err) { const m = document.getElementById('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -171,7 +183,12 @@
             let opts = '<option value="">（なし）</option>';
             skills.forEach(s => { opts += '<option value="' + s.id + '"' + (loadoutIds[i] === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; });
             row.innerHTML = '<b>' + k + '</b><select>' + opts + '</select>';
-            row.querySelector('select').addEventListener('change', (e) => { loadoutIds[i] = e.target.value; persist(); say('装備を変更しました'); });
+            row.querySelector('select').addEventListener('change', (e) => {
+                const next = loadoutIds.slice(); next[i] = e.target.value;
+                const chk = skillCostCheck(loadoutIds, next);      // コストが上限を超える変更はできない
+                if (!chk.ok) { say(chk.msg.replace(/\n/g, ' '), true); renderSlots(); return; }
+                loadoutIds = next; persist(); say('装備を変更しました（コスト ' + chk.after.cost + ' / 上限 ' + chk.after.cap + '）');
+            });
             box.appendChild(row);
         });
     }
@@ -492,7 +509,12 @@
             skills.push(Object.assign(norm, { id: AS.newId() }));
             say('「' + name + '」を保存しました。装備スロットに設定するとバトルで使えます');
         }
+        const savedId = editingId;
         editingId = null; draft = { name: '', form: 'projectile', effects: ['damage'], augments: [], layout: null };
+        if (savedId && loadoutIds.indexOf(savedId) >= 0) {      // セット中のスキルを作り替えて、コストが上限を超えたら、セットから外す
+            const chk = skillCostCheck(loadoutIds, loadoutIds, true);
+            if (!chk.ok) { loadoutIds = loadoutIds.map(id => id === savedId ? '' : id); say('コストが上限を超えたので、このスキルをセットから外しました（コスト ' + chk.after.cost + ' / 上限 ' + chk.after.cap + '）。', true); }
+        }
         persist(); renderAll();
     });
 
