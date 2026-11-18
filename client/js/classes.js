@@ -1,7 +1,7 @@
 // ============================================================
 //  職業システム（データ・選択・ツリー）
 // ------------------------------------------------------------
-//  ・13の職業（タンク4／アタッカー5／サポーター4）。メイン職業とサブ職業を1つずつ設定できる
+//  ・18の職業（タンク5／アタッカー7／サポーター6）。メイン職業とサブ職業を1つずつ設定できる
 //  ・どちらの職業の武器も使える（近距離の職業＝近接武器、遠距離の職業＝弾・魔法の武器）。職業を何も選んでいない間は制限なし
 //  ・職業ごとに「固有効果」「専用スキルツリー」がある。専用ツリーを進めると、その職業だけの「スキルの形」3つと「グリフ」3つが手に入る
 //  ・サブ職業は、固有効果とツリーの強化が「半分」：固有効果の強さ×0.5、使える形・グリフ・強化は先頭の2つまで
@@ -201,6 +201,72 @@
               { key: 'cg_gam_1', name: '大当たり', icon: '🎰', tpl: 'crit', chance: 0.3, mul: 2.0, desc: '30%でクリティカル（2倍）。' },
               { key: 'cg_gam_2', name: '倍賭け', icon: '✖️', tpl: 'mark', mul: 0.3, sec: 4, desc: '敵に賭けの印。受けるダメージ+30%（4秒）。' },
               { key: 'cg_gam_3', name: '強運', icon: '🍀', tpl: 'chain', n: 2, pct: 0.35, r: 230, desc: '近くの敵2体に、35%のダメージが跳ぶ。' }] }
+        ,
+        // ===== 追加の職業（5種）=====
+        { id: 'monk', name: '武闘家', role: 'tank', icon: '🥋', range: 'melee',
+          blurb: '気を練り、拳と脚で戦う求道者。当て続けるほど、気が満ちる。',
+          unique: { name: '気功', icon: '☯️', desc: 'スキルを敵に当てるたびに「気」が溜まる（最大10）。満タンで次のスキルの威力+50%、さらに最大HPの4%を回復する（気は空になる）。' },
+          passives: [{ n: '丹田', e: { hpPct: 0.04 } }, { n: '受け流し', e: { dodge: 0.03, dr: 0.02 } }, { n: '無我の境地', e: { defPct: 0.05, regen: 0.002 } }],
+          forms: [
+              { key: 'mon_palm', name: '発勁', icon: '🖐️', cost: 28, cd: 6, dmg: 1.1, desc: '掌底で前方を打ち抜く。当たった敵は鈍足になる。' },
+              { key: 'mon_kick', name: '三連脚', icon: '🦵', cost: 30, cd: 7, dmg: 0.9, desc: '敵へ踏み込んで、3発の連続蹴り。3発目は敵を怯ませる。' },
+              { key: 'mon_wave', name: '気功波', icon: '🌟', cost: 34, cd: 9, dmg: 1.3, desc: '練り上げた気を撃ち出す。敵を貫いて飛ぶ。' }],
+          glyphs: [
+              { key: 'cg_mon_1', name: '発勁の響き', icon: '💥', tpl: 'st', st: { stun: 0.5 }, desc: '敵を0.5秒動けなくする。' },
+              { key: 'cg_mon_2', name: '気の循環', icon: '♻️', tpl: 'heal', pct: 0.02, desc: '命中するたびに、最大HPの2%を回復する。' },
+              { key: 'cg_mon_3', name: '見切りの構え', icon: '🛡️', tpl: 'barrier', pct: 0.05, desc: '命中するたびにバリアを得る（最大HPの5%）。' }] },
+
+        { id: 'dragoon', name: '竜騎士', role: 'attacker', icon: '🐲', range: 'melee',
+          blurb: '槍と跳躍で、竜を狩る者。大きな敵ほど、深く刺さる。',
+          unique: { name: '竜殺し', icon: '🐉', desc: 'ボスに与えるダメージ+18%（ボス以外には+6%）。サブでは半分。' },
+          passives: [{ n: '竜鱗', e: { defPct: 0.04, atkPct: 0.02 } }, { n: '高く跳ぶ脚', e: { moveSpd: 0.04, critRate: 0.02 } }, { n: '竜の誇り', e: { atkPct: 0.06, critDmg: 0.15 } }],
+          forms: [
+              { key: 'dra_jump', name: '竜騎の跳躍', icon: '🦘', cost: 30, cd: 8, dmg: 1.4, desc: '高く跳び、敵の真上に落ちて周囲を砕く。着地した敵は鈍足になる。' },
+              { key: 'dra_lance', name: '竜槍の突き', icon: '🔱', cost: 26, cd: 6, dmg: 1.2, desc: '長い槍で、前方の直線を貫く。' },
+              { key: 'dra_breath', name: '竜の息吹', icon: '🔥', cost: 36, cd: 10, dmg: 0.5, desc: '前方に炎を吐き続ける。範囲内の敵に連続でダメージ。' }],
+          glyphs: [
+              { key: 'cg_dra_1', name: '竜の怒り', icon: '😤', tpl: 'execute', thr: 0.4, bonus: 0.5, desc: 'HP40%以下の敵に、威力+50%。' },
+              { key: 'cg_dra_2', name: '逆鱗', icon: '🐲', tpl: 'crit', chance: 0.25, mul: 1.8, desc: '25%でクリティカル（1.8倍）。' },
+              { key: 'cg_dra_3', name: '竜炎', icon: '🔥', tpl: 'dot', pct: 0.6, sec: 4, desc: '敵を炎で焼く（4秒間、与ダメージの60%）。' }] },
+
+        { id: 'timemage', name: '時空術師', role: 'attacker', icon: '⏳', range: 'ranged',
+          blurb: '時間の流れを歪める魔術師。スキルが、いつも少し早く戻ってくる。',
+          unique: { name: '加速時間', icon: '⌛', desc: '全スキルのクールタイムが常に15%早く戻る。さらに、スキルを撃つたびに、ほかのスキルのクールタイムが0.3秒縮む。' },
+          passives: [{ n: '時の砂', e: { skillPct: 0.05 } }, { n: '先読み', e: { dodge: 0.03, critRate: 0.02 } }, { n: '流れを読む者', e: { energyUp: 0.08, skillPct: 0.05 } }],
+          forms: [
+              { key: 'tim_slow', name: '時の檻', icon: '🕰️', cost: 30, cd: 10, dmg: 0.7, desc: '時間のゆがんだ領域を作る。4秒間、中の敵は鈍足になり、ダメージを受け続ける。' },
+              { key: 'tim_rewind', name: '巻き戻し', icon: '⏪', cost: 28, cd: 9, dmg: 1.0, desc: 'いまの場所に刻印する。2秒後、その場所へ戻り、爆発して敵を怯ませる。' },
+              { key: 'tim_stop', name: '時間停止', icon: '⏸️', cost: 40, cd: 14, dmg: 0.4, desc: '周囲の敵弾を消し、敵を2秒止める（ボスは鈍足）。' }],
+          glyphs: [
+              { key: 'cg_tim_1', name: '遅延', icon: '🐌', tpl: 'st', st: { slow: 1 }, desc: '敵を鈍足にする。' },
+              { key: 'cg_tim_2', name: '予見', icon: '🔮', tpl: 'mark', mul: 0.2, sec: 4, desc: '敵に印。受けるダメージ+20%（4秒）。' },
+              { key: 'cg_tim_3', name: '時の連鎖', icon: '⛓️', tpl: 'chain', n: 3, pct: 0.3, r: 240, desc: '近くの敵3体に、30%のダメージが連鎖する。' }] },
+
+        { id: 'bard', name: 'バード', role: 'supporter', icon: '🎻', range: 'ranged',
+          blurb: '旋律で仲間を奮い立たせる吟遊詩人。',
+          unique: { name: '旋律', icon: '🎶', desc: 'スキルを使うたびに「旋律」が溜まる（最大4）。満タンで演奏が始まり、自分と近くの味方にバリアを張り、自分は3秒間、攻撃力が上がる（旋律は空になる）。' },
+          passives: [{ n: '美声', e: { skillPct: 0.05 } }, { n: '軽やかな足取り', e: { moveSpd: 0.05, dodge: 0.02 } }, { n: '名演奏', e: { hpPct: 0.04, skillPct: 0.05 } }],
+          forms: [
+              { key: 'brd_song', name: '戦いの歌', icon: '🎼', cost: 30, cd: 10, dmg: 0.4, desc: '周囲に音波を響かせる。自分と近くの味方にバリア、敵には小ダメージ。' },
+              { key: 'brd_note', name: '音符弾', icon: '🎵', cost: 24, cd: 5, dmg: 0.9, desc: '音符の弾を、扇状に5発撃つ。' },
+              { key: 'brd_encore', name: 'アンコール', icon: '👏', cost: 38, cd: 14, dmg: 0.6, desc: 'ほかのスキルのクールタイムを、6秒ぶん縮める。衝撃波も出る。' }],
+          glyphs: [
+              { key: 'cg_brd_1', name: '癒しの音色', icon: '💚', tpl: 'heal', pct: 0.03, desc: '命中するたびに、最大HPの3%を回復する。' },
+              { key: 'cg_brd_2', name: '不協和音', icon: '😵', tpl: 'st', st: { weaken: 1 }, desc: '敵を弱体化させる。' },
+              { key: 'cg_brd_3', name: '勇壮の調べ', icon: '🎺', tpl: 'barrier', pct: 0.06, desc: '命中するたびにバリアを得る（最大HPの6%）。' }] },
+
+        { id: 'cleric', name: '神官', role: 'supporter', icon: '⛪', range: 'ranged',
+          blurb: '祈りで仲間を守る聖職者。聖なる光で、敵を裁く。',
+          unique: { name: '祝福', icon: '🙏', desc: '10秒ごとに、自分と近くの味方に「祝福」のバリアを張る（サブでは弱くなる）。' },
+          passives: [{ n: '信仰', e: { hpPct: 0.05 } }, { n: '加護', e: { dr: 0.03, regen: 0.002 } }, { n: '聖域の主', e: { hpPct: 0.05, dmgTaken: -0.03 } }],
+          forms: [
+              { key: 'cle_light', name: '聖光', icon: '☀️', cost: 26, cd: 6, dmg: 1.0, desc: '天から光の柱が降り、敵を貫く。自分も少し回復する。' },
+              { key: 'cle_sanct', name: '聖域', icon: '⛲', cost: 36, cd: 14, dmg: 0.4, desc: '足もとに聖域を張る。中の敵にダメージ、中にいる自分は回復し続ける（6秒）。' },
+              { key: 'cle_judge', name: '裁きの鎖', icon: '⛓️', cost: 32, cd: 9, dmg: 1.3, desc: '近くの敵3体に、光の鎖で連続ダメージ。当たった敵は鈍足になる。' }],
+          glyphs: [
+              { key: 'cg_cle_1', name: '加護の光', icon: '🛡️', tpl: 'barrier', pct: 0.08, desc: '命中するたびにバリアを得る（最大HPの8%）。' },
+              { key: 'cg_cle_2', name: '浄化', icon: '✨', tpl: 'heal', pct: 0.04, desc: '命中するたびに、最大HPの4%を回復する。' },
+              { key: 'cg_cle_3', name: '聖罰', icon: '⚖️', tpl: 'mark', mul: 0.2, sec: 5, desc: '敵に聖罰の印。受けるダメージ+20%（5秒）。' }] }
     ];
 
     // ---------- 索引 ----------

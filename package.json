@@ -2,7 +2,7 @@
   "name": "schoolbattle",
   "version": "1.0.0",
   "description": "",
-  "main": "server.js",
+  "main": "server/server.js",
   "dependencies": {
     "accepts": "^2.0.0",
     "base64id": "^2.0.0",
@@ -83,7 +83,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "cd server && node server.js"
   },
   "keywords": [],
   "author": "",

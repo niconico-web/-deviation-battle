@@ -2002,3 +2002,39 @@ textarea {
 .skill-tree-inner > svg line { opacity: .48; }
 .skill-node { transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease; }
 .skill-node span { max-width:100%; overflow-wrap:anywhere; pointer-events:none; }
+
+
+/* ===== 上部ツールバー：アイコン群を「☰」ドロップダウンにまとめる ===== */
+.sidebar.sidebar-minimal .tool-more-wrap { position: relative; display: flex; align-items: center; }
+.sidebar.sidebar-minimal .tool-more-btn { font-size: 1.1rem; }
+.sidebar.sidebar-minimal .tool-more-btn.active { background: var(--accent-blue-dark, #2b5876); color: #fff; }
+.tool-more-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 190px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 6px;
+    background: rgba(15, 17, 21, 0.96);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    z-index: 1003;
+}
+.tool-more-menu[hidden] { display: none; }
+.sidebar.sidebar-minimal .tool-more-menu .share-menu-btn {
+    width: 100%;
+    margin: 0;
+    padding: 8px 8px;
+    gap: 6px;
+    justify-content: flex-start;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    border: none;
+    border-radius: 8px;
+    text-align: left;
+}
+.sidebar.sidebar-minimal .tool-more-menu .share-menu-btn span { font-size: 1.1rem; width: 1.4em; margin: 0; text-align: center; }
+.sidebar.sidebar-minimal .tool-more-menu .share-menu-btn .tool-more-label { font-size: 0.8rem; width: auto; text-align: left; }

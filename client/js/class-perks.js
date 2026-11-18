@@ -1,5 +1,5 @@
 // ============================================================
-//  職業ごとの「パーク」65個（1職業につき5つ。専用ツリーの中から1つだけ選べる）
+//  職業ごとの「パーク」90個（1職業につき5つ。専用ツリーの中から1つだけ選べる）
 // ------------------------------------------------------------
 //  ・1つ選ぶとプレイスタイルが大きく変わる代わりに、重いデメリットがつく。メインとサブ、それぞれのツリーで1つずつ
 //  ・選ぶには、その職業で使える「形」（メイン3つ／サブ2つ）をすべて解放していて、ポイントが PERK_COST 必要。解除するとポイントは戻る
@@ -834,6 +834,159 @@
             needForm: ['tam_hawk'], cdMul: s => isBeast(s) ? 0.85 : 1,
             onKill() { const fx = global.ClassFx; if (fx && fx.addBond) fx.addBond(2); },
             dealMul(e, dmg) { return dmg * 0.8; }
+        });
+
+
+    // =========================================================================
+    //  追加の職業（武闘家・竜騎士・時空術師・バード・神官）
+    // =========================================================================
+    const isForm = (s, k) => !!(s && s.params && s.params.classForm === k);
+    const allyBarrierNear = (R, sec) => { const m = me(), al = B.allies ? B.allies() : {}; Object.keys(al).forEach(id => { const a = al[id]; if (a && !a.dead && B.allyBarrier && Math.hypot(a.x - m.x, a.y - m.y) <= R) B.allyBarrier(id, sec); }); };
+    const fxS = () => (global.ClassFx && global.ClassFx._state) ? global.ClassFx._state() : {};
+
+    // ---- 🥋 武闘家 ----
+    def('monk', 'mon_ironbody', '金剛体', '🗿',
+        '受けるダメージが35%減る。', '移動速度が30%下がる。', {
+            stats() { return { moveSpd: -0.3 }; }, incoming() { return 0.65; }
+        });
+    def('monk', 'mon_hundred', '百裂拳', '👊',
+        '「三連脚」が、少し間をおいてもう一度出る（合計6連脚）。', '「三連脚」のエネルギー消費が2倍になる。', {
+            costMul: s => isForm(s, 'mon_kick') ? 2 : 1,
+            form: { mon_kick(ctx, H) { H.base('mon_kick', ctx); H.after(0.95, () => { if (B.isRun()) H.base('mon_kick', ctx); }); } }
+        });
+    def('monk', 'mon_surge', '気の暴走', '⚡',
+        '敵に当てるたびに「気」が2溜まる（2倍の速さ）。', '被弾すると、溜めた「気」がすべて消える。', {
+            onHit(e, dmg) { const s = fxS(); if (typeof s.ki === 'number') s.ki = Math.min(10, s.ki + 1); return dmg; },
+            onHurt() { const s = fxS(); if (s.ki > 0) s.ki = 0; }
+        });
+    def('monk', 'mon_barehand', '無手の極み', '🥊',
+        'スキルの威力が+50%になる。', '通常攻撃ができなくなる（スキルだけで戦う）。', {
+            stats() { return { skillPct: 0.5 }; }, attackOk: () => false
+        });
+    def('monk', 'mon_stillwater', '明鏡止水', '🧘',
+        '立ち止まっているあいだ、受けるダメージが60%減り、毎秒HPが2%回復する。', '動いているあいだは、受けるダメージが30%増える。', {
+            setup() { S.monX = null; S.monStill = 0; },
+            update(dt) {
+                const m = me(); if (S.monX == null) { S.monX = m.x; S.monY = m.y; }
+                const moved = Math.hypot(m.x - S.monX, m.y - S.monY); S.monX = m.x; S.monY = m.y;
+                if (moved < 1.5) { S.monStill = Math.min(1, (S.monStill || 0) + dt * 2); if (S.monStill >= 0.5 && !m.dead) B.heal(m.maxHp * 0.02 * dt); } else S.monStill = 0;
+            },
+            incoming() { return (S.monStill || 0) >= 0.5 ? 0.4 : 1.3; }
+        });
+
+    // ---- 🐲 竜騎士 ----
+    def('dragoon', 'dra_slayer', '竜殺しの誓い', '🗡️',
+        'ボスに与えるダメージが+50%になる。', 'ボス以外の敵に与えるダメージが30%減る。', {
+            dealMul(e, dmg) { return e && e.boss ? dmg * 1.5 : dmg * 0.7; }
+        });
+    def('dragoon', 'dra_sky', '天駆ける者', '🪽',
+        '「竜騎の跳躍」が、続けてもう一度跳ぶ（2連続の落下）。', '「竜騎の跳躍」のエネルギー消費が2倍になる。', {
+            costMul: s => isForm(s, 'dra_jump') ? 2 : 1,
+            form: { dra_jump(ctx, H) { H.base('dra_jump', ctx); H.after(1.05, () => { if (B.isRun()) H.base('dra_jump', ctx); }); } }
+        });
+    def('dragoon', 'dra_triple', '三叉の槍', '🔱',
+        '「竜槍の突き」が、扇状に3本同時に出る。', '「竜槍の突き」のクールダウンが80%長くなる。', {
+            cdMul: s => isForm(s, 'dra_lance') ? 1.8 : 1,
+            form: { dra_lance(ctx, H) { [-0.3, 0, 0.3].forEach(o => H.base('dra_lance', Object.assign({}, ctx, { ang: ctx.ang + o }))); } }
+        });
+    def('dragoon', 'dra_blood', '竜の血', '🩸',
+        '攻撃力が+20%になり、与えたダメージの12%を回復する。', '最大HPが25%減る。', {
+            stats() { return { atkPct: 0.2, hpPct: -0.25 }; },
+            afterDeal(e, dmg) { if (dmg > 0) B.heal(dmg * 0.12); }
+        });
+    def('dragoon', 'dra_wrath', '逆鱗の竜', '🔥',
+        'HPが減るほどスキルの威力が上がる（HPが空に近いと最大+80%）。', '受けるダメージが25%増える。', {
+            castMul() { return 1 + 0.8 * Math.max(0, 1 - hpRate()); }, incoming() { return 1.25; }
+        });
+
+    // ---- ⏳ 時空術師 ----
+    def('timemage', 'tim_quick', '加速世界', '⏩',
+        '全スキルのクールダウンが40%短くなり、移動速度も+15%になる。', 'スキルの威力が25%下がる。', {
+            stats() { return { moveSpd: 0.15 }; }, cdMul: () => 0.6, castMul: () => 0.75
+        });
+    def('timemage', 'tim_loop', '時の循環', '♾️',
+        'スキルを使うたびに25%の確率で、同じスキルがもう一度発動する。', 'スキルを使うたびに25%の確率で、自分が1秒動けなくなる。', {
+            onFormCast(key, ctx) {
+                if (S.timLoop) return;
+                if (Math.random() < 0.25) { S.timLoop = true; setTimeout(() => { try { if (B.isRun()) castForm(key, ctx); } finally { S.timLoop = false; } }, 350); popup('♾️ 循環！', '#b9a8ff'); }
+                if (Math.random() < 0.25) S.lockT = Math.max(S.lockT || 0, 1);
+            }
+        });
+    def('timemage', 'tim_causal', '因果の巻き戻し', '⏪',
+        '被弾するとき、25%の確率でそのダメージを無かったことにする。', '最大HPが20%減る。', {
+            stats() { return { hpPct: -0.2 }; },
+            incoming() { if (Math.random() < 0.25) { popup('⏪ 無かったことに', '#b9a8ff'); return 0; } return 1; }
+        });
+    def('timemage', 'tim_freeze', '凍てつく時', '❄️',
+        '「時間停止」の範囲が約2倍（半径420）になり、止める時間も3秒に伸びる。', '「時間停止」のエネルギー消費とクールダウンが1.5倍になる。', {
+            costMul: s => isForm(s, 'tim_stop') ? 1.5 : 1, cdMul: s => isForm(s, 'tim_stop') ? 1.5 : 1,
+            form: { tim_stop(ctx, H) {
+                H.base('tim_stop', ctx); const m = H.mk(ctx), q = B.me(), bl = B.eBullets();
+                for (let i = bl.length - 1; i >= 0; i--) if (Math.hypot(bl[i].x - q.x, bl[i].y - q.y) <= 420) bl.splice(i, 1);
+                m.circle(q.x, q.y, 420, 0.3, e => { if (e.boss) B.setSt(e, { slow: 1 }); else B.setStun(e, 3); }); H.flash(q.x, q.y, 420, '#bfeaff');
+            } }
+        });
+    def('timemage', 'tim_overclock', '過負荷', '🔋',
+        'スキルのエネルギー消費が半分になり、威力が+30%になる。', 'スキルを使うたびに、最大HPの4%を失う（HPは1より下がらない）。', {
+            stats() { return { skillPct: 0.3 }; }, costMul: () => 0.5,
+            onCast() { B.selfDamage(me().maxHp * 0.04); }
+        });
+
+    // ---- 🎻 バード ----
+    def('bard', 'brd_chorus', '大合唱', '📣',
+        '「旋律」が2倍の速さで溜まる（2回の演奏で発動）。', 'スキルのエネルギー消費が50%増える。', {
+            costMul: () => 1.5, onCast() { const s = fxS(); if (typeof s.verse === 'number') s.verse += 1; }
+        });
+    def('bard', 'brd_diva', '孤高の歌姫', '🎤',
+        'スキルの威力が+50%、移動速度が+10%になる。', '受けるダメージが25%増える。', {
+            stats() { return { skillPct: 0.5, moveSpd: 0.1 }; }, incoming() { return 1.25; }
+        });
+    def('bard', 'brd_requiem', '鎮魂歌', '💀',
+        '「戦いの歌」が、続けてもう一度響く（持続が2倍）。', '「戦いの歌」のクールダウンが60%長くなる。', {
+            cdMul: s => isForm(s, 'brd_song') ? 1.6 : 1,
+            form: { brd_song(ctx, H) { H.base('brd_song', ctx); H.after(2.6, () => { if (B.isRun()) H.base('brd_song', ctx); }); } }
+        });
+    def('bard', 'brd_rhapsody', '狂想曲', '🌀',
+        '「音符弾」が、少しずつ間をおいて3回連続で出る（15発）。', '「音符弾」のエネルギー消費が2.5倍になる。', {
+            costMul: s => isForm(s, 'brd_note') ? 2.5 : 1,
+            form: { brd_note(ctx, H) { H.base('brd_note', ctx); [0.15, 0.3].forEach(d => H.after(d, () => { if (B.isRun()) H.base('brd_note', ctx); })); } }
+        });
+    def('bard', 'brd_stage', '命がけの舞台', '🎭',
+        '「アンコール」で、ほかのスキルのクールダウンがさらに6秒縮み、HPも10%回復する。', '「アンコール」を使ったあと5秒間、受けるダメージが50%増える。', {
+            setup() { S.brdOpen = 0; },
+            update(dt) { if (S.brdOpen > 0) S.brdOpen -= dt; },
+            incoming() { return S.brdOpen > 0 ? 1.5 : 1; },
+            form: { brd_encore(ctx, H) {
+                H.base('brd_encore', ctx); (B.slots() || []).forEach(sl => { if (sl && sl.cdLeft > 0) sl.cdLeft = Math.max(0, sl.cdLeft - 6); });
+                B.heal(me().maxHp * 0.1); S.brdOpen = 5;
+            } }
+        });
+
+    // ---- ⛪ 神官 ----
+    def('cleric', 'cle_martyr', '殉教者', '🕊️',
+        '被弾するたびに、近くの味方全員にバリア（3秒）が張られる。', '受けるダメージが30%増える。', {
+            incoming() { return 1.3; }, onHurt() { allyBarrierNear(460, 3); }
+        });
+    def('cleric', 'cle_wrath', '天罰の代行者', '⚡',
+        'スキルの威力が+70%になる。', 'あらゆる回復が無効になる（バリアは有効）。', {
+            stats() { return { skillPct: 0.7 }; }, healBlock: () => true
+        });
+    def('cleric', 'cle_pillars', '三柱の裁き', '☀️',
+        '「聖光」が、間をおいて3回続けて降り注ぐ。', '「聖光」のクールダウンが80%長くなる。', {
+            cdMul: s => isForm(s, 'cle_light') ? 1.8 : 1,
+            form: { cle_light(ctx, H) { H.base('cle_light', ctx); [0.4, 0.8].forEach(d => H.after(d, () => { if (B.isRun()) H.base('cle_light', ctx); })); } }
+        });
+    def('cleric', 'cle_sanctum', '絶対聖域', '⛲',
+        '「聖域」の中にいるあいだ、受けるダメージが80%減る。', '「聖域」の中にいるあいだは、攻撃ができない。', {
+            setup() { S.sanct = null; },
+            update(dt) { if (S.sanct) { S.sanct.t -= dt; if (S.sanct.t <= 0) S.sanct = null; } },
+            incoming() { const z = S.sanct, m = me(); return z && Math.hypot(m.x - z.x, m.y - z.y) <= 150 ? 0.2 : 1; },
+            attackOk() { const z = S.sanct, m = me(); return !(z && Math.hypot(m.x - z.x, m.y - z.y) <= 150); },
+            form: { cle_sanct(ctx, H) { H.base('cle_sanct', ctx); const m = B.me(); S.sanct = { x: m.x, y: m.y, t: 6 }; } }
+        });
+    def('cleric', 'cle_faith', '狂信', '🔥',
+        '最大HPが+40%になり、HPが自然に回復する（毎秒0.4%）。', '移動速度が35%下がり、スキルのクールダウンが30%長くなる。', {
+            stats() { return { hpPct: 0.4, regen: 0.004, moveSpd: -0.35 }; }, cdMul: () => 1.3
         });
 
     // =========================================================================

@@ -1,5 +1,5 @@
 // ============================================================
-//  職業専用の「スキルの形」36個（1職業につき3つ）
+//  職業専用の「スキルの形」51個（1職業につき3つ）
 // ------------------------------------------------------------
 //  既存の形（投射・レーザー・斬撃…）を数字だけ変えたものではなく、それぞれ専用の動き（自分が動く・設置物・分身・召喚・連鎖…）を持つ。
 //  発動は practice.js の castSkill から ClassForms.cast(形のキー, ctx) で呼ばれる。毎フレーム update(dt) と draw(ctx) が呼ばれる。
@@ -503,6 +503,144 @@
             if (acc >= 0.5) { acc = 0; m.circle(me.x + 36, me.y, 115, 0.4, e => { if (!e.boss) B.setStun(e, 0.5); }); }
             return t < 6;
         }, draw(c) { const me = B.me(); c.save(); c.globalAlpha = Math.min(1, (6 - t) / 1.2 + 0.2); c.font = '38px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('🐻', me.x + 36, me.y - 6); c.strokeStyle = 'rgba(180,120,60,.5)'; c.lineWidth = 3; c.beginPath(); c.arc(me.x + 36, me.y, 115, 0, TAU); c.stroke(); c.restore(); } });
+    };
+
+
+    // ===== 武闘家 =====
+    const DEG = Math.PI / 180;
+    IMPL.mon_palm = function (ctx) {                     // 発勁：掌底で前方を打ち抜く。当たった敵は鈍足
+        const m = mk(ctx), a = ctx.ang; let t = 0, done = false;
+        add({ update(dt) {
+            t += dt;
+            if (!done && t >= 0.25) { done = true; const me = B.me(); m.cone(me.x, me.y, a, 190, 100 * DEG, 1.5, e => B.setSt(e, { slow: 1 })); flash(me.x + Math.cos(a) * 90, me.y + Math.sin(a) * 90, 110, '#ffe0a0'); }
+            return t < 0.5;
+        }, draw(c) { const me = B.me(); c.save(); c.globalAlpha = t < 0.25 ? 0.5 : 0.25; c.fillStyle = '#ffe0a0'; c.beginPath(); c.moveTo(me.x, me.y); c.arc(me.x, me.y, 190, a - 50 * DEG, a + 50 * DEG); c.closePath(); c.fill(); c.restore(); } });
+    };
+    IMPL.mon_kick = function (ctx) {                     // 三連脚：敵へ踏み込んで3発。3発目は怯ませる
+        const m = mk(ctx), tp = targetPoint(ctx, 420, 200); let t = 0, n = 0;
+        add({ update(dt) {
+            t += dt;
+            if (n < 3 && t >= 0.12 + n * 0.22) {
+                n++; const me = B.me(), a = Math.atan2(tp.y - me.y, tp.x - me.x), d = Math.min(60, Math.hypot(tp.x - me.x, tp.y - me.y));
+                if (B.moveMe) B.moveMe(Math.cos(a) * d * 0.5, Math.sin(a) * d * 0.5);
+                const q = B.me(), kx = q.x + Math.cos(a) * 50, ky = q.y + Math.sin(a) * 50, last = n === 3;
+                m.circle(kx, ky, 70, last ? 1.1 : 0.7, e => { if (last) B.setStun(e, 0.6); }); flash(kx, ky, 60, '#ffe0a0');
+            }
+            return t < 0.85;
+        }, draw(c) { const me = B.me(); c.save(); c.font = '26px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.globalAlpha = 0.9; c.fillText('🦵', me.x + 30, me.y - 6); c.restore(); } });
+    };
+    IMPL.mon_wave = function (ctx) {                     // 気功波：練った気を撃ち出す（敵を貫く）
+        const m = mk(ctx), me = B.me(), a = ctx.ang;
+        fire(m, { x: me.x, y: me.y, vx: Math.cos(a) * 520, vy: Math.sin(a) * 520, r: 20, life: 1.1, mult: 1.5, pierce: 99, color: '#ffe08a' });
+        flash(me.x, me.y, 50, '#ffe08a');
+    };
+
+    // ===== 竜騎士 =====
+    IMPL.dra_jump = function (ctx) {                     // 竜騎の跳躍：高く跳び、敵の真上に落ちる
+        const m = mk(ctx), tp = targetPoint(ctx, 520, 260), s0 = B.me(), sx = s0.x, sy = s0.y; let t = 0, landed = false;
+        add({ update(dt) {
+            t += dt;
+            if (!landed && t >= 0.7) { landed = true; if (B.teleportMe) B.teleportMe(tp.x, tp.y); m.circle(tp.x, tp.y, 130, 1.8, e => B.setSt(e, { slow: 1 })); flash(tp.x, tp.y, 130, '#ff9a5a'); }
+            return t < 0.95;
+        }, draw(c) {
+            c.save(); c.font = '30px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+            if (!landed) { const f = t / 0.7; c.strokeStyle = 'rgba(255,154,90,.6)'; c.setLineDash([6, 6]); c.lineWidth = 2; c.beginPath(); c.arc(tp.x, tp.y, 130, 0, TAU); c.stroke(); c.setLineDash([]); c.globalAlpha = 0.8; c.fillText('🐲', sx + (tp.x - sx) * f, sy + (tp.y - sy) * f - Math.sin(f * Math.PI) * 130); }
+            c.restore();
+        } });
+    };
+    IMPL.dra_lance = function (ctx) {                    // 竜槍の突き：前方の直線を貫く
+        const m = mk(ctx), a = ctx.ang, s0 = B.me(), L = 380; let t = 0, hit = false;
+        add({ update(dt) {
+            t += dt;
+            if (!hit && t >= 0.15) { hit = true; const me = B.me(); m.line(me.x, me.y, me.x + Math.cos(a) * L, me.y + Math.sin(a) * L, 46, 1.7); }
+            return t < 0.4;
+        }, draw(c) { const me = B.me(); c.save(); c.strokeStyle = t < 0.15 ? 'rgba(255,255,255,.4)' : '#ffd9a0'; c.lineWidth = t < 0.15 ? 3 : 10; c.lineCap = 'round'; c.beginPath(); c.moveTo(me.x, me.y); c.lineTo(me.x + Math.cos(a) * L, me.y + Math.sin(a) * L); c.stroke(); c.restore(); } });
+    };
+    IMPL.dra_breath = function (ctx) {                   // 竜の息吹：前方に炎を吐き続ける
+        const m = mk(ctx), a = ctx.ang; let t = 0, acc = 0;
+        add({ update(dt) {
+            if (!B.isRun()) return false;
+            t += dt; acc += dt;
+            if (acc >= 0.2) { acc = 0; const me = B.me(); m.cone(me.x, me.y, a, 260, 70 * DEG, 0.34); }
+            return t < 1.6;
+        }, draw(c) { const me = B.me(); c.save(); c.globalAlpha = 0.4 + 0.1 * Math.sin(t * 30); c.fillStyle = '#ff7a3a'; c.beginPath(); c.moveTo(me.x, me.y); c.arc(me.x, me.y, 260, a - 35 * DEG, a + 35 * DEG); c.closePath(); c.fill(); c.restore(); } });
+    };
+
+    // ===== 時空術師 =====
+    IMPL.tim_slow = function (ctx) {                     // 時の檻：4秒間、中の敵は鈍足＋ダメージ
+        const m = mk(ctx), tp = targetPoint(ctx, 520, 260); let t = 0, acc = 0;
+        add({ update(dt) {
+            if (!B.isRun()) return false;
+            t += dt; acc += dt;
+            if (acc >= 0.5) { acc = 0; m.circle(tp.x, tp.y, 130, 0.35, e => B.setSt(e, { slow: 1 })); }
+            return t < 4;
+        }, draw(c) { c.save(); c.globalAlpha = Math.min(0.5, (4 - t) / 1 + 0.1); c.fillStyle = 'rgba(150,120,255,.25)'; c.strokeStyle = '#b9a8ff'; c.lineWidth = 3; c.beginPath(); c.arc(tp.x, tp.y, 130, 0, TAU); c.fill(); c.stroke(); c.font = '34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.globalAlpha = 0.9; c.fillText('🕰️', tp.x, tp.y); c.restore(); } });
+    };
+    IMPL.tim_rewind = function (ctx) {                   // 巻き戻し：2秒後、刻印した場所へ戻って爆発
+        const m = mk(ctx), s0 = B.me(), mx = s0.x, my = s0.y; let t = 0, done = false;
+        add({ update(dt) {
+            t += dt;
+            if (!done && t >= 2) { done = true; if (B.teleportMe) B.teleportMe(mx, my); m.circle(mx, my, 150, 1.9, e => B.setStun(e, 0.8)); flash(mx, my, 150, '#b9a8ff'); }
+            return t < 2.25;
+        }, draw(c) { if (done) return; c.save(); c.strokeStyle = 'rgba(185,168,255,.8)'; c.setLineDash([5, 5]); c.lineWidth = 2; c.beginPath(); c.arc(mx, my, 40 + 110 * (t / 2), 0, TAU); c.stroke(); c.setLineDash([]); c.font = '26px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⏪', mx, my); c.restore(); } });
+    };
+    IMPL.tim_stop = function (ctx) {                     // 時間停止：周囲の敵弾を消し、敵を2秒止める（ボスは鈍足）
+        const m = mk(ctx), me = B.me(), R = 230; let t = 0;
+        if (CUR === null) { const bl = B.eBullets(); for (let i = bl.length - 1; i >= 0; i--) if (Math.hypot(bl[i].x - me.x, bl[i].y - me.y) <= R) bl.splice(i, 1); }
+        m.circle(me.x, me.y, R, 0.5, e => { if (e.boss) B.setSt(e, { slow: 1 }); else B.setStun(e, 2); });
+        flash(me.x, me.y, R, '#b9a8ff');
+        add({ update(dt) { t += dt; return t < 0.8; }, draw(c) { const q = B.me(); c.save(); c.globalAlpha = 1 - t / 0.8; c.strokeStyle = '#b9a8ff'; c.lineWidth = 4; c.beginPath(); c.arc(q.x, q.y, R * Math.min(1, t / 0.3), 0, TAU); c.stroke(); c.font = '34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⏸️', q.x, q.y - 40); c.restore(); } });
+    };
+
+    // ===== バード =====
+    IMPL.brd_song = function (ctx) {                     // 戦いの歌：自分と近くの味方にバリア、敵には小ダメージ
+        const m = mk(ctx), me = B.me(); let t = 0, acc = 0;
+        B.barrier(me.maxHp * 0.08);
+        if (CUR === null) { const al = B.allies(); Object.keys(al).forEach(id => { const a = al[id]; if (a && !a.dead && B.allyBarrier && Math.hypot(a.x - me.x, a.y - me.y) <= 420) B.allyBarrier(id, 3); }); }
+        add({ update(dt) {
+            if (!B.isRun()) return false;
+            t += dt; acc += dt;
+            if (acc >= 0.5) { acc = 0; const q = B.me(); m.circle(q.x, q.y, 170, 0.3); }
+            return t < 2.5;
+        }, draw(c) { const q = B.me(); c.save(); c.strokeStyle = 'rgba(157,240,255,.6)'; c.lineWidth = 3; c.globalAlpha = Math.max(0.2, 1 - t / 2.5); c.beginPath(); c.arc(q.x, q.y, 60 + (t * 120) % 110, 0, TAU); c.stroke(); c.font = '24px sans-serif'; c.textAlign = 'center'; c.fillText('♪', q.x + Math.cos(t * 4) * 60, q.y - 30 - Math.sin(t * 4) * 20); c.restore(); } });
+    };
+    IMPL.brd_note = function (ctx) {                     // 音符弾：扇状に5発
+        const m = mk(ctx), me = B.me();
+        for (let i = -2; i <= 2; i++) { const a = ctx.ang + i * 0.16; fire(m, { x: me.x, y: me.y, vx: Math.cos(a) * 480, vy: Math.sin(a) * 480, r: 11, life: 0.9, mult: 0.8, pierce: 1, color: '#9df0ff' }); }
+        flash(me.x, me.y, 40, '#9df0ff');
+    };
+    IMPL.brd_encore = function (ctx) {                   // アンコール：ほかのスキルのクールタイムを6秒ぶん縮める＋衝撃波
+        const m = mk(ctx), me = B.me(); let t = 0;
+        if (CUR === null) (B.slots() || []).forEach(sl => { if (sl && sl.cdLeft > 0) sl.cdLeft = Math.max(0, sl.cdLeft - 6); });
+        m.circle(me.x, me.y, 200, 0.9); flash(me.x, me.y, 200, '#ffe08a');
+        add({ update(dt) { t += dt; return t < 0.6; }, draw(c) { const q = B.me(); c.save(); c.globalAlpha = 1 - t / 0.6; c.font = '34px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('👏', q.x, q.y - 40 - t * 30); c.restore(); } });
+    };
+
+    // ===== 神官 =====
+    IMPL.cle_light = function (ctx) {                    // 聖光：天から光の柱が降りる。自分も少し回復
+        const m = mk(ctx), tp = targetPoint(ctx, 560, 260); let t = 0, hit = false;
+        add({ update(dt) {
+            t += dt;
+            if (!hit && t >= 0.7) { hit = true; m.circle(tp.x, tp.y, 95, 2.0); B.heal(B.me().maxHp * 0.03); flash(tp.x, tp.y, 95, '#fff3b0'); }
+            return t < 1.0;
+        }, draw(c) { c.save(); if (!hit) { c.strokeStyle = 'rgba(255,243,176,.7)'; c.setLineDash([5, 5]); c.lineWidth = 2; c.beginPath(); c.arc(tp.x, tp.y, 95, 0, TAU); c.stroke(); c.setLineDash([]); } else { c.globalAlpha = Math.max(0, 1 - (t - 0.7) / 0.3); c.fillStyle = '#fff3b0'; c.fillRect(tp.x - 30, tp.y - 400, 60, 400); } c.restore(); } });
+    };
+    IMPL.cle_sanct = function (ctx) {                    // 聖域：足もとに張る。中の敵にダメージ、中の自分は回復
+        const m = mk(ctx), s0 = B.me(), x = s0.x, y = s0.y; let t = 0, acc = 0;
+        add({ update(dt) {
+            if (!B.isRun()) return false;
+            t += dt; acc += dt;
+            if (acc >= 0.5) { acc = 0; m.circle(x, y, 150, 0.3); const q = B.me(); if (Math.hypot(q.x - x, q.y - y) <= 150) B.heal(q.maxHp * 0.012); }
+            return t < 6;
+        }, draw(c) { c.save(); c.globalAlpha = Math.min(0.5, (6 - t) / 1.2 + 0.1); c.fillStyle = 'rgba(255,243,176,.22)'; c.strokeStyle = '#fff3b0'; c.lineWidth = 3; c.beginPath(); c.arc(x, y, 150, 0, TAU); c.fill(); c.stroke(); c.font = '30px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('⛲', x, y); c.restore(); } });
+    };
+    IMPL.cle_judge = function (ctx) {                    // 裁きの鎖：近くの敵3体に、光の鎖で連続ダメージ
+        const m = mk(ctx), me = B.me(), list = nearestN(me.x, me.y, 460, 3); let t = 0, n = 0;
+        add({ update(dt) {
+            t += dt;
+            if (n < list.length && t >= 0.15 + n * 0.3) { const e = list[n++]; if (e && e.hp > 0) { m.hit(e, 1.4); B.setSt(e, { slow: 1 }); } }
+            return t < 0.15 + list.length * 0.3 + 0.25;
+        }, draw(c) { const q = B.me(); c.save(); c.strokeStyle = '#fff3b0'; c.lineWidth = 4; for (let i = 0; i < n; i++) { const e = list[i]; if (!e) continue; c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(e.x, e.y); c.stroke(); } c.restore(); } });
     };
 
     // ---------- 窓口 ----------

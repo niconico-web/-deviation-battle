@@ -1,5 +1,5 @@
 // ============================================================
-//  職業の戦闘効果（ステージ戦闘）：固有効果13種と、専用グリフの動き
+//  職業の戦闘効果（ステージ戦闘）：固有効果18種と、専用グリフの動き
 // ------------------------------------------------------------
 //  practice.js が、次の場面でここを呼ぶ（職業を選んでいないときは、何もしない）：
 //    ClassFx.setup(bridge)      戦闘の開始
@@ -19,7 +19,7 @@
     const rnd = (a, b) => a + Math.random() * (b - a);
 
     function setup(bridge) {
-        B = bridge; U = {}; S = { rage: 0, stack: 0, stackT: 0, souls: 0, bond: 0, lastEl: null, still: 0, lastX: 0, lastY: 0, traps: [], trapCd: 0, flash: {} };
+        B = bridge; U = {}; S = { ki: 0, verse: 0, bless: 6, rage: 0, stack: 0, stackT: 0, souls: 0, bond: 0, lastEl: null, still: 0, lastX: 0, lastY: 0, traps: [], trapCd: 0, flash: {} };
         try { CS().activeUniques().forEach(u => { U[u.id] = u.scale; }); } catch (e) { U = {}; }
         const me = B && B.me(); if (me) { S.lastX = me.x; S.lastY = me.y; }
         try { if (global.ClassPerks) global.ClassPerks.setup(bridge); } catch (e) { console.warn('[ClassFx] perk setup', e); }
@@ -67,6 +67,12 @@
             for (let i = bl.length - 1; i >= 0; i--) { const b = bl[i]; if (Math.hypot(b.x - me.x, b.y - me.y) <= 150) { bl.splice(i, 1); n++; if (got < cap) { got += per; } } }
             if (n > 0) { B.barrier(Math.min(got, cap)); pop('✂️ 弾を断った ×' + n, '#9df0ff'); B.ring(me.x, me.y, 150, '#9df0ff'); }
         }
+        if ((sc = on('monk')) && S.ki >= 10) { mul *= 1 + 0.5 * sc; B.heal(me.maxHp * 0.04 * sc); S.ki = 0; pop('☯️ 気功解放！', '#ffe08a'); B.ring(me.x, me.y, 130, '#ffe08a'); }
+        if ((sc = on('timemage'))) { (B.slots() || []).forEach((sl, i) => { if (sl && i !== slotIdx && sl.cdLeft > 0) sl.cdLeft = Math.max(0, sl.cdLeft - 0.3 * sc); }); }
+        if ((sc = on('bard'))) {
+            S.verse++;
+            if (S.verse >= 4) { S.verse = 0; me.empowerT = Math.max(me.empowerT || 0, 3 * sc); shareBarrier(me, 0.1 * sc, 4 * sc, 420); pop('🎻 演奏！', '#9df0ff'); B.ring(me.x, me.y, 420, '#9df0ff'); }
+        }
         // グリフ「自己強化」（使うと自分に効く）
         (p && p.effects || []).forEach(k => {
             const o = CS().GLYPH_OWNER[k]; if (!o || o.def.tpl !== 'self') return;
@@ -86,6 +92,8 @@
         // 印（受けるダメージが増える）
         if (e.cmark && e.cmark.t > 0) dmg *= 1 + e.cmark.mul;
         if ((sc = on('assassin')) && e.hp >= (e.maxHp || e.hp) * 0.9) dmg *= 1 + 0.5 * sc;       // 奇襲
+        if ((sc = on('dragoon'))) dmg *= 1 + (e.boss ? 0.18 : 0.06) * sc;       // 竜殺し
+        if (on('monk')) S.ki = Math.min(10, S.ki + 1);                          // 気功
         // 専用グリフ
         (eff || []).forEach(k => {
             const o = CS().GLYPH_OWNER[k]; if (!o) return;
@@ -128,6 +136,13 @@
     function pullEnemy(e, px) {
         const me = B.me(); const d = Math.hypot(me.x - e.x, me.y - e.y) || 1, k = Math.min(px, Math.max(0, d - me.r - e.r - 6)) / d;
         e.x += (me.x - e.x) * k; e.y += (me.y - e.y) * k;
+    }
+
+    // 自分にバリア、近くの味方（範囲R内）にもバリア（秒数）を張る
+    function shareBarrier(me, selfPct, sec, R) {
+        B.barrier(me.maxHp * selfPct);
+        const al = B.allies ? B.allies() : {};
+        Object.keys(al).forEach(id => { const a = al[id]; if (a && !a.dead && B.allyBarrier && Math.hypot(a.x - me.x, a.y - me.y) <= R) B.allyBarrier(id, sec); });
     }
 
     // ---------- 被弾・撃破 ----------
@@ -186,6 +201,8 @@
                 if (fired) S.traps.splice(i, 1);
             }
         }
+        if ((sc = on('timemage'))) (B.slots() || []).forEach(sl => { if (sl && sl.cdLeft > 0) sl.cdLeft = Math.max(0, sl.cdLeft - dt * 0.15 * sc); });
+        if ((sc = on('cleric'))) { S.bless -= dt; if (S.bless <= 0 && !me.dead) { S.bless = 10; shareBarrier(me, 0.08 * sc, 3 * sc, 460); pop('🙏 祝福', '#fff3b0'); B.ring(me.x, me.y, 460, '#fff3b0'); } }
         tickEnemies(dt);
     }
     // 継続ダメージ（グリフ）と印の時間切れ
@@ -221,6 +238,9 @@
         else if (on('necromancer')) { bar(S.souls, 10, '#b46bff', '魂 ' + S.souls); }
         else if (on('tamer')) { bar(S.bond, 5, S.bond >= 5 ? '#c8ff7a' : '#7fd13b', '絆 ' + S.bond); }
         else if (on('juggernaut')) { bar(Math.min(S.still, 5), 5, '#b0bcc9', '不動'); }
+        else if (on('monk')) { bar(S.ki, 10, S.ki >= 10 ? '#ffe08a' : '#d9b45a', '気 ' + S.ki); }
+        else if (on('bard')) { bar(S.verse, 4, '#9df0ff', '旋律 ' + S.verse); }
+        else if (on('cleric')) { bar(10 - Math.max(0, S.bless), 10, '#fff3b0', '祝福'); }
         // 罠
         S.traps.forEach(tr => {
             ctx.save(); ctx.strokeStyle = '#ffd9a0'; ctx.fillStyle = 'rgba(255,170,60,.25)'; ctx.lineWidth = 2;

@@ -67,16 +67,21 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
                 <button class="menu-btn" data-section="study"><span class="menu-icon">📖</span><span class="menu-label">勉強</span></button>
                 <button class="menu-btn" data-section="online"><span class="menu-icon">🌐</span><span class="menu-label">オンライン</span></button>
                 <button class="menu-btn" data-section="market"><span class="menu-icon">🏪</span><span class="menu-label">市場</span></button>
-                <button type="button" id="uiSettingsBtn" class="share-menu-btn" data-open-ui-settings aria-label="UI設定"><span>⚙️</span></button>
-                <button type="button" id="guideBtn" class="share-menu-btn" aria-label="遊び方ガイド"><span>❓</span></button>
-                <button type="button" id="pvpBtn" class="share-menu-btn" aria-label="オンラインマッチ"><span>⚔️</span></button>
-                <button type="button" id="raidBtn" class="share-menu-btn" aria-label="大討伐戦"><span>🐉</span></button>
-                <button type="button" id="memBtn" class="share-menu-btn" aria-label="復習・統計"><span>📈</span></button>
-                <button type="button" id="seasonBtn" class="share-menu-btn" aria-label="シーズン"><span>🏆</span></button>
-                <button type="button" id="achBtn" class="share-menu-btn" aria-label="実績・称号"><span>🎖️</span></button>
-                <button type="button" id="boardBtn" class="share-menu-btn" aria-label="掲示板"><span>📋</span></button>
-                <button type="button" id="guildBtn" class="share-menu-btn" aria-label="ギルド"><span>🛡️</span></button>
-                <button type="button" id="shareInviteBtn" class="share-menu-btn" aria-label="友達に紹介"><span>📣</span></button>
+                <div class="tool-more-wrap">
+                    <button type="button" id="toolMoreBtn" class="share-menu-btn tool-more-btn" aria-label="その他のメニュー" aria-expanded="false" aria-controls="toolMoreMenu"><span>☰</span></button>
+                    <div id="toolMoreMenu" class="tool-more-menu" hidden>
+                        <button type="button" id="uiSettingsBtn" class="share-menu-btn" data-open-ui-settings aria-label="UI設定"><span>⚙️</span><span class="tool-more-label">UI設定</span></button>
+                        <button type="button" id="guideBtn" class="share-menu-btn" aria-label="遊び方ガイド"><span>❓</span><span class="tool-more-label">遊び方</span></button>
+                        <button type="button" id="pvpBtn" class="share-menu-btn" aria-label="オンラインマッチ"><span>⚔️</span><span class="tool-more-label">対人戦</span></button>
+                        <button type="button" id="raidBtn" class="share-menu-btn" aria-label="大討伐戦"><span>🐉</span><span class="tool-more-label">大討伐戦</span></button>
+                        <button type="button" id="memBtn" class="share-menu-btn" aria-label="復習・統計"><span>📈</span><span class="tool-more-label">復習・統計</span></button>
+                        <button type="button" id="seasonBtn" class="share-menu-btn" aria-label="シーズン"><span>🏆</span><span class="tool-more-label">シーズン</span></button>
+                        <button type="button" id="achBtn" class="share-menu-btn" aria-label="実績・称号"><span>🎖️</span><span class="tool-more-label">実績・称号</span></button>
+                        <button type="button" id="boardBtn" class="share-menu-btn" aria-label="掲示板"><span>📋</span><span class="tool-more-label">掲示板</span></button>
+                        <button type="button" id="guildBtn" class="share-menu-btn" aria-label="ギルド"><span>🛡️</span><span class="tool-more-label">ギルド</span></button>
+                        <button type="button" id="shareInviteBtn" class="share-menu-btn" aria-label="友達に紹介"><span>📣</span><span class="tool-more-label">友達に紹介</span></button>
+                    </div>
+                </div>
             </nav>
         </aside>
         <div id="sidebarOverlay" class="sidebar-overlay"></div>
@@ -856,6 +861,7 @@ try { if (window.matchMedia('(pointer: coarse)').matches) document.documentEleme
     <script src="js/beginner.js" defer></script>
     <script src="js/survival-entry.js" defer></script>
     <script src="js/world.js" defer></script>
+    <script src="js/toolbar-more.js" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

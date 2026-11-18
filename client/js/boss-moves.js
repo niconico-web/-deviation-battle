@@ -803,5 +803,80 @@
         });
     })();
 
-    window.BOSS_MOVES = { MOVES: MOVES, SETS: SETS, STUN_SECONDS: 3.0, STUN_IMMUNE: 3.5 };
+    // ============================================================
+    // 大討伐戦ボス共通の「技の拡張キット」
+    //  新しい大討伐戦ボスは、set('raid_xxx', [基本の技…], スタン技) で登録したあと、
+    //      BOSS_MOVES.raid.extend('raid_xxx', { colors: [色1, 色2, 色3], tier: 1〜10, patterns: ['cross', 'chain', …], power: 1.18 })
+    //  を呼ぶだけで、次の3つが自動で入る。
+    //    (1) 既存の技の強化（威力×power・予告を少し短く・硬直を短く）
+    //    (2) 共通パターン（RAID_PATTERNS）の追加。色は colors の順に使われる（patterns を省くと全種類）
+    //    (3) 技の合間を短く（cdMul）・技の順番をランダムに（rnd）
+    //  大技は BOSS_MOVES.raid.ult('raid_xxx', id, 名前, ステップ, [発動するHP割合…]) で登録する
+    //  共通パターン：cross 十字砲火 / chain 連鎖爆撃 / crush 収束崩壊 / barrage 一斉砲撃 / lattice 格子ビーム / chase 追尾連斬
+    //                bones 檻の壁 / dashpair 双牙の突進 / rainfall 破片の雨 / summon 眷属召喚
+    // ============================================================
+    const RAID_TELE = { line: 1, ring: 1, cone: 1, donut: 1, at: 1, rain: 1, beams: 1, beamfan: 1, beamAt: 1, blast: 1 };
+    const RAID_PATTERNS = {
+        cross: (c, dm) => ({ name: '十字砲火', rec: 0.8, steps: [0, 1].reduce((a, w) => a.concat([0, 1, 2, 3, 4, 5, 6, 7].map(i => line(w * 1.5 + i * 0.07, 1700, 96, 1.1, dm, { c: c[(i + w) % 2], aim: 'l', off: w * 22.5 + i * 45 }))), []) }),
+        chain: (c, dm) => ({ name: '連鎖爆撃', rec: 0.6, steps: [at(0, 110, 0.9, dm, { c: c[0] })].concat([0, 1, 2, 3, 4].map(i => at(0.5 + i * 0.4, 105, 0.8, dm, { c: c[(i + 1) % 2], who: 'rand' }))) }),
+        crush: (c, dm) => ({ name: '収束崩壊', rec: 0.9, steps: [pull(0, 1.5, 300), ring(1.3, 230, 0.8, dm + 0.1, { c: c[0] }), donut(2.2, 640, 230, 1.0, dm + 0.1, { c: c[1] })] }),
+        barrage: (c, dm, t) => ({ name: '一斉砲撃', rec: 0.5, steps: [blast(0, 5 + (t >> 1), 430, 1500, 60 + t, 0.85, dm, { rep: 2, gap: 0.16, c: c[0] }), beamfan(0.9, 7, 80, 1600, 50, 0.75, dm, { aim: 't', c: c[1] }), blast(1.9, 6 + (t >> 1), 470, 1500, 60 + t, 0.75, dm + 0.05, { rep: 2, gap: 0.16, c: c[0] })] }),
+        lattice: (c, dm, t) => ({ name: '格子ビーム', rec: 0.5, steps: wallSweep(0, { n: 12 + t, volleys: 4, gap: 0.7, rot0: 0, rot: 0, every: 2, w: 46 + t, tele: 0.8, dm: dm }).concat(wallSweep(0.35, { n: 12 + t, volleys: 4, gap: 0.7, rot0: 90, rot: 0, every: 2, w: 46 + t, tele: 0.8, dm: dm })).map(s => Object.assign(s, { c: c[2] })) }),
+        chase: (c, dm, t) => ({ name: '追尾連斬', rec: 0.4, steps: Array.from({ length: 6 + (t >> 1) }, (_, i) => line(i * 0.28, 1700, 56 + t, 0.55, dm, { aim: 't', off: i % 2 ? 6 : -6, c: c[i % 2] })) }),
+        bones: (c, dm, t) => ({ name: '檻の壁', rec: 0.5, steps: [wall(0, 'h', 340 + t * 6, 1.0, { c: c[0] }), wall(0.9, 'v', 360 + t * 6, 1.0, { c: c[1] }), wall(1.8, 'h', 380 + t * 6, 1.0, { c: c[0] }), wall(2.7, 'v', 400 + t * 6, 1.0, { c: c[1] })] }),
+        dashpair: (c, dm) => ({ name: '双牙の突進', rec: 0.8, steps: [warn(0, 900, 110, 0.7, { c: c[0] }), dash(0.7, 0.6, 940, { c: c[0] }), warn(1.5, 900, 110, 0.5, { aim: 't', c: c[1] }), dash(2.0, 0.6, 960, { aim: 't', c: c[1] }), ring(2.8, 200, 0.7, dm, { c: c[2] })] }),
+        rainfall: (c, dm) => ({ name: '破片の雨', rec: 0.6, steps: [rain(0, 14, 84, 1.0, dm, { gap: 0.09, c: c[0] }), rain(1.5, 12, 84, 1.0, dm, { gap: 0.09, c: c[1] }), donut(2.8, 620, 230, 1.0, dm + 0.1, { c: c[2] })] }),
+        summon: (c, dm) => ({ name: '眷属召喚', rec: 0.6, steps: [summon(0, 6), fan(0.5, 9, 8, 380, 0.8, { c: c[0] }), fan(1.0, 9, 8, 380, 0.8, { c: c[1], off: 8 })] })
+    };
+    function raidEmpower(mid, power) {
+        const m = MOVES[mid]; if (!m || m.raidBuff) return; m.raidBuff = true;
+        m.steps.forEach(s => {
+            if (s.dm) s.dm = Math.round(s.dm * power * 100) / 100;
+            if (RAID_TELE[s.k] && s.tele > 0.6) s.tele = Math.max(0.55, Math.round(s.tele * 0.92 * 100) / 100);      // 予告は0.55秒を下回らない（見てから避けられる範囲）
+        });
+        m.rec = Math.max(m.stun ? 0.9 : 0.1, Math.round(m.rec * (m.stun ? 0.8 : 0.65) * 100) / 100);
+        m.dur = Math.max.apply(null, m.steps.map(stepEnd)) + 0.1;
+    }
+    function raidExtend(setId, o) {
+        o = o || {}; const S = SETS[setId]; if (!S) return null;
+        const c = (o.colors && o.colors.length ? o.colors : ['#ff5a3a', '#4ac8ff', '#b060ff']).slice(); while (c.length < 3) c.push(c[c.length - 1]);
+        const t = Math.max(1, o.tier || 1), power = o.power || 1.18, dm = Math.round((1.5 + 0.04 * t) * power * 100) / 100, seen = {};
+        S.moves.concat([S.stun, S.ult]).forEach(mid => { if (mid && !seen[mid]) { seen[mid] = 1; raidEmpower(mid, power); } });
+        (o.patterns || Object.keys(RAID_PATTERNS)).forEach(key => {
+            const P = RAID_PATTERNS[key], id = setId + '_x_' + key; if (!P || MOVES[id]) return;
+            const r = P(c, dm, t); def(id, r.name, r.steps, { rec: r.rec }); MOVES[id].raidBuff = true; S.moves.push(id);
+        });
+        S.cdMul = o.cdMul || 0.8; S.rnd = o.random !== false;
+        return S;
+    }
+    function raidUlt(setId, id, name, steps, ultAt) {
+        const S = SETS[setId]; if (!S) return null;
+        S.ult = def(id, name, steps, { ult: true, rec: 1.3 }); S.ultAt = ultAt || [0.75, 0.5, 0.25];
+        return id;
+    }
+
+    // --- 双界の覇竜ツイン・エレメンタル：技の追加と強化 ---
+    //  第一形態：赤と青の技を増やす。大技「双界共鳴」はHP80%・62%を切るたびに
+    def('rd_pincer', '灼熱と極寒の挟撃', [ring(0, 230, 1.1, 1.7, tc(RED)), donut(1.3, 640, 230, 1.0, 1.7, tc(BLUE)), ring(2.5, 230, 0.9, 1.8, tc(PUR))], { rec: 0.9 });
+    def('rd_meteor', '炎と氷の連続カタストロフ', [rain(0, 12, 90, 1.0, 1.5, tc(RED, { gap: 0.1 })), rain(1.6, 12, 90, 1.0, 1.5, tc(BLUE, { gap: 0.1 })), at(3.0, 110, 0.9, 1.6, tc(PUR, { who: 'rand' }))]);
+    def('rd_wings', '双翼の薙ぎ払い', [cone(0, 520, 56, 1.0, 1.6, tc(RED, { aim: 't', off: -34 })), cone(0, 520, 56, 1.0, 1.6, tc(BLUE, { aim: 't', off: 34 })), cone(1.3, 520, 56, 0.9, 1.7, tc(RED, { aim: 't', off: 34 })), cone(1.3, 520, 56, 0.9, 1.7, tc(BLUE, { aim: 't', off: -34 }))], { rec: 0.8 });
+    def('rd_call', '眷属の呼び声', [summon(0, 6), fan(0.5, 9, 8, 380, 0.8, tc(RED)), fan(1.0, 9, 8, 380, 0.8, tc(BLUE, { off: 8 }))]);
+    SETS.raid_duality.moves.push('rd_pincer', 'rd_meteor', 'rd_wings', 'rd_call');
+    raidExtend('raid_duality', { colors: [RED, BLUE, PUR], tier: 6, power: 1.2, patterns: ['cross', 'chain', 'lattice', 'barrage', 'dashpair'] });
+    raidUlt('raid_duality', 'rd_ult', '双界共鳴・赤と青の大海嘯', [
+        rain(0, 16, 90, 1.0, 1.6, tc(RED, { gap: 0.08 })), donut(1.6, 700, 260, 1.0, 1.8, tc(BLUE)),
+        line(2.8, 1500, 170, 1.1, 1.9, tc(RED, { aim: 't', off: -14 })), line(2.8, 1500, 170, 1.1, 1.9, tc(BLUE, { aim: 't', off: 14 })), ring(3.9, 300, 1.1, 1.9, tc(PUR))
+    ], [0.8, 0.62]);
+    //  第二形態（紫炎の崩壊）：さらに攻撃的に。大技「臨界・紫炎終焉」はHP42%・30%・18%・8%を切るたびに
+    def('rd2_pull', '紫炎の渦', [pull(0, 1.6, 300), ring(1.4, 240, 0.8, 2.0, tc(PUR)), donut(2.3, 640, 240, 1.0, 2.0, tc(PUR))], { rec: 0.8 });
+    def('rd2_chain', '紫炎の連鎖', [at(0, 110, 0.9, 1.8, tc(PUR))].concat([0, 1, 2, 3, 4, 5].map(i => at(0.45 + i * 0.35, 105, 0.8, 1.8, tc(PUR, { who: 'rand' })))));
+    SETS.raid_duality2.moves.push('rd2_pull', 'rd2_chain');
+    raidExtend('raid_duality2', { colors: [PUR, PUR, PUR], tier: 7, power: 1.25, cdMul: 0.72, patterns: ['cross', 'crush', 'lattice', 'barrage', 'chase', 'bones', 'dashpair', 'rainfall'] });
+    raidUlt('raid_duality2', 'rd2_ult', '臨界・紫炎終焉', [
+        spiral(0, 3, 270, 0.9, tc(PUR, { arms: 5 })), ring(1.0, 300, 1.2, 2.0, tc(PUR))
+    ].concat(spokes(1.8, 8, 0.18, 1700, 70, 1.0, 2.0, { c: PUR, rot: 45 })).concat([
+        donut(3.8, 700, 260, 1.0, 2.0, tc(PUR)), rain(4.6, 16, 90, 1.0, 1.8, tc(PUR, { gap: 0.08 })), line(5.6, 2800, 240, 1.5, 2.6, tc(PUR, { aim: 't' }))
+    ]), [0.42, 0.3, 0.18, 0.08]);
+
+    window.BOSS_MOVES = { MOVES: MOVES, SETS: SETS, STUN_SECONDS: 3.0, STUN_IMMUNE: 3.5, raid: { extend: raidExtend, ult: raidUlt, empower: raidEmpower, PATTERNS: RAID_PATTERNS } };
 })();

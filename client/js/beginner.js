@@ -41,14 +41,14 @@
           check: c => { const l = parse(localStorage.getItem('sb_action_loadout')); return { done: Array.isArray(l) && l.some(Boolean) }; } },
         { id: 'forge', icon: '🔨', title: '素材でオリジナル武器を作ろう', hint: '武器庫の「🔨 オリジナル武器キット」で、素材からキットを作り、ドット絵を描いて自分だけの武器にしよう（素材5個〜）', reward: 500, target: '#openArmoryFromInv',
           check: c => ({ done: !!(c.h && c.h.weapons && c.h.weapons.some(w => w.custom)) }) },
-        { id: 'pvp', icon: '⚔️', title: 'オンラインマッチに参加しよう', hint: '右上の「⚔️」から。1人で出発すればボット練習になるよ', reward: 300, target: '#pvpBtn',
+        { id: 'pvp', icon: '⚔️', title: 'オンラインマッチに参加しよう', hint: '左上の「☰」→「⚔️ 対人戦」から。1人で出発すればボット練習になるよ', reward: 300, target: '#pvpBtn',
           check: c => ({ done: !!(c.h && c.h.pvpPlayed) }) },
         { id: 'rift', icon: '🌀', title: '第一世界のボス「深淵の裂け目」をクリアしよう', hint: '第一世界の最後のステージ。クリアすると、次の世界への門が現れる（ノーマルでもOK）', reward: 1000, target: '#openStageGateFromInv',
           check: c => ({ done: ((c.h && c.h.cleared && c.h.cleared.abyssal_rift) || 0) > 0 }) }
     ];
     // スタンダードキャラ（まだ遊び込んでいない人）には、シーズンワールドへの案内だけを出す
     const MISSIONS_STD = [
-        { id: 'joinSeason', icon: '🌟', title: 'シーズンワールドに参加しよう', hint: '右上の「🏆」から、シーズンキャラを作って参加しよう。第一〜第五世界はシーズンキャラで遊ぶよ', reward: 300, target: '#seasonBtn',
+        { id: 'joinSeason', icon: '🌟', title: 'シーズンワールドに参加しよう', hint: '左上の「☰」→「🏆 シーズン」から、シーズンキャラを作って参加しよう。第一〜第五世界はシーズンキャラで遊ぶよ', reward: 300, target: '#seasonBtn',
           check: c => { const s = seasonState(); return { done: !!(s.active === 'season' || (s.slots && s.slots.season && s.slots.season.player)) }; } }
     ];
 
@@ -130,6 +130,7 @@
         if (glowEl) { glowEl.classList.remove('bm-glow'); glowEl = null; }
         if (!sel) return;
         const el = document.querySelector(sel);
+        if (el && el.offsetParent === null && el.closest && el.closest('#toolMoreMenu')) el = document.getElementById('toolMoreBtn');   // ☰メニュー内の項目は☰を光らせる
         if (el && el.offsetParent !== null) { el.classList.add('bm-glow'); glowEl = el; }
     }
     function openList() {

@@ -668,7 +668,7 @@
         // 歩行
         if (e.state === 0 && !bdef(e).stand) { const sp = e.spd * slow * (e.enraged ? 1.3 : 0.8); if (d > 150) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }
         // 技セット(boss-moves.js)があるボスは技の合間を短めにして、技そのものの見せ場を増やす
-        const cdMax = (SET ? (e.enraged ? 0.7 : 1.2) : (e.enraged ? 1.1 : 1.9)) / (DIFF.dmg > 1.5 ? 1.15 : 1);
+        const cdMax = (SET ? (e.enraged ? 0.7 : 1.2) * (SET.cdMul || 1) : (e.enraged ? 1.1 : 1.9)) / (DIFF.dmg > 1.5 ? 1.15 : 1);      // SET.cdMul：大討伐戦ボスは技の合間が短い
         if (e.state === 0 && e.t > cdMax) {
             if (SET) { const md = pickMove(e); if (md) { startMove(e, md, ang); return; } }
             const pat = pats[e.patIdx % pats.length]; e.patIdx++; e.t = 0;
@@ -720,6 +720,10 @@
         }
         if (e.mvCount % every === 0 && BM.MOVES[BOSS_SET.stun]) return BM.MOVES[BOSS_SET.stun];
         const list = BOSS_SET.moves; e.mvIdx = e.mvIdx || 0;
+        if (BOSS_SET.rnd && list.length > 1) {                  // 大討伐戦ボス：技の順番はランダム（直前と同じ技は続けない）
+            let k, tries = 0; do { k = Math.floor(Math.random() * list.length); } while (k === e.mvLast && ++tries < 8);
+            e.mvLast = k; return BM.MOVES[list[k]] || null;
+        }
         const m = BM.MOVES[list[e.mvIdx % list.length]]; e.mvIdx++;
         return m || null;
     }
