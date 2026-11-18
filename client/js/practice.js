@@ -1140,6 +1140,10 @@
             run.stats.kills++; run.stats.coins += Math.round((1 + (ev.ilvl || stage.ilvl) * 0.8) * (ev.echo ? 6 : 3) * (1 + A('goldPct')));
             return;
         }
+        if (RAID && !ev.boss) {      // 大討伐戦の子分（眷属）：専用装備もボス報酬も出ない。少しのコインだけ（ボスを倒したときだけ raidKillReward）
+            run.stats.kills++; run.stats.coins += Math.round((1 + 46 * 0.8) * 1.5 * (1 + A('goldPct')));
+            return;
+        }
         if (ev.boss) {
             const wo = worldOpenedByThisStage(), wg = worldOpenedByGate(), hh = HW.load();
             if (wo && !hh[wo.unlock.gateFlag]) setTimeout(() => announce(wo.unlock.openText, 5200), 700);

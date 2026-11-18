@@ -3,7 +3,7 @@
 // cost.js（コスト制度）
 // ============================================
 // 装備とスキルには「コスト」があり、全ての戦い（ステージ・対人戦・大討伐戦…）で、勉強で伸びる「ステータス合計」で決まる「コスト上限」までしか、力を引き出せない。
-//   ・コストを払うのは、武器（レア度 × 装備のレベル）・防具3か所・セットしたスキル4つ（消費エネルギー ÷ 12。職業の専用の形・グリフは割増）。装備とスキルは、同じひとつの上限を分け合う
+//   ・コストを払うのは、武器（レア度 × 装備のレベル）・防具3か所・セットしたアクションスキル4つ（消費エネルギー ÷ 9。職業の専用の形・グリフは割増）・装備したアクティブスキル3つ（効果の強さで決まる）。装備とスキルは、同じひとつの上限を分け合う
 //   ・コストが上限を超える装備・スキルは「装備できない」。コストを増やさない変更（コストの低い装備に替える、外す）は、上限を超えていてもできる
 //   ・上限を超えた状態では、ステージ・対人戦・大討伐戦に出撃できない（装備・スキルを替えるか、勉強で上限を上げる）
 //   ・安全装置：なんらかの理由で超過のまま戦闘が始まった場合は、装備の効果とスキルの威力を、まとめて弱める（効果 = 上限 ÷ いまのコスト）
@@ -13,20 +13,20 @@
 (function (global) {
     'use strict';
     // ---- 調整用の数字 ----
-    const WEAPON_COST = { normal: 1, magic: 2, rare: 4, epic: 7, legendary: 11, mythic: 16 };   // 武器：レア度ごとのコスト
-    const ARMOR_RATE = 0.8;            // 防具（頭・胴・足）：武器コストにこの倍率をかけたもの（3か所あるので少し安い）
+    const WEAPON_COST = { normal: 1, magic: 2, rare: 5, epic: 8, legendary: 13, mythic: 19 };   // 武器：レア度ごとのコスト
+    const ARMOR_RATE = 0.9;            // 防具（頭・胴・足）：武器コストにこの倍率をかけたもの（3か所あるので少し安い）
     const PLUS_COST = 0.1;             // 武器の「＋N」1つにつき、増えるコスト（＋100で+10）
     const ILVL_BASE = 0.4, ILVL_DIV = 40;      // 装備のレベル（ilvl）が高いほどコストも高い：× (ILVL_BASE + ilvl ÷ ILVL_DIV)（ilvl1 で×0.43、ilvl46 で×1.55）
-    const SKILL_COST_DIV = 12;         // スキル：消費エネルギー ÷ この数 がコスト（エネルギー60のスキルで、コスト5）
-    const CLASS_FORM_MUL = 1.5, CLASS_GLYPH_MUL = 1.15;    // 職業の専用の「形」を使うと×1.5、専用の「グリフ」を使うと×1.15（職業スキルが強いので、重くしてある）
-    const CAP_BASE = 14, CAP_PER_DOUBLE = 9;    // 上限 = CAP_BASE + CAP_PER_DOUBLE × log2(ステータス合計 ÷ 250)（合計が2倍になるごとに +9。合計100万まで、勉強するほど上がり続ける）
+    const SKILL_COST_DIV = 9;         // スキル：消費エネルギー ÷ この数 がコスト（エネルギー60のスキルで、コスト5）
+    const CLASS_FORM_MUL = 1.7, CLASS_GLYPH_MUL = 1.15;    // 職業の専用の「形」を使うと×1.5、専用の「グリフ」を使うと×1.15（職業スキルが強いので、重くしてある）
+    const CAP_BASE = 13, CAP_PER_DOUBLE = 5, CAP_MUL = 0.75;    // 上限 = (CAP_BASE + CAP_PER_DOUBLE × log2(ステータス合計 ÷ 250)) × CAP_MUL（合計が2倍になるごとに +5。合計100万まで、勉強するほど上がり続ける）
     const MIN_RATIO = 0.25;            // 効果の下限（どんなにコスト超過でも、効果は最低でもこの割合は残る）
 
     const num = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
     function totalOf(p) {      // ステータス合計（体力・攻撃・防御・速さ・特殊）。practice.js の corrTotal と同じ
         try { const b = global.getStatsFromPlayer(p); return Math.max(250, num(b.maxHp) + num(b.atk) + num(b.def) + num(b.speed) + num(b.special)); } catch (e) { return 250; }
     }
-    function capOf(total) { return Math.round(CAP_BASE + CAP_PER_DOUBLE * Math.log2(Math.max(250, total) / 250)); }
+    function capOf(total) { return Math.round((CAP_BASE + CAP_PER_DOUBLE * Math.log2(Math.max(250, total) / 250)) * CAP_MUL); }
     const lvMul = it => ILVL_BASE + Math.min(60, Math.max(1, it.ilvl | 0 || 1)) / ILVL_DIV;
     const rarBase = it => WEAPON_COST[it.rarity] != null ? WEAPON_COST[it.rarity] : WEAPON_COST.rare;
     function costOfWeapon(w) { return !w ? 0 : rarBase(w) * lvMul(w) + (w.plus | 0) * PLUS_COST; }
@@ -41,6 +41,20 @@
             return v;
         } catch (e) { return 0; }
     }
+    // 旧式のアクティブスキル（スキルツリーで解放して、スキルスロットにセットするもの）のコスト：効果が強いほど重い。デメリット（自傷・防御ダウン・行動不能）は少し軽くなる
+    function costOfActiveSkill(sk) {
+        const e = (sk && sk.effect) || {}; let v = 1.5;
+        v += num(e.damageMultiplier) * 1.4;
+        if (e.multiStrike) v += num(e.multiStrike) * (num(e.multiStrikeMultiplier) || 0.5) * 1.4;
+        if (e.defenseIgnore) v += 2.5; if (e.sureHit) v += 1.5; if (e.execute) v += 3; if (e.lifeSteal) v += 2 + num(e.lifeSteal) * 4;
+        if (e.damageReduction) v += num(e.damageReduction) * 8; if (e.invincible) v += 5; if (e.revive) v += 5 + num(e.revivePercent) * 4;
+        if (e.dodgeChance) v += num(e.dodgeChance) * 5; if (e.critChance) v += num(e.critChance) * 5; if (e.nextAttackCrit) v += 1.5;
+        if (e.speedBuff) v += 2; ['burn', 'poison', 'speedDebuff'].forEach(k => { if (e[k]) v += 1.5; });
+        if (e.resetUsedSkill) v += 3; if (e.useSpecialStat) v += 0.5;
+        if (e.skipNextTurn) v -= 1; if (e.selfHpCost) v -= 1; if (e.selfDefDebuff) v -= 0.5;
+        return Math.max(1, v);
+    }
+    function equippedActive() { try { const p = player(); return ((p && p.skillSlots) || []).filter(Boolean); } catch (e) { return []; } }
     function equippedSkills() { try { return (global.ActionSkills ? ActionSkills.loadLoadout() : []).filter(Boolean).filter(sk => ActionSkills.isFormUnlocked(sk.form)); } catch (e) { return []; } }
     // いまの装備とスキルのコストの内訳と、上限・効果の割合
     function breakdown(hack, total, opt) {
@@ -52,6 +66,7 @@
             Object.keys(names).forEach(k => { if (eq[k]) items.push({ label: names[k] + ' ' + (eq[k].name || ''), cost: costOfArmor(eq[k]) }); });
         } catch (e) { /* 防具が読めなくても計算は続ける */ }
         (opt.skills || equippedSkills()).forEach(sk => items.push({ label: 'スキル ' + (sk.name || ''), cost: costOfSkill(sk), skill: true }));
+        (opt.active || equippedActive()).forEach(sk => items.push({ label: 'アクティブ ' + (sk.name || ''), cost: costOfActiveSkill(sk), skill: true }));
         const cost = Math.round(items.reduce((a, b) => a + b.cost, 0) * 10) / 10, cap = capOf(total);
         const ratio = cost <= cap ? 1 : Math.max(MIN_RATIO, cap / cost);
         return { items: items, cost: cost, cap: cap, total: total, ratio: ratio, over: cost > cap };
@@ -70,12 +85,14 @@
     function snapshot(hack) { return Object.assign({}, hack, { armorEq: Object.assign({}, hack.armorEq || {}) }); }
     function canEquip(hack, change, total) {
         total = total || totalOf(player());
-        const before = breakdown(hack, total, change && change.skills ? { skills: change.beforeSkills || equippedSkills() } : null);
+        const bOpt = {}; if (change && change.skills) bOpt.skills = change.beforeSkills || equippedSkills(); if (change && change.activeSkills) bOpt.active = change.beforeActive || equippedActive();
+        const before = breakdown(hack, total, Object.keys(bOpt).length ? bOpt : null);
         const tmp = snapshot(hack); let opt = null;
         if (change.weapon) tmp.equipped = change.weapon.id;
         if (change.armor) { tmp.armorEq[change.armor.slot] = change.armor.id; if (!(tmp.armors || []).some(a => a.id === change.armor.id)) tmp.armors = (tmp.armors || []).concat([change.armor]); }
         if (change.unequipArmor) delete tmp.armorEq[change.unequipArmor];
         if (change.skills) opt = { skills: change.skills };
+        if (change.activeSkills) opt = Object.assign(opt || {}, { active: change.activeSkills });
         if (change.patchWeapon) { tmp.weapons = (hack.weapons || []).map(w => w.id === change.patchWeapon.id ? Object.assign({}, w, change.patch) : w); }
         const after = breakdown(tmp, total, opt), ok = !after.over || after.cost <= before.cost + 1e-9;
         return { ok: ok, before: before, after: after, msg: ok ? '' : 'コストが上限を超えるため、変更できません（変更後 ' + after.cost + ' / 上限 ' + after.cap + '）。\n勉強でステータス合計を上げて上限を増やすか、ほかの装備・スキルを外してください。' };
@@ -86,13 +103,15 @@
         const hack = global.HW.load(), total = totalOf(player()), removed = [];
         const names = { head: '頭', body: '胴', legs: '足' };
         let guardN = 0;
-        while (breakdown(hack, total).over && guardN++ < 12) {
+        while (breakdown(hack, total).over && guardN++ < 16) {
             const eq = global.SBArmor ? SBArmor.equipped(hack) : {}, cand = [];
             Object.keys(names).forEach(k => { if (eq[k]) cand.push({ kind: 'armor', slot: k, cost: costOfArmor(eq[k]), label: names[k] + ' ' + (eq[k].name || '') }); });
             const sk = equippedSkills(); sk.forEach(x => cand.push({ kind: 'skill', id: x.id, cost: costOfSkill(x), label: 'スキル ' + (x.name || '') }));
+            equippedActive().forEach(x => cand.push({ kind: 'active', id: x.id, cost: costOfActiveSkill(x), label: 'アクティブ ' + (x.name || '') }));
             if (!cand.length) break;
             cand.sort((a, b) => b.cost - a.cost); const t = cand[0];
             if (t.kind === 'armor') { delete hack.armorEq[t.slot]; }
+            else if (t.kind === 'active') { try { const pl = player(); pl.skillSlots = (pl.skillSlots || []).map(x => (x && x.id === t.id) ? null : x); localStorage.setItem('player', JSON.stringify(pl)); } catch (e) { break; } }
             else { try { const ids = ActionSkills.loadLoadout().map(x => (x && x.id !== t.id) ? x.id : ''); ActionSkills.saveLoadout(ids); } catch (e) { break; } }
             removed.push(t.label);
         }
@@ -117,5 +136,5 @@
             return false;
         } catch (e) { return true; }      // 判定そのものに失敗したときは、遊べなくならないように通す
     }
-    global.SBCost = { autoFit: autoFit, canEquip: canEquip, guard: guard, player: player, breakdown: breakdown, totalOf: totalOf, capOf: capOf, scaleAgg: scaleAgg, costOfSkill: costOfSkill, summaryText: summaryText, costOfWeapon: costOfWeapon, costOfArmor: costOfArmor, WEAPON_COST: WEAPON_COST };
+    global.SBCost = { costOfActiveSkill: costOfActiveSkill, autoFit: autoFit, canEquip: canEquip, guard: guard, player: player, breakdown: breakdown, totalOf: totalOf, capOf: capOf, scaleAgg: scaleAgg, costOfSkill: costOfSkill, summaryText: summaryText, costOfWeapon: costOfWeapon, costOfArmor: costOfArmor, WEAPON_COST: WEAPON_COST };
 })(window);

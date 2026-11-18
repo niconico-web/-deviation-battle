@@ -1931,7 +1931,8 @@ function renderSkillSlots(player) {
             const skillId = skill.id || `legacy_${index}`;
             const skillDescription = skill.description || "説明なし";
             
-            slotEl.innerHTML = `<span>${skillName}</span><button class="unequip-skill-btn" data-skill-id="${skillId}">X</button>`;
+            const costTxt = (window.SBCost && skill.effect) ? ` ⚖${Math.round(window.SBCost.costOfActiveSkill(skill) * 10) / 10}` : '';
+            slotEl.innerHTML = `<span>${skillName}${costTxt}</span><button class="unequip-skill-btn" data-skill-id="${skillId}">X</button>`;
             slotEl.title = skillDescription;
         } else {
             slotEl.textContent = `スロット ${index + 1}`;
@@ -2046,7 +2047,7 @@ function renderAvailableSkills(player) {
 
         const li = document.createElement('li');
         li.className = 'available-skill-item';
-        li.textContent = skill.name || "名前なし";
+        li.textContent = (skill.name || "名前なし") + ((window.SBCost && skill.effect) ? `　⚖${Math.round(window.SBCost.costOfActiveSkill(skill) * 10) / 10}` : '');
         li.title = skill.description || "説明なし";
         li.draggable = true;
         li.dataset.skillId = skill.id;
@@ -2090,6 +2091,14 @@ function equipSkillToSlot(player, skillId, slotIndex) {
     const skillToEquip = allAvailableSkills.find(s => s.id === skillId);
     if (!skillToEquip) return { success: false, error: "不明なスキルです。" };
     if (player.skillSlots.includes(skillToEquip)) return { success: false, error: "そのスキルは既に装備されています。" };
+    // コスト制度：装備と同じ上限を分け合う。上限を超えるなら装備できない
+    if (typeof window !== 'undefined' && window.SBCost && window.HW) {
+        try {
+            const after = player.skillSlots.slice(); after[slotIndex] = skillToEquip;
+            const r = window.SBCost.canEquip(window.HW.load(), { activeSkills: after.filter(Boolean), beforeActive: player.skillSlots.filter(Boolean) });
+            if (!r.ok) return { success: false, error: r.msg };
+        } catch (e) { /* コストの判定に失敗したときは、装備できるようにしておく */ }
+    }
     player.skillSlots[slotIndex] = skillToEquip;
     return { success: true, player };
 }
