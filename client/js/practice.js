@@ -3224,10 +3224,12 @@
         return '';
     }
 
+    // 大討伐戦のボスの強さの基準：パーティの中でいちばんステータス合計が高い人に合わせる（平均ではない）。ソロなら自分の合計
+    function raidTotal() { let m = corrTotal(); Object.keys(allies).forEach(id => { if (allies[id].tt > m) m = allies[id].tt; }); return m; }
     function raidBossStats(b) {
-        const mul = stage.raidMul || RAID_MUL, S = Math.round(corrPartyTotal() * corrMul(RAID_REF_FLOOR) * 1.9 * 1.35 * mul), st = enemyStats(b.def, true, false, S);
+        const mul = stage.raidMul || RAID_MUL, S = Math.round(raidTotal() * corrMul(RAID_REF_FLOOR) * 1.9 * 1.35 * mul), st = enemyStats(b.def, true, false, S);
         b.maxHp = b.hp = st.maxHp; b.dmg = st.dmg; b.spd = st.spd; b.takeMul = 1; b.dmgMul = 1; b.sh = [1, 1, 1, 1, 1];
-        window.__raidDbg = { total: corrPartyTotal(), S: S, hp: st.maxHp, dmg: st.dmg, ps: partyScale(), refHp: REF_HP };      // 調整用（コンソールで確認できる）
+        window.__raidDbg = { total: raidTotal(), S: S, hp: st.maxHp, dmg: st.dmg, ps: partyScale(), refHp: REF_HP };      // 調整用（コンソールで確認できる）
     }
     function startBoss() {
         if (PVP && run.ghostMode) { startGhost(); return; }      // アリーナにひとりで入った：ゴースト戦
@@ -3235,7 +3237,7 @@
         if (window.SBSound) { SBSound.sfx('boss'); SBSound.bgm('boss'); }
         enemies.forEach(e => { if (!e.boss) { e.hp = 0; fx.push({ k: 'puff', x: e.x, y: e.y, t: 0.3, life: 0.3, c: '#aaa' }); } });
         enemies = enemies.filter(e => e.hp > 0);
-        if (RAID) { DU = {}; applyScale(Math.round(corrPartyTotal()), 46, { hp: 1, dmg: 1, spd: Math.min(1.3, 1 + RAID_REF_FLOOR * 0.005) }); SC.hpMul = 1; }      // 基準はパーティの合計ステータス。ボスの強さは raidBossStats が「合計ステータス」から決める（無限回廊と同じ）
+        if (RAID) { DU = {}; applyScale(Math.round(raidTotal()), 46, { hp: 1, dmg: 1, spd: Math.min(1.3, 1 + RAID_REF_FLOOR * 0.005) }); SC.hpMul = 1; }      // 基準はパーティでいちばん高いステータス合計（raidTotal）。ボスの強さは raidBossStats が「合計ステータス」から決める（無限回廊と同じ）
         const defs = stage.bosses || [stage.boss];
         defs.forEach((bd, i) => {
             const b = spawnEnemy({ name: bd.name, icon: bd.icon, arch: 'chaser', color: bd.color }, WORLD_W / 2 + (bd.dx || 0), RAID ? WORLD_H * 0.28 : WORLD_H / 2 - 200, true);
