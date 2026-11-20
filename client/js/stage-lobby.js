@@ -391,9 +391,25 @@
     // ============================================================
     // 大討伐戦（最大20人のレイド）
     //  ・ボス1体。ボスの強さは「不壊の悪魔」の約5倍。人数が多いほどHPも増える
-    //  ・第一幕：双界の覇竜ツイン・エレメンタル（赤と青のエリア）。報酬は専用装備「Legend of Duality」と称号「双界を切り開くもの」
+    //  ・第一幕：増殖スライム インクリーズ（報酬：Legend of Increase／称号「増殖を食い止めるもの」）
+    //  ・第二幕：双界の覇竜ツイン・エレメンタル（赤と青のエリア）。報酬は専用装備「Legend of Duality」と称号「双界を切り開くもの」
     // ============================================================
-    const RAID_ID = 'raid_duality';
+    const RAIDS = [
+        { id: 'raid_increase', act: '第一幕', name: '増殖スライム インクリーズ', color: '#5be37a', mythic: 'legend_increase', weapon: 'Legend of Increase', title: '増殖を食い止めるもの',
+          body: 'いつもはねて動く巨大なスライム。倒すと<b>2体に分裂</b>し、分裂するたびに<b style="color:#9df0a8">小さく・速く・弱く</b>なっていきます。<br>' +
+              '・スライムが<b>10体</b>に増えると、逃げ回る<b style="color:#ff7a96">❤ 増殖の心臓</b>が現れる。<b>心臓に一撃</b>当てれば勝ち（スライムは全部消える）<br>' +
+              '・着地のたびに衝撃波が出る。大きいうちは増殖弾もばらまく。心臓が出ると、スライムは少し速くなる<br>' +
+              '・倒しすぎてもキリがない！ 心臓を出すまでは数を増やして、心臓が出たら一直線に狙おう<br>' +
+              '・レベル50くらいあれば、1人でも倒せます（人数が多いほどHPも増えます）' },
+        { id: 'raid_duality', act: '第二幕', name: '双界の覇竜 ツイン・エレメンタル', color: '#c06aff', mythic: 'legend_duality', weapon: 'Legend of Duality', title: '双界を切り開くもの',
+          body: '戦場は<b style="color:#ff7a5a">赤い炎のエリア</b>と<b style="color:#6ad4ff">青い氷のエリア</b>に割れています。色の通りに動けば生き残れる！<br>' +
+              '・赤に長くいると「熱狂」（攻撃UP・持続ダメージ）、青に長くいると「悪寒」（移動DOWN・被ダメージUP）。ときどき反対の色へ移ろう<br>' +
+              '・赤いバリアは<b>青エリア</b>から、青いバリアは<b>赤エリア</b>から攻撃すると大ダメージ。全員で声を掛け合って大移動！<br>' +
+              '・「カタストロフ・レイン」は、印の色と反対のエリアへ逃げると相殺できる<br>' +
+              '・HP50%以下で「紫炎の崩壊」。「双界終焉」は赤と青のクリスタルを全員で同時に壊せ！<br>' +
+              '・ボスの強さは不壊の悪魔の約5倍。人数が多いほどHPも増えます（推奨：ステータス合計 10万以上）' }
+    ];
+    let RAID_ID = RAIDS[0].id;
     function launchRaid(mode, roomId) {
         if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
         if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
@@ -402,28 +418,25 @@
     }
     function openRaidLobby() {
         if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
-        let rooms = [];
+        let rooms = [], cur = RAIDS.find(r => r.id === RAID_ID) || RAIDS[0];
         const sock = getSock();
         const onRooms = list => { rooms = (list || []).filter(r => r.stageId === RAID_ID); draw(); };
         const m = modal('🐉 大討伐戦（最大20人）', () => { if (sock) sock.off('stage:rooms', onRooms); });
         if (sock) { sock.on('stage:rooms', onRooms); sock.on('connect', refresh); }
         function refresh() { if (sock && sock.connected) sock.emit('stage:list', { stageId: RAID_ID }); }
-        function owned() { try { return HW.load().weapons.some(w => w && w.mythicId === 'legend_duality'); } catch (e) { return false; } }
+        function owned() { try { return HW.load().weapons.some(w => w && w.mythicId === cur.mythic); } catch (e) { return false; } }
         function draw() {
             m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
-                '<div class="sbl-card" style="border-color:#c06aff"><div style="font-size:1.1rem;font-weight:bold">第一幕　双界の覇竜 ツイン・エレメンタル</div>' +
-                '<div style="font-size:.85rem;line-height:1.6;margin-top:4px;color:#e4d4ff">戦場は<b style="color:#ff7a5a">赤い炎のエリア</b>と<b style="color:#6ad4ff">青い氷のエリア</b>に割れています。色の通りに動けば生き残れる！<br>' +
-                '・赤に長くいると「熱狂」（攻撃UP・持続ダメージ）、青に長くいると「悪寒」（移動DOWN・被ダメージUP）。ときどき反対の色へ移ろう<br>' +
-                '・赤いバリアは<b>青エリア</b>から、青いバリアは<b>赤エリア</b>から攻撃すると大ダメージ。全員で声を掛け合って大移動！<br>' +
-                '・「カタストロフ・レイン」は、印の色と反対のエリアへ逃げると相殺できる<br>' +
-                '・HP50%以下で「紫炎の崩壊」。「双界終焉」は赤と青のクリスタルを全員で同時に壊せ！<br>' +
-                '・ボスの強さは不壊の悪魔の約5倍。人数が多いほどHPも増えます（推奨：ステータス合計 10万以上）</div>' +
-                '<div style="margin-top:6px;font-size:.85rem;color:#ffd36a">報酬：専用の神話装備「Legend of Duality」' + (owned() ? '（入手済み）' : '') + '／称号「双界を切り開くもの」</div></div>' +
+                '<div style="margin-bottom:6px">' + RAIDS.map(r => '<button type="button" class="sbl-btn ' + (r.id === cur.id ? '' : 'gray') + '" data-act="' + r.id + '" style="margin:0 4px 4px 0">' + r.act + '　' + esc(r.name.split(' ')[0]) + '</button>').join('') + '</div>' +
+                '<div class="sbl-card" style="border-color:' + cur.color + '"><div style="font-size:1.1rem;font-weight:bold">' + cur.act + '　' + esc(cur.name) + '</div>' +
+                '<div style="font-size:.85rem;line-height:1.6;margin-top:4px;color:#e4d4ff">' + cur.body + '</div>' +
+                '<div style="margin-top:6px;font-size:.85rem;color:#ffd36a">報酬：専用の神話装備「' + cur.weapon + '」' + (owned() ? '（入手済み）' : '') + '／称号「' + cur.title + '」</div></div>' +
                 '<div style="margin-top:8px"><button class="sbl-btn orange" id="rdQuick">ランダム参加</button><button class="sbl-btn" id="rdCreate">部屋を作る</button>' +
                 '<button class="sbl-btn gray" id="rdCode">部屋コードで参加</button><button class="sbl-btn gray" id="rdSolo">1人で挑む</button></div>' +
                 '<div class="sbl-sec">募集中の部屋</div>' +
-                (rooms.length ? rooms.map(r => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center"><span>' + esc(r.members.map(x => x.name).join('、')) + '　(' + r.members.length + '/' + r.max + ')　[' + esc(r.id) + ']</span><button class="sbl-btn" data-room="' + esc(r.id) + '">参加</button></div>').join('') : '<div style="opacity:.7;font-size:.85rem">いまは募集中の部屋はありません。「部屋を作る」で仲間を集めよう。</div>') +
+                (rooms.length ? rooms.map(r => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center"><span>' + esc(r.members.map(x => x.name).join('、')) + '　(' + r.members.length + '/' + r.max + ')　[' + esc(r.id) + ']</span><button class="sbl-btn" data-room="' + esc(r.id) + '">参加</button></div>').join('') : '<div style="opacity:.7;font-size:.85rem">いま募集中の部屋はありません。「部屋を作る」か「1人で挑む」から始めよう</div>') +
                 '</div>';
+            m.body.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => { cur = RAIDS.find(r => r.id === b.dataset.act) || cur; RAID_ID = cur.id; rooms = []; draw(); refresh(); }));
             m.body.querySelector('#rdQuick').addEventListener('click', () => launchRaid('quick'));
             m.body.querySelector('#rdCreate').addEventListener('click', () => launchRaid('create'));
             m.body.querySelector('#rdSolo').addEventListener('click', () => launchRaid('solo'));

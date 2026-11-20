@@ -176,18 +176,29 @@
     function say(t, err) { const m = document.getElementById('msg'); m.textContent = t; m.className = 'msg' + (err ? ' err' : ''); }
     const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+    // セットしたスキルのコスト（武器・防具・アクティブスキルと同じ上限）を、装備する画面でいつでも見えるようにする
+    const c1 = v => Math.round(v * 10) / 10;
+    function costOf(s) { try { return window.SBCost ? c1(SBCost.costOfSkill(s)) : 0; } catch (e) { return 0; } }
+    function slotCostLine() {
+        try {
+            if (!window.SBCost || !window.HW) return '';
+            const ids = loadoutIds.filter(Boolean), sel = ids.map(id => skills.find(s => s.id === id)).filter(Boolean).filter(sk => AS.isFormUnlocked(sk.form));
+            const b = SBCost.breakdown(HW.load(), SBCost.totalOf(SBCost.player()), { skills: sel }), col = b.over ? '#ff7a7a' : '#7aff9a';
+            return '<div style="margin:0 0 8px;padding:6px 10px;border-radius:8px;background:#1c2542;color:' + col + ';font-size:.85rem">⚖ 装備コスト 合計 ' + c1(b.cost) + ' / 上限 ' + b.cap + '（スキル ' + c1(sel.reduce((t, sk) => t + SBCost.costOfSkill(sk), 0)) + '）' + (b.over ? '　⚠ 上限を超えています。このままでは出撃できません' : '') + '</div>';
+        } catch (e) { return ''; }
+    }
     function renderSlots() {
-        const box = document.getElementById('slots'); box.innerHTML = '';
+        const box = document.getElementById('slots'); box.innerHTML = slotCostLine();
         ['Z', 'X', 'C', 'V'].forEach((k, i) => {
             const row = document.createElement('div'); row.className = 'slot-row';
             let opts = '<option value="">（なし）</option>';
-            skills.forEach(s => { opts += '<option value="' + s.id + '"' + (loadoutIds[i] === s.id ? ' selected' : '') + '>' + esc(s.name) + '</option>'; });
+            skills.forEach(s => { opts += '<option value="' + s.id + '"' + (loadoutIds[i] === s.id ? ' selected' : '') + '>' + esc(s.name) + (window.SBCost ? '　⚖' + costOf(s) : '') + '</option>'; });
             row.innerHTML = '<b>' + k + '</b><select>' + opts + '</select>';
             row.querySelector('select').addEventListener('change', (e) => {
                 const next = loadoutIds.slice(); next[i] = e.target.value;
                 const chk = skillCostCheck(loadoutIds, next);      // コストが上限を超える変更はできない
                 if (!chk.ok) { say(chk.msg.replace(/\n/g, ' '), true); renderSlots(); return; }
-                loadoutIds = next; persist(); say('装備を変更しました（コスト ' + chk.after.cost + ' / 上限 ' + chk.after.cap + '）');
+                loadoutIds = next; persist(); renderSlots(); say('装備を変更しました（コスト ' + chk.after.cost + ' / 上限 ' + chk.after.cap + '）');
             });
             box.appendChild(row);
         });
@@ -198,7 +209,7 @@
         skills.forEach(s => {
             const c = AS.compute(s);
             const el = document.createElement('div'); el.className = 'skill-item';
-            el.innerHTML = '<div><div>' + AS.FORMS[s.form].icon + ' <b>' + esc(s.name) + '</b></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's</div></div>' +
+            el.innerHTML = '<div><div>' + AS.FORMS[s.form].icon + ' <b>' + esc(s.name) + '</b></div><div class="meta">' + esc(AS.describe(s)) + ' ｜ 消費' + c.cost + ' ｜ CT' + c.cooldown.toFixed(1) + 's' + (window.SBCost ? ' ｜ ⚖コスト' + costOf(s) : '') + '</div></div>' +
                 '<div><button class="ghost" data-a="edit">編集</button> <button class="ghost danger" data-a="del">削除</button></div>';
             el.querySelector('[data-a=edit]').addEventListener('click', () => {
                 editingId = s.id; draft = { name: s.name, form: s.form, effects: s.effects.slice(), augments: s.augments.slice(), layout: s.layout ? s.layout.map(pc => Object.assign({}, pc)) : null };

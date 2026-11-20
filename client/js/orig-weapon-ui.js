@@ -239,12 +239,13 @@
                 '<div class="sbl-sec">成長（' + R.label + 'の上限まで）</div><div style="background:#10131c;border-radius:8px;overflow:hidden;height:16px;border:1px solid #2b3550"><div style="height:100%;width:' + pc + '%;background:linear-gradient(90deg,#3a6ee8,#7fd13b)"></div></div><div style="font-size:.8rem;color:#9fb3d9">経験値 ' + exp + ' / ' + cap + '（' + pc + '%）　付きやすい効果：' + biasChips(w.bias) + '</div>' +
                 '<div class="sbl-sec">特殊効果</div>' + fxList() +
                 (w.anvil ? '<div class="sbl-sec">⚠ 金床の作業の途中です</div><button type="button" class="sbl-btn orange" id="wkResume">🔨 金床に戻る</button>' :
-                    '<div style="margin-top:8px"><button type="button" class="sbl-btn" id="wkLook">🎨 見た目を描き直す（無料）</button>' + (inf.ok ? '<button type="button" class="sbl-btn orange" id="wkRank"' + (inf.ready ? '' : ' disabled style="opacity:.5"') + '>🔨 ' + RC(inf.next).label + 'へ（金床・' + num(inf.cost) + 'コイン）</button>' : '') + '</div>' +
+                    '<div style="margin-top:8px"><button type="button" class="sbl-btn" id="wkLook">🎨 見た目を描き直す（無料）</button>' + (w.rarity === 'mythic' ? '<button type="button" class="sbl-btn" id="wkMotion" style="background:#ff4fd8;color:#fff">🌟 神話の動きを作る（通常攻撃・必殺技）</button>' : '') + (inf.ok ? '<button type="button" class="sbl-btn orange" id="wkRank"' + (inf.ready ? '' : ' disabled style="opacity:.5"') + '>🔨 ' + RC(inf.next).label + 'へ（金床・' + num(inf.cost) + 'コイン）</button>' : '') + '</div>' +
                     (inf.ok && !inf.ready ? '<div style="font-size:.78rem;color:#9fb3d9">成長が上限になると、お金で次のレア度へ進めます。</div>' : '') +
                     '<div class="sbl-sec">素材を与えて成長させる（与えた素材の系統で、次のレア度の効果が付きやすくなります）</div>' +
                     (exp >= cap ? '<div style="color:#7aff9a;font-size:.84rem">上限まで成長しました。' + (inf.ok ? 'レア度アップができます。' : '') + '</div>' : (ids.length ? ids.map(id => { const mi = matInfo(id), e1 = HW.expOfMaterial(mi), need = Math.ceil((cap - exp) / e1), mx = Math.min(have[id], need); return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #232a3d;font-size:.84rem"><span style="flex:1;min-width:0">' + esc(mi.name) + ' <small style="color:#9fb3d9">★' + mi.rarity + '　+' + e1 + 'EXP</small><br>' + tagChips(HW.matTags(mi), true) + '</span><span style="color:#9fb3d9">所持' + have[id] + '</span><button type="button" class="sbl-btn" data-f="' + id + '" data-n="1" style="margin:0;padding:4px 9px">×1</button>' + (mx > 1 ? '<button type="button" class="sbl-btn green" data-f="' + id + '" data-n="' + mx + '" style="margin:0;padding:4px 9px">×' + mx + '</button>' : '') + '</div>'; }).join('') : '<div style="color:#778;font-size:.84rem">素材がありません。ステージで素材を集めましょう。</div>'))) + '</div>';
             m.body.querySelector('#wkIcon').appendChild(iconCanvas(w, 72));
             const lk = m.body.querySelector('#wkLook'); if (lk) lk.addEventListener('click', () => openLook(hack, w, draw));
+            const mo = m.body.querySelector('#wkMotion'); if (mo) mo.addEventListener('click', () => openMotion(hack, w, draw));
             const rk = m.body.querySelector('#wkRank'); if (rk) rk.addEventListener('click', () => { if (!rk.disabled) openRankMode(hack, w, draw); });
             const rs = m.body.querySelector('#wkResume'); if (rs) rs.addEventListener('click', () => openAnvil(hack, w, draw));
             m.body.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
@@ -266,6 +267,177 @@
             if (!HW.setLook(w, { pix: px, fxColor: ed.fx() })) { m.body.querySelector('#lkMsg').textContent = '保存できませんでした。'; return; }
             HW.save(hack); m.close(); if (onDone) onDone();
         });
+    }
+
+
+    // ============================================================
+    // 神話の動きを作る：通常攻撃のコンボ（1〜6段）と、必殺技（最大4つの型をつなげる）。剣が分身して攻撃する動きも作れる
+    //   威力は自動で釣り合わせる（hw-weapons.js の motionCombo / motionUlt）ので、配分と見た目を自由に決めればよい
+    // ============================================================
+    function openMotion(hack, w, onDone) {
+        const base = HW.cleanMotion(w.motion) || HW.defaultMotion(), RCol = (w.fxColor || RC(w.rarity).color);
+        const st = { combo: base.combo.map(s => JSON.parse(JSON.stringify(s))), ult: JSON.parse(JSON.stringify(base.ult)), tab: 'combo', open: 0 };
+        let raf = 0;
+        const stopPv = () => { if (raf) cancelAnimationFrame(raf); raf = 0; };
+        const m = L().modal('🌟 神話の動きを作る　' + w.name, () => { stopPv(); if (onDone) onDone(); });
+        const pc = (w.pix && global.SBPix && SBPix.prepCustom) ? SBPix.prepCustom(HW.cleanPix(w.pix)) : null;
+        const SS = 'background:#10131c;color:#e6ecff;border:1px solid #3a4666;border-radius:5px;padding:3px';
+        const sel = (attr, opts, cur) => '<select ' + attr + ' style="' + SS + '">' + opts.map(o => '<option value="' + o[0] + '"' + (String(o[0]) === String(cur) ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>';
+        const O = { w: [[1, '1 弱'], [2, '2'], [3, '3 中'], [4, '4'], [5, '5 強']], dir: [[1, '右まわり'], [-1, '左まわり']], r: [[0.8, '極小'], [0.9, '小'], [1, '標準'], [1.25, '大'], [1.5, '特大']], a: [[0.6, '細い'], [1, '標準'], [1.4, '広い'], [2, '全周に近い']], wd: [[0.6, '細い'], [1, '標準'], [1.5, '太い'], [2.2, '極太']],
+            lunge: [[0, 'なし'], [14, '小'], [30, '中'], [50, '大']], cd: [[1, '速い'], [1.3, 'ふつう'], [1.7, 'ゆっくり'], [2, '長い']], kb: [[0, '武器どおり'], [120, '弱'], [240, '中'], [400, '強']], xs: [[0, '0'], [1, '+1'], [2, '+2'], [3, '+3'], [4, '+4'], [5, '+5']],
+            bn: [[1, '1本'], [2, '2本'], [3, '3本'], [4, '4本']], bh: [[1, '1回'], [2, '2回'], [3, '3回'], [4, '4回']], bsz: [[0.8, '小'], [1, '標準'], [1.4, '大'], [2, '特大']], bsp: [[0.6, '遅い'], [1, '標準'], [1.4, '速い'], [1.6, '超速']],
+            psz: [[0.7, '小'], [1, '標準'], [1.3, '大'], [1.6, '特大']], psp: [[0.6, 'ゆっくり'], [1, '標準'], [1.4, '速い'], [1.6, '超速']] };
+        const near = (arr, v) => { let b = arr[0][0], d = 1e9; arr.forEach(o => { const x = Math.abs(o[0] - v); if (x < d) { d = x; b = o[0]; } }); return b; };
+        const normNow = () => HW.motionCombo({ custom: true, rarity: 'mythic', motion: { combo: st.combo, ult: st.ult } }) || [];
+        const modeOpts = [['', 'なし']].concat(Object.keys(HW.BLADE_MODES).map(k => [k, HW.BLADE_MODES[k]]));
+        const shapeOpts = [['', '武器どおり']].concat(Object.keys(HW.SHAPES).map(k => [k, HW.SHAPES[k]]));
+        function bladeHtml(i, key, label) {
+            const bl = st.combo[i][key], at = 'data-i="' + i + '" data-g="' + key + '" ';
+            return '<div style="margin-top:2px"><b style="color:#ff9ae8">' + label + '</b> ' + sel(at + 'data-f="bmode"', modeOpts, bl ? bl.mode : '') +
+                (bl ? '<br>　' + sel(at + 'data-f="bn"', O.bn, bl.n) + ' ' + sel(at + 'data-f="bh"', O.bh, bl.hits) + ' 大きさ' + sel(at + 'data-f="bsz"', O.bsz, near(O.bsz, bl.sz)) + ' 速さ' + sel(at + 'data-f="bsp"', O.bsp, near(O.bsp, bl.sp)) : '') + '</div>';
+        }
+        function comboHtml() {
+            const nm = normNow();
+            return st.combo.map((s, i) => {
+                const mm = nm[i] ? nm[i].m : 0;
+                const chk = (f, label) => '<label style="margin-right:8px;white-space:nowrap"><input type="checkbox" data-i="' + i + '" data-f="' + f + '"' + (s[f] ? ' checked' : '') + '> ' + label + '</label>';
+                const at = f => 'data-i="' + i + '" data-f="' + f + '"';
+                return '<div class="sbl-card" style="margin:6px 0"><div style="display:flex;align-items:center;gap:6px"><b style="color:#ffd84a">' + (i + 1) + '段目</b><span style="font-size:.76rem;color:#9fb3d9">威力 ×' + (Math.round(mm * 100) / 100) + (s.fin ? '（フィニッシュ）' : '') + '</span><span style="flex:1"></span>' +
+                    '<button type="button" class="sbl-btn gray" data-a="up" data-i="' + i + '" style="padding:2px 8px;margin:0">↑</button><button type="button" class="sbl-btn gray" data-a="dn" data-i="' + i + '" style="padding:2px 8px;margin:0">↓</button><button type="button" class="sbl-btn gray" data-a="del" data-i="' + i + '" style="padding:2px 8px;margin:0">🗑</button></div>' +
+                    '<div style="font-size:.8rem;line-height:2.1;margin-top:4px"><b>攻撃の形</b> ' + sel(at('shape'), shapeOpts, s.shape) + '　色 <input type="color" ' + at('col') + ' value="' + (s.col || RCol) + '" style="width:34px;height:24px;padding:0;border:0;background:none;vertical-align:middle">' + (s.col ? ' <button type="button" class="sbl-btn gray" data-a="nocol" data-i="' + i + '" style="padding:1px 7px;margin:0">武器の色に戻す</button>' : '<small style="color:#778">（武器の色）</small>') + '<br>' +
+                    '威力の配分 ' + sel(at('w'), O.w, s.w) + '　向き ' + sel(at('dir'), O.dir, s.dir) + '　範囲 ' + sel(at('r'), O.r, near(O.r, s.r)) + '　角度 ' + sel(at('a'), O.a, near(O.a, s.a)) + '　幅 ' + sel(at('wd'), O.wd, near(O.wd, s.wd)) + '<br>' +
+                    '踏み込み ' + sel(at('lunge'), O.lunge, near(O.lunge, s.lunge)) + '　ふっとばし ' + sel(at('kb'), O.kb, near(O.kb, s.kb)) + '　次の攻撃までの間 ' + sel(at('cd'), O.cd, near(O.cd, s.cd)) + '　弾の増加 ' + sel(at('xs'), O.xs, s.xs) + '<br>' +
+                    chk('fin', 'フィニッシュ（大きく振る）') + chk('wave', '剣気（前方に追撃）') + chk('quake', '衝撃波') + chk('heal', '当てると回復') + chk('homing', '弾が追尾') +
+                    bladeHtml(i, 'blades', '分身の剣①') + bladeHtml(i, 'blades2', '分身の剣②') + '</div></div>';
+            }).join('') + (st.combo.length < HW.MOTION_MAX_STEPS ? '<button type="button" class="sbl-btn" data-a="add">➕ 段を足す（最大 ' + HW.MOTION_MAX_STEPS + ' 段）</button>' : '');
+        }
+        function ultHtml() {
+            const K = HW.ULT_KINDS, u = st.ult, totW = u.seq.reduce((a, p) => a + p.w, 0);
+            const phases = u.seq.map((p, i) => {
+                const kk = K[p.kind], at = f => 'data-pi="' + i + '" data-pf="' + f + '"';
+                return '<div class="sbl-card" style="margin:6px 0"><div style="display:flex;align-items:center;gap:6px"><b style="color:#ffd84a">' + (i + 1) + '番目</b><span style="font-size:.76rem;color:#9fb3d9">威力の割合 ' + Math.round(100 * p.w / totW) + '%</span><span style="flex:1"></span>' +
+                    '<button type="button" class="sbl-btn gray" data-pa="up" data-pi="' + i + '" style="padding:2px 8px;margin:0">↑</button><button type="button" class="sbl-btn gray" data-pa="dn" data-pi="' + i + '" style="padding:2px 8px;margin:0">↓</button><button type="button" class="sbl-btn gray" data-pa="del" data-pi="' + i + '" style="padding:2px 8px;margin:0">🗑</button></div>' +
+                    '<div style="font-size:.8rem;line-height:2.1;margin-top:4px">型 ' + sel(at('kind'), Object.keys(K).map(k => [k, K[k].label + '：' + K[k].desc]), p.kind) + '<br>' +
+                    '回数 <input type="range" ' + at('n') + ' min="' + kk.min + '" max="' + kk.max + '" value="' + p.n + '" style="width:40%;vertical-align:middle"> <b>' + p.n + kk.unit + '</b>　威力の配分 ' + sel(at('w'), O.w, p.w) + '<br>範囲・大きさ ' + sel(at('sz'), O.psz, near(O.psz, p.sz)) + '　速さ ' + sel(at('sp'), O.psp, near(O.psp, p.sp)) + '</div></div>';
+            }).join('');
+            return '<div style="font-size:.78rem;color:#9fb3d9;margin:4px 0">型を最大 ' + HW.ULT_MAX_PHASES + ' つ、順番につなげられます。必殺技1回の合計の威力は一定で、各型の配分で分け合います。</div>' + phases +
+                (u.seq.length < HW.ULT_MAX_PHASES ? '<button type="button" class="sbl-btn" data-pa="add">➕ 型を足す</button>' : '') +
+                '<div style="margin-top:8px;font-size:.84rem;line-height:2"><label style="margin-right:10px"><input type="checkbox" id="mtFin"' + (u.finale ? ' checked' : '') + '> 終幕の大爆発</label>' + (u.finale ? '大きさ ' + sel('id="mtFsz"', O.psz, near(O.psz, u.fsz)) : '') + '<br>' +
+                '<label style="margin-right:10px"><input type="checkbox" id="mtHeal"' + (u.heal ? ' checked' : '') + '> 体力を回復する</label><label><input type="checkbox" id="mtGuard"' + (u.guard ? ' checked' : '') + '> 終わりに結界を張る</label></div>' +
+                '<div style="margin-top:6px;font-size:.84rem">必殺技の名前：<input type="text" id="mtUname" maxlength="' + HW.FORGE_NAME_MAX + '" value="' + esc(u.name) + '" placeholder="（空なら自動で付きます）" style="background:#10131c;color:#e6ecff;border:1px solid #3a4666;border-radius:5px;padding:4px;width:55%"></div>';
+        }
+        function render() {
+            const tabBtn = (id, label) => '<button type="button" class="sbl-btn ' + (st.tab === id ? '' : 'gray') + '" data-tab="' + id + '" style="margin:0 4px 6px 0">' + label + '</button>';
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div style="font-size:.82rem;line-height:1.6;color:#cfe0ff">自分だけの動きを作れます。威力は自動で釣り合わせるので、派手にしても強くなりすぎません（決めるのは配分と見た目）。何度でも無料で作り直せます。</div>' +
+                '<div style="margin-top:6px">' + tabBtn('combo', '⚔ 通常攻撃') + tabBtn('ult', '⚡ 必殺技') + '</div><div id="mtBody">' + (st.tab === 'combo' ? comboHtml() : ultHtml()) + '</div>' +
+                '<div class="sbl-sec">プレビュー（動きのイメージ）</div><canvas id="mtPv" width="320" height="170" style="background:#10131c;border:1px solid #3a4666;border-radius:8px;max-width:100%"></canvas><div><button type="button" class="sbl-btn gray" id="mtPlay">▶ 再生</button></div>' +
+                '<div id="mtMsg" style="font-size:.82rem;color:#ff9a9a;min-height:1.2em"></div><div style="margin-top:6px"><button type="button" class="sbl-btn orange" id="mtSave">この動きにする</button><button type="button" class="sbl-btn gray" id="mtCancel">やめる</button></div></div>';
+            const q = (sel_, fn) => m.body.querySelectorAll(sel_).forEach(fn);
+            q('[data-tab]', b => b.addEventListener('click', () => { st.tab = b.dataset.tab; render(); play(); }));
+            q('[data-i][data-f]', el => el.addEventListener('change', () => onField(+el.dataset.i, el.dataset.f, el)));
+            q('[data-a]', b => b.addEventListener('click', () => onAct(b.dataset.a, +b.dataset.i)));
+            q('[data-pi][data-pf]', el => el.addEventListener(el.type === 'range' ? 'input' : 'change', () => onPhase(+el.dataset.pi, el.dataset.pf, el)));
+            q('[data-pa]', b => b.addEventListener('click', () => onPAct(b.dataset.pa, +b.dataset.pi)));
+            const bind = (id, ev, fn) => { const el = m.body.querySelector(id); if (el) el.addEventListener(ev, () => fn(el)); };
+            bind('#mtFin', 'change', el => { st.ult.finale = el.checked; render(); }); bind('#mtFsz', 'change', el => { st.ult.fsz = +el.value; });
+            bind('#mtHeal', 'change', el => { st.ult.heal = el.checked; }); bind('#mtGuard', 'change', el => { st.ult.guard = el.checked; }); bind('#mtUname', 'input', el => { st.ult.name = el.value; });
+            m.body.querySelector('#mtPlay').addEventListener('click', play);
+            m.body.querySelector('#mtCancel').addEventListener('click', () => m.close());
+            m.body.querySelector('#mtSave').addEventListener('click', () => {
+                if (!HW.setMotion(w, { combo: st.combo, ult: st.ult })) { m.body.querySelector('#mtMsg').textContent = '保存できませんでした。'; return; }
+                HW.save(hack); m.close();
+            });
+        }
+        function onField(i, f, el) {
+            const s = st.combo[i]; if (!s) return;
+            if (el.type === 'checkbox') { const c = el.checked; if (f === 'wave') s.wave = c ? 1.7 : 0; else if (f === 'quake') s.quake = c ? 140 : 0; else if (f === 'heal') s.heal = c ? 0.01 : 0; else s[f] = c; }
+            else if (f === 'col') s.col = el.value;
+            else if (f === 'shape') s.shape = el.value;
+            else if (f === 'bmode') { const k = el.dataset.g, old = s[k]; s[k] = el.value ? { mode: el.value, n: (old && old.n) || 2, hits: (old && old.hits) || 2, sz: (old && old.sz) || 1, sp: (old && old.sp) || 1 } : null; }
+            else if (f === 'bn' || f === 'bh' || f === 'bsz' || f === 'bsp') { const b = s[el.dataset.g]; if (b) b[{ bn: 'n', bh: 'hits', bsz: 'sz', bsp: 'sp' }[f]] = +el.value; }
+            else s[f] = +el.value;
+            render(); play();
+        }
+        function onAct(a, i) {
+            if (a === 'add') { if (st.combo.length < HW.MOTION_MAX_STEPS) st.combo.push(HW.cleanMotion({ combo: [{ dir: st.combo.length % 2 ? -1 : 1 }], ult: {} }).combo[0]); }
+            else if (a === 'del') { if (st.combo.length > 1) st.combo.splice(i, 1); }
+            else if (a === 'nocol') { st.combo[i].col = ''; }
+            else if (a === 'up' && i > 0) { const t = st.combo[i - 1]; st.combo[i - 1] = st.combo[i]; st.combo[i] = t; }
+            else if (a === 'dn' && i < st.combo.length - 1) { const t = st.combo[i + 1]; st.combo[i + 1] = st.combo[i]; st.combo[i] = t; }
+            render(); play();
+        }
+        function onPhase(i, f, el) {
+            const p = st.ult.seq[i]; if (!p) return;
+            if (f === 'kind') { p.kind = el.value; p.n = HW.ULT_KINDS[el.value].def; } else p[f] = +el.value;
+            render(); if (f !== 'n') play();
+        }
+        function onPAct(a, i) {
+            const sq = st.ult.seq;
+            if (a === 'add') { if (sq.length < HW.ULT_MAX_PHASES) sq.push({ kind: 'quake', n: HW.ULT_KINDS.quake.def, w: 1, sz: 1, sp: 1 }); }
+            else if (a === 'del') { if (sq.length > 1) sq.splice(i, 1); }
+            else if (a === 'up' && i > 0) { const t = sq[i - 1]; sq[i - 1] = sq[i]; sq[i] = t; }
+            else if (a === 'dn' && i < sq.length - 1) { const t = sq[i + 1]; sq[i + 1] = sq[i]; sq[i] = t; }
+            render(); play();
+        }
+        // プレビュー：的に向かって、コンボ（または必殺技）を一度演じる。剣の分身は、実戦と同じ計算（blades.js）で動く
+        function play() {
+            stopPv(); const cv = m.body.querySelector('#mtPv'); if (!cv || !global.SBBlades) return; const g = cv.getContext('2d');
+            const OX = 70, OY = 92, EX = 250, EY = 92, dummy = { x: EX, y: EY, r: 16, id: 1, hp: 999 };
+            const nm = normNow(), ultMode = st.tab === 'ult';
+            let t = 0, idx = 0, nextAt = 0.3, blades = [], flash = 0, fxs = [], swing = null, last = performance.now(), phIdx = 0, phAt = 0.3;
+            const env = { targets: [dummy], hit: () => { flash = 0.12; } };
+            const lookOf = col => ({ type: w.type, col: col || RCol, pc: pc });
+            function frame(now) {
+                const dt = Math.min(0.05, (now - last) / 1000); last = now; t += dt; flash = Math.max(0, flash - dt);
+                if (!ultMode) {
+                    while (idx < nm.length && t >= nextAt) {
+                        const s = nm[idx++], col = s.col || RCol; swing = { t: 0, dir: s.dir, r: s.r, a: s.a, fin: !!s.fin, col: col, shape: s.shape || '' };
+                        if (s.wave) fxs.push({ k: 'line', t: 0, len: 150 * s.wave / 1.7, col: col }); if (s.quake) fxs.push({ k: 'ring', t: 0, max: s.quake * 0.55, col: col, at: 'o' });
+                        [['blades', 'bm'], ['blades2', 'bm2']].forEach(p => { const b = s[p[0]]; if (b) blades = blades.concat(SBBlades.make({ mode: b.mode, n: b.n, hits: b.hits, cap: b.cap, sz: b.sz, sp: b.sp, bm: s[p[1]], a: 0, x: OX, y: OY, tg: [[EX, EY]], fin: s.fin }, lookOf(col), { targets: [dummy] })); });
+                        flash = 0.1; nextAt = t + 0.45 * (s.cd || 1);
+                    }
+                } else {
+                    const U = HW.motionUlt({ custom: true, rarity: 'mythic', motion: { combo: st.combo, ult: st.ult } }), subs = U ? (U.st === 'seq' ? U.phases : [U]) : [];
+                    while (phIdx < subs.length && t >= phAt) {
+                        const Q = subs[phIdx++], K = Q.st;
+                        if (K === 'bladedance') blades = blades.concat(SBBlades.make({ mode: 'dance', n: Math.min(8, Q.n), hits: 1, bm: 0.1, sz: Q.sz || 1, a: 0, x: OX, y: OY, tg: [], life: 2.2 }, lookOf(), { targets: [dummy] }));
+                        else { const cnt = Math.min(7, Math.max(3, Math.round((Q.n || Q.waves || Q.rep || 5) / 5))); for (let i = 0; i < cnt; i++) fxs.push({ k: (K === 'slash' || K === 'cross') ? (i % 2 ? 'x' : 'ring') : (K === 'volley' || K === 'meteor' ? 'shot' : (K === 'lance' ? 'line' : 'ring')), st: K, t: -i * 0.16, max: (K === 'nova' ? 130 : 80) * (Q.radius ? Q.radius / 240 : 1) + i * 8, len: 160, col: RCol, at: 'o' }); }
+                        phAt = t + 1.4;
+                    }
+                }
+                blades.forEach(b => SBBlades.step(b, dt, OX, OY, env)); blades = blades.filter(b => !b.dead);
+                g.clearRect(0, 0, 320, 170); g.fillStyle = '#161a26'; g.fillRect(0, 124, 320, 46);
+                g.fillStyle = flash > 0 ? '#ffffff' : '#c0505a'; g.beginPath(); g.arc(EX, EY, 16, 0, 7); g.fill();
+                g.fillStyle = '#4a7fe8'; g.beginPath(); g.arc(OX, OY, 12, 0, 7); g.fill();
+                let wa = 0.4;
+                if (swing) {
+                    swing.t += dt; const k = swing.t / 0.22;
+                    if (k < 1) {
+                        g.save(); g.globalAlpha = 1 - k; g.strokeStyle = swing.col; g.fillStyle = swing.col; g.lineWidth = swing.fin ? 9 : 6;
+                        const sh = swing.shape;
+                        if (sh === 'line') { g.beginPath(); g.moveTo(OX + 12, OY); g.lineTo(OX + 12 + 150 * swing.r * Math.min(1, k * 2.5), OY); g.stroke(); }
+                        else if (sh === 'ring') { g.beginPath(); g.arc(OX, OY, 90 * swing.r * Math.min(1, k * 1.6), 0, 7); g.stroke(); }
+                        else if (sh === 'smash') { g.globalAlpha *= 0.5; g.beginPath(); g.arc(OX + 70, OY, 60 * swing.r * Math.min(1, k * 1.6), 0, 7); g.fill(); }
+                        else if (sh === 'proj') { g.beginPath(); g.arc(OX + 20 + (EX - OX - 20) * Math.min(1, k * 1.5), OY, 7, 0, 7); g.fill(); }
+                        else { const half = Math.min(3, 1.0 * swing.a); g.beginPath(); g.arc(OX, OY, 48 * swing.r, swing.dir > 0 ? -half : half, swing.dir > 0 ? half : -half, swing.dir < 0); g.stroke(); }
+                        g.restore(); wa = swing.dir * (-1.0 + 2.0 * Math.min(1, k));
+                    } else swing = null;
+                }
+                try { SBPix.drawWeapon(g, OX + 8, OY + 3, wa, w.type, swing ? swing.col : RCol, { custom: pc, scale: 2 }); } catch (e) { g.strokeStyle = RCol; g.lineWidth = 3; g.beginPath(); g.moveTo(OX, OY); g.lineTo(OX + Math.cos(wa) * 34, OY + Math.sin(wa) * 34); g.stroke(); }
+                fxs.forEach(f => { if (f.t < 0) { f.t += dt; return; } f.t += dt; const k = Math.min(1, f.t / 0.3); g.save(); g.globalAlpha = 1 - k; g.strokeStyle = f.col || RCol; g.fillStyle = f.col || RCol; g.lineWidth = 5;
+                    if (f.k === 'ring') { g.beginPath(); g.arc(OX, OY, (f.max || 80) * k, 0, 7); g.stroke(); }
+                    else if (f.k === 'line') { g.beginPath(); g.moveTo(OX + 20, OY); g.lineTo(OX + 20 + (f.len || 150) * Math.min(1, k * 2), OY); g.stroke(); }
+                    else if (f.k === 'x') { g.beginPath(); g.moveTo(EX - 26, EY - 26); g.lineTo(EX + 26, EY + 26); g.moveTo(EX + 26, EY - 26); g.lineTo(EX - 26, EY + 26); g.stroke(); }
+                    else if (f.k === 'shot') { const meteor = f.st === 'meteor'; g.beginPath(); g.arc(meteor ? EX - 20 + (f.max % 40) : OX + 20 + (EX - OX - 20) * k, meteor ? 10 + (EY - 10) * k : OY - 8 + (f.max % 16), 6, 0, 7); g.fill(); }
+                    g.restore(); });
+                fxs = fxs.filter(f => f.t < 0.6);
+                blades.forEach(b => SBBlades.draw(g, b));
+                const endT = ultMode ? Math.max(4.2, phAt + 1.2) : (nextAt + 1.8);
+                if (t < endT) raf = requestAnimationFrame(frame); else raf = 0;
+            }
+            raf = requestAnimationFrame(frame);
+        }
+        render(); play();
     }
 
     // ---------- レア度アップ：やり方を選ぶ ----------
@@ -350,5 +522,5 @@
         draw();
     }
 
-    global.SBOrigUI = { openKits: openKits, openCreate: openCreate, openWorkshop: openWorkshop, openAnvil: openAnvil, pixelEditor: pixelEditor };
+    global.SBOrigUI = { openKits: openKits, openCreate: openCreate, openWorkshop: openWorkshop, openAnvil: openAnvil, openMotion: openMotion, pixelEditor: pixelEditor };
 })(window);

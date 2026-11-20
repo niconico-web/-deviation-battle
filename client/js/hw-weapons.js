@@ -63,6 +63,9 @@
         // ---- 専用武器種：神話「Legend of Duality」だけが持つ（大討伐戦の報酬。通常のドロップや工房には出ない：world 99）----
         //  duality：炎(赤)と氷(青)の2つの三日月の斬撃を、X字に交差させて同時に放つ。2つの斬撃が重なる正面は「共鳴」して、もう一度ダメージが入る
         duality:     { label: '双界',      kind: 'duality', range: 128, arc: 1.15, cd: 0.46, mult: 0.62, knock: 60, world: 99, exclusive: true },
+        // ---- 専用武器種：神話「Legend of Increase」だけが持つ（大討伐戦 第一幕の報酬。world 99）----
+        //  increase：斬るたびに剣が分身して、敵を切り刻む。1回目は1本、次は2本、X字、最後は剣の雨と、増えていく
+        increase:    { label: '増殖',      kind: 'cone', range: 124, arc: 1.25, cd: 0.48, mult: 0.6, knock: 40, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
         twinblade:  { label: '双刃',       kind: 'cone',  range: 64,  arc: 1.8, cd: 0.30, mult: 0.62, knock: 20, multi: 2, crit: 0.08, world: 2 },
@@ -830,7 +833,7 @@
     // 売却 / ソケット操作
     function sellWeapon(d, id) {
         const i = d.weapons.findIndex(w => w.id === id);
-        if (i < 0 || d.weapons[i].id === d.equipped || d.weapons[i].mythicId) return 0;      // 神話の武器は売れない
+        if (i < 0 || d.weapons[i].id === d.equipped || d.weapons[i].mythicId || d.weapons[i].rarity === 'mythic') return 0;      // 神話の武器は売れない
         const w = d.weapons[i];
         const v = sellValue(w);
         // はめ込んであったオーブはプレイヤーのオーブ倉庫へ戻す
@@ -1018,14 +1021,14 @@
         return { w: w, h: h, rows: out, pal: pal, grip: grip };
     }
     // ---- 成長 ----
-    const GROW_CAP = { normal: 20, magic: 60, rare: 150, epic: 400, legendary: 1000 };      // そのレア度で、成長が頭打ちになる経験値
+    const GROW_CAP = { normal: 20, magic: 60, rare: 150, epic: 400, legendary: 1000, mythic: 3000 };      // そのレア度で、成長が頭打ちになる経験値
     const MAT_EXP = [0, 1, 3, 8, 20, 50, 120, 250];                                         // 素材のレア度（1〜）ごとの経験値
     const GROW_START = 0.55;                                                                // 成長0のときの攻撃％は、そのレア度の上限の55%
     function growCap(w) { return GROW_CAP[w && w.rarity] || GROW_CAP.legendary; }
     function ensureGrowth(w) { if (w && w.custom && w.exp == null) { w.exp = growCap(w); w.bias = w.bias || {}; } return w; }      // 昔の作り方で作ったオリジナル武器は、成長しきった状態として扱う
     function growFrac(w) { ensureGrowth(w); return Math.max(0, Math.min(1, ((w && w.exp) || 0) / growCap(w))); }
     function growStart(w) {      // 成長0のときの割合。前のレア度で成長しきった攻撃より、下がらないようにする（レア度アップで弱くならない）
-        const i = RARITY_ORDER.indexOf(w.rarity), R = RARITIES[w.rarity] || RARITIES.normal;
+        const i = rIdx(w.rarity), R = RARITIES[w.rarity] || RARITIES.normal;
         return i > 0 ? Math.min(0.9, Math.max(GROW_START, RARITIES[RARITY_ORDER[i - 1]].orig / R.orig + 0.02)) : GROW_START;
     }
     function origPctNow(w) { const R = RARITIES[w.rarity] || RARITIES.normal, g0 = growStart(w); return Math.min(PCT_CAP, R.orig * (g0 + (1 - g0) * growFrac(w))); }
@@ -1070,11 +1073,13 @@
         return true;
     }
     // ---- レア度アップ（金床）----
+    const MYTHIC_FORGE = 1000000;      // オリジナル武器をレジェンドから神話にする代金（コイン）
+    function canRankToMythic(w) { return !!w && w.custom && w.rarity === 'legendary'; }
     function rankUpInfo(w) {
         ensureGrowth(w);
-        if (!w || !w.custom || !canUpgradeRarity(w)) return { ok: false, why: w && w.rarity === 'legendary' ? 'これ以上のレア度はありません。' : 'オリジナル武器ではありません。' };
-        const next = RARITY_ORDER[RARITY_ORDER.indexOf(w.rarity) + 1], rn = RARITIES[next], cap = growCap(w);
-        return { ok: true, next: next, cost: rn.forge, ready: (w.exp || 0) >= cap, exp: w.exp || 0, cap: cap, canAdd: (w.effects || []).length < rn.fx[1], addMax: Math.max(0, rn.fx[1] - (w.effects || []).length) };
+        if (!w || !w.custom || !(canUpgradeRarity(w) || canRankToMythic(w))) return { ok: false, why: w && w.rarity === 'mythic' ? 'これ以上のレア度はありません。' : 'オリジナル武器ではありません。' };
+        const next = canRankToMythic(w) ? 'mythic' : RARITY_ORDER[RARITY_ORDER.indexOf(w.rarity) + 1], rn = RARITIES[next], cap = growCap(w);
+        return { ok: true, next: next, cost: next === 'mythic' ? MYTHIC_FORGE : rn.forge, ready: (w.exp || 0) >= cap, exp: w.exp || 0, cap: cap, canAdd: (w.effects || []).length < rn.fx[1], addMax: Math.max(0, rn.fx[1] - (w.effects || []).length) };
     }
     // 開始：お金の引き落としは呼び出し側。mode: 'all'（効果をすべて変える）／'add'（効果をつけ足す）
     function startRankUp(w, mode) {
@@ -1106,6 +1111,7 @@
             w.effects = (w.effects || []).concat(a.rolled);
         } else w.effects = a.rolled.slice();
         w.rarity = nk; w.exp = 0;
+        if (nk === 'mythic' && !w.motion) w.motion = defaultMotion();      // 神話になったら、自分で作れる動き（通常攻撃・必殺技）の初期値が付く
         const minS = rn.sockets[0]; if ((w.sockets | 0) < minS) { w.sockets = minS; w.orbs = Array.isArray(w.orbs) ? w.orbs.slice() : []; while (w.orbs.length < w.sockets) w.orbs.push(null); }
         applyGrowth(w); delete w.anvil; return true;
     }
@@ -1154,6 +1160,10 @@
         legend_duality: { name: 'Legend of Duality', prefix: '', type: 'duality', color: '#c06aff', ilvl: 50, tag: '双界', boss: '双界の覇竜ツイン・エレメンタル', tech: '双極斬／双界終焉・紅蓮と氷獄', source: 'raid_duality',
             desc: '双界の覇竜の力を宿す、赤と青に割れた専用の剣。通常攻撃は、炎の斬撃と氷の斬撃をX字に交差させて同時に放ち、2つが重なる正面では「共鳴」して追加ダメージが入る。必殺技「双界終焉・紅蓮と氷獄」は、赤と青の巨大な光刃が逆向きにぐるりと全周を薙ぎ払い、最後に2色が混ざった紫の大爆発を起こす',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['burn', 0.5], ['freeze', 0.4], ['dmg_boss', 0.5], ['energy_up', 0.5]] },
+        // 増殖スライム インクリーズ（大討伐戦 第一幕のボス）を倒すと手に入る、専用の神話武器。武器種は「増殖」だけ
+        legend_increase: { name: 'Legend of Increase', prefix: '', type: 'increase', color: '#5be37a', ilvl: 50, tag: '増殖', boss: '増殖スライム インクリーズ', tech: '増殖斬／増殖の宴・無限分裂', source: 'raid_increase',
+            desc: '増殖スライムの力を宿す、緑の雫がしたたる剣。通常攻撃は、斬るたびに剣が分身して敵を切り刻み、1本、2本、X字斬り、最後は剣の雨と、斬るほどに増えていく。必殺技「増殖の宴・無限分裂」は、剣が12本に増えてあたり一面を舞い、最後に大爆発を起こして体力も回復する',
+            fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['poison', 0.5], ['dmg_swarm', 0.7], ['regen', 0.02], ['energy_up', 0.5]] },
         yggdrasil: { name: '世界樹の杖', prefix: 'ユグドラシルの', type: 'wand', color: '#6dff8a', ilvl: 50, tag: '世界樹', boss: '嘆きの樹母', tech: '這う根／若木の呼び声',
             desc: '嘆きの樹母の根を宿す杖。必殺技「若木の呼び声・世界樹の根」は、足もとから根を突き上げ、体力も癒やす',
             fx: [['atk_up', 0.9], ['aoe_up', 0.8], ['energy_up', 0.8], ['regen', 0.02], ['hp_up', 0.5], ['crit_dmg', 0.8], ['burn', 0.5], ['freeze', 0.4], ['proj_extra', 1]] }
@@ -1177,6 +1187,97 @@
         const w = makeMythic(id); d.weapons.push(w); return w;
     }
 
+
+    // =========================================================================
+    //  神話のオリジナル武器：自分で作る「通常攻撃の動き」と「必殺技」
+    //  ・通常攻撃：1〜6段のコンボ。各段の向き・範囲・踏み込み・追加効果・「分身の剣」を選ぶ
+    //  ・必殺技：型（連斬・地割れ・貫穿・一斉掃射・大崩壊・流星・十字斬・剣舞）と回数を選ぶ
+    //  ・強さは自動で釣り合わせる（威力は「配分」だけを決め、1回の通常攻撃あたり・必殺技1回あたりの合計は常に一定）。派手にしても、強くなりすぎない
+    // =========================================================================
+    const MOTION_MAX_STEPS = 6, ULT_MAX_PHASES = 4;
+    const BLADE_MODES = { strike: '突撃（敵へ飛んで切り刻む）', orbit: '周回（自分のまわりを回る）', sweep: '交差斬り（左右からX字に斬る）', rain: '剣の雨（敵の頭上から降り注ぐ）', spiral: 'らせん（前方へ渦を巻いて進む）', boomerang: 'ブーメラン（弧を描いて飛び、戻る）' };
+    const SHAPES = { cone: '斬り（扇）', line: '突き（直線）', smash: '叩きつけ（前方の範囲）', ring: '全周（自分のまわり）', proj: '弾（撃ち出す）' };
+    const ULT_KINDS = {
+        slash:      { label: '連斬',     desc: '敵に踏み込んで、何度も斬りつける',               min: 8,  max: 40, def: 24, unit: '回' },
+        quake:      { label: '地割れ',   desc: '足もとから衝撃波が何度も広がる',                 min: 3,  max: 8,  def: 5,  unit: '波' },
+        lance:      { label: '貫穿',     desc: '前方に、扇状の貫く攻撃を何度も撃つ',             min: 3,  max: 8,  def: 5,  unit: '連' },
+        volley:     { label: '一斉掃射', desc: '弾（矢）を大量に撃ち出す',                       min: 16, max: 50, def: 30, unit: '発' },
+        nova:       { label: '大崩壊',   desc: '自分のまわりを、大きな爆発が包む',               min: 2,  max: 6,  def: 3,  unit: '波' },
+        meteor:     { label: '流星',     desc: '天から、敵に隕石を降らせる',                     min: 16, max: 40, def: 26, unit: '発' },
+        cross:      { label: '十字斬',   desc: '敵ひとりひとりに、十字の斬撃を刻む',             min: 8,  max: 20, def: 12, unit: '回' },
+        bladedance: { label: '剣舞',     desc: '剣が分身して、あたり一面を舞い、敵を切り刻む',   min: 4,  max: 12, def: 8,  unit: '本' }
+    };
+    const numIn = (v, lo, hi, d) => { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
+    const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+    function cleanBlade(b) {
+        if (!b || typeof b !== 'object' || !BLADE_MODES[b.mode]) return null;
+        return { mode: b.mode, n: Math.round(numIn(b.n, 1, 4, 2)), hits: Math.round(numIn(b.hits, 1, 4, 2)), sz: r1(numIn(b.sz, 0.8, 2, 1)), sp: r1(numIn(b.sp, 0.6, 1.6, 1)) };
+    }
+    function cleanStep(s) {
+        s = s && typeof s === 'object' ? s : {};
+        return { w: Math.round(numIn(s.w, 1, 5, 1)), dir: s.dir === -1 ? -1 : 1, r: r2(numIn(s.r, 0.8, 1.6, 1)), a: r2(numIn(s.a, 0.6, 2, 1)), wd: r2(numIn(s.wd, 0.6, 2.2, 1)), cd: r2(numIn(s.cd, 1, 2, 1)),
+            shape: SHAPES[s.shape] ? s.shape : '', col: cleanColor(s.col) || '', kb: Math.round(numIn(s.kb, 0, 420, 0)),
+            lunge: Math.round(numIn(s.lunge, 0, 60, 0)), wave: s.wave ? r1(numIn(s.wave, 1.3, 2.5, 1.7)) : 0, quake: s.quake ? Math.round(numIn(s.quake, 80, 240, 140)) : 0,
+            heal: s.heal ? Math.round(numIn(s.heal, 0.005, 0.03, 0.01) * 1000) / 1000 : 0, xs: Math.round(numIn(s.xs, 0, 5, 0)), homing: !!s.homing, fin: !!s.fin, blades: cleanBlade(s.blades), blades2: cleanBlade(s.blades2) };
+    }
+    function cleanPhase(p) {
+        p = p && typeof p === 'object' ? p : {}; const kind = ULT_KINDS[p.kind] ? p.kind : 'slash', K = ULT_KINDS[kind];
+        return { kind: kind, n: Math.round(numIn(p.n, K.min, K.max, K.def)), w: Math.round(numIn(p.w, 1, 5, 1)), sz: r1(numIn(p.sz, 0.7, 1.6, 1)), sp: r1(numIn(p.sp, 0.6, 1.6, 1)) };
+    }
+    function cleanMotion(m) {
+        if (!m || typeof m !== 'object' || !Array.isArray(m.combo) || !m.combo.length) return null;
+        const u = m.ult && typeof m.ult === 'object' ? m.ult : {};
+        const seq = (Array.isArray(u.seq) && u.seq.length ? u.seq : [{ kind: u.kind, n: u.n }]).slice(0, ULT_MAX_PHASES).map(cleanPhase);      // 昔の形（kind と n だけ）も、1つの段として読む
+        return { v: 2, combo: m.combo.slice(0, MOTION_MAX_STEPS).map(cleanStep),
+            ult: { seq: seq, finale: u.finale !== false, fsz: r1(numIn(u.fsz, 0.7, 1.6, 1)), heal: !!u.heal, guard: !!u.guard, name: cleanName(u.name) || '' } };
+    }
+    function defaultMotion() {
+        return cleanMotion({ combo: [{ w: 1, dir: 1 }, { w: 1, dir: -1 }, { w: 2.2, dir: 1, r: 1.3, cd: 1.5, fin: true, quake: 150, blades: { mode: 'sweep', n: 2, hits: 2 } }], ult: { seq: [{ kind: 'slash', n: 24 }], finale: true } });
+    }
+    function setMotion(w, m) {      // 動きは、いつでも無料で作り直せる（神話のオリジナル武器だけ）
+        if (!w || !w.custom || w.rarity !== 'mythic') return false;
+        const c = cleanMotion(m); if (!c) return false; w.motion = c; return true;
+    }
+    // 1回の攻撃あたりの威力の合計が一定になるように、配分（w）から実際の倍率（m）を決める。分身の剣は、1本につき 0.5 ぶんの威力を持つ（1体の敵に当てられる回数にも上限 cap がある）
+    function bladeTicks(b) { return b.mode === 'orbit' ? Math.max(1, Math.floor((1.0 + 0.35 * b.hits) / 0.15 * 0.5)) : b.hits; }
+    function motionCombo(w) {
+        const m = w && w.rarity === 'mythic' && w.custom ? cleanMotion(w.motion) : null; if (!m) return null;
+        const K = 1.3, ex = s => (s.wave ? 0.6 : 0) + (s.quake ? 0.5 : 0) + (s.blades ? 0.5 * s.blades.n : 0) + (s.blades2 ? 0.5 * s.blades2.n : 0) + (s.xs || 0) * 0.15;
+        const sumCd = m.combo.reduce((a, s) => a + s.cd, 0), sumW = m.combo.reduce((a, s) => a + s.w * (1 + ex(s)), 0);
+        return m.combo.map(s => {
+            const mm = Math.min(6, K * sumCd * s.w / sumW), o = { m: r2(mm), dir: s.dir, r: r2(s.r * (s.fin ? 1.25 : 1)), a: r2(s.a * (s.fin ? 1.3 : 1)), cd: s.cd };
+            if (s.wd !== 1) o.w = s.wd;
+            if (s.fin) { o.fin = true; o.kn = 3; }
+            if (s.kb) o.knb = s.kb;
+            if (s.shape) o.shape = s.shape; if (s.col) o.col = s.col;
+            if (s.lunge) o.lunge = s.lunge; if (s.wave) o.wave = s.wave; if (s.quake) o.quake = s.quake; if (s.heal) o.heal = s.heal; if (s.xs) o.xs = s.xs; if (s.homing) o.homing = true;
+            [['blades', 'bm'], ['blades2', 'bm2']].forEach(p => { const b = s[p[0]]; if (!b) return; o[p[0]] = { mode: b.mode, n: b.n, hits: b.hits, sz: b.sz, sp: b.sp, cap: bladeTicks(b) }; o[p[1]] = Math.max(0.005, Math.round(0.5 * mm / bladeTicks(b) * 10000) / 10000); });
+            return o;
+        });
+    }
+    function motionUlt(w) {      // 必殺技の合計威力も一定（段ごとの配分で分け合う。終幕の爆発・回復・結界を付けると、そのぶん本体が少し弱くなる）
+        const m = w && w.rarity === 'mythic' && w.custom ? cleanMotion(w.motion) : null; if (!m) return null;
+        const u = m.ult, main = 31 - (u.finale ? 5 : 0) - (u.heal ? 4 : 0) - (u.guard ? 2 : 0), sumW = u.seq.reduce((a, p) => a + p.w, 0), R = x => Math.max(0.03, Math.round(x * 1000) / 1000);
+        const phase = (p, share) => {
+            const n = p.n, sz = p.sz, sp = p.sp, G = x => Math.round(x * sp);
+            switch (p.kind) {
+                case 'quake':  return { st: 'quake', waves: n, gap: G(170), radius: Math.round(240 * sz), kn: 360, mult: R(share / n) };
+                case 'lance':  return { st: 'lance', len: Math.round(560 * sz), width: 60, fan: 3, rep: n, gap: G(120), mult: R(share / (3 * n)) };
+                case 'volley': return { st: 'volley', n: n, gap: G(34), sky: false, mult: R(share / n) };
+                case 'nova':   return { st: 'nova', radius: Math.round(300 * sz), waves: n, wind: G(450), mult: R(share / n) };
+                case 'meteor': return { st: 'meteor', n: n, gap: G(70), radius: Math.round(95 * sz), wind: G(800), mult: R(share / n) };
+                case 'cross':  return { st: 'cross', n: n, gap: G(95), len: Math.round(560 * sz), width: 46, mult: R(share / n) };
+                case 'bladedance': return { st: 'bladedance', n: n, dur: 3.2, sz: sz, mult: R(share / (n * 7)) };
+                default:       return { st: 'slash', n: n, gap: G(50), mult: R(share / n), range: r2(1.3 * sz), arc: 2.2, blink: 120 };
+            }
+        };
+        const subs = u.seq.map(p => phase(p, main * p.w / sumW));
+        const U = subs.length === 1 ? subs[0] : { st: 'seq', phases: subs };
+        U.name = u.name || (subs.length === 1 ? '神話の' + ULT_KINDS[u.seq[0].kind].label : '神話の連技');
+        if (u.finale) U.finale = { radius: Math.round(400 * u.fsz), mult: 5 }; if (u.heal) U.heal = 0.2; if (u.guard) U.guard = 2;
+        return U;
+    }
+
     window.HW = {
         RARITIES, RARITY_ORDER, TYPES, BASES, BASE_BY_ID, EFFECTS, EFFECT_BY_ID,
         roll, pickRarity, rIdx, MYTHICS, MYTHIC_PCT, makeMythic, makeMythicSerenity, giveMythic, displayName, describeEffect, orbToEffects, aggregate, rarityOf,
@@ -1185,6 +1286,6 @@
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal, typeChangeCost, changeType,
         MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP,
-        TAGS, TAG_ORDER, matTags, biasTop, KIT_NEED_COUNT, KIT_NEED_VALUE, kitValue, makeKit, cleanPix, cleanColor, PIX_MAX_W, PIX_MAX_H, PIX_CHARS, GROW_CAP, growCap, ensureGrowth, growFrac, applyGrowth, expOfMaterial, feedMaterial, forgeFromKit, setLook, rankUpInfo, startRankUp, hammer, finishRankUp
+        TAGS, TAG_ORDER, matTags, biasTop, KIT_NEED_COUNT, KIT_NEED_VALUE, kitValue, makeKit, cleanPix, cleanColor, PIX_MAX_W, PIX_MAX_H, PIX_CHARS, GROW_CAP, growCap, ensureGrowth, growFrac, applyGrowth, expOfMaterial, feedMaterial, forgeFromKit, setLook, MYTHIC_FORGE, MOTION_MAX_STEPS, ULT_MAX_PHASES, BLADE_MODES, SHAPES, ULT_KINDS, cleanMotion, defaultMotion, setMotion, motionCombo, motionUlt, rankUpInfo, startRankUp, hammer, finishRankUp
     };
 })();

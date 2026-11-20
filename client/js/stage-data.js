@@ -575,10 +575,18 @@
     // ============================================================
     // 大討伐戦（最大20人のレイド）。町の「大討伐戦」から入る（ステージゲートには出ない：world 0）
     //  ・ボス1体。ボスの強さは「不壊の悪魔」の約5倍（practice.js の RAID_MUL）。人数が多いほどHPも増える
-    //  ・第一幕：双界の覇竜ツイン・エレメンタル（赤い炎のエリア／青い氷のエリア。gimmick: 'duality'）
+    //  ・第二幕：双界の覇竜ツイン・エレメンタル（赤い炎のエリア／青い氷のエリア。gimmick: 'duality'）
     //  ・報酬：専用の神話装備「Legend of Duality」（1本だけ）と、称号「双界を切り開くもの」（実績）
     // ============================================================
-    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第一幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
+    //  ・第一幕：増殖スライム インクリーズ（gimmick: 'increase'）。レベル50くらいあれば、1人でも倒せる。raidMul でボスの強さを調整できる（無印は5倍）
+    //  ・報酬：専用の神話装備「Legend of Increase」（1本だけ）と、称号「増殖を食い止めるもの」（実績）
+    add({ id: 'raid_increase', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 1.0, name: '大討伐戦 第一幕　増殖スライム', icon: '🟢', ilvl: 50, bg: '#10261a', bg2: '#0a1a14',
+        desc: '倒すほど分裂して増えていくスライム。小さくなりながら増え続け、10体になると「心臓」が現れる。心臓に一撃を当てれば勝ち！',
+        enemies: [E('分裂体', '🟢', 'chaser', '#5be37a')],
+        boss: { name: '増殖スライム インクリーズ', icon: '🟢', color: '#5be37a', patterns: ['volley'], stand: true, gate: false, gimmick: 'increase' },
+        drops: [], bossDrops: [] });
+
+    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第二幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
         desc: '最大20人で挑む大討伐戦。戦場は「赤い炎のエリア」と「青い氷のエリア」に割れている。色の通りに動け。',
         enemies: [E('双界の眷属', '🔥', 'chaser', '#ff7a5a')],
         boss: { name: '双界の覇竜ツイン・エレメンタル', icon: '🐲', color: '#c06aff', patterns: ['radial', 'volley', 'slam'], stand: true, gate: false, gimmick: 'duality' },
