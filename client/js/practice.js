@@ -200,7 +200,7 @@
     const ctx = canvas.getContext('2d');
     let VW = 960, VH = 540, DPR = 1;
     function fit() {
-        DPR = Math.min(2, window.devicePixelRatio || 1);
+        DPR = (window.SBPix && SBPix.lite) ? 1 : Math.min(2, window.devicePixelRatio || 1);      // 軽量モードのときは、等倍の解像度で描く（高解像度の画面でも重くならないように）
         VW = window.innerWidth; VH = window.innerHeight;
         canvas.width = Math.round(VW * DPR); canvas.height = Math.round(VH * DPR);
         canvas.style.width = VW + 'px'; canvas.style.height = VH + 'px';
@@ -460,7 +460,7 @@
         if (e.code === 'Tab') { e.preventDefault(); toggleQuiz(); }
         if (e.code === 'KeyB' && !e.repeat) startGuard();
         if (e.code === 'KeyR' && !e.repeat) castUlt();
-        if (e.code === 'KeyO' && !e.repeat && window.SBPix) { SBPix.lite = !SBPix.lite; liteManual = true; announce(SBPix.lite ? '⚡ 軽量モード ON（エフェクトを減らします）' : '✨ 軽量モード OFF', 1400); }
+        if (e.code === 'KeyO' && !e.repeat && window.SBPix) { SBPix.lite = !SBPix.lite; liteManual = true; fit(); announce(SBPix.lite ? '⚡ 軽量モード ON（エフェクトを減らします）' : '✨ 軽量モード OFF', 1400); }
         if (e.code === 'KeyP' && !e.repeat && window.SBPix) { SBPix.setOn(!SBPix.on()); announce(SBPix.on() ? '🎨 ドット絵表示 ON' : '🎨 ドット絵表示 OFF（従来の表示）', 1400); }
         if (e.code === 'KeyG') { autoAim = !autoAim; try { localStorage.setItem('sbAutoAim', autoAim ? '1' : '0'); } catch (er) {} announce(autoAim ? '🎯 オートエイム ON（近くの敵を自動で狙う）' : '🎯 オートエイム OFF（マウスで狙う）', 1500); }
         if (/^Digit[1-4]$/.test(e.code)) quizPick(parseInt(e.code.slice(5), 10) - 1);
@@ -3291,7 +3291,10 @@
     function applySnap(s) {
         if (s.q != null) { if (s.q <= lastSnapQ && s.q > lastSnapQ - 50) return; lastSnapQ = s.q; }      // 古い・順番が入れ替わったスナップショットは捨てる
         const nowS = performance.now(), dtS = clamp((nowS - (lastSnapAt || nowS - 80)) / 1000, 0.03, 0.4); lastSnapAt = nowS; snapAge = 0;
-        const dtH = (s.ht != null && lastHt != null) ? clamp((s.ht - lastHt) / 1000, 0.03, 0.4) : dtS; if (s.ht != null) lastHt = s.ht;      // 速度は、ホストが作った間隔で割る
+        const dtH = (s.ht != null && lastHt != null) ? clamp((s.ht - lastHt) / 1000, 0.03, 0.4) : dtS; if (s.ht != null) lastHt = s.ht;
+        const htS = (s.ht != null) ? s.ht : nowS;      // ホスト時刻（古い版のホストとつないだときは、受け取った時刻で代用）
+        if (snapHtLast != null && (htS < snapHtLast - 1500 || htS - snapHtLast > 8000)) { rT = null; enemies.forEach(e => { e.hist = null; }); eBullets.forEach(b => { b.hist = null; }); }      // ホストが替わった（時計が別になった）
+        snapHtLast = htS; snapArrive = nowS;      // 速度は、ホストが作った間隔で割る
         run.kills = s.k; run.need = s.n; run.time = s.tm; if (s.bs && !run.bossSpawned) run.bossSpawned = true;
         if (RUSH_ON && s.rs) {      // ボスラッシュ：フェーズが進んだら、敵の強さの基準を合わせ、幕間に入ったら回復する
             const prevSt = RS.st, prevPh = RS.ph;
@@ -3305,17 +3308,50 @@
         enemies = s.e.map(a => {
             const o = old[a[0]] || { x: a[3], y: a[4], flash: 0 };
             let evx = 0, evy = 0; if (o.sx != null) { evx = clamp((a[3] - o.sx) / dtH, -1400, 1400); evy = clamp((a[4] - o.sy) / dtH, -1400, 1400); if (o.vx != null) { evx = o.vx * 0.4 + evx * 0.6; evy = o.vy * 0.4 + evy * 0.6; } if (Math.hypot(a[3] - o.sx, a[4] - o.sy) > 380) { evx = evy = 0; o.x = a[3]; o.y = a[4]; } }      // 前の位置との差から速度を求めて、次が届くまで先読みする。瞬間移動は補間しない
-            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], sx: a[3], sy: a[4], vx: evx, vy: evy, hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
+            return { id: a[0], def: { icon: a[1], color: a[2], name: a[10] }, x: o.x, y: o.y, tx: a[3], ty: a[4], sx: a[3], sy: a[4], vx: evx, vy: evy, hist: pushHist(o.hist, a[3], a[4], htS), hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: a[11] || 'chaser', elite: !!a[12], dmg: foeDmg(a[11] || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
         });
         const oldB = {}; eBullets.forEach(x => { oldB[x.id] = x; });
-        eBullets = s.b.map(a => { const o = oldB[a[0]]; const bvx = o && o.sx != null ? clamp((a[1] - o.sx) / dtH, -1800, 1800) : 0, bvy = o && o.sx != null ? clamp((a[2] - o.sy) / dtH, -1800, 1800) : 0; return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], sx: a[1], sy: a[2], vx: bvx, vy: bvy, r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
+        eBullets = s.b.map(a => { const o = oldB[a[0]]; const bvx = o && o.sx != null ? clamp((a[1] - o.sx) / dtH, -1800, 1800) : 0, bvy = o && o.sx != null ? clamp((a[2] - o.sy) / dtH, -1800, 1800) : 0; return { id: a[0], x: o ? o.x : a[1], y: o ? o.y : a[2], tx: a[1], ty: a[2], sx: a[1], sy: a[2], vx: bvx, vy: bvy, hist: pushHist(o && o.hist, a[1], a[2], htS), r: a[3], c: a[4], kd: a[5] || 0, ang: a[6] || 0, refl: a[7] || 0, dmg: 0, dm: 0 }; });
         // クライアント側の弾はダメージ値を持たないので、ホストが送った値で最小限の被弾を行う（体当たり相当）
         telegraphs = s.t.map(a => ({ id: a[0], x: a[1], y: a[2], r: a[3], t: a[4], max: a[5], c: a[6], sh: a[7] || null, a: a[8], arc: a[9], ri: a[10], w: a[11], stun: !!a[12], live: !!a[13] }));
         eBullets.forEach(b => { b.dmg = foeDmg('ranged', false, false); });
     }
+    // <interp-start>
+    //  ホスト以外の画面：ホストから届く敵・弾の位置を、少し（INTERP_MS）遅らせて、届いた位置と位置のあいだを時刻で補間して描く。
+    //  通信の遅れにばらつきがあっても、動きが等速で滑らかに見える（以前は、最新の位置を追いかけていたので、届くのが遅れるたびにカクついた）
+    const INTERP_MS = 110;
+    let rT = null, snapHtLast = null, snapArrive = 0;      // rT：いま描いている時刻（ホスト時計）
+    function pushHist(h, x, y, t) {
+        const a = h ? h.slice(-4) : [], l = a[a.length - 1];
+        if (l) { if (t <= l.t) return a; if (Math.hypot(x - l.x, y - l.y) > 380) a.length = 0; }      // 古い・同時刻の位置は捨てる。大きく飛んだら、補間せずそこへ移る
+        a.push({ x: x, y: y, t: t }); return a;
+    }
+    function histPos(h, t, out) {
+        const n = h ? h.length : 0; if (!n) return false;
+        if (n === 1 || t <= h[0].t) { out.x = h[0].x; out.y = h[0].y; return true; }
+        const L = h[n - 1];
+        if (t >= L.t) { const P = h[n - 2], u = Math.min(1.35, (t - P.t) / ((L.t - P.t) || 1)); out.x = P.x + (L.x - P.x) * u; out.y = P.y + (L.y - P.y) * u; return true; }      // 次の位置が遅れているときは、同じ向きに少しだけ進める
+        for (let i = n - 1; i > 0; i--) { const A = h[i - 1], B = h[i]; if (t >= A.t) { const u = (t - A.t) / ((B.t - A.t) || 1); out.x = A.x + (B.x - A.x) * u; out.y = A.y + (B.y - A.y) * u; return true; } }
+        out.x = h[0].x; out.y = h[0].y; return true;
+    }
+    function interpTime(dt, nowMs) {
+        const target = snapHtLast - INTERP_MS + (nowMs - snapArrive);
+        if (rT == null) rT = target; else { rT += dt * 1000; rT += (target - rT) * Math.min(1, dt * 4); }      // 時計は実時間どおり進め、ずれはゆっくり直す（急に変えない）
+        rT = clamp(rT, snapHtLast - 500, snapHtLast + 60);
+        return rT;
+    }
+    // <interp-end>
+    const interpTmp = { x: 0, y: 0 };
     function lerpRemote(dt) {
-        // 次のスナップショットが届くまで（最大0.25秒）、前回の速度で目標位置を先に進めて、滑らかに追いかける
-        snapAge += dt; const ext = snapAge < 0.25, k = 1 - Math.exp(-dt * 24);
+        snapAge += dt;
+        if (snapHtLast != null) {
+            const t = interpTime(dt, performance.now());
+            enemies.forEach(e => { if (histPos(e.hist, t, interpTmp)) { e.x = interpTmp.x; e.y = interpTmp.y; } });
+            eBullets.forEach(b => { if (histPos(b.hist, t, interpTmp)) { b.x = interpTmp.x; b.y = interpTmp.y; } });
+            return;
+        }
+        // まだスナップショットが届いていない間：これまでどおり、目標位置を追いかける
+        const ext = snapAge < 0.25, k = 1 - Math.exp(-dt * 24);
         enemies.forEach(e => { if (e.tx != null) { if (ext && e.vx) { e.tx += e.vx * dt; e.ty += e.vy * dt; } e.x += (e.tx - e.x) * k; e.y += (e.ty - e.y) * k; } });
         eBullets.forEach(b => { if (b.tx != null) { if (ext && b.vx) { b.tx += b.vx * dt; b.ty += b.vy * dt; } b.x += (b.tx - b.x) * k; b.y += (b.ty - b.y) * k; } });
     }
@@ -4486,7 +4522,7 @@
             }
             let tr = ''; try { tr = socket.io && socket.io.engine && socket.io.engine.transport ? (socket.io.engine.transport.name === 'websocket' ? 'WS' : 'poll') : ''; } catch (e) { tr = ''; }
             ctx.font = '10px sans-serif'; ctx.textAlign = 'right'; ctx.fillStyle = netPing < 0 ? '#ff8a8a' : (netPing < 80 ? '#8affb0' : (netPing < 160 ? '#ffe08a' : '#ff8a8a'));
-            ctx.fillText((netPing < 0 ? 'Ping --' : 'Ping ' + netPing + 'ms') + (tr ? ' ' + tr : ''), VW - 10, VH < 520 ? 28 : 48);
+            ctx.fillText((netPing < 0 ? 'Ping --' : 'Ping ' + netPing + 'ms') + '　' + Math.round(1 / Math.max(0.005, perfEma)) + 'fps' + (tr ? ' ' + tr : ''), VW - 10, VH < 520 ? 28 : 48);
         }
         // ミニマップ
         const mw = VH < 520 ? 92 : 140, mh = Math.round(mw * WORLD_H / WORLD_W), mx = VW - mw - 10, my = VH < 520 ? 34 : 56;
@@ -4676,7 +4712,7 @@
         // 重くなったら、自動で軽量モードにする（1秒ほど続けて、おおむね30fps以下のとき）。O キーで手動の切り替えもできる
         if (run.phase === 'run' && enemies.length > 0 && window.SBPix) {
             perfEma = perfEma * 0.96 + Math.min(0.2, rawDt) * 0.04;
-            if (!SBPix.lite && !liteManual) { if (perfEma > 0.034) { if (++perfSlow > 90) { SBPix.lite = true; announce('⚡ 動きが重いので、軽量モードにしました（O キーで切り替え）', 2200); } } else perfSlow = Math.max(0, perfSlow - 2); }
+            if (!SBPix.lite && !liteManual) { if (perfEma > 0.034) { if (++perfSlow > 90) { SBPix.lite = true; fit(); announce('⚡ 動きが重いので、軽量モードにしました（O キーで切り替え）', 2200); } } else perfSlow = Math.max(0, perfSlow - 2); }
         }
         if (hitStopT > 0) { hitStopT -= dt; dt *= 0.06; }      // ヒットストップ：当たった一瞬だけ、ほぼ止める
         if (window.SBOrientation && SBOrientation.blocking() && partyCount() === 1) { if (doRender) render(); return; }
