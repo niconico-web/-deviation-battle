@@ -803,6 +803,13 @@ module.exports = function(io){
                 question
             };
 
+            // ボス戦の場合、ボスの現在のATBゲージ状態を送信（参加遅れによるラグ防止）
+            if (bossEntry) {
+                initialState.bossAtbGauge = battle.bossAtbGauge || 0;
+                initialState.bossTelegraphActive = battle.bossTelegraphActive || false;
+                initialState.bossTelegraphTargetId = battle.bossTelegraphTargetId || null;
+            }
+
             console.log('[Battle] Sending battle:initialState with question:', initialState.question);
             socket.emit('battle:initialState', initialState);
         });

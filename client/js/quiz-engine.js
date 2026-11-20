@@ -4267,13 +4267,35 @@ if (!isBotBattle && socket) {
         me = data.me;
         enemy = data.enemy;
         allies = data.allies || [];
-        
+
+        // ボス戦の場合、サーバーから送られたボスのATBゲージ状態を同期
+        if (data.bossAtbGauge !== undefined) {
+            enemyATB = data.bossAtbGauge;
+        }
+        if (data.bossTelegraphActive !== undefined) {
+            atbBossTelegraphActive = data.bossTelegraphActive;
+        }
+        if (data.bossTelegraphTargetId !== undefined) {
+            // 参加時に既にテレグラフ中の場合、自分がターゲットならガードポップアップを表示
+            if (data.bossTelegraphActive && data.bossTelegraphTargetId === me.id) {
+                atbGuardWindowOpen = true;
+                atbGuardActivated = false;
+                const guardPopup = document.getElementById('atbGuardPopup');
+                const guardBtn = document.getElementById('atbGuardBtn');
+                if (guardPopup) guardPopup.style.display = 'flex';
+                if (guardBtn) {
+                    guardBtn.disabled = false;
+                    guardBtn.classList.remove('guard-success');
+                }
+            }
+        }
+
         // UIを初期化
         renderPartyStatus();
         updateStats();
         updateHP();
         updateUltimateGauge();
-        
+
         // 最初の問題を表示（ここだけカウントダウンを見せる）
         displayQuestion(data.question, true);
     });
