@@ -575,7 +575,7 @@
     // ============================================================
     // 大討伐戦（最大20人のレイド）。町の「大討伐戦」から入る（ステージゲートには出ない：world 0）
     //  ・ボス1体。ボスの強さは「不壊の悪魔」の約5倍（practice.js の RAID_MUL）。人数が多いほどHPも増える
-    //  ・第二幕：双界の覇竜ツイン・エレメンタル（赤い炎のエリア／青い氷のエリア。gimmick: 'duality'）
+    //  ・第三幕：双界の覇竜ツイン・エレメンタル（赤い炎のエリア／青い氷のエリア。gimmick: 'duality'）
     //  ・報酬：専用の神話装備「Legend of Duality」（1本だけ）と、称号「双界を切り開くもの」（実績）
     // ============================================================
     //  ・第一幕：増殖スライム インクリーズ（gimmick: 'increase'）。レベル50くらいあれば、1人でも倒せる。raidMul（ボスの強さの倍率。無印は5倍）でボスの強さを調整できる。基準は、パーティでいちばんステータス合計が高い人
@@ -586,7 +586,13 @@
         boss: { name: '増殖スライム インクリーズ', icon: '🟢', color: '#5be37a', patterns: ['volley'], stand: true, gate: false, gimmick: 'increase' },
         drops: [], bossDrops: [] });
 
-    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第二幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
+    //  ・第二幕：ワールドワーム（gimmick: 'worm'）。足場の崩壊・アンカーで引きずり出す・体内潜入の3つのギミック。raidMul でボスの強さを調整できる
+    add({ id: 'raid_worm', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 3.0, name: '大討伐戦 第二幕　ワールドワーム', icon: '🪱', ilvl: 50, bg: '#2b2118', bg2: '#06050a',
+        desc: '世界を喰らう巨大な蟲。足場を噛み砕いて奈落へ落とし、地中から全員を狙い、ステージの半分を丸呑みにする。ステージ破壊と体内潜入を、仲間と力を合わせて攻略しよう',
+        enemies: [E('土の眷属', '🟤', 'chaser', '#b08a5a')],
+        boss: { name: 'ワールドワーム', icon: '🪱', color: '#c9a27a', patterns: ['volley'], stand: true, gate: false, gimmick: 'worm', set: 'raid_worm' },
+        drops: [], bossDrops: [] });
+    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第三幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
         desc: '最大20人で挑む大討伐戦。戦場は「赤い炎のエリア」と「青い氷のエリア」に割れている。色の通りに動け。',
         enemies: [E('双界の眷属', '🔥', 'chaser', '#ff7a5a')],
         boss: { name: '双界の覇竜ツイン・エレメンタル', icon: '🐲', color: '#c06aff', patterns: ['radial', 'volley', 'slam'], stand: true, gate: false, gimmick: 'duality' },

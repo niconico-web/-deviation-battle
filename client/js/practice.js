@@ -50,7 +50,7 @@
     const TEAM = stage.pvpTeam || 0;                          // チーム戦（2v2 / 3v3）なら1チームの人数。0＝乱戦
     let teamMap = {};                                         // 選手ID → チーム(0=青 / 1=赤)。出発の瞬間に、部屋の参加順で交互に決める
     const sameTeam = (id) => !!TEAM && teamMap[id] !== undefined && teamMap[id] === teamMap[myId];
-    let WORLD_W = PVP ? 1500 : (RAID ? 2800 : (RUSH_ON ? 1700 : 2400)), WORLD_H = PVP ? 1000 : (RAID ? 1800 : (RUSH_ON ? 1100 : 1600));   // ボスラッシュは弾幕が避けやすい広さに。無限回廊は階層ごとに変わる
+    let WORLD_W = PVP ? 1500 : (RAID ? (stage.id === 'raid_worm' ? 4000 : 2800) : (RUSH_ON ? 1700 : 2400)), WORLD_H = PVP ? 1000 : (RAID ? 1800 : (RUSH_ON ? 1100 : 1600));   // ボスラッシュは弾幕が避けやすい広さに。無限回廊は階層ごとに変わる
     const MAX_PARTY = 4;
     const TIME_LIMIT = PVP ? 180 : (RAID ? RAID_TIME_MIN * 60 : (CORR_ON ? Infinity : (RUSH_ON ? 99 * 60 : (stage.standardOnly ? 25 * 60 : 9 * 60))));   // 大討伐戦は RAID_TIME_MIN 分。ボスラッシュは全体ではなく「1フェーズごと」の制限時間（難易度で決まる）。無限回廊は無制限   // 時間切れ（スタンダードワールドは長丁場）
     const KILLS_BASE = 75;               // ボス出現に必要な討伐数（1人）。敵が弱く数が多いぶん、以前（45）より多め
@@ -210,7 +210,7 @@
     // ---------- フィールド（障害物の岩）----------
     const rocks = [];
     (function genRocks() {
-        if (RUSH_ON || CORR_ON) return;      // ボスラッシュは広い平地、無限回廊は迷路の壁だけ
+        if (RUSH_ON || CORR_ON || stage.id === 'raid_worm') return;      // ボスラッシュは広い平地、無限回廊は迷路の壁だけ
         const r = seeded(hashStr(stage.id));
         for (let i = 0; i < 18; i++) {
             const x = 150 + r() * (WORLD_W - 300), y = 150 + r() * (WORLD_H - 300);
@@ -234,7 +234,7 @@
     }
 
     // ---------- 状態 ----------
-    const me = { id: myId, name: myName, x: 220 + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
+    const me = { id: myId, name: myName, x: (stage.id === 'raid_worm' ? 1400 - 280 : 220) + rnd(-30, 30), y: WORLD_H / 2 + rnd(-60, 60), r: 15, hp: P.maxHp, maxHp: P.maxHp,
         ang: 0, atkCd: 0, dashCd: 0, dashT: 0, dashVX: 0, dashVY: 0, inv: 0, cast: null, gch: 0, ult: 0, ultT: 0, guardT: 0, guardCd: 0, gMsgT: 0, energy: START_ENERGY, shield: false, haste: 0, dead: false, reviveT: 0, lungeT: 0, combo: 0, stunT: 0, stunImm: 0, invHard: 0 };
     const allies = {};           // id -> {id,name,x,y,tx,ty,hp,maxHp,dead,ang,rar}
     let enemies = [];            // ホスト: 実体 / クライアント: スナップショットの描画用
@@ -266,7 +266,7 @@
         stats: { kills: 0, dmg: 0, loot: [], coins: 0, orbs: 0, mats: {} } };
     let isHost = true, room = null, socket = null;
     let spawnT = 1.5, snapT = 0, posT = 0, posSeq = 0, snapSeq = 0, lastSnapQ = -1, lastSnapAt = 0, snapAge = 0;
-    let lastHt = null;      // 直前のスナップショットのホスト側の時刻（ms）
+    let lastHt = null, WS = null, ZN = null;      // WS：ワールドワームの進行（ホストだけ）／ZN：敵のAIが動いている間だけ、その敵と同じ側（外／体内）のプレイヤーに絞る      // 直前のスナップショットのホスト側の時刻（ms）
     let snapBytes = 0, netPing = -1, netPingT = 0, netPingBusy = false;      // 直近のスナップショットの大きさ／通信の遅れ（ms）
     const posLast = { x: 0, y: 0, t: performance.now() };
 
@@ -590,13 +590,14 @@
             if (!CORR_ON && (elite || Math.random() < 0.05)) applyStageAffix(e, elite);
             pushOutOfRocks(e, e.r);
         }
+        ZN = null;
     }
 
     function alivePlayersPos() {
         const out = [];
         if (!me.dead) out.push({ x: me.x, y: me.y, id: me.id });
         Object.keys(allies).forEach(id => { const a = allies[id]; if (!a.dead) out.push({ x: a.x, y: a.y, id: id }); });
-        return out;
+        return ZN == null ? out : out.filter(q => wmZone(q.x) === ZN);
     }
     function nearestPlayer(x, y) {
         let best = null, bd = 1e9;
@@ -619,6 +620,8 @@
     function updateEnemies(dt) {
         for (const e of enemies) {
             const s = e.st;
+            if (e.arch === 'wseg' || e.arch === 'wscale' || e.arch === 'wcore') continue;      // ワールドワームの体・鱗・核は、自分では動かない
+            ZN = GMK === 'worm' ? wmZone(e.x) : null;
             if (CORR_ON && CF.on && !e.boss && !e.act && !corrWake(e)) continue;      // 無限回廊：近づくまで眠っている敵
             // 状態異常
             let dot = 0;
@@ -720,6 +723,190 @@
         e.x = clamp(e.x + Math.cos(ang) * sp * want * dt + Math.cos(e.t * 1.7) * 40 * dt, 60, WORLD_W - 60); e.y = clamp(e.y + Math.sin(ang) * sp * want * dt + Math.sin(e.t * 1.3) * 40 * dt, 60, WORLD_H - 60);
         e.beatT -= dt;
         if (e.beatT <= 0) { e.beatT = 3.2; telegraph(e.x, e.y, 230, 0.9, ed(e) * 1.2, '#ff4d6d'); for (let i = 0; i < 10; i++) bullet(e.x, e.y, i * Math.PI * 2 / 10 + e.t, 210, ed(e) * 0.6, 8, 3.2, '#ff7a96'); }
+    }
+    // ================= 大討伐戦 第二幕：ワールドワーム =================
+    //  ① 世界喰らい：外周から足場（円盤）が崩れて奈落に落ちる。落ちると倒れる（足場の縁に倒れて、仲間に起こしてもらえる）
+    //  ② 大釣合戦：ワームが地中へ潜り、足元から狙ってくる。ステージ各所のアンカーに乗り続けて、全員で引きずり出す → 長い体がどこも弱点の大チャンス
+    //  ③ 体内潜入：ステージの半分のプレイヤーが体内（別の部屋）に丸呑みにされる。外は「硬い鱗」を壊して口の核を、中は「心臓核」を、同じ頃に壊す → 大ダウン
+    //  ホスト：wormHost（進行）／全員：wormLocal（落下・酸）。G は全員に配られる見た目用の状態（pr＝足場の半径・wm＝今のモード など）
+    // <worm-start>
+    const WM = { cx: 1400, cy: 900, R0: 820, RMIN: 380, N: 24, BITE: 80, IN: { x0: 2800, y0: 300, x1: 3700, y1: 1500 }, SEG: 10, GAP: 62 };
+    const WM_TAU = Math.PI * 2;
+    function wmZone(x) { return x >= WM.IN.x0 - 150 ? 1 : 0; }      // 0＝外（足場）／1＝体内。位置だけで決まる（体内の部屋は、足場から遠く離れている）
+    function wmHidden(x) { return GMK === 'worm' && wmZone(x) !== wmZone(me.x); }
+    function wmRa(a) { const pr = G.pr; if (!pr || pr.length !== WM.N) return WM.R0; const k = (((a % WM_TAU) + WM_TAU) % WM_TAU) / WM_TAU * WM.N, i0 = Math.floor(k) % WM.N, i1 = (i0 + 1) % WM.N, f = k - Math.floor(k); return pr[i0] * (1 - f) + pr[i1] * f; }
+    function wmR(x, y) { return wmRa(Math.atan2(y - WM.cy, x - WM.cx)); }
+    function wmOn(x, y, pad) { return Math.hypot(x - WM.cx, y - WM.cy) <= wmR(x, y) + (pad || 0); }
+    function wormInit(b) {
+        WS = { mode: 'A', t: 0, biteT: 24, q: [], bT: 62, cN: 0, trail: [], segs: [], an: [], anT: 0, swT: 0, cT: 0, acT: 0, dT: 0, lay: null, open: false, inner: null, outer: null, scales: [] };
+        G.pr = new Array(WM.N).fill(WM.R0); G.wm = 'A'; G.hid = 0; G.sc = 0; G.cr = []; G.an = []; G.at = 0; G.ct = 0;
+        for (let j = Math.ceil(WM.SEG * WM.GAP / 8); j >= 0; j--) WS.trail.push({ x: b.x, y: b.y + j * 8 });      // 体は、最初は頭の下（南）に伸びている
+        for (let k = 0; k < WM.SEG; k++) {
+            const s = spawnEnemy({ name: 'ワールドワームの体', icon: '🟤', arch: 'wseg', color: '#b08a5a' }, b.x, b.y + (k + 1) * WM.GAP, false);
+            s.bd = b.bd; s.maxHp = s.hp = 1e9; s.dmg = b.dmg * 0.5; s.r = Math.max(32, 62 - k * 3); s.spd = 0; s.takeMul = 1; s.dmgMul = 1; WS.segs.push(s);
+        }
+    }
+    function wormSegments(b) {      // 体：頭の通った道に沿って、GAP ずつ離して並ぶ（引きずり出された間は、横たわる）
+        if (WS.lay) { WS.segs.forEach((s, k) => { s.x = WS.lay.pts[k].x; s.y = WS.lay.pts[k].y; }); return; }
+        const L = WS.trail, last = L[L.length - 1];
+        if (!last || Math.hypot(b.x - last.x, b.y - last.y) > 8) { L.push({ x: b.x, y: b.y }); if (L.length > 500) L.shift(); }
+        let need = WM.GAP, k = 0, px = b.x, py = b.y;
+        for (let i = L.length - 1; i >= 0 && k < WS.segs.length; i--) {
+            const q = L[i]; let d = Math.hypot(q.x - px, q.y - py);
+            while (d >= need && k < WS.segs.length) { const f = need / d; px += (q.x - px) * f; py += (q.y - py) * f; const s = WS.segs[k++]; s.x = px; s.y = py; d = Math.hypot(q.x - px, q.y - py); need = WM.GAP; }
+            need -= d; px = q.x; py = q.y;
+        }
+        while (k < WS.segs.length) { const s = WS.segs[k++]; s.x = px; s.y = py + 1; }
+    }
+    function wormLay() {      // 横たわった体：頭を左に、体を右へ（足場がいちばん狭くなっても収まる）
+        const span = Math.min.apply(null, G.pr) - 80, step = Math.min(WM.GAP, span * 2 / (WM.SEG + 1)), hx = WM.cx - span, pts = [];
+        for (let k = 0; k < WM.SEG; k++) pts.push({ x: hx + (k + 1) * step, y: WM.cy + Math.sin(k * 0.9) * 50 });
+        return { head: { x: hx, y: WM.cy }, pts: pts };
+    }
+    function wormHost(dt) {
+        const b = gmBoss(); if (!b || !WS) return;
+        WS.t += dt; G.wm = WS.mode;
+        const hide = WS.mode === 'B' || WS.mode === 'C'; WS.segs.forEach(s => { s.inv = hide; });      // 潜っている間・口を開けている間は、体を狙えない
+        wormSegments(b);
+        if (WS.mode === 'A') wormA(b, dt); else if (WS.mode === 'B') wormB(b, dt); else if (WS.mode === 'C') wormC(b, dt); else if (WS.mode === 'D') wormD(b, dt);
+        if (WS.mode === 'A' || WS.mode === 'D') wormBites(dt);
+        G.cr = WS.q.filter(it => !it.done).map(it => it.i);
+    }
+    // ---- ① 世界喰らい：足場の崩壊 ----
+    function wormBites(dt) {
+        WS.biteT -= dt;
+        if (WS.biteT <= 0 && !WS.q.length) {
+            const s0 = Math.floor(Math.random() * WM.N); for (let k = 0; k < 6; k++) WS.q.push({ i: (s0 + k) % WM.N, t: 1.5 + k * 0.28, done: false, d: 0 });
+            WS.biteT = Math.max(16, 30 - WS.t / 40); netAnnounce('🌋 世界喰らい！　足場が崩れる！　外周から離れろ！', 1900);
+        }
+        WS.q.forEach(it => { if (!it.done) { it.t -= dt; if (it.t <= 0) { it.done = true; it.d = 0.6; G.pr[it.i] = Math.max(WM.RMIN, G.pr[it.i] - WM.BITE); } } else it.d -= dt; });
+        WS.q = WS.q.filter(it => !it.done || it.d > 0);
+    }
+    // ---- 地上戦（技は boss-moves の raid_worm）----
+    function wormA(b, dt) {
+        b.inv = false;
+        if (!wmOn(b.x, b.y, -90)) { const a = Math.atan2(WM.cy - b.y, WM.cx - b.x); b.x += Math.cos(a) * 240 * dt; b.y += Math.sin(a) * 240 * dt; }      // 足場の外に出ないように
+        const TH = [0.7, 0.4, 0.15];
+        if (WS.cN < 3 && b.hp / b.maxHp <= TH[WS.cN]) { wormStartC(b); return; }
+        WS.bT -= dt; if (WS.bT <= 0 && !WS.q.length) wormStartB(b);
+    }
+    // ---- ② 大釣合戦 ----
+    function wormStartB(b) {
+        WS.mode = 'B'; WS.bT = 70; WS.q = []; b.inv = true; b.st.stunT = 999; b.mv = null; G.hid = 1; eBullets = []; telegraphs = [];
+        const ps = alivePlayersPos().filter(q => wmZone(q.x) === 0), n = clamp(ps.length, 1, 5), rho = Math.min.apply(null, G.pr) * 0.62, off = Math.random() * WM_TAU;
+        WS.an = []; for (let i = 0; i < n; i++) { const a = off + i * WM_TAU / n; WS.an.push({ x: WM.cx + Math.cos(a) * rho, y: WM.cy + Math.sin(a) * rho, p: 0 }); }
+        WS.anT = 34; WS.swT = 1.2; G.at = 34; G.an = WS.an.map(a => ({ x: Math.round(a.x), y: Math.round(a.y), p: 0 }));
+        netAnnounce('🪝 ワームが地中へ潜った！　足元の予兆をよけて、アンカーに乗り続けろ！', 3200);
+    }
+    function wormB(b, dt) {
+        WS.anT -= dt; WS.swT -= dt;
+        const ps = alivePlayersPos().filter(q => wmZone(q.x) === 0);
+        WS.an.forEach(a => { const occ = ps.some(q => dist(q.x, q.y, a.x, a.y) < 74); a.p = occ ? Math.min(100, a.p + 28 * dt) : Math.max(0, a.p - 10 * dt); });
+        if (WS.swT <= 0) {      // 地中から狙う：足元の予兆（1.5秒後に突き上げ）
+            WS.swT = 2.4; const v = ps.length ? ps[Math.floor(Math.random() * ps.length)] : null;
+            if (v) telegraph(v.x, v.y, 120, 1.5, ed(b) * 2.2, '#c9a27a');
+            for (let i = 0; i < 2; i++) { const a = Math.random() * WM_TAU, r = Math.random() * Math.min.apply(null, G.pr) * 0.8; telegraph(WM.cx + Math.cos(a) * r, WM.cy + Math.sin(a) * r, 110, 1.5, ed(b) * 2.0, '#c9a27a'); }
+        }
+        G.an = WS.an.map(a => ({ x: Math.round(a.x), y: Math.round(a.y), p: Math.round(a.p) })); G.at = Math.max(0, Math.ceil(WS.anT));
+        if (WS.an.every(a => a.p >= 100)) wormYank(b);
+        else if (WS.anT <= 0) {      // 失敗：ワームが暴れて地上に出る。すぐに地盤沈下
+            WS.an = []; G.an = []; G.hid = 0; b.inv = false; b.st.stunT = 0; b.x = WM.cx; b.y = WM.cy; WS.mode = 'A'; WS.bT = 45; WS.biteT = 1.0;
+            telegraph(WM.cx, WM.cy, 900, 2.2, ed(b) * 2.0, '#c9a27a', { sh: 'donut', ri: 220 });
+            netAnnounce('💢 引きずり出せなかった！　ワームが暴れる！', 2400);
+        }
+    }
+    function wormYank(b) {
+        WS.mode = 'D'; WS.an = []; G.an = []; G.hid = 0; b.inv = false; b.st.stunT = 14; b.vuln = 99; WS.dT = 14; WS.lay = wormLay(); b.x = WS.lay.head.x; b.y = WS.lay.head.y;
+        netAnnounce('💥 ワームを引きずり出した！　長い体のどこを殴っても大ダメージ！', 3000);
+    }
+    function wormD(b, dt) {
+        WS.dT -= dt;
+        if (WS.dT <= 0) { WS.mode = 'A'; WS.lay = null; b.st.stunT = 0; b.vuln = 0; WS.bT = 55; WS.trail = []; for (let j = Math.ceil(WM.SEG * WM.GAP / 8); j >= 0; j--) WS.trail.push({ x: b.x, y: b.y + j * 8 }); netAnnounce('ワームが起き上がった！', 1600); }
+    }
+    // ---- ③ 体内潜入 ----
+    function wormCoreInit(c, b, shielded) { c.bd = b.bd; c.maxHp = c.hp = Math.max(1, Math.round(b.maxHp * 0.04)); c.dmg = 0; c.r = 40; c.spd = 0; c.takeMul = 1; c.dmgMul = 1; c.inv = !!shielded; c.broken = null; c.sh = b.sh ? b.sh.slice() : [1, 1, 1, 1, 1]; }
+    function wormStartC(b) {
+        WS.cN++; WS.mode = 'C'; WS.q = []; b.inv = true; b.st.stunT = 999; b.mv = null; eBullets = []; telegraphs = [];
+        const all = alivePlayersPos(), n = all.length;
+        const th = Math.random() * WM_TAU, cs = Math.cos(th), sn = Math.sin(th), k = n >= 2 ? Math.floor(n / 2) : 1;      // ランダムな向きで、いちばん端にいる半分が丸呑みにされる（1人のときは、その1人）
+        const ids = all.map(q => ({ id: q.id, v: q.x * cs + q.y * sn })).sort((a, c) => c.v - a.v).slice(0, k).map(o => o.id);
+        netSend('gm', { k: 'swal', ids: ids }); if (ids.indexOf(me.id) >= 0) wormEnterInner();
+        const outside = n - ids.length, icx = (WM.IN.x0 + WM.IN.x1) / 2, icy = (WM.IN.y0 + WM.IN.y1) / 2;
+        const ic = spawnEnemy({ name: '心臓核', icon: '❤️', arch: 'wcore', color: '#ff4d8a' }, icx, icy, false); wormCoreInit(ic, b, outside > 0); WS.inner = ic; WS.outer = null; WS.open = false; WS.scales = [];
+        if (outside > 0) {
+            const m = clamp(Math.ceil(outside * 1.5), 3, 8);
+            for (let i = 0; i < m; i++) { const a = i / m * WM_TAU, r = 170 + 60 * (i % 2), sc = spawnEnemy({ name: '硬い鱗', icon: '🛡', arch: 'wscale', color: '#8fa0b8' }, b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, false); sc.bd = b.bd; sc.maxHp = sc.hp = Math.max(1, Math.round(b.maxHp * 0.012)); sc.dmg = 0; sc.r = 30; sc.spd = 0; sc.takeMul = 1; sc.dmgMul = 1; WS.scales.push(sc); }
+        }
+        WS.cT = 85; WS.acT = 1.5; G.ct = 85; G.sc = WS.scales.length;
+        netAnnounce('🍽 ワームがステージの半分を丸呑みにした！　外：鱗を砕け／体内：心臓核を狙え！', 3600);
+    }
+    function wormC(b, dt) {
+        WS.cT -= dt; G.ct = Math.max(0, Math.ceil(WS.cT));
+        const ps = alivePlayersPos(), outN = ps.filter(q => wmZone(q.x) === 0).length;
+        WS.acT -= dt; if (WS.acT <= 0) { WS.acT = 2.6; for (let i = 0; i < 3; i++) telegraph(rnd(WM.IN.x0 + 90, WM.IN.x1 - 90), rnd(WM.IN.y0 + 90, WM.IN.y1 - 90), 120, 1.6, ed(b) * 0.9, '#9bd84a'); }      // 体内の酸の池
+        if (outN === 0) WS.scales.forEach(s => { if (!s.dead) { s.hp = 0; s.dead = true; } });      // 外に誰もいなければ、鱗は無いものとする
+        const left = WS.scales.filter(s => !s.dead && s.hp > 0).length; G.sc = left;
+        if (!WS.open && left === 0) {
+            WS.open = true; WS.inner.inv = false;
+            if (outN > 0) { const oc = spawnEnemy({ name: '口の核', icon: '🟡', arch: 'wcore', color: '#ffd84a' }, b.x, b.y - 130, false); wormCoreInit(oc, b, false); oc.outer = true; WS.outer = oc; }
+            netAnnounce('✨ 鱗が砕けた！　口の核と心臓核を、すぐに続けて壊せ！', 3000);
+        }
+        const cores = [WS.inner, WS.outer].filter(Boolean);
+        cores.forEach(c => { if (c.broken != null && WS.t - c.broken > 8) { c.broken = null; c.inv = false; c.hp = c.maxHp; netAnnounce('核が再生した！　もう一度！', 1500); } });
+        if (WS.open && cores.every(c => c.broken != null)) { wormCSuccess(b); return; }
+        if (WS.cT <= 0) wormCFail(b);
+    }
+    function wormCoreBreak(e) {      // killEnemy から：核は死なずに「砕けた状態」で待つ。もう一方が8秒以内に砕ければ成功
+        e.hp = 1; e.inv = true; e.broken = WS ? WS.t : 0; fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: 120, t: 0.5, life: 0.5, c: e.def.color || '#fff', fill: true });
+        const other = WS && [WS.inner, WS.outer].filter(Boolean).length > 1;
+        netAnnounce(e.outer ? '口の核が砕けた！' + (other ? '　体内の心臓核も、すぐに！' : '') : '心臓核が砕けた！' + (other ? '　外の口の核も、すぐに！' : ''), 2200);
+    }
+    function wormCleanup(withSegs) { if (!WS) return; (withSegs ? WS.segs : []).concat(WS.scales, [WS.inner, WS.outer]).forEach(o => { if (o && !o.dead) { o.hp = 0; o.dead = true; } }); }      // withSegs：ボスが倒れたとき、体もすべて消す
+    function wormCSuccess(b) {
+        wormCleanup(false); netSend('gm', { k: 'eject' }); wormEjectMe();
+        b.hp = Math.max(1, b.hp - b.maxHp * 0.05); WS.mode = 'D'; b.inv = false; b.st.stunT = 16; b.vuln = 99; WS.dT = 16; WS.lay = wormLay(); b.x = WS.lay.head.x; b.y = WS.lay.head.y; G.hid = 0; G.sc = 0; G.ct = 0;
+        netAnnounce('💥 中と外のコアが同時に砕けた！　ワームが大ダウン！', 3200);
+    }
+    function wormCFail(b) {
+        wormCleanup(false); netSend('gm', { k: 'eject' }); wormEjectMe();
+        b.inv = false; b.st.stunT = 0; b.rage = Math.max(b.rage || 1, 1.12); WS.mode = 'A'; WS.bT = 45; WS.biteT = 1.0; G.sc = 0; G.ct = 0;
+        telegraph(WM.cx, WM.cy, 900, 2.2, ed(b) * 2.0, '#9bd84a', { sh: 'donut', ri: 220 });
+        netAnnounce('💢 コアを壊しきれなかった！　全員が吐き出される！', 2600);
+    }
+    // </worm-end-host>
+    function wormEnterInner() {      // 丸呑みにされる：体内の部屋へ
+        me.x = (WM.IN.x0 + WM.IN.x1) / 2 + rnd(-220, 220); me.y = (WM.IN.y0 + WM.IN.y1) / 2 + rnd(150, 380); me.inv = Math.max(me.inv || 0, 1.2); me.fallT = 0;
+        popups.push({ x: me.x, y: me.y - 30, t: 1.6, text: '🍽 丸呑みにされた！', c: '#ff9ab0', big: true });
+    }
+    function wormEjectMe() {      // 吐き出される：足場の中央あたりへ
+        if (wmZone(me.x) !== 1) return;
+        const a = Math.random() * WM_TAU, r = 120 + Math.random() * 180; me.x = WM.cx + Math.cos(a) * r; me.y = WM.cy + Math.sin(a) * r; me.inv = Math.max(me.inv || 0, 1.2);
+        popups.push({ x: me.x, y: me.y - 30, t: 1.4, text: '吐き出された！', c: '#9fe0ff', big: true });
+    }
+    // <worm-end>
+    let WL = { pr: null };
+    function wormFall() {      // 奈落に落ちた：足場の縁に倒れる（仲間が近くに来れば復活できる）
+        me.fallT = 0; const a = Math.atan2(me.y - WM.cy, me.x - WM.cx), R = Math.max(120, wmR(me.x, me.y) - 40);
+        me.x = WM.cx + Math.cos(a) * R; me.y = WM.cy + Math.sin(a) * R;
+        popups.push({ x: me.x, y: me.y - 30, t: 1.6, text: '🕳 奈落に落ちた！', c: '#ff7a7a', big: true });
+        me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('奈落に落ちた！　仲間が近くに来れば復活できます', 2200);
+    }
+    function wormShove() {
+        const b = gmBoss(); if (!b || wmZone(me.x) === 1 || G.hid) return;
+        const d = Math.hypot(me.x - b.x, me.y - b.y); if (d > 520) return;
+        const a = Math.atan2(me.y - b.y, me.x - b.x); me.x += Math.cos(a) * 120; me.y += Math.sin(a) * 120;
+    }
+    function wormLocal(dt) {      // 全員：足場の崩れる演出・落下の判定・体内の酸
+        if (G.pr) {
+            if (WL.pr) for (let i = 0; i < WM.N; i++) if (G.pr[i] < WL.pr[i] - 1) { const a = (i + 0.5) * WM_TAU / WM.N; if (!wmHidden(WM.cx)) { fx.push({ k: 'puff', x: WM.cx + Math.cos(a) * WL.pr[i], y: WM.cy + Math.sin(a) * WL.pr[i], t: 0.5, life: 0.5, c: '#8a6a40' }); addShake(5, 0.25); } }
+            WL.pr = G.pr.slice();
+        }
+        if (me.dead || run.phase !== 'run') return;
+        if (wmZone(me.x) === 1) {
+            me.x = clamp(me.x, WM.IN.x0 + me.r, WM.IN.x1 - me.r); me.y = clamp(me.y, WM.IN.y0 + me.r, WM.IN.y1 - me.r);
+            if (G.wm === 'C') { me.acidT = (me.acidT || 0) + dt; if (me.acidT >= 1.5) { me.acidT = 0; const bb = gmBoss(); hurtMe((bb ? ed(bb) : 0.1) * 0.28); popups.push({ x: me.x, y: me.y - 20, t: 0.6, text: '酸！', c: '#9bd84a' }); } }
+        } else if (!wmOn(me.x, me.y, 16)) { me.fallT = (me.fallT || 0) + dt; if (me.fallT > 0.45) wormFall(); }
+        else me.fallT = 0;
     }
     function updateBoss(e, dt, tgt, d, ang, slow) {
         if (e.arch === 'slime') { updateSlime(e, dt, tgt, d, ang, slow); return; }
@@ -1096,7 +1283,8 @@
         if (dmg > 0 && !accBusy) accEvent('hit');
     }
     function applyHit(d) {
-        const e = enemies.find(x => x.id === d.eid);
+        let e = enemies.find(x => x.id === d.eid);
+        if (e && e.arch === 'wseg') { const bb = gmBoss(); if (!bb) return; d = Object.assign({}, d, { dmg: d.dmg * (G.wm === 'D' ? 3 : 0.35) }); e = bb; }      // ワールドワームの長い体：どこを叩いても、ワーム本体のダメージ（普段は小さく、引きずり出した間は大きく）
         if (!e || e.hp <= 0 || e.inv) return;
         const duM = GMK === 'duality' ? duHitMul(e, d) : 1; if (duM <= 0) return;      // 大討伐戦：バリア・クリスタルの色の判定
         const amp = (e.st.curseT > 0 ? 1.2 : 1) * (e.vuln > 0 ? 1.3 : 1) * duM;
@@ -1118,8 +1306,10 @@
 
     function killEnemy(e, by) {
         if (e.dead) return;
+        if (e.arch === 'wcore' && WS) { wormCoreBreak(e); return; }      // 核は、すぐには壊れない（中と外が同時に壊したときだけ）
         e.dead = true; e.hp = 0;
         run.kills++;
+        if (e.boss && GMK === 'worm') wormCleanup(true);
         if (e.arch === 'slime') incOnDeath(e); else if (e.arch === 'heart') incHeartDown(e);      // 増殖スライム：分裂／心臓を砕いたら勝ち
         if (window.ClassFx) ClassFx.onKill(e);                                  // 職業：魂喰らい・調合・聖なる加護
         // 魔改造の死に際効果（ホスト側で実行。telegraphは状態同期されるので観戦側にも見える）
@@ -1303,7 +1493,7 @@
         const pool = (window.STAGE_DATA.RUSH && window.STAGE_DATA.RUSH.lootPool) ? window.STAGE_DATA.RUSH.lootPool(5).bossDrops : [];
         if (pool.length) { rollLoot(pool, rb + 1.2, 'epic', ev.x, ev.y, 'raid'); rollLoot(pool, rb + 1.6, 'epic', ev.x + 24, ev.y, 'raid'); }
         rollArmor(rb + 1.2, 'epic', ev.x, ev.y - 22, 'raid'); rollAcc(rb + 1.4, 'epic', ev.x - 30, ev.y + 30);
-        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else giveDuality(ev.x, ev.y);
+        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else if (stage.id === 'raid_worm') { popups.push({ x: ev.x, y: ev.y - 24, t: 2.4, text: '🏆 ワールドワーム討伐！', c: '#d8a85a', big: true }); } else giveDuality(ev.x, ev.y);
         try { if (window.SBAch && !DBG) SBAch.report('raid', 1, stage.id); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
     }
     function rollLoot(pool, luck, minR, x, y, src) {
@@ -1440,6 +1630,7 @@
         dmg = Math.max(1, Math.round(dmg));
         if (me.barrierHp > 0) { const ab = Math.min(dmg, me.barrierHp); me.barrierHp -= ab; dmg -= ab; popups.push({ x: me.x, y: me.y - 30, t: 0.7, text: 'BARRIER-' + Math.round(ab), c: '#7fc8ff' }); me.inv = 0.3; if (dmg <= 0) return; }
         me.hp -= dmg; me.inv = 0.6 + A('iframe'); me.flash = 0.2;
+        if (GMK === 'worm') wormShove();      // ワーム：攻撃を受けると、ワームから離れる向きに吹き飛ぶ（縁の近くでは、落ちる危険）
         if (opt && opt.poison) { me.poisonT = 4; me.poisonDps = Math.max(me.poisonDps || 0, dmg * 0.35); popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '毒！', c: '#8fd45a' }); }
         if (window.SBSound) SBSound.sfx('hurt');
         accEvent('hurt');
@@ -2674,7 +2865,7 @@
         // 接触ダメージ
         for (const e of enemies) {
             if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20 || e.noContact) continue;
-            if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber' || e.arch === 'heart' || (e.arch === 'slime' && (e.air || 0) > e.r * 0.4)) continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0)), e.affix === 'venom' ? { poison: true } : null); }
+            if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber' || e.arch === 'heart' || e.arch === 'wscale' || e.arch === 'wcore' || (e.arch === 'slime' && (e.air || 0) > e.r * 0.4) || (G.hid && (e.boss || e.arch === 'wseg')) || (GMK === 'worm' && wmZone(e.x) !== wmZone(me.x))) continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0)), e.affix === 'venom' ? { poison: true } : null); }
         }
         // 敵弾
         for (let i = eBullets.length - 1; i >= 0; i--) {
@@ -2818,7 +3009,7 @@
     function gmBoss() { return enemies.find(e => e.boss && !e.echo && e.hp > 0) || null; }
     function gmUpdate(dt) {          // ホストだけ
         if (!GMK || !run.bossSpawned || run.phase !== 'run' || run.ended) return;
-        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt); else if (GMK === 'duality') dualityHost(dt); else if (GMK === 'increase') incHost(dt);
+        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt); else if (GMK === 'duality') dualityHost(dt); else if (GMK === 'increase') incHost(dt); else if (GMK === 'worm') wormHost(dt);
     }
     // --- 死神：スティグマ ---
     function stigmaHost(dt) {
@@ -3187,12 +3378,15 @@
         else if (d.k === 'core') fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: 200, t: 0.5, life: 0.5, c: '#ff7aff', fill: true });
         else if (d.k === 'cr' && GMK === 'duality') crStart(d.m && typeof d.m === 'object' ? d.m : {}, Number(d.dm) || 1);
         else if (d.k === 'wipe' && GMK === 'duality') duWipe();
+        else if (d.k === 'swal' && GMK === 'worm') { if (Array.isArray(d.ids) && d.ids.indexOf(me.id) >= 0) wormEnterInner(); }
+        else if (d.k === 'eject' && GMK === 'worm') wormEjectMe();
         else if (d.k === 'ph2') { fx.push({ k: 'ring', x: Number(d.x) || 0, y: Number(d.y) || 0, r: 0, max: 520, t: 0.8, life: 0.8, c: '#b060ff', fill: true }); addShake(8, 0.5); }
     }
     function gmApplySnap(g) { G = (g && typeof g === 'object') ? g : {}; }
     function gmLocal(dt) {
         if (!GMK || !run.bossSpawned || run.phase !== 'run') return;
         if (GMK === 'duality') duLocal(dt);
+        if (GMK === 'worm') wormLocal(dt);
         if (pullFx && pullFx.t > 0) {
             pullFx.t -= dt;
             if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { moveSolid(me, dx / d * pullFx.f * dt, dy / d * pullFx.f * dt, me.r); } }
@@ -3217,6 +3411,13 @@
                 if (crLocal && crMarks[myId]) parts.push('☄ あなたは' + (crMarks[myId] === 'r' ? '赤' : '青') + 'の印　' + (crMarks[myId] === 'r' ? '青' : '赤') + 'エリアへ！ ' + Math.ceil(crLocal.t));
             }
             return parts.join('　');
+        }
+        if (GMK === 'worm') {
+            const z = wmZone(me.x), an = G.an || [];
+            if (G.wm === 'B') return '🪝 アンカーに乗り続けて、ワームを引きずり出せ！　起動 ' + an.filter(a => a.p >= 100).length + ' / ' + an.length + '　残り ' + (G.at | 0) + ' 秒';
+            if (G.wm === 'C') return z ? '🫀 体内：心臓核を壊せ！（酸に注意）　残り ' + (G.ct | 0) + ' 秒' : '🛡 外：鱗を砕け！（残り ' + (G.sc | 0) + ' 枚）→ 口の核を壊せ！　残り ' + (G.ct | 0) + ' 秒';
+            if (G.wm === 'D') return '💥 大ダウン！　長い体のどこを殴っても大ダメージ！';
+            return '🪱 世界喰らい：足場が崩れていく！　外周に近づくな';
         }
         if (GMK === 'increase') return G.heart ? '❤ 増殖の心臓が現れた！　逃げ回る心臓に、一撃を当てれば勝ち！' : '🟢 増殖スライム ' + (G.n || 1) + ' / ' + INC_HEART_AT + ' 体　（' + INC_HEART_AT + ' 体に分裂すると、心臓が現れる）';
         if (GMK === 'twin' && G.rv) return '⚠ ' + G.rv.n + ' が蘇るまで ' + Math.ceil(G.rv.t) + '秒　先に倒せ！';
@@ -3245,9 +3446,11 @@
             b.bd = bd; b.pairIdx = i; if (RAID) b.r = 78;
             if (RAID) raidBossStats(b);
             if (GMK === 'increase') { b.arch = 'slime'; b.def.arch = 'slime'; b.gen = 0; b.hopT = 0; b.r = 86; G.n = 1; }      // 増殖スライム：はねて動く
+            if (GMK === 'worm') { b.x = WM.cx; b.y = WM.cy - 240; b.r = 74; b.def.arch = 'chaser'; }      // ワールドワーム：足場の中央に現れる
             if (bd.set) b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null;
             if (bd.hp) b.maxHp = b.hp = Math.round(b.maxHp * bd.hp);       // ニコイチのボスは1体ぶんのHPを少なめにする
             if (DBG && DBG.hp > 0) b.maxHp = b.hp = Math.max(1, Math.round(b.maxHp * DBG.hp));
+            if (GMK === 'worm') wormInit(b);
         });
         netAnnounce('⚠ ' + defs.map(d => d.name).join(' と ') + ' が現れた！', 2600);
         if (GMK === 'stigma') setTimeout(() => netAnnounce('☠ 10秒ごとに「スティグマ」が刻まれる…13個たまると死ぬ！', 3200), 2700);
@@ -4038,7 +4241,7 @@
         // 床
         const floorCol = (CORR_ON && CF.on && CF.pal && CF.pal.floor) || stage.bg, pxOn = !!(window.SBPix && SBPix.on() && SBPix.pattern);
         if (pxOn) ctx.imageSmoothingEnabled = false;
-        if (pxOn) {      // ドット絵の床：色から地面の種類（草・土・石・砂・雪・溶岩・虚空）を決めて、タイルを敷き詰める
+        if (GMK === 'worm') { drawWormWorld(); } else if (pxOn) {      // ドット絵の床：色から地面の種類（草・土・石・砂・雪・溶岩・虚空）を決めて、タイルを敷き詰める
             const fk = (CORR_ON && CF.on) ? 'stone' : (stage._fk || (stage._fk = SBPix.kindOfColor(stage.bg)));
             ctx.imageSmoothingEnabled = false; ctx.fillStyle = SBPix.pattern(ctx, fk, floorCol); ctx.fillRect(0, 0, WORLD_W, WORLD_H);
             if (!(CORR_ON && CF.on)) SBPix.drawScatter(ctx, fk, floorCol, cam.x - VW / 2 - 20, cam.y - VH / 2 - 20, cam.x + VW / 2 + 20, cam.y + VH / 2 + 20, WORLD_W, WORLD_H, stage.id ? stage.id.length * 977 : 7, (x, y) => rocks.some(k => dist(x, y, k.x, k.y) < k.r + 14));
@@ -4053,13 +4256,13 @@
         // 岩
         rocks.forEach(k => { if (pxOn) { SBPix.drawRock(ctx, k.x, k.y, k.r); return; } ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.arc(k.x + 4, k.y + 6, k.r, 0, 7); ctx.fill(); ctx.fillStyle = '#6b6f78'; ctx.beginPath(); ctx.arc(k.x, k.y, k.r, 0, 7); ctx.fill(); ctx.fillStyle = '#868b95'; ctx.beginPath(); ctx.arc(k.x - k.r * 0.25, k.y - k.r * 0.3, k.r * 0.55, 0, 7); ctx.fill(); });
         // 予告範囲
-        telegraphs.forEach(t => drawTele(t));
+        telegraphs.forEach(t => { if (wmHidden(t.x)) return; drawTele(t); });
         // 敵
         drawDomains();
         enemies.forEach(e => drawEnemy(e));
         drawMinions();
         // 敵弾
-        eBullets.forEach(b => { if (b.kd === 1) { drawSword(b); return; } if (b.refl === 1) { ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, 7); ctx.stroke(); } if (pxOn && SBPix.drawBullet) { SBPix.drawBullet(ctx, b.x, b.y, b.r, b.c || '#ff6a5a', { vx: b.vx, vy: b.vy }); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
+        eBullets.forEach(b => { if (wmHidden(b.x)) return; if (b.kd === 1) { drawSword(b); return; } if (b.refl === 1) { ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, 7); ctx.stroke(); } if (pxOn && SBPix.drawBullet) { SBPix.drawBullet(ctx, b.x, b.y, b.r, b.c || '#ff6a5a', { vx: b.vx, vy: b.vy }); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
         // 自分の弾
         if (pxOn && SBPix.drawBullet) { myShots.forEach(s => { if (s.kd === 1) drawSword(s); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx, vy: s.vy, arrow: !!s.ar }); }); ghostShots.forEach(s => { if (s.kd === 1) drawSword(s); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx || 0, vy: s.vy || 0 }); }); }
         else {
@@ -4068,12 +4271,12 @@
         }
         drawBlades();
         // 味方
-        Object.keys(allies).forEach(id => drawPlayer(allies[id], false));
+        Object.keys(allies).forEach(id => { if (wmHidden(allies[id].x)) return; drawPlayer(allies[id], false); });
         if (GH) drawGhost();
         drawPlayer(me, true);
         if (GMK === 'duality') drawDualityMarks();
         // 演出
-        fx.forEach(f => drawFx(f));
+        fx.forEach(f => { if (f.x != null && wmHidden(f.x)) return; drawFx(f); });
         if (window.ClassForms) ClassForms.draw(ctx);       // 職業の専用の形（世界座標）
         if (window.ClassFx) ClassFx.draw(ctx);             // 職業の固有効果のゲージなど
         popups.forEach(p => { ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = (p.big ? 'bold 18px' : 'bold 14px') + ' sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.fillStyle = p.c; ctx.fillText(p.text, p.x, p.y - (0.7 - Math.min(0.7, p.t)) * 30); ctx.globalAlpha = 1; });
@@ -4220,6 +4423,70 @@
         for (let i = 0; i < 12; i++) { ctx.rotate(Math.PI / 6); ctx.beginPath(); ctx.arc(R, 0, 5, 0, 7); ctx.fill(); }
         ctx.restore();
     }
+    // ワールドワームの世界：奈落に浮かぶ円盤の足場（崩れる予兆つき）／体内の部屋
+    function drawWormWorld() {
+        const inner = wmZone(me.x) === 1, now = performance.now() / 1000;
+        ctx.fillStyle = inner ? '#2a0d17' : '#05040a'; ctx.fillRect(0, 0, WORLD_W, WORLD_H);
+        if (inner) {
+            const R = WM.IN, cx = (R.x0 + R.x1) / 2, cy = (R.y0 + R.y1) / 2, g = ctx.createRadialGradient(cx, cy, 60, cx, cy, 640);
+            g.addColorStop(0, '#7a2f45'); g.addColorStop(1, '#3d1424'); ctx.fillStyle = g; ctx.fillRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
+            ctx.strokeStyle = 'rgba(255,140,170,' + (0.4 + 0.2 * Math.sin(now * 3)) + ')'; ctx.lineWidth = 10; ctx.strokeRect(R.x0, R.y0, R.x1 - R.x0, R.y1 - R.y0);
+            ctx.strokeStyle = 'rgba(255,90,120,0.18)'; ctx.lineWidth = 3; for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.moveTo(R.x0 + i * 120, R.y0); ctx.bezierCurveTo(R.x0 + i * 120 + 60, cy - 200, R.x0 + i * 120 - 60, cy + 200, R.x0 + i * 120, R.y1); ctx.stroke(); }
+            ctx.font = 'bold 15px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,200,215,0.8)'; ctx.fillText('ワールドワームの体内', cx, R.y0 + 28); ctx.textAlign = 'start';
+            return;
+        }
+        const STEPS = 96; ctx.beginPath();
+        for (let i = 0; i <= STEPS; i++) { const a = i / STEPS * WM_TAU, r = wmRa(a); const x = WM.cx + Math.cos(a) * r, y = WM.cy + Math.sin(a) * r; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+        ctx.closePath(); const gg = ctx.createRadialGradient(WM.cx, WM.cy, 40, WM.cx, WM.cy, WM.R0); gg.addColorStop(0, '#4a3a2a'); gg.addColorStop(1, '#2b2118'); ctx.fillStyle = gg; ctx.fill();
+        ctx.save(); ctx.clip(); ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 2; for (let r = 100; r < WM.R0; r += 100) { ctx.beginPath(); ctx.arc(WM.cx, WM.cy, r, 0, 7); ctx.stroke(); } for (let i = 0; i < 12; i++) { const a = i * WM_TAU / 12; ctx.beginPath(); ctx.moveTo(WM.cx, WM.cy); ctx.lineTo(WM.cx + Math.cos(a) * WM.R0, WM.cy + Math.sin(a) * WM.R0); ctx.stroke(); } ctx.restore();
+        ctx.strokeStyle = 'rgba(255,200,120,0.55)'; ctx.lineWidth = 6; ctx.stroke();
+        (G.cr || []).forEach(i => {      // これから崩れる場所（赤く点滅）
+            const a0 = i * WM_TAU / WM.N, a1 = (i + 1) * WM_TAU / WM.N, r1 = G.pr ? G.pr[i] : WM.R0, r0 = Math.max(WM.RMIN * 0.5, r1 - WM.BITE);
+            ctx.beginPath(); ctx.arc(WM.cx, WM.cy, r1 + 6, a0, a1); ctx.arc(WM.cx, WM.cy, r0, a1, a0, true); ctx.closePath(); ctx.fillStyle = 'rgba(255,60,40,' + (0.28 + 0.25 * Math.sin(now * 14)) + ')'; ctx.fill();
+        });
+        (G.an || []).forEach(a => {      // アンカー（バリスタ）：乗り続けると、満タンになる
+            ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.arc(a.x, a.y, 52, 0, 7); ctx.fill();
+            ctx.strokeStyle = a.p >= 100 ? '#9dff9d' : '#9fe0ff'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(a.x, a.y, 52, -Math.PI / 2, -Math.PI / 2 + WM_TAU * Math.min(1, a.p / 100)); ctx.stroke();
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(a.x, a.y, 52, 0, 7); ctx.stroke();
+            ctx.font = '30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('🪝', a.x, a.y); ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'start';
+        });
+    }
+    // ワールドワームの頭・体・鱗・核
+    function drawWorm(e) {
+        const fl = e.flash > 0, r = e.r, now = performance.now() / 1000;
+        if (e.arch === 'wcore') {
+            const beat = 1 + 0.1 * Math.max(0, Math.sin(now * 6)), br = e.broken != null || (e.inv && e.hp <= 1 && e.maxHp > 1);      // 砕けた核：無敵で体力が1（仲間の画面でも分かる）
+            ctx.save(); ctx.translate(e.x, e.y); ctx.scale(beat, beat);
+            ctx.fillStyle = fl ? '#fff' : (br ? '#cfcfcf' : (e.def.color || '#ff4d8a')); ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.ellipse(-r * 0.3, -r * 0.35, r * 0.25, r * 0.14, -0.6, 0, 7); ctx.fill(); ctx.restore();
+            if (e.inv && !br) { ctx.strokeStyle = 'rgba(127,255,212,0.9)'; ctx.lineWidth = 4; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(e.x, e.y, r + 12, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+            ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; const lb = br ? 'シンクロ待ち！' : (e.inv ? '（鱗を壊すまで無敵）' : '核'); ctx.strokeText(lb, e.x, e.y - r - 14); ctx.fillText(lb, e.x, e.y - r - 14); ctx.textAlign = 'start';
+            if (!br && e.hp < e.maxHp) { const w = r * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - w / 2, e.y + r + 6, w, 5); ctx.fillStyle = '#ff7a96'; ctx.fillRect(e.x - w / 2, e.y + r + 6, w * clamp(e.hp / e.maxHp, 0, 1), 5); }
+            return;
+        }
+        if (e.arch === 'wscale') {
+            ctx.save(); ctx.translate(e.x, e.y); ctx.fillStyle = fl ? '#fff' : '#8fa0b8'; ctx.strokeStyle = '#dfe8f5'; ctx.lineWidth = 3; ctx.beginPath();
+            for (let i = 0; i < 6; i++) { const a = i * WM_TAU / 6 + 0.5; const x = Math.cos(a) * r, y = Math.sin(a) * r; if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); } ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+            const w = r * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - w / 2, e.y - r - 10, w, 4); ctx.fillStyle = '#9fe0ff'; ctx.fillRect(e.x - w / 2, e.y - r - 10, w * clamp(e.hp / e.maxHp, 0, 1), 4);
+            return;
+        }
+        if (G.hid) {      // 地中に潜っている間は、姿が見えない（盛り上がる土だけ）
+            if (e.boss) { ctx.strokeStyle = 'rgba(160,112,64,' + (0.35 + 0.2 * Math.sin(now * 10)) + ')'; ctx.lineWidth = 5; ctx.setLineDash([10, 10]); ctx.beginPath(); ctx.arc(e.x, e.y, 90 + 12 * Math.sin(now * 6), 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+            return;
+        }
+        const head = !!e.boss, weak = G.wm === 'D';
+        ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + r * 0.8, r * 0.9, r * 0.4, 0, 0, 7); ctx.fill();
+        const gr = ctx.createRadialGradient(e.x - r * 0.3, e.y - r * 0.4, r * 0.1, e.x, e.y, r * 1.05); gr.addColorStop(0, fl ? '#fff' : (head ? '#e6bf8a' : '#d4b088')); gr.addColorStop(1, fl ? '#fff' : (head ? '#8a5f34' : '#6e4f2e'));
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(e.x, e.y, r, 0, 7); ctx.fill(); ctx.strokeStyle = head ? '#ffd84a' : '#4a3018'; ctx.lineWidth = head ? 4 : 3; ctx.stroke();
+        ctx.strokeStyle = 'rgba(60,35,15,0.45)'; ctx.lineWidth = 3; for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(e.x, e.y, r * (0.55 + 0.2 * (k + 1) / 2), -0.9, 0.9); ctx.stroke(); }
+        if (head) {
+            ctx.fillStyle = '#3a0f14'; ctx.beginPath(); ctx.arc(e.x, e.y, r * 0.55, 0, 7); ctx.fill();
+            ctx.fillStyle = '#fff'; for (let i = 0; i < 12; i++) { const a = i * WM_TAU / 12; ctx.beginPath(); ctx.moveTo(e.x + Math.cos(a - 0.12) * r * 0.55, e.y + Math.sin(a - 0.12) * r * 0.55); ctx.lineTo(e.x + Math.cos(a) * r * 0.32, e.y + Math.sin(a) * r * 0.32); ctx.lineTo(e.x + Math.cos(a + 0.12) * r * 0.55, e.y + Math.sin(a + 0.12) * r * 0.55); ctx.fill(); }
+            ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText('ワールドワーム', e.x, e.y - r - 12); ctx.fillText('ワールドワーム', e.x, e.y - r - 12); ctx.textAlign = 'start';
+        }
+        if (e.inv) { ctx.strokeStyle = 'rgba(127,255,212,0.9)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(e.x, e.y, r + 9, 0, 7); ctx.stroke(); }
+        if (weak) { ctx.strokeStyle = 'rgba(255,224,138,' + (0.5 + 0.4 * Math.sin(now * 12)) + ')'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(e.x, e.y, r + 8, 0, 7); ctx.stroke(); }
+    }
     // 増殖スライム／心臓の描画（ぷるぷる動く、半透明のスライム）
     function drawIncrease(e) {
         const now = performance.now() / 1000, fl = e.flash > 0, air = e.air || 0, r = e.r;
@@ -4252,7 +4519,9 @@
     }
     function drawEnemy(e) {
         if (e.pvp) return;   // 対人戦の相手は drawPlayer で描く
+        if (GMK === 'worm' && wmHidden(e.x)) return;      // 外と体内は、お互いに見えない
         if (e.arch === 'slime' || e.arch === 'heart') { drawIncrease(e); return; }
+        if (GMK === 'worm' && (e.arch === 'wseg' || e.arch === 'wscale' || e.arch === 'wcore' || e.boss)) { drawWorm(e); return; }
         const fl = e.flash > 0;
         if (e.boss && !e.echo && (e.gate != null ? e.gate : bdef(e).gate)) drawGateRing(e);
         ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.8, e.r * 0.9, e.r * 0.4, 0, 0, 7); ctx.fill();

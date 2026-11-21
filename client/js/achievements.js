@@ -33,7 +33,7 @@
     // --- 大討伐戦 ---
     add('raid_increase_clear', '大討伐戦', '増殖を食い止めるもの', '大討伐戦「第一幕　増殖スライム」で、増殖スライム インクリーズの心臓を砕く', { ck: 'raidIncrease', n: 1, special: true,
         reward: { title: '増殖を食い止めるもの' }, rewardText: '称号「増殖を食い止めるもの」（専用の神話装備「Legend of Increase」は、ボスが落とす）' });
-    add('raid_duality_clear', '大討伐戦', '双界を切り開くもの', '大討伐戦「第二幕　双界の覇竜」のボス、ツイン・エレメンタルを倒す', { ck: 'raidDuality', n: 1, special: true,
+    add('raid_duality_clear', '大討伐戦', '双界を切り開くもの', '大討伐戦「第三幕　双界の覇竜」のボス、ツイン・エレメンタルを倒す', { ck: 'raidDuality', n: 1, special: true,
         reward: { title: '双界を切り開くもの' }, rewardText: '称号「双界を切り開くもの」（専用の神話装備「Legend of Duality」は、ボスが落とす）' });
 
     // --- 数を数えるもの（段階ごとに称号）---

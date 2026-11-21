@@ -855,6 +855,21 @@
         return id;
     }
 
+    // ============================================================
+    // 大討伐戦 第二幕：ワールドワーム（砂色の巨大な蟲）。ステージ全体のギミック（足場の崩壊・アンカー・体内）は practice.js の worm* 関数
+    //   ここは、地上にいるときの技だけ：突進・尻尾叩きつけ・土砂吐き・地中の突き上げ・大薙ぎ
+    // ============================================================
+    const SAND = '#d8a85a', ROCK = '#a07040', ACID = '#9bd84a';
+    set('raid_worm', [
+        def('rw_charge', '大地を割る突進', [warn(0, 1100, 130, 0.9, tc(SAND, { aim: 't' })), dash(0.9, 0.7, 1000, tc(SAND)), warn(1.9, 1100, 130, 0.7, tc(SAND, { aim: 't' })), dash(2.6, 0.7, 1040, tc(SAND))], { rec: 0.9 }),
+        def('rw_tail', '尻尾叩きつけ', [ring(0, 260, 1.0, 1.8, tc(ROCK)), donut(1.1, 720, 260, 0.9, 1.6, tc(ROCK)), ring(2.2, 200, 0.7, 1.7, tc(SAND))], { rec: 0.8 }),
+        def('rw_spit', '土砂吐き', [cone(0, 620, 56, 1.0, 1.5, tc(SAND, { aim: 't', off: -30 })), cone(0, 620, 56, 1.0, 1.5, tc(SAND, { aim: 't', off: 30 })), fan(0.9, 9, 8, 420, 0.8, tc(ROCK))]),
+        def('rw_rumble', '地中の突き上げ', [at(0, 110, 0.9, 1.8, tc(ROCK))].concat([0, 1, 2, 3, 4].map(i => at(0.5 + i * 0.4, 105, 0.8, 1.8, tc(ROCK, { who: 'rand' }))))),
+        def('rw_sweep', '大薙ぎ', [line(0, 1500, 150, 1.1, 1.8, tc(SAND, { aim: 'l', off: -40 })), line(0.3, 1500, 150, 1.1, 1.8, tc(SAND, { aim: 'l', off: 0 })), line(0.6, 1500, 150, 1.1, 1.8, tc(SAND, { aim: 'l', off: 40 }))], { rec: 0.8 })
+    ], def('rw_stun', 'ワームの咆哮', [ring(0, 380, 1.4, 1.0, STUN)]));
+    raidExtend('raid_worm', { colors: [SAND, ROCK, ACID], tier: 5, power: 1.1, patterns: ['chain', 'crush', 'barrage', 'rainfall', 'dashpair'] });
+    raidUlt('raid_worm', 'rw_ult', '世界喰らいの咆哮', [ring(0, 300, 1.2, 1.8, tc(SAND)), donut(1.3, 760, 300, 1.0, 1.9, tc(ROCK)), rain(2.4, 14, 90, 1.0, 1.7, tc(SAND, { gap: 0.09 })), line(3.4, 1700, 220, 1.2, 2.2, tc(ROCK, { aim: 't' }))], [0.8, 0.55, 0.3]);
+
     // --- 双界の覇竜ツイン・エレメンタル：技の追加と強化 ---
     //  第一形態：赤と青の技を増やす。大技「双界共鳴」はHP80%・62%を切るたびに
     def('rd_pincer', '灼熱と極寒の挟撃', [ring(0, 230, 1.1, 1.7, tc(RED)), donut(1.3, 640, 230, 1.0, 1.7, tc(BLUE)), ring(2.5, 230, 0.9, 1.8, tc(PUR))], { rec: 0.9 });
