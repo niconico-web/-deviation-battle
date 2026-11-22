@@ -1473,6 +1473,18 @@
         announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3400);
         refreshLootLog();
     }
+    // ワールドワームを倒した報酬：専用の神話装備「Legend of Eater」（1本だけ。持っていたら出ない）
+    function giveEater(x, y) {
+        const hasIt = (arr) => (arr || []).some(w => w && w.mythicId === 'legend_eater');
+        if (hasIt(hwLoad().weapons)) { popups.push({ x: x, y: y - 20, t: 1.6, text: '世界を喰らう力は、すでにあなたの中に', c: '#e8c48a' }); return; }
+        const w = HW.makeMythic('legend_eater'); if (!w) return;
+        const d = hwLoad(); d.weapons.push(w); hwSave(d);
+        run.stats.loot.push(w);
+        popups.push({ x: x, y: y - 24, t: 2.4, text: '✦ ' + w.name, c: '#d8a85a', big: true });
+        fx.push({ k: 'ring', x: x, y: y, r: 0, max: 140, t: 0.8, life: 0.8, c: '#d8a85a' }); fx.push({ k: 'ring', x: x, y: y, r: 0, max: 100, t: 0.8, life: 0.8, c: '#9bd84a' });
+        announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3400);
+        refreshLootLog();
+    }
     // 増殖スライム インクリーズを倒した報酬：専用の神話装備「Legend of Increase」（1本だけ。持っていたら出ない）
     function giveIncrease(x, y) {
         const hasIt = (arr) => (arr || []).some(w => w && w.mythicId === 'legend_increase');
@@ -1493,7 +1505,7 @@
         const pool = (window.STAGE_DATA.RUSH && window.STAGE_DATA.RUSH.lootPool) ? window.STAGE_DATA.RUSH.lootPool(5).bossDrops : [];
         if (pool.length) { rollLoot(pool, rb + 1.2, 'epic', ev.x, ev.y, 'raid'); rollLoot(pool, rb + 1.6, 'epic', ev.x + 24, ev.y, 'raid'); }
         rollArmor(rb + 1.2, 'epic', ev.x, ev.y - 22, 'raid'); rollAcc(rb + 1.4, 'epic', ev.x - 30, ev.y + 30);
-        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else if (stage.id === 'raid_worm') { popups.push({ x: ev.x, y: ev.y - 24, t: 2.4, text: '🏆 ワールドワーム討伐！', c: '#d8a85a', big: true }); } else giveDuality(ev.x, ev.y);
+        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else if (stage.id === 'raid_worm') giveEater(ev.x, ev.y); else giveDuality(ev.x, ev.y);
         try { if (window.SBAch && !DBG) SBAch.report('raid', 1, stage.id); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
     }
     function rollLoot(pool, luck, minR, x, y, src) {
@@ -1817,6 +1829,7 @@
     //  通常の必殺技（ULT_TYPES）と同じ型（slash/quake/lance/volley/storm/nova）で、回数・威力が大きく、さらに次の効果が付く：
     //   heal=終わりに最大HPの割合を回復 / guard=終わりに結界（秒）/ exec=HP30%以下のザコを即座に倒す級の大ダメージ / lastMult=最後の一撃の倍率 / finale=最後の大爆発 {radius,mult}
     const MYTHIC_ULT = {
+        legend_eater: { name: '世界喰らい・大顎', st: 'seq', phases: [{ st: 'quake', waves: 5, gap: 170, radius: 260, kn: 360, mult: 1.8 }, { st: 'bladedance', n: 8, dur: 2.8, mult: 0.3 }, { st: 'nova', radius: 340, waves: 2, wind: 450, mult: 2.2 }], finale: { radius: 460, mult: 8 }, heal: 0.25 },      // 地割れ→剣舞→大崩壊、最後に大爆発
         legend_increase: { name: '増殖の宴・無限分裂', st: 'seq', phases: [{ st: 'bladedance', n: 12, dur: 3.6, mult: 0.3 }, { st: 'nova', radius: 320, waves: 3, wind: 450, mult: 1.5 }], finale: { radius: 420, mult: 7 }, heal: 0.15 },      // 剣が増えて舞い、最後に大きな爆発
         legend_duality: { name: '双界終焉・紅蓮と氷獄', st: 'duality', R: 520, w: 70, n: 16, gap: 150, step: 0.30, mult: 1.25, finale: { radius: 440, mult: 7 } },      // 赤と青の光刃が逆向きに全周を薙ぎ払い、最後に紫の大爆発（ツイン・エレメンタルの大技を、自分のまわりに）
         legend_unbreakable: { name: '不壊の怒り・全方位照射', st: 'unbreak', R: 620, w: 54, n: 22, step: 0.37, gap: 120, mult: 0.8 },      // 不壊の悪魔の大技（壁から大量のビームを撃ち切り、逆回転でもう一度）を、自分のまわりの広い範囲に放つ
@@ -2048,6 +2061,7 @@
     //   wave=剣気（前方の長い範囲に追撃。値は届く距離の倍率）/ quake=その場に衝撃波（値は半径）/ heal=当てるたび最大HPの割合を回復 / xs=弾が増える本数 / homing=弾が追尾
     const MYTHIC_COMBO = {
         legend_unbreakable: [{ m: 1, cd: 1 }],      // 不壊：1回の攻撃で7本のレーザー。コンボは無し
+        legend_eater: [{ m: 1.1, dir: 1, r: 1.1, a: 1.3, heal: 0.008 }, { m: 1.1, dir: -1, r: 1.1, a: 1.3, lunge: 20, heal: 0.008 }, { m: 1.3, dir: 1, r: 1.15, lunge: 30, quake: 120, heal: 0.01, blades: { mode: 'spiral', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.3 }, { m: 2.6, dir: -1, r: 1.4, a: 1.6, cd: 1.8, kn: 3, lunge: 36, fin: true, quake: 170, wave: 2.0, heal: 0.02, blades: { mode: 'boomerang', n: 2, hits: 2, sz: 1.2, sp: 1, cap: 2 }, bm: 0.4 }],      // 喰らう：叩きつけるたびに体力を奪い、渦を巻く牙とブーメランの顎が追撃する
         legend_increase: [{ m: 1.0, dir: 1, blades: { mode: 'strike', n: 1, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.25 }, { m: 1.0, dir: -1, r: 1.05, blades: { mode: 'strike', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.25 }, { m: 1.1, dir: 1, r: 1.1, lunge: 14, blades: { mode: 'sweep', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.28 }, { m: 2.4, r: 1.35, a: 1.5, cd: 1.8, kn: 3, lunge: 32, dir: -1, fin: true, quake: 150, blades: { mode: 'rain', n: 4, hits: 2, sz: 1.2, sp: 1, cap: 2 }, bm: 0.3, blades2: { mode: 'orbit', n: 3, hits: 3, sz: 1, sp: 1, cap: 6 }, bm2: 0.1 }],      // 増殖：斬るたびに分身の剣が増える（1本→2本→X字→剣の雨）
         legend_duality: [{ m: 1.0, dir: 1 }, { m: 1.0, dir: -1, r: 1.05 }, { m: 1.15, dir: 1, r: 1.1, lunge: 14 }, { m: 3.4, r: 1.35, a: 1.5, cd: 1.8, kn: 3, lunge: 32, dir: -1, fin: true, quake: 170, wave: 1.9 }],      // 双界：炎と氷のX字斬りを3回、4段目は紫に光る大斬撃（衝撃波つき）
         eternal_serenity: [{ m: 1.1, dir: 1, keeper: 1 }, { m: 1.1, r: 1.1, dir: -1, keeper: 1 }, { m: 1.3, r: 1.2, dir: 1, wave: 1.7, keeper: 2 }, { m: 1.3, r: 1.2, dir: -1, wave: 1.9, lunge: 20, keeper: 2 }, { m: 3.4, r: 1.6, a: 1.6, cd: 1.7, kn: 3, lunge: 40, dir: 1, fin: true, quake: 150, wave: 2.4, keeper: 5 }],      // keeper=ゲートキーパーの剣を飛ばす本数

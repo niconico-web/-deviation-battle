@@ -58,6 +58,11 @@ const WEAPON_ICON_DATA = {
         <line x1="16" y1="32" x2="42" y2="32"/>
         <path d="M42 32 L36 28 L36 36 Z" fill="currentColor" stroke="none"/>
     ` },
+    eater: { color: "#d8a85a", inner: `
+        <path d="M32 6 L32 30" stroke="#ffffff"/>
+        <circle cx="32" cy="40" r="16" fill="#d8a85a" stroke="none"/><circle cx="32" cy="40" r="9" fill="#3a0f14" stroke="none"/>
+        <path d="M23 34 L26 40 L29 34 M35 34 L38 40 L41 34 M24 47 L27 42 L30 47 M34 47 L37 42 L40 47" stroke="#ffffff" fill="none"/>
+    `},
     increase: { color: "#5be37a", inner: `
         <path d="M32 6 L32 34" stroke="#ffffff"/>
         <path d="M18 44 Q18 28 32 28 Q46 28 46 44 Q46 52 32 52 Q18 52 18 44 Z" fill="#5be37a" stroke="none"/>

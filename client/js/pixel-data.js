@@ -350,6 +350,11 @@
             '...RRRwwBBB....', '...RRRwwBBB....', '..RRRRwwBBBB...', '..RRRRwwBBBB...', '..RRrRwwBbBB...', '..RRrRwwBbBB...', '...RrRwwBbB....', '...RrR.wBbB....',
             '....Rr.ww.bB...', '..kkkgGGGGgkkk.', '.kgGGgPPPPgGGgk', '..kkkghHHhgkkk.', '.....hHHh......', '.....hhHh......', '.....hHHh......', '.....hhHh......',
             '.....GgGg......', '....gGPPGg.....', '.....gGGg......'] },
+        legend_eater: { grip: 20, rows: [
+            '.....aw.....', '....abwb....', '...aabwbb...', '..aabbwbbc..', '.aabbbwbbbc.', '..abbbwbbc..', '.aabbbwbbbc.', '..abbbwbbc..',
+            '.aabbbwbbbc.', '..abbwwbbc..', '...abwwbc...', '...abwwbc...', '....bwwb....', '....bwwb....', '....bwwb....', '....cwwc....',
+            '.kggGGGGggk.', 'kgGGggggGGgk', '.kkgGGGGgkk.', '....hHHh....', '....hHHh....', '....hHHh....', '....hHHh....', '...GggggG...',
+            '...gGGGGg...', '....gGGg....'] },
         legend_increase: { grip: 20, rows: [
             '.....aw.....', '....abwb....', '....abwb....', '...aabwbb...', '...aabwbb...', '...aabwbb...', '..aaabwbbc..', '..aaabwbbc..',
             '..aaabwbbc..', '..aabwwbbc..', '..aabwwbbc..', '...abwwbc...', '...abwwbc...', '..abbwwbbc..', '..a.bwwb.c..', '..a.bwwb....',

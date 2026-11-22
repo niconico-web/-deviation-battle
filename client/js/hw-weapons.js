@@ -65,6 +65,7 @@
         duality:     { label: '双界',      kind: 'duality', range: 128, arc: 1.15, cd: 0.46, mult: 0.62, knock: 60, world: 99, exclusive: true },
         // ---- 専用武器種：神話「Legend of Increase」だけが持つ（大討伐戦 第一幕の報酬。world 99）----
         //  increase：斬るたびに剣が分身して、敵を切り刻む。1回目は1本、次は2本、X字、最後は剣の雨と、増えていく
+        eater:       { label: '喰らう',    kind: 'smash', radius: 112, cd: 0.62, mult: 1.3, knock: 160, reach: 78, world: 99, exclusive: true },
         increase:    { label: '増殖',      kind: 'cone', range: 124, arc: 1.25, cd: 0.48, mult: 0.6, knock: 40, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
@@ -1161,6 +1162,10 @@
             desc: '双界の覇竜の力を宿す、赤と青に割れた専用の剣。通常攻撃は、炎の斬撃と氷の斬撃をX字に交差させて同時に放ち、2つが重なる正面では「共鳴」して追加ダメージが入る。必殺技「双界終焉・紅蓮と氷獄」は、赤と青の巨大な光刃が逆向きにぐるりと全周を薙ぎ払い、最後に2色が混ざった紫の大爆発を起こす',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['burn', 0.5], ['freeze', 0.4], ['dmg_boss', 0.5], ['energy_up', 0.5]] },
         // 増殖スライム インクリーズ（大討伐戦 第一幕のボス）を倒すと手に入る、専用の神話武器。武器種は「増殖」だけ
+        // ワールドワーム（大討伐戦 第二幕のボス）を倒すと手に入る、専用の神話武器。武器種は「喰らう」だけ
+        legend_eater: { name: 'Legend of Eater', prefix: '', type: 'eater', color: '#d8a85a', ilvl: 50, tag: '喰らう', boss: 'ワールドワーム', tech: '大顎の噛みつき／世界喰らい・大顎', source: 'raid_worm',
+            desc: '世界を喰らう蟲の牙を宿す、大顎の剣。通常攻撃は、叩きつけるたびに敵を噛み砕いて体力を奪い、渦を巻く牙とブーメランのような顎が追撃する。必殺技「世界喰らい・大顎」は、地割れ、剣舞、大崩壊と続けて世界を喰らい、最後に大爆発を起こして体力を大きく回復する',
+            fx: [['atk_up', 0.9], ['crit_dmg', 1.0], ['lifesteal', 0.5], ['aoe_up', 0.8], ['hp_up', 0.6], ['regen', 0.02], ['dmg_boss', 0.7], ['energy_up', 0.5]] },
         legend_increase: { name: 'Legend of Increase', prefix: '', type: 'increase', color: '#5be37a', ilvl: 50, tag: '増殖', boss: '増殖スライム インクリーズ', tech: '増殖斬／増殖の宴・無限分裂', source: 'raid_increase',
             desc: '増殖スライムの力を宿す、緑の雫がしたたる剣。通常攻撃は、斬るたびに剣が分身して敵を切り刻み、1本、2本、X字斬り、最後は剣の雨と、斬るほどに増えていく。必殺技「増殖の宴・無限分裂」は、剣が12本に増えてあたり一面を舞い、最後に大爆発を起こして体力も回復する',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['poison', 0.5], ['dmg_swarm', 0.7], ['regen', 0.02], ['energy_up', 0.5]] },

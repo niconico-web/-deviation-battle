@@ -33,6 +33,8 @@
     // --- 大討伐戦 ---
     add('raid_increase_clear', '大討伐戦', '増殖を食い止めるもの', '大討伐戦「第一幕　増殖スライム」で、増殖スライム インクリーズの心臓を砕く', { ck: 'raidIncrease', n: 1, special: true,
         reward: { title: '増殖を食い止めるもの' }, rewardText: '称号「増殖を食い止めるもの」（専用の神話装備「Legend of Increase」は、ボスが落とす）' });
+    add('raid_worm_clear', '大討伐戦', '世界を喰らうもの', '大討伐戦「第二幕　ワールドワーム」で、ワールドワームを倒す', { ck: 'raidWorm', n: 1, special: true,
+        reward: { title: '世界を喰らうもの' }, rewardText: '称号「世界を喰らうもの」（専用の神話装備「Legend of Eater」は、ボスが落とす）' });
     add('raid_duality_clear', '大討伐戦', '双界を切り開くもの', '大討伐戦「第三幕　双界の覇竜」のボス、ツイン・エレメンタルを倒す', { ck: 'raidDuality', n: 1, special: true,
         reward: { title: '双界を切り開くもの' }, rewardText: '称号「双界を切り開くもの」（専用の神話装備「Legend of Duality」は、ボスが落とす）' });
 
@@ -236,7 +238,7 @@
             case 'escape': c.escapes = (c.escapes | 0) + 1; quick('escapes'); if ((v | 0) > (c.escFloorMax | 0)) { c.escFloorMax = v | 0; quick('escFloorMax'); }
                 if (typeof w === 'string' && w2) { byMax('noHitBy', w, v | 0); quickMythic(); } break;      // w2=一度も被弾していない
             case 'rushEx': if (typeof w === 'string') { by('rushExBy', w, 1); quickMythic(); } break;
-            case 'raid': if (w === 'raid_increase') { c.raidIncrease = (c.raidIncrease | 0) + 1; quick('raidIncrease'); } else if (w === 'raid_duality') { c.raidDuality = (c.raidDuality | 0) + 1; quick('raidDuality'); } break;      // 大討伐戦：ボスを倒した
+            case 'raid': if (w === 'raid_increase') { c.raidIncrease = (c.raidIncrease | 0) + 1; quick('raidIncrease'); } else if (w === 'raid_worm') { c.raidWorm = (c.raidWorm | 0) + 1; quick('raidWorm'); } else if (w === 'raid_duality') { c.raidDuality = (c.raidDuality | 0) + 1; quick('raidDuality'); } break;      // 大討伐戦：ボスを倒した
             case 'corrDeath': c.corrDeaths = (c.corrDeaths | 0) + 1; quick('corrDeaths'); break;
             case 'chest': c.chests = (c.chests | 0) + 1; quick('chests'); if (v) { c.mimics = (c.mimics | 0) + 1; quick('mimics'); } break;
             case 'midnight': c.midnight = 1; c.midnightDays = (c.midnightDays | 0) + 1; quick('midnight'); quick('midnightDays'); break;
