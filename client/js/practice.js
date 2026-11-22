@@ -26,6 +26,10 @@
     const hack = HW.load();
     const weapon = HW.getEquipped(hack);
     const MYPC = (weapon && weapon.pix && window.SBPix && SBPix.prepCustom) ? SBPix.prepCustom(HW.cleanPix(weapon.pix)) : null;      // 自分で描いた武器のドット絵
+    const MYATK = (weapon && weapon.custom && weapon.rarity === 'mythic' && HW.cleanMotion) ? ((HW.cleanMotion(weapon.motion) || {}).atk || null) : null;      // 配置で作った通常攻撃
+    const MY_TEXRAW = (MYATK && MYATK.tex && MYATK.tex.some(Boolean)) ? MYATK.tex : null;      // 自分で描いた弾の絵（味方にも送る）
+    const MY_TEX = (MYATK && window.SBPix && SBPix.prepTex) ? (MYATK.tex || []).map(t => t ? SBPix.prepTex(HW.cleanPix(t)) : null) : [];
+    let MYPC_SENT = null;      // 味方へ最後に全部送った絵の目印（絵が大きいので、変わったときと、ときどきだけ全部送る）
     const FXCOL = (weapon && weapon.fxColor && HW.cleanColor(weapon.fxColor)) || null;                                              // 自分で決めた攻撃エフェクトの色
     const agg = HW.aggregate(weapon);
     try { if (window.SBArmor) SBArmor.merge(agg, hack); } catch (e) { /* 防具が読めなくても戦える */ }
@@ -344,7 +348,9 @@
                 if (a && !(d.q < a.pq)) { a.pq = d.q; a.vx = clamp(+d.vx || 0, -900, 900); a.vy = clamp(+d.vy || 0, -900, 900); a.pt = performance.now(); if (d.tp) { a.x = d.x; a.y = d.y; a.vx = 0; a.vy = 0; } }
                 if (a) { a.tx = d.x; a.ty = d.y; a.ang = d.a; a.hp = d.hp; a.maxHp = d.mh; a.dead = !!d.dead || !!a.esc; a.stun = !!d.st; a.g = !!d.g; if (d.tt > 0) a.tt = d.tt; if (typeof d.wt === 'string' && window.SBPix && SBPix.hasWeapon(d.wt)) a.wt = d.wt;
         if (d.wp === 0) a.wpc = null;
+        else if (d.wp && typeof d.wp === 'object' && d.wp.k && !d.wp.rows) { /* 絵は変わっていない（目印だけ届いた）。持っている絵をそのまま使う */ }
         else if (d.wp && typeof d.wp === 'object') { const cp = HW.cleanPix(d.wp); if (cp && window.SBPix && SBPix.customKey) { const ck = SBPix.customKey(cp); if (!a.wpc || a.wpc.key !== ck) a.wpc = SBPix.prepCustom(cp); } }      // 仲間が自分で描いた武器のドット絵（形式と大きさを確認してから使う）
+        if (Array.isArray(d.wx) && window.SBPix && SBPix.prepTex) a.txc = d.wx.slice(0, 10).map(t => { const c = t && HW.cleanPix(t); return c && c.w <= 16 && c.h <= 16 ? SBPix.prepTex(c) : null; });      // 仲間が自分で描いた弾の絵
         if (typeof d.wm === 'string') a.wm = (d.wm && window.SBPix && SBPix.hasMythic(d.wm)) ? d.wm : null;
         if (typeof d.av === 'string' && d.av.length < 80 && window.SBPix && SBPix.cleanAvatar) a.av = SBPix.cleanAvatar(d.av);
         if (d.ti !== undefined) a.ti = (window.SBAch && SBAch.isTitleText(d.ti)) ? d.ti : ''; }
@@ -372,7 +378,8 @@
                 if (a && d && Array.isArray(d.s)) d.s.slice(0, 12).forEach(q => {
                     const num = v => (typeof v === 'number' && isFinite(v)) ? v : 0;
                     ghostShots.push({ x: num(q.x), y: num(q.y), vx: clamp(num(q.vx), -1500, 1500), vy: clamp(num(q.vy), -1500, 1500), r: clamp(num(q.r) || 8, 2, 40), kd: q.kd ? 1 : 0,
-                        life: clamp(num(q.life) || 0.8, 0.05, 3), c: typeof q.c === 'string' && q.c.length <= 9 ? q.c : '#ffffff', pierce: clamp(Math.round(num(q.pierce)), 0, 9), aoe: clamp(num(q.aoe), 0, 200) });
+                        life: clamp(num(q.life) || 0.8, 0.05, 3), c: typeof q.c === 'string' && q.c.length <= 9 ? q.c : '#ffffff', pierce: clamp(Math.round(num(q.pierce)), 0, 9), aoe: clamp(num(q.aoe), 0, 200),
+                        tp: (a.txc && typeof q.t === 'number' && a.txc[q.t | 0]) || null, ts: clamp(Math.round(num(q.ts)) || 2, 1, 4) });
                 });
                 break;
             case 'hit':
@@ -2145,6 +2152,38 @@
     }
 
     const SHAPE_DEF = { cone: { arc: 1.6 }, line: { width: 40 }, smash: { radius: 110, reach: 70 }, ring: { radius: 150 }, proj: { speed: 720, radius: 9, range: 560 } };      // 攻撃の形を変えたときの標準の数値
+    // ---------- 配置で作った通常攻撃（神話のオリジナル武器）----------
+    // 置いた攻撃（近接＝扇／遠距離＝弾）が、狙った向きを基準に、置いた角度で同時に（または少しずらして）出る。
+    // 威力は hw-weapons.js の atkPlan で決まる：置くほど、1個あたりは下がる。弾は、自分で描いた絵（16×16）で飛ばせる
+    function placedAttack(cs, ang) {
+        const col0 = FXCOL || HW.rarityOf(weapon).color, sent = [], alive = () => run.phase === 'run' && !me.dead && !(me.stunT > 0);
+        let meleeSent = 0;
+        if (window.SBSound) SBSound.sfx('swing');
+        cs.units.forEach(u => {
+            const a = ang + (u.da || 0) * Math.PI / 180;
+            const fire = delayed => {
+                if (!alive()) return;
+                if (u.kind === 'melee') {
+                    const rng = P.range * u.r, d = { k: 'cone', x: me.x, y: me.y, a: a, rng: rng, arc: u.arc, rad: 0, w: 0, c: u.col || col0, cs: 0, dir: (u.da || 0) < 0 ? -1 : 1, fin: false };
+                    spawnAtkFx(d); if (meleeSent++ < 4) netSend('atk', d);      // 通信が重くならないよう、仲間に見せる斬撃は最大4つまで
+                    enemies.forEach(e => {
+                        if (e.hp <= 0) return;
+                        const dd = dist(me.x, me.y, e.x, e.y); if (dd > rng + e.r) return;
+                        let da = Math.atan2(e.y - me.y, e.x - me.x) - a; da = Math.atan2(Math.sin(da), Math.cos(da));
+                        if (Math.abs(da) <= u.arc / 2) { const h = strike(e, u.m, 0); hitFeel(e, { fin: false, i: 0 }, h); }
+                    });
+                } else {
+                    const sp = u.sp, sx = me.x + Math.cos(a) * u.d0, sy = me.y + Math.sin(a) * u.d0, r = Math.round(6 + 5 * u.sz), tx = (u.tx >= 0 && MY_TEX[u.tx]) ? u.tx : -1, ts = Math.max(1, Math.round(2 * u.sz));
+                    myShots.push({ x: sx, y: sy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: r, life: u.rg / sp, pierce: 0, hit: {}, homing: false, aoe: 0, c: u.col || col0, m: u.m, fin: 0, cs: 0, vol: 0, ar: 0, tx: tx, ts: ts });
+                    const q = { x: Math.round(sx), y: Math.round(sy), vx: Math.round(Math.cos(a) * sp), vy: Math.round(Math.sin(a) * sp), r: r, life: +(u.rg / sp).toFixed(2), pierce: 0, aoe: 0, c: u.col || col0, t: tx, ts: ts };
+                    if (delayed) netSend('shot', { s: [q] }); else sent.push(q);
+                }
+            };
+            if (u.dl > 0) setTimeout(() => fire(true), u.dl * 1000); else fire(false);
+        });
+        if (sent.length) netSend('shot', { s: sent.slice(0, 12) });
+        const swingD = { k: cs.units.some(u => u.kind === 'melee') ? 'cone' : 'proj', dir: 1, fin: false }; mySwing(swingD);
+    }
     function doAttack() {
         const atkCost = Math.max(1, Math.round(P.cd * ATK_ENERGY_PER_SEC * 10) / 10);
         if (me.energy < atkCost) { me.atkCd = 0.2; flashEnergy(); return; }   // エネルギー切れ：クイズに正解して回復
@@ -2152,6 +2191,7 @@
         const ang = aimAngle(); me.ang = ang;
         const cdv = P.cd / (me.haste > 0 ? 1.4 : 1);
         const cs = nextComboStep(); me.atkCd = cdv * (cs.cd || 1);
+        if (cs.units) { placedAttack(cs, ang); return; }      // 配置で作った通常攻撃（近接と遠距離を、置いたとおりに出す）
         const TK = cs.shape || T.kind, TS = (cs.shape && cs.shape !== T.kind) ? SHAPE_DEF[cs.shape] : T;      // 自作の動きでは、段ごとに攻撃の形を変えられる（TS＝その形の標準の数値）
         const hit = (e, base) => { const h = strike(e, (base || 1) * cs.m, cs.knb ? cs.knb : (T.knock || 0) * (cs.kn || 1)); hitFeel(e, cs, h); return h; };
         const d = { k: TK, x: me.x, y: me.y, a: ang, rng: P.range * (cs.r || 1), arc: (TS.arc || 0) * (cs.a || 1), rad: ((cs.shape && cs.shape !== T.kind) ? TS.radius : (P.radius || T.radius)) * (cs.r || 1), w: (TS.width || 0) * (cs.w || 1), c: cs.col || FXCOL || HW.rarityOf(weapon).color, cs: cs.i, dir: cs.dir || 1, fin: cs.fin ? 1 : 0 };
@@ -4285,7 +4325,7 @@
         // 敵弾
         eBullets.forEach(b => { if (wmHidden(b.x)) return; if (b.kd === 1) { drawSword(b); return; } if (b.refl === 1) { ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, 7); ctx.stroke(); } if (pxOn && SBPix.drawBullet) { SBPix.drawBullet(ctx, b.x, b.y, b.r, b.c || '#ff6a5a', { vx: b.vx, vy: b.vy }); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
         // 自分の弾
-        if (pxOn && SBPix.drawBullet) { myShots.forEach(s => { if (s.kd === 1) drawSword(s); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx, vy: s.vy, arrow: !!s.ar }); }); ghostShots.forEach(s => { if (s.kd === 1) drawSword(s); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx || 0, vy: s.vy || 0 }); }); }
+        if (pxOn && SBPix.drawBullet) { myShots.forEach(s => { if (s.kd === 1) drawSword(s); else if (s.tx >= 0 && MY_TEX[s.tx] && SBPix.drawTex) SBPix.drawTex(ctx, MY_TEX[s.tx], s.x, s.y, Math.atan2(s.vy, s.vx), s.ts); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx, vy: s.vy, arrow: !!s.ar }); }); ghostShots.forEach(s => { if (s.kd === 1) drawSword(s); else if (s.tp && SBPix.drawTex) SBPix.drawTex(ctx, s.tp, s.x, s.y, Math.atan2(s.vy || 0, s.vx || 0), s.ts); else SBPix.drawBullet(ctx, s.x, s.y, s.r, s.c, { vx: s.vx || 0, vy: s.vy || 0 }); }); }
         else {
         myShots.forEach(s => { if (s.kd === 1) { drawSword(s); return; } ctx.fillStyle = s.c; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); });
         ghostShots.forEach(s => { if (s.kd === 1) { drawSword(s); return; } ctx.fillStyle = s.c; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7); ctx.fill(); ctx.globalAlpha = 1; });
@@ -5021,8 +5061,9 @@
                 // 速度を一緒に送る（受け取った側が、次の位置が届くまでの間を先読みして動かせる）。一瞬で大きく動いたとき（一閃・階層移動など）は tp=1 で「補間せず、そこへ移動」と伝える
                 const nowMs = performance.now(), el0 = Math.max(0.016, (nowMs - posLast.t) / 1000), dx0 = me.x - posLast.x, dy0 = me.y - posLast.y, jump = Math.hypot(dx0, dy0) > 300;
                 const vx0 = jump ? 0 : clamp(dx0 / el0, -900, 900), vy0 = jump ? 0 : clamp(dy0 / el0, -900, 900);
+                const fullPix = posSeq % 20 === 0 && !!weapon.pix && (posSeq % 200 === 0 || MYPC_SENT !== (MYPC && MYPC.key)); if (fullPix) MYPC_SENT = MYPC && MYPC.key;      // 絵が大きいので、変わったときと、ときどきだけ全部送る
                 posLast.x = me.x; posLast.y = me.y; posLast.t = nowMs; posSeq++;
-                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, wp: (posSeq % 20 === 0) ? (weapon.pix || 0) : undefined, wm: (posSeq % 20 === 0) ? (weapon.mythicId || '') : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
+                netSend('pos', { g: me.guardT > 0 ? 1 : 0, ti: (posSeq % 20 === 0) ? ((window.SBAch && SBAch.titleText()) || '') : undefined, wt: (posSeq % 20 === 0) ? weapon.type : undefined, wp: (posSeq % 20 === 0) ? (weapon.pix ? (fullPix ? weapon.pix : { k: MYPC && MYPC.key }) : 0) : undefined, wx: (fullPix && MY_TEXRAW) ? MY_TEXRAW : undefined, wm: (posSeq % 20 === 0) ? (weapon.mythicId || '') : undefined, av: (posSeq % 20 === 0 && MY_AV && window.SBPix && SBPix.avatarString) ? SBPix.avatarString(MY_AV) : undefined, x: Math.round(me.x), y: Math.round(me.y), vx: Math.round(vx0), vy: Math.round(vy0), tp: jump ? 1 : 0, q: posSeq, a: +me.ang.toFixed(2), hp: Math.round(me.hp), mh: me.maxHp, dead: me.dead, st: me.stunT > 0 ? 1 : 0, tt: CORR_ON ? Math.round(corrTotal()) : 0 });
             }
             snapT -= dt; if (isHost && room && !(PVP && run.pvpMode) && snapT <= 0) { const sn = makeSnap(); snapT = 1 / (snapBytes > 11000 ? 10 : SNAP_HZ); netSend('snap', sn); }      // 大きいスナップショットのときは送る回数を減らす（回線が細い人が詰まらないように）
         } else if (run.phase === 'end') { updateShots(dt); }

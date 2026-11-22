@@ -1005,7 +1005,7 @@
         d.kits.push(kit); return kit;
     }
     // ---- 見た目のドット絵・色の検査（自分で描いた絵は、味方にも送るので、形式と大きさを厳しく確認する）----
-    const PIX_MAX_W = 24, PIX_MAX_H = 32, PIX_CHARS = 'ABCDEFGHIJKLMNOP';
+    const PIX_MAX_W = 96, PIX_MAX_H = 128, PIX_CHARS = 'ABCDEFGHIJKLMNOP';
     const HEX = /^#[0-9a-fA-F]{6}$/;
     function cleanColor(c) { return typeof c === 'string' && HEX.test(c) ? c.toLowerCase() : null; }
     function cleanPix(px) {
@@ -1019,7 +1019,7 @@
         const out = rows.map(r => { let o = ''; for (let i = 0; i < w; i++) { const ch = r[i] || '.'; if (ch !== '.' && pal[ch]) { o += ch; used++; } else o += '.'; } return o; });
         if (!used) return null;
         const grip = Math.max(0, Math.min(h - 1, px.grip | 0));
-        return { w: w, h: h, rows: out, pal: pal, grip: grip };
+        return { w: w, h: h, rows: out, pal: pal, grip: grip, s: (px.s | 0) === 4 ? 4 : 1 };      // s=4：従来の1/4の大きさのマスで描いた絵（縦横4倍の細かさ）
     }
     // ---- 成長 ----
     const GROW_CAP = { normal: 20, magic: 60, rare: 150, epic: 400, legendary: 1000, mythic: 3000 };      // そのレア度で、成長が頭打ちになる経験値
@@ -1233,20 +1233,56 @@
         if (!m || typeof m !== 'object' || !Array.isArray(m.combo) || !m.combo.length) return null;
         const u = m.ult && typeof m.ult === 'object' ? m.ult : {};
         const seq = (Array.isArray(u.seq) && u.seq.length ? u.seq : [{ kind: u.kind, n: u.n }]).slice(0, ULT_MAX_PHASES).map(cleanPhase);      // 昔の形（kind と n だけ）も、1つの段として読む
-        return { v: 2, combo: m.combo.slice(0, MOTION_MAX_STEPS).map(cleanStep),
+        const out = { v: 2, combo: m.combo.slice(0, MOTION_MAX_STEPS).map(cleanStep),
             ult: { seq: seq, finale: u.finale !== false, fsz: r1(numIn(u.fsz, 0.7, 1.6, 1)), heal: !!u.heal, guard: !!u.guard, name: cleanName(u.name) || '' } };
+        const ak = cleanAtk(m.atk); if (ak) out.atk = ak;      // 「配置で作る通常攻撃」があれば、それも残す
+        return out;
+    }
+    // ---- 配置で作る通常攻撃：近接と遠距離の攻撃を、最大 ATK_MAX_UNITS 個まで自由に置ける。置くほど、1個あたりの威力は下がる ----
+    const ATK_MAX_UNITS = 10, TEX_SIZE = 16;
+    function cleanTex(p) { const c = cleanPix(p); return c && c.w <= TEX_SIZE && c.h <= TEX_SIZE ? c : null; }      // 弾の絵は 16×16 まで（大きさも形式も厳しく確認する）
+    function cleanUnit(u, tex) {
+        u = u && typeof u === 'object' ? u : {};
+        const kind = u.kind === 'ranged' ? 'ranged' : 'melee';
+        const o = { kind: kind, da: Math.round(numIn(u.da, -180, 180, 0)), w: Math.round(numIn(u.w, 1, 5, 1)), dl: r2(numIn(u.dl, 0, 0.5, 0)), col: cleanColor(u.col) || '' };
+        if (kind === 'melee') { o.r = r2(numIn(u.r, 0.6, 1.6, 1)); o.arc = r2(numIn(u.arc, 0.4, 2.4, 1.2)); }
+        else { o.sp = Math.round(numIn(u.sp, 300, 1000, 640)); o.rg = Math.round(numIn(u.rg, 250, 900, 520)); o.sz = r1(numIn(u.sz, 0.5, 2, 1)); o.d0 = Math.round(numIn(u.d0, 0, 60, 0)); const t = Math.round(numIn(u.tx, -1, ATK_MAX_UNITS - 1, -1)); o.tx = tex[t] ? t : -1; }
+        return o;
+    }
+    function cleanAtk(a) {
+        if (!a || typeof a !== 'object' || !Array.isArray(a.units) || !a.units.length) return null;
+        const tex = (Array.isArray(a.tex) ? a.tex : []).slice(0, ATK_MAX_UNITS).map(cleanTex);      // 絵が不正な所は null のまま残し、番号がずれないようにする
+        return { v: 1, cd: r2(numIn(a.cd, 0.8, 2, 1)), units: a.units.slice(0, ATK_MAX_UNITS).map(u => cleanUnit(u, tex)), tex: tex };
+    }
+    // 1回の通常攻撃の威力の合計（予算）を、置いた攻撃で分け合う。個数が増えるほど合計は少しだけ増える（+3%ずつ）が、1個あたりは確実に下がる
+    function atkPlan(a) {
+        const n = a.units.length, B = 1.3 * a.cd * (1 + 0.03 * (n - 1)), sumW = a.units.reduce((t, u) => t + u.w, 0) || 1;
+        return { n: n, total: r2(B), per: a.units.map(u => r2(Math.min(6, B * u.w / sumW))), single: r2(1.3 * a.cd) };
+    }
+    function atkStep(a) {
+        const P = atkPlan(a);
+        return { m: P.total, cd: a.cd, dir: 1, r: 1, a: 1, units: a.units.map((u, i) => Object.assign({}, u, { m: P.per[i] })) };
+    }
+    function setAtk(w, atk) {      // 配置の通常攻撃は、いつでも無料で作り直せる。atk が空（null）なら、段ごとのコンボに戻す
+        if (!w || !w.custom || w.rarity !== 'mythic') return false;
+        const m = cleanMotion(w.motion) || defaultMotion(), a = atk ? cleanAtk(atk) : null;
+        if (atk && !a) return false;
+        const c = cleanMotion({ combo: m.combo, ult: m.ult, atk: a }); if (!c) return false; w.motion = c; return true;
     }
     function defaultMotion() {
         return cleanMotion({ combo: [{ w: 1, dir: 1 }, { w: 1, dir: -1 }, { w: 2.2, dir: 1, r: 1.3, cd: 1.5, fin: true, quake: 150, blades: { mode: 'sweep', n: 2, hits: 2 } }], ult: { seq: [{ kind: 'slash', n: 24 }], finale: true } });
     }
     function setMotion(w, m) {      // 動きは、いつでも無料で作り直せる（神話のオリジナル武器だけ）
         if (!w || !w.custom || w.rarity !== 'mythic') return false;
-        const c = cleanMotion(m); if (!c) return false; w.motion = c; return true;
+        const c = cleanMotion(m); if (!c) return false;
+        if (m && m.atk === undefined && w.motion && w.motion.atk) { const ak = cleanAtk(w.motion.atk); if (ak) c.atk = ak; }      // コンボを作り直しても、配置の通常攻撃は残す
+        w.motion = c; return true;
     }
     // 1回の攻撃あたりの威力の合計が一定になるように、配分（w）から実際の倍率（m）を決める。分身の剣は、1本につき 0.5 ぶんの威力を持つ（1体の敵に当てられる回数にも上限 cap がある）
     function bladeTicks(b) { return b.mode === 'orbit' ? Math.max(1, Math.floor((1.0 + 0.35 * b.hits) / 0.15 * 0.5)) : b.hits; }
     function motionCombo(w) {
         const m = w && w.rarity === 'mythic' && w.custom ? cleanMotion(w.motion) : null; if (!m) return null;
+        if (m.atk && m.atk.units.length) return [atkStep(m.atk)];      // 配置で作った通常攻撃（1回の攻撃に、置いた攻撃が全部入る）
         const K = 1.3, ex = s => (s.wave ? 0.6 : 0) + (s.quake ? 0.5 : 0) + (s.blades ? 0.5 * s.blades.n : 0) + (s.blades2 ? 0.5 * s.blades2.n : 0) + (s.xs || 0) * 0.15;
         const sumCd = m.combo.reduce((a, s) => a + s.cd, 0), sumW = m.combo.reduce((a, s) => a + s.w * (1 + ex(s)), 0);
         return m.combo.map(s => {
@@ -1291,6 +1327,6 @@
         HIT_BASE, PCT_CAP, pctLabel, studyGrowthMult, bulkTargets, bulkSell,
         FORGE_NAME_MAX, forgeCost, forgeRarityForCoins, cleanName, availableTypes, forgeOriginal, typeChangeCost, changeType,
         MAX_SOCKETS, SPECIAL_ITEMS, SPECIAL_ORDER, itemCount, addItem, takeItem, canAddSocket, addSocket, canUpgradeRarity, canUpgradePlus, canUseCrystal, upgradePlus, upgradeRarity, rerollWeaponEffects, PLUS_MAX, PLUS_STEP,
-        TAGS, TAG_ORDER, matTags, biasTop, KIT_NEED_COUNT, KIT_NEED_VALUE, kitValue, makeKit, cleanPix, cleanColor, PIX_MAX_W, PIX_MAX_H, PIX_CHARS, GROW_CAP, growCap, ensureGrowth, growFrac, applyGrowth, expOfMaterial, feedMaterial, forgeFromKit, setLook, MYTHIC_FORGE, MOTION_MAX_STEPS, ULT_MAX_PHASES, BLADE_MODES, SHAPES, ULT_KINDS, cleanMotion, defaultMotion, setMotion, motionCombo, motionUlt, rankUpInfo, startRankUp, hammer, finishRankUp
+        TAGS, TAG_ORDER, matTags, biasTop, KIT_NEED_COUNT, KIT_NEED_VALUE, kitValue, makeKit, cleanPix, cleanColor, PIX_MAX_W, PIX_MAX_H, PIX_CHARS, GROW_CAP, growCap, ensureGrowth, growFrac, applyGrowth, expOfMaterial, feedMaterial, forgeFromKit, setLook, MYTHIC_FORGE, MOTION_MAX_STEPS, ULT_MAX_PHASES, BLADE_MODES, SHAPES, ULT_KINDS, cleanMotion, defaultMotion, setMotion, cleanAtk, atkPlan, setAtk, ATK_MAX_UNITS, TEX_SIZE, motionCombo, motionUlt, rankUpInfo, startRankUp, hammer, finishRankUp
     };
 })();

@@ -35,34 +35,38 @@
     const PALETTE0 = ['#ffffff', '#c9d3e6', '#8fa0bf', '#5a6a8c', '#2a3350', '#14121c', '#8a5a2b', '#5b3a1c', '#f2c14e', '#b88a1e', '#ff5a3a', '#ffa13a', '#4ac8ff', '#3a6ee8', '#7fd13b', '#c06aff'];
     const FX_PRESETS = ['#ff5a3a', '#ffa13a', '#ffe14a', '#7fd13b', '#4ac8ff', '#3a6ee8', '#c06aff', '#ff6ad5', '#ffffff', '#9aa6c0'];
     function pixelEditor(box, init, type) {
-        const W = 16, H = 24, CH = HW.PIX_CHARS;
-        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20, undo: [], fx: (init && init.fxColor) || '#ff5a3a' };
-        for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1));
-        function loadPix(px) {      // 保存された絵（rows / pal / grip）を読み込む
+        // 解像度：1マスは従来の 1/4 の大きさ（縦横4倍・64×96）。昔の絵（16×24）は4倍に拡大して読み込む
+        const F = 4, W = 16 * F, H = 24 * F, CH = HW.PIX_CHARS, HEXC = /^#[0-9a-fA-F]{6}$/;
+        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20 * F, undo: [], fx: (init && init.fxColor) || '#ff5a3a', brush: 1, zoom: 1 };
+        const blank = () => { const g = []; for (let y = 0; y < H; y++) g.push(new Array(W).fill(-1)); return g; };
+        st.grid = blank();
+        function loadPix(px) {      // 保存された絵（rows / pal / grip / s）を読み込む
             const c = HW.cleanPix(px); if (!c) return false;
-            const used = {}, order = [];
-            c.rows.forEach(r => { for (const ch of r) if (ch !== '.' && !(ch in used)) { used[ch] = true; order.push(ch); } });
+            const k = c.s === F ? 1 : F;      // 保存された絵が従来の細かさなら、4倍に拡大して取り込む
             const idx = {}; st.pal = PALETTE0.slice();
             CH.split('').forEach((ch, i) => { if (c.pal[ch]) { st.pal[i] = c.pal[ch]; idx[ch] = i; } });
-            st.grid = []; for (let y = 0; y < H; y++) { const row = new Array(W).fill(-1); const r = c.rows[y] || ''; for (let x = 0; x < Math.min(W, r.length); x++) if (r[x] !== '.' && idx[r[x]] != null) row[x] = idx[r[x]]; st.grid.push(row); }
-            st.grip = Math.min(H - 1, c.grip); return true;
+            st.grid = blank();
+            for (let y = 0; y < c.rows.length; y++) { const r = c.rows[y]; for (let x = 0; x < r.length; x++) { const ch = r[x]; if (ch === '.' || idx[ch] == null) continue; for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) { const gx = x * k + dx, gy = y * k + dy; if (gx < W && gy < H) st.grid[gy][gx] = idx[ch]; } } }
+            st.grip = Math.min(H - 1, c.grip * k); return true;
         }
-        function loadTemplate(t) {      // 武器種の標準の絵を、下書きとして読み込む
+        function loadTemplate(t) {      // 武器種の標準の絵を、下書きとして読み込む（4倍に拡大）
             const D = global.SBPIX_DATA, W0 = D && D.WEAPONS && (D.WEAPONS[t] || D.WEAPONS.default); if (!W0) return;
             const pal = SBPix._palWeapon('#8fb0ff'), letters = []; W0.rows.forEach(r => { for (const ch of r) if (ch !== '.' && ch !== ' ' && pal[ch] && letters.indexOf(ch) < 0) letters.push(ch); });
             const map = {}; st.pal = PALETTE0.slice(); letters.slice(0, 16).forEach((ch, i) => { map[ch] = i; st.pal[i] = pal[ch]; });
-            const w0 = Math.max.apply(null, W0.rows.map(r => r.length)), ox = Math.floor((W - w0) / 2), oy = Math.max(0, H - W0.rows.length - 1);
-            st.grid = []; for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1));
-            W0.rows.forEach((r, ry) => { for (let rx = 0; rx < r.length; rx++) { const ch = r[rx]; if (ch === '.' || ch === ' ' || map[ch] == null) continue; const x = rx + ox, y = ry + oy; if (x >= 0 && x < W && y >= 0 && y < H) st.grid[y][x] = map[ch]; } });
-            st.grip = Math.min(H - 1, (W0.grip | 0) + oy);
+            const w0 = Math.max.apply(null, W0.rows.map(r => r.length)), ox = Math.floor((W - w0 * F) / 2), oy = Math.max(0, H - W0.rows.length * F - F);
+            st.grid = blank();
+            W0.rows.forEach((r, ry) => { for (let rx = 0; rx < r.length; rx++) { const ch = r[rx]; if (ch === '.' || ch === ' ' || map[ch] == null) continue; for (let dy = 0; dy < F; dy++) for (let dx = 0; dx < F; dx++) { const x = rx * F + dx + ox, y = ry * F + dy + oy; if (x >= 0 && x < W && y >= 0 && y < H) st.grid[y][x] = map[ch]; } } });
+            st.grip = Math.min(H - 1, ((W0.grip | 0) * F) + oy);
         }
         if (!(init && init.pix && loadPix(init.pix))) loadTemplate(type || 'sword');
-        const cell = Math.max(8, Math.min(14, Math.floor((Math.min(global.innerWidth || 360, 420) - 56) / W)));
+        const baseCell = Math.max(4, Math.min(8, Math.floor((Math.min(global.innerWidth || 360, 420) - 56) / W)));
+        const cellOf = () => baseCell * st.zoom;
         box.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start">' +
-            '<div><canvas id="pxeCv" width="' + W * cell + '" height="' + H * cell + '" style="touch-action:none;border:2px solid #3a4666;border-radius:6px;background:#10131c;cursor:crosshair;max-width:100%"></canvas></div>' +
+            '<div style="max-width:100%"><div id="pxeWrap" style="max-width:100%;max-height:62vh;overflow:auto;border:2px solid #3a4666;border-radius:6px;background:#10131c"><canvas id="pxeCv" style="display:block;touch-action:none;cursor:crosshair;max-width:none"></canvas></div>' +
+            '<div style="margin-top:4px;font-size:.78rem;color:#9fb3d9">ズーム <button type="button" class="sbl-btn gray" id="pxeZm" style="padding:3px 9px;margin:0">－</button> <b id="pxeZv">1x</b> <button type="button" class="sbl-btn gray" id="pxeZp" style="padding:3px 9px;margin:0">＋</button>　太さ <select id="pxeBr" style="background:#10131c;color:#e6ecff;border:1px solid #3a4666;border-radius:5px;padding:2px"><option value="1">細(1)</option><option value="2">中(2)</option><option value="4">太(4)</option></select></div></div>' +
             '<div style="flex:1;min-width:190px">' +
             '<div style="font-size:.78rem;color:#9fb3d9;margin-bottom:3px">色（タップで選ぶ。選んだ色は下で変えられます）</div><div id="pxePal" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:240px"></div>' +
-            '<div style="margin:5px 0"><input type="color" id="pxeCol" style="width:44px;height:30px;padding:0;border:0;background:none;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
+            '<div style="margin:5px 0"><input type="color" id="pxeCol" value="#ffffff" style="width:44px;height:30px;padding:0;border:1px solid #3a4666;background:#fff;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
             '<div id="pxeTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
             '<div style="margin:6px 0;font-size:.8rem"><label><input type="checkbox" id="pxeMir" checked> 左右対称に描く</label></div>' +
             '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）<input type="range" id="pxeGrip" min="0" max="' + (H - 1) + '" value="' + st.grip + '" style="width:100%"></div>' +
@@ -71,10 +75,11 @@
             '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">プレビュー</div><canvas id="pxePv" width="150" height="130" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas>' +
             '</div></div>';
         const cv = box.querySelector('#pxeCv'), g = cv.getContext('2d'), pv = box.querySelector('#pxePv'), pg = pv.getContext('2d');
+        function sizeCv() { const c = cellOf(); cv.width = W * c; cv.height = H * c; box.querySelector('#pxeZv').textContent = st.zoom + 'x'; }
         function toPix() {
             const rows = st.grid.map(r => r.map(i => i < 0 ? '.' : CH[i]).join(''));
-            const pal = {}; CH.split('').forEach((ch, i) => { pal[ch] = st.pal[i]; });
-            return HW.cleanPix({ rows: rows, pal: pal, grip: st.grip });
+            const pal = {}; CH.split('').forEach((ch, i) => { pal[ch] = HEXC.test(st.pal[i]) ? st.pal[i].toLowerCase() : '#ffffff'; });      // 色は必ず #rrggbb で保存する
+            return HW.cleanPix({ rows: rows, pal: pal, grip: st.grip, s: F });
         }
         function drawPreview() {
             pg.clearRect(0, 0, pv.width, pv.height);
@@ -85,22 +90,22 @@
             try { SBPix.drawWeapon(pg, 75, 112, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 2 }); } catch (e) { /* 描けなくてもエディタは使える */ }
         }
         function render() {
-            g.clearRect(0, 0, cv.width, cv.height);
-            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-                g.fillStyle = (x + y) % 2 ? '#161a26' : '#1b2030'; g.fillRect(x * cell, y * cell, cell, cell);
-                const i = st.grid[y][x]; if (i >= 0) { g.fillStyle = st.pal[i]; g.fillRect(x * cell, y * cell, cell, cell); }
-            }
-            g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; g.beginPath();
-            for (let x = 0; x <= W; x++) { g.moveTo(x * cell + .5, 0); g.lineTo(x * cell + .5, H * cell); } for (let y = 0; y <= H; y++) { g.moveTo(0, y * cell + .5); g.lineTo(W * cell, y * cell + .5); } g.stroke();
+            const cell = cellOf();
+            g.fillStyle = '#161a26'; g.fillRect(0, 0, cv.width, cv.height);
+            const q = F * cell;      // 市松模様は、従来の1マス（4×4）の大きさで描く（軽くするため）
+            g.fillStyle = '#1b2030'; for (let y = 0; y < H / F; y++) for (let x = 0; x < W / F; x++) if ((x + y) % 2) g.fillRect(x * q, y * q, q, q);
+            for (let y = 0; y < H; y++) { const row = st.grid[y]; for (let x = 0; x < W; x++) { const i = row[x]; if (i >= 0) { g.fillStyle = st.pal[i]; g.fillRect(x * cell, y * cell, cell, cell); } } }
+            if (cell >= 6) { g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; g.beginPath(); for (let x = 0; x <= W; x++) { g.moveTo(x * cell + .5, 0); g.lineTo(x * cell + .5, H * cell); } for (let y = 0; y <= H; y++) { g.moveTo(0, y * cell + .5); g.lineTo(W * cell, y * cell + .5); } g.stroke(); }
             g.strokeStyle = '#ff4a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, st.grip * cell + cell / 2); g.lineTo(W * cell, st.grip * cell + cell / 2); g.stroke();
             if (st.mirror) { g.strokeStyle = 'rgba(120,200,255,.35)'; g.beginPath(); g.moveTo(W * cell / 2, 0); g.lineTo(W * cell / 2, H * cell); g.stroke(); }
             drawPreview();
         }
-        function palUi() {
+        function setColor(v) { if (!HEXC.test(v || '')) return; st.pal[st.cur] = v.toLowerCase(); palUi(true); render(); }
+        function palUi(keepInput) {
             const pe = box.querySelector('#pxePal');
             pe.innerHTML = st.pal.map((c, i) => '<button type="button" data-i="' + i + '" style="height:26px;border-radius:5px;border:2px solid ' + (i === st.cur && st.tool !== 'erase' ? '#ffd84a' : '#2b3550') + ';background:' + c + ';cursor:pointer"></button>').join('');
-            pe.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.cur = +b.dataset.i; if (st.tool === 'erase') st.tool = 'pen'; box.querySelector('#pxeCol').value = st.pal[st.cur]; palUi(); toolUi(); }));
-            box.querySelector('#pxeCol').value = st.pal[st.cur];
+            pe.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.cur = +b.dataset.i; if (st.tool === 'erase') st.tool = 'pen'; palUi(); toolUi(); }));
+            const ci = box.querySelector('#pxeCol'); if (!keepInput && ci.value !== st.pal[st.cur]) ci.value = st.pal[st.cur];      // 色選び中は、選択画面を壊さないよう値を書き戻さない
         }
         const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし'], ['pick', '💧 スポイト']];
         function toolUi() {
@@ -111,34 +116,48 @@
         function fxUi() {
             const fe = box.querySelector('#pxeFx');
             fe.innerHTML = FX_PRESETS.map(c => '<button type="button" data-c="' + c + '" style="width:24px;height:24px;border-radius:50%;border:2px solid ' + (c === st.fx ? '#fff' : '#2b3550') + ';background:' + c + ';cursor:pointer"></button>').join('') +
-                '<input type="color" id="pxeFxCol" value="' + st.fx + '" style="width:34px;height:28px;padding:0;border:0;background:none">';
+                '<input type="color" id="pxeFxCol" value="' + st.fx + '" style="width:34px;height:28px;padding:0;border:1px solid #3a4666;background:#fff">';
             fe.querySelectorAll('[data-c]').forEach(b => b.addEventListener('click', () => { st.fx = b.dataset.c; fxUi(); drawPreview(); }));
-            fe.querySelector('#pxeFxCol').addEventListener('input', e => { st.fx = e.target.value; drawPreview(); });
+            const onFx = e => { if (HEXC.test(e.target.value)) { st.fx = e.target.value.toLowerCase(); drawPreview(); } };
+            fe.querySelector('#pxeFxCol').addEventListener('input', onFx); fe.querySelector('#pxeFxCol').addEventListener('change', onFx);
         }
         function snap() { st.undo.push(JSON.stringify(st.grid)); if (st.undo.length > 25) st.undo.shift(); }
-        function setCell(x, y, v) { if (x < 0 || x >= W || y < 0 || y >= H) return; st.grid[y][x] = v; if (st.mirror) st.grid[y][W - 1 - x] = v; }
-        function fill(x, y, v) {
-            const t = st.grid[y][x]; if (t === v) return; const stack = [[x, y]]; let n = 0;
-            while (stack.length && n++ < 800) { const p = stack.pop(), px = p[0], py = p[1]; if (px < 0 || px >= W || py < 0 || py >= H || st.grid[py][px] !== t) continue; st.grid[py][px] = v; stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]); }
+        function setCell(x, y, v) {
+            const b = st.brush;
+            for (let dy = 0; dy < b; dy++) for (let dx = 0; dx < b; dx++) {
+                const xx = x + dx - (b >> 1), yy = y + dy - (b >> 1); if (xx < 0 || xx >= W || yy < 0 || yy >= H) continue;
+                st.grid[yy][xx] = v; if (st.mirror) st.grid[yy][W - 1 - xx] = v;
+            }
         }
-        function at(ev) { const r = cv.getBoundingClientRect(), sx = cv.width / r.width, sy = cv.height / r.height; return [Math.floor((ev.clientX - r.left) * sx / cell), Math.floor((ev.clientY - r.top) * sy / cell)]; }
-        let down = false;
+        function fill(x, y, v) {
+            const t = st.grid[y][x]; if (t === v) return; const stack = [[x, y]]; let n = 0, lim = W * H * 4;
+            while (stack.length && n++ < lim) { const p = stack.pop(), px = p[0], py = p[1]; if (px < 0 || px >= W || py < 0 || py >= H || st.grid[py][px] !== t) continue; st.grid[py][px] = v; stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]); }
+        }
+        function at(ev) { const r = cv.getBoundingClientRect(), c = cellOf(), sx = cv.width / r.width, sy = cv.height / r.height; return [Math.floor((ev.clientX - r.left) * sx / c), Math.floor((ev.clientY - r.top) * sy / c)]; }
+        let down = false, lastP = null;
+        function line(x0, y0, x1, y1, v) { const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0), 1); for (let i = 0; i <= n; i++) setCell(Math.round(x0 + (x1 - x0) * i / n), Math.round(y0 + (y1 - y0) * i / n), v); }      // 指を速く動かしても線がつながる
         function act(ev, first) {
             const p = at(ev), x = p[0], y = p[1]; if (x < 0 || x >= W || y < 0 || y >= H) return;
             if (st.tool === 'pick') { if (first && st.grid[y][x] >= 0) { st.cur = st.grid[y][x]; st.tool = 'pen'; palUi(); toolUi(); } return; }
-            if (st.tool === 'fill') { if (first) { snap(); fill(x, y, st.cur); if (st.mirror) { /* 塗りつぶしは対称にしない */ } render(); } return; }
-            setCell(x, y, st.tool === 'erase' ? -1 : st.cur); render();
+            if (st.tool === 'fill') { if (first) { snap(); fill(x, y, st.cur); render(); } return; }
+            const v = st.tool === 'erase' ? -1 : st.cur;
+            if (lastP && !first) line(lastP[0], lastP[1], x, y, v); else setCell(x, y, v);
+            lastP = [x, y]; render();
         }
-        cv.addEventListener('pointerdown', ev => { ev.preventDefault(); down = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ } if (st.tool === 'pen' || st.tool === 'erase') snap(); act(ev, true); });
+        cv.addEventListener('pointerdown', ev => { ev.preventDefault(); down = true; lastP = null; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ } if (st.tool === 'pen' || st.tool === 'erase') snap(); act(ev, true); });
         cv.addEventListener('pointermove', ev => { if (down && (st.tool === 'pen' || st.tool === 'erase')) act(ev, false); });
-        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { down = false; }));
-        box.querySelector('#pxeCol').addEventListener('input', e => { st.pal[st.cur] = e.target.value; palUi(); render(); });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { down = false; lastP = null; }));
+        const colEl = box.querySelector('#pxeCol');
+        colEl.addEventListener('input', e => setColor(e.target.value)); colEl.addEventListener('change', e => setColor(e.target.value));
         box.querySelector('#pxeMir').addEventListener('change', e => { st.mirror = e.target.checked; render(); });
         box.querySelector('#pxeGrip').addEventListener('input', e => { st.grip = +e.target.value; render(); });
+        box.querySelector('#pxeBr').addEventListener('change', e => { st.brush = +e.target.value || 1; });
+        box.querySelector('#pxeZp').addEventListener('click', () => { st.zoom = Math.min(4, st.zoom + 1); sizeCv(); render(); });
+        box.querySelector('#pxeZm').addEventListener('click', () => { st.zoom = Math.max(1, st.zoom - 1); sizeCv(); render(); });
         box.querySelector('#pxeUndo').addEventListener('click', () => { const t = st.undo.pop(); if (t) { st.grid = JSON.parse(t); render(); } });
-        box.querySelector('#pxeClear').addEventListener('click', () => { snap(); st.grid = []; for (let y = 0; y < H; y++) st.grid.push(new Array(W).fill(-1)); render(); });
+        box.querySelector('#pxeClear').addEventListener('click', () => { snap(); st.grid = blank(); render(); });
         box.querySelector('#pxeTpl').addEventListener('click', () => { if (!confirm('いまの絵を消して、武器種の標準の絵を下書きとして読み込みます。よろしいですか？')) return; snap(); loadTemplate(type || 'sword'); box.querySelector('#pxeGrip').value = st.grip; palUi(); render(); });
-        palUi(); toolUi(); fxUi(); render();
+        sizeCv(); palUi(); toolUi(); fxUi(); render();
         return { pix: toPix, fx: () => st.fx, setType: t => { type = t; drawPreview(); } };
     }
 
@@ -239,13 +258,14 @@
                 '<div class="sbl-sec">成長（' + R.label + 'の上限まで）</div><div style="background:#10131c;border-radius:8px;overflow:hidden;height:16px;border:1px solid #2b3550"><div style="height:100%;width:' + pc + '%;background:linear-gradient(90deg,#3a6ee8,#7fd13b)"></div></div><div style="font-size:.8rem;color:#9fb3d9">経験値 ' + exp + ' / ' + cap + '（' + pc + '%）　付きやすい効果：' + biasChips(w.bias) + '</div>' +
                 '<div class="sbl-sec">特殊効果</div>' + fxList() +
                 (w.anvil ? '<div class="sbl-sec">⚠ 金床の作業の途中です</div><button type="button" class="sbl-btn orange" id="wkResume">🔨 金床に戻る</button>' :
-                    '<div style="margin-top:8px"><button type="button" class="sbl-btn" id="wkLook">🎨 見た目を描き直す（無料）</button>' + (w.rarity === 'mythic' ? '<button type="button" class="sbl-btn" id="wkMotion" style="background:#ff4fd8;color:#fff">🌟 神話の動きを作る（通常攻撃・必殺技）</button>' : '') + (inf.ok ? '<button type="button" class="sbl-btn orange" id="wkRank"' + (inf.ready ? '' : ' disabled style="opacity:.5"') + '>🔨 ' + RC(inf.next).label + 'へ（金床・' + num(inf.cost) + 'コイン）</button>' : '') + '</div>' +
+                    '<div style="margin-top:8px"><button type="button" class="sbl-btn" id="wkLook">🎨 見た目を描き直す（無料）</button>' + (w.rarity === 'mythic' ? '<button type="button" class="sbl-btn" id="wkMotion" style="background:#ff4fd8;color:#fff">🌟 神話の動きを作る（通常攻撃・必殺技）</button><button type="button" class="sbl-btn" id="wkAtk" style="background:#ff4fd8;color:#fff">🎯 通常攻撃を配置で作る</button>' : '') + (inf.ok ? '<button type="button" class="sbl-btn orange" id="wkRank"' + (inf.ready ? '' : ' disabled style="opacity:.5"') + '>🔨 ' + RC(inf.next).label + 'へ（金床・' + num(inf.cost) + 'コイン）</button>' : '') + '</div>' +
                     (inf.ok && !inf.ready ? '<div style="font-size:.78rem;color:#9fb3d9">成長が上限になると、お金で次のレア度へ進めます。</div>' : '') +
                     '<div class="sbl-sec">素材を与えて成長させる（与えた素材の系統で、次のレア度の効果が付きやすくなります）</div>' +
                     (exp >= cap ? '<div style="color:#7aff9a;font-size:.84rem">上限まで成長しました。' + (inf.ok ? 'レア度アップができます。' : '') + '</div>' : (ids.length ? ids.map(id => { const mi = matInfo(id), e1 = HW.expOfMaterial(mi), need = Math.ceil((cap - exp) / e1), mx = Math.min(have[id], need); return '<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #232a3d;font-size:.84rem"><span style="flex:1;min-width:0">' + esc(mi.name) + ' <small style="color:#9fb3d9">★' + mi.rarity + '　+' + e1 + 'EXP</small><br>' + tagChips(HW.matTags(mi), true) + '</span><span style="color:#9fb3d9">所持' + have[id] + '</span><button type="button" class="sbl-btn" data-f="' + id + '" data-n="1" style="margin:0;padding:4px 9px">×1</button>' + (mx > 1 ? '<button type="button" class="sbl-btn green" data-f="' + id + '" data-n="' + mx + '" style="margin:0;padding:4px 9px">×' + mx + '</button>' : '') + '</div>'; }).join('') : '<div style="color:#778;font-size:.84rem">素材がありません。ステージで素材を集めましょう。</div>'))) + '</div>';
             m.body.querySelector('#wkIcon').appendChild(iconCanvas(w, 72));
             const lk = m.body.querySelector('#wkLook'); if (lk) lk.addEventListener('click', () => openLook(hack, w, draw));
             const mo = m.body.querySelector('#wkMotion'); if (mo) mo.addEventListener('click', () => openMotion(hack, w, draw));
+            const ak = m.body.querySelector('#wkAtk'); if (ak) ak.addEventListener('click', () => openAtk(hack, w, draw));
             const rk = m.body.querySelector('#wkRank'); if (rk) rk.addEventListener('click', () => { if (!rk.disabled) openRankMode(hack, w, draw); });
             const rs = m.body.querySelector('#wkResume'); if (rs) rs.addEventListener('click', () => openAnvil(hack, w, draw));
             m.body.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
@@ -269,6 +289,167 @@
         });
     }
 
+
+    // ============================================================
+    // 配置で作る通常攻撃（神話）：近接と遠距離の攻撃を、狙った向きのまわりに自由に置く。
+    //   置くほど、1個あたりの威力は下がる（合計は一定に近い）。遠距離の弾は、1個ずつ16×16のドット絵を自分で描ける（絵の「右」が飛ぶ向き）
+    // ============================================================
+    function texEditor(box, init, onOk, onCancel) {
+        const N = HW.TEX_SIZE, CH = HW.PIX_CHARS, HEXC = /^#[0-9a-fA-F]{6}$/, cell = 13;
+        const st = { grid: [], pal: PALETTE0.slice(), cur: 10, tool: 'pen', undo: [] };
+        const blank = () => { const g = []; for (let y = 0; y < N; y++) g.push(new Array(N).fill(-1)); return g; };
+        st.grid = blank();
+        const c0 = init ? HW.cleanPix(init) : null;
+        if (c0) { const idx = {}; CH.split('').forEach((ch, i) => { if (c0.pal[ch]) { st.pal[i] = c0.pal[ch]; idx[ch] = i; } }); c0.rows.forEach((r, y) => { for (let x = 0; x < r.length && x < N && y < N; x++) if (r[x] !== '.' && idx[r[x]] != null) st.grid[y][x] = idx[r[x]]; }); }
+        box.innerHTML = '<div style="font-size:.8rem;color:#9fb3d9;margin-bottom:4px">弾の絵（16×16）。絵の「右」が、飛んでいく向きです。</div>' +
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start"><canvas id="txCv" width="' + N * cell + '" height="' + N * cell + '" style="touch-action:none;border:2px solid #3a4666;border-radius:6px;background:#10131c;max-width:100%"></canvas>' +
+            '<div style="flex:1;min-width:170px"><div id="txPal" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:240px"></div>' +
+            '<div style="margin:5px 0"><input type="color" id="txCol" value="#ffffff" style="width:44px;height:30px;padding:0;border:1px solid #3a4666;background:#fff;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
+            '<div id="txTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
+            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="txUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="txClear" style="padding:5px 10px">全消し</button></div>' +
+            '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">飛ぶようす</div><canvas id="txPv" width="170" height="44" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas></div></div>' +
+            '<div style="margin-top:8px"><button type="button" class="sbl-btn orange" id="txOk">この絵にする</button><button type="button" class="sbl-btn gray" id="txNo">やめる</button> <span id="txMsg" style="font-size:.8rem;color:#ff9a9a"></span></div>';
+        const cv = box.querySelector('#txCv'), g = cv.getContext('2d'), pv = box.querySelector('#txPv'), pg = pv.getContext('2d');
+        function toPix() {
+            const rows = st.grid.map(r => r.map(i => i < 0 ? '.' : CH[i]).join('')), pal = {};
+            CH.split('').forEach((ch, i) => { pal[ch] = HEXC.test(st.pal[i]) ? st.pal[i].toLowerCase() : '#ffffff'; });
+            return HW.cleanPix({ rows: rows, pal: pal, grip: 0, s: 1 });
+        }
+        function preview() {
+            pg.clearRect(0, 0, pv.width, pv.height); const px = toPix(); if (!px || !SBPix.prepTex) return;
+            const sp = SBPix.prepTex(px); for (let i = 0; i < 4; i++) SBPix.drawTex(pg, sp, 30 + i * 36, 22, 0, 2);
+        }
+        function render() {
+            g.fillStyle = '#161a26'; g.fillRect(0, 0, cv.width, cv.height); g.fillStyle = '#1b2030';
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if ((x + y) % 2) g.fillRect(x * cell, y * cell, cell, cell);
+            for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const i = st.grid[y][x]; if (i >= 0) { g.fillStyle = st.pal[i]; g.fillRect(x * cell, y * cell, cell, cell); } }
+            g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 1; g.beginPath(); for (let k = 0; k <= N; k++) { g.moveTo(k * cell + .5, 0); g.lineTo(k * cell + .5, N * cell); g.moveTo(0, k * cell + .5); g.lineTo(N * cell, k * cell + .5); } g.stroke();
+            g.strokeStyle = 'rgba(255,90,90,.5)'; g.beginPath(); g.moveTo(N * cell - 6, N * cell / 2 - 5); g.lineTo(N * cell - 1, N * cell / 2); g.lineTo(N * cell - 6, N * cell / 2 + 5); g.stroke();      // 右向きの目印
+            preview();
+        }
+        function palUi(keep) {
+            const pe = box.querySelector('#txPal');
+            pe.innerHTML = st.pal.map((c, i) => '<button type="button" data-i="' + i + '" style="height:24px;border-radius:5px;border:2px solid ' + (i === st.cur && st.tool !== 'erase' ? '#ffd84a' : '#2b3550') + ';background:' + c + ';cursor:pointer"></button>').join('');
+            pe.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.cur = +b.dataset.i; if (st.tool === 'erase') st.tool = 'pen'; palUi(); toolUi(); }));
+            const ci = box.querySelector('#txCol'); if (!keep && ci.value !== st.pal[st.cur]) ci.value = st.pal[st.cur];
+        }
+        const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし']];
+        function toolUi() { const te = box.querySelector('#txTools'); te.innerHTML = TOOLS.map(t => '<button type="button" data-t="' + t[0] + '" class="sbl-btn ' + (st.tool === t[0] ? '' : 'gray') + '" style="padding:5px 9px;margin:0;font-size:.8rem">' + t[1] + '</button>').join(''); te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; palUi(); toolUi(); })); }
+        const snap = () => { st.undo.push(JSON.stringify(st.grid)); if (st.undo.length > 25) st.undo.shift(); };
+        function fill(x, y, v) { const t = st.grid[y][x]; if (t === v) return; const stack = [[x, y]]; let n = 0; while (stack.length && n++ < N * N * 4) { const p = stack.pop(), px = p[0], py = p[1]; if (px < 0 || px >= N || py < 0 || py >= N || st.grid[py][px] !== t) continue; st.grid[py][px] = v; stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]); } }
+        const at = ev => { const r = cv.getBoundingClientRect(); return [Math.floor((ev.clientX - r.left) * cv.width / r.width / cell), Math.floor((ev.clientY - r.top) * cv.height / r.height / cell)]; };
+        let down = false;
+        function act(ev, first) { const p = at(ev), x = p[0], y = p[1]; if (x < 0 || x >= N || y < 0 || y >= N) return; if (st.tool === 'fill') { if (first) { snap(); fill(x, y, st.cur); render(); } return; } st.grid[y][x] = st.tool === 'erase' ? -1 : st.cur; render(); }
+        cv.addEventListener('pointerdown', ev => { ev.preventDefault(); down = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ } if (st.tool !== 'fill') snap(); act(ev, true); });
+        cv.addEventListener('pointermove', ev => { if (down && st.tool !== 'fill') act(ev, false); });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { down = false; }));
+        const setCol = v => { if (!HEXC.test(v || '')) return; st.pal[st.cur] = v.toLowerCase(); palUi(true); render(); };
+        const ce = box.querySelector('#txCol'); ce.addEventListener('input', e => setCol(e.target.value)); ce.addEventListener('change', e => setCol(e.target.value));
+        box.querySelector('#txUndo').addEventListener('click', () => { const t = st.undo.pop(); if (t) { st.grid = JSON.parse(t); render(); } });
+        box.querySelector('#txClear').addEventListener('click', () => { snap(); st.grid = blank(); render(); });
+        box.querySelector('#txNo').addEventListener('click', () => onCancel());
+        box.querySelector('#txOk').addEventListener('click', () => { const px = toPix(); if (!px) { box.querySelector('#txMsg').textContent = '何も描かれていません。'; return; } onOk(px); });
+        palUi(); toolUi(); render();
+    }
+
+    function openAtk(hack, w, onDone) {
+        const base = HW.cleanMotion(w.motion) || HW.defaultMotion(), cur = base.atk || { cd: 1, units: [], tex: [] }, RCol = w.fxColor || RC(w.rarity).color, MAXU = HW.ATK_MAX_UNITS;
+        const st = { cd: cur.cd, units: JSON.parse(JSON.stringify(cur.units)), tex: JSON.parse(JSON.stringify(cur.tex)), sel: cur.units.length ? 0 : -1 };
+        const m = L().modal('🎯 通常攻撃を配置で作る　' + w.name, null), CX = 160, CY = 120;
+        m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div id="atMain">' +
+            '<div style="font-size:.82rem;line-height:1.6;color:#cfe0ff">近接の斬撃と遠距離の弾を、狙った向き（→）のまわりに自由に置けます。<b>置くほど、1個あたりの威力は下がります</b>（合計はほぼ一定）。弾は1個ずつ、自分で描いた絵で飛ばせます。置かずに保存すると、段ごとのコンボに戻ります。</div>' +
+            '<canvas id="atCv" width="320" height="240" style="touch-action:none;background:#10131c;border:1px solid #3a4666;border-radius:8px;max-width:100%;margin-top:6px"></canvas>' +
+            '<div style="font-size:.76rem;color:#9fb3d9">図の上をタップ／なぞると、選んだ攻撃の向きが変わります。</div>' +
+            '<div style="margin:6px 0"><button type="button" class="sbl-btn" id="atAddM" style="margin:0 4px 0 0">＋近接を置く</button><button type="button" class="sbl-btn" id="atAddR" style="margin:0 4px 0 0">＋遠距離を置く</button><button type="button" class="sbl-btn gray" id="atDel" style="margin:0">🗑 消す</button></div>' +
+            '<div id="atChips" style="margin-bottom:4px"></div><div id="atPanel"></div>' +
+            '<div style="font-size:.8rem;margin-top:6px">攻撃の間隔（長いほど、合計の威力は大きい） <input type="range" id="atCd" min="0.8" max="2" step="0.1" value="' + st.cd + '" style="width:45%;vertical-align:middle"> <b id="atCdv">' + st.cd + '</b></div>' +
+            '<div id="atSum" style="font-size:.8rem;line-height:1.6;margin-top:6px;color:#cfe0ff"></div>' +
+            '<div id="atMsg" style="font-size:.82rem;color:#ff9a9a;min-height:1.2em"></div><div style="margin-top:6px"><button type="button" class="sbl-btn orange" id="atSave">この配置にする</button><button type="button" class="sbl-btn gray" id="atCancel">やめる</button></div></div>' +
+            '<div id="atTexBox" style="display:none"></div></div>';
+        const $ = s => m.body.querySelector(s), cv = $('#atCv'), g = cv.getContext('2d');
+        const texSprite = u => { const t = u.kind === 'ranged' && u.tx >= 0 && st.tex[u.tx]; const c = t && HW.cleanPix(t); return c && SBPix.prepTex ? SBPix.prepTex(c) : null; };
+        function draw() {
+            g.clearRect(0, 0, 320, 240); g.fillStyle = '#10131c'; g.fillRect(0, 0, 320, 240);
+            g.strokeStyle = '#2b3550'; g.lineWidth = 1; g.beginPath(); g.arc(CX, CY, 100, 0, 7); g.stroke();
+            g.strokeStyle = '#3a4666'; g.beginPath(); g.moveTo(CX, CY); g.lineTo(CX + 118, CY); g.moveTo(CX + 108, CY - 5); g.lineTo(CX + 118, CY); g.lineTo(CX + 108, CY + 5); g.stroke();
+            g.fillStyle = '#778'; g.font = '11px sans-serif'; g.fillText('狙う向き', CX + 70, CY - 8);
+            st.units.forEach((u, i) => {
+                const a = u.da * Math.PI / 180, col = u.col || RCol, sel = i === st.sel;
+                if (u.kind === 'melee') {
+                    const R = 30 + 50 * u.r;
+                    g.beginPath(); g.moveTo(CX, CY); g.arc(CX, CY, R, a - u.arc / 2, a + u.arc / 2); g.closePath();
+                    g.globalAlpha = 0.35; g.fillStyle = col; g.fill(); g.globalAlpha = 1; g.strokeStyle = sel ? '#ffd84a' : col; g.lineWidth = sel ? 3 : 1.5; g.stroke();
+                } else {
+                    const len = 40 + (u.rg - 250) / 650 * 60, x = CX + Math.cos(a) * len, y = CY + Math.sin(a) * len, ts = texSprite(u);
+                    g.strokeStyle = sel ? '#ffd84a' : col; g.lineWidth = sel ? 3 : 1.5; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(CX + Math.cos(a) * u.d0 * 0.5, CY + Math.sin(a) * u.d0 * 0.5); g.lineTo(x, y); g.stroke(); g.setLineDash([]);
+                    if (ts && SBPix.drawTex) SBPix.drawTex(g, ts, x, y, a, Math.max(1, Math.round(2 * u.sz))); else { g.fillStyle = col; g.beginPath(); g.arc(x, y, 5 + 4 * u.sz, 0, 7); g.fill(); }
+                }
+                g.fillStyle = sel ? '#ffd84a' : '#cfe0ff'; g.font = 'bold 12px sans-serif'; g.fillText(String(i + 1), CX + Math.cos(a) * 112 - 4, CY + Math.sin(a) * 112 + 4);
+            });
+            g.fillStyle = '#4a7fe8'; g.beginPath(); g.arc(CX, CY, 10, 0, 7); g.fill();
+        }
+        function sum() {
+            const el = $('#atSum'), a = HW.cleanAtk({ cd: st.cd, units: st.units, tex: st.tex });
+            if (!a) { el.innerHTML = '<span style="color:#778">まだ攻撃を置いていません。</span>'; return; }
+            const P = HW.atkPlan(a);
+            el.innerHTML = '置いた数：<b>' + P.n + '</b> / ' + MAXU + '　1回の通常攻撃の威力の合計：<b>×' + P.total + '</b>（1個だけのとき ×' + P.single + '）<br>1個あたり：' + P.per.map((v, i) => '<span style="margin-right:8px">' + (i + 1) + '番 ×' + v + '（' + Math.round(100 * v / P.single) + '%）</span>').join('');
+        }
+        function chips() {
+            $('#atChips').innerHTML = st.units.map((u, i) => '<button type="button" data-i="' + i + '" class="sbl-btn ' + (i === st.sel ? '' : 'gray') + '" style="margin:0 3px 3px 0;padding:3px 9px;font-size:.78rem">' + (i + 1) + (u.kind === 'melee' ? ' 近' : ' 遠') + '</button>').join('');
+            $('#atChips').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.sel = +b.dataset.i; refresh(); }));
+            $('#atAddM').disabled = $('#atAddR').disabled = st.units.length >= MAXU; $('#atDel').disabled = st.sel < 0;
+        }
+        const row = (lab, f, lo, hi, step, v) => '<div style="display:flex;align-items:center;gap:6px;font-size:.8rem;margin:2px 0"><span style="width:8.2em">' + lab + '</span><input type="range" data-f="' + f + '" min="' + lo + '" max="' + hi + '" step="' + step + '" value="' + v + '" style="flex:1"><b data-v="' + f + '" style="width:3.2em;text-align:right">' + v + '</b></div>';
+        function panel() {
+            const pe = $('#atPanel'), u = st.units[st.sel];
+            if (!u) { pe.innerHTML = ''; return; }
+            const colRow = '<div style="font-size:.8rem;margin:3px 0">' + (u.kind === 'melee' ? '斬撃の色' : '弾の色（絵が無いとき）') + ' <input type="color" data-c="col" value="' + (u.col || RCol) + '" style="width:34px;height:24px;padding:0;border:1px solid #3a4666;background:#fff;vertical-align:middle">' + (u.col ? ' <button type="button" class="sbl-btn gray" data-a="nocol" style="padding:1px 7px;margin:0">武器の色に戻す</button>' : '<small style="color:#778">（武器の色）</small>') + '</div>';
+            let h = '<div class="sbl-card" style="margin:4px 0"><b style="color:#ffd84a">' + (st.sel + 1) + '番：' + (u.kind === 'melee' ? '近接（斬撃）' : '遠距離（弾）') + '</b>' +
+                row('向き（度）', 'da', -180, 180, 5, u.da) + row('威力の配分', 'w', 1, 5, 1, u.w) + row('出るまでの間（秒）', 'dl', 0, 0.5, 0.05, u.dl);
+            if (u.kind === 'melee') h += row('届く距離', 'r', 0.6, 1.6, 0.1, u.r) + row('斬る幅', 'arc', 0.4, 2.4, 0.1, u.arc);
+            else h += row('弾の速さ', 'sp', 300, 1000, 50, u.sp) + row('射程', 'rg', 250, 900, 50, u.rg) + row('弾の大きさ', 'sz', 0.5, 2, 0.1, u.sz) + row('出る位置（前へ）', 'd0', 0, 60, 5, u.d0) +
+                '<div style="font-size:.8rem;margin:4px 0"><button type="button" class="sbl-btn" data-a="tex" style="margin:0 4px 0 0">🎨 ' + (u.tx >= 0 ? '弾の絵を描き直す' : '弾の絵を描く') + '</button>' + (u.tx >= 0 ? '<button type="button" class="sbl-btn gray" data-a="notex" style="margin:0">絵を外す</button>' : '') + '</div>';
+            pe.innerHTML = h + colRow + '</div>';
+            pe.querySelectorAll('input[data-f]').forEach(inp => inp.addEventListener('input', () => { u[inp.dataset.f] = +inp.value; const b = pe.querySelector('[data-v="' + inp.dataset.f + '"]'); if (b) b.textContent = inp.value; draw(); sum(); }));
+            const ci = pe.querySelector('input[data-c]'); if (ci) { const fn = e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) { u.col = e.target.value.toLowerCase(); draw(); } }; ci.addEventListener('input', fn); ci.addEventListener('change', fn); }
+            pe.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => {
+                if (b.dataset.a === 'nocol') { u.col = ''; refresh(); }
+                else if (b.dataset.a === 'notex') { u.tx = -1; refresh(); }
+                else if (b.dataset.a === 'tex') {
+                    $('#atMain').style.display = 'none'; const tb = $('#atTexBox'); tb.style.display = '';
+                    const back = () => { tb.style.display = 'none'; tb.innerHTML = ''; $('#atMain').style.display = ''; refresh(); };
+                    texEditor(tb, u.tx >= 0 ? st.tex[u.tx] : null, px => { if (u.tx >= 0 && st.tex[u.tx]) st.tex[u.tx] = px; else { st.tex.push(px); u.tx = st.tex.length - 1; } back(); }, back);
+                }
+            }));
+        }
+        function refresh() { draw(); sum(); chips(); panel(); }
+        const add = kind => {
+            if (st.units.length >= MAXU) return;
+            st.units.push(kind === 'melee' ? { kind: 'melee', da: 0, w: 1, dl: 0, r: 1, arc: 1.2, col: '' } : { kind: 'ranged', da: 0, w: 1, dl: 0, sp: 640, rg: 520, sz: 1, d0: 0, tx: -1, col: '' });
+            st.sel = st.units.length - 1; refresh();
+        };
+        $('#atAddM').addEventListener('click', () => add('melee')); $('#atAddR').addEventListener('click', () => add('ranged'));
+        $('#atDel').addEventListener('click', () => { if (st.sel < 0) return; st.units.splice(st.sel, 1); st.sel = st.units.length ? Math.min(st.sel, st.units.length - 1) : -1; refresh(); });
+        $('#atCd').addEventListener('input', e => { st.cd = +e.target.value; $('#atCdv').textContent = e.target.value; sum(); });
+        let drag = false;
+        const ang = ev => { const r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) * 320 / r.width - CX, y = (ev.clientY - r.top) * 240 / r.height - CY; return Math.atan2(y, x) * 180 / Math.PI; };
+        const setDa = ev => { const u = st.units[st.sel]; if (!u) return; u.da = Math.max(-180, Math.min(180, Math.round(ang(ev) / 5) * 5)); const inp = m.body.querySelector('input[data-f="da"]'); if (inp) inp.value = u.da; const b = m.body.querySelector('[data-v="da"]'); if (b) b.textContent = u.da; draw(); };
+        cv.addEventListener('pointerdown', ev => {
+            ev.preventDefault(); const p = ang(ev); let best = -1, bd = 18;
+            st.units.forEach((u, i) => { let d = Math.abs(((p - u.da + 540) % 360) - 180); if (d < bd) { bd = d; best = i; } });      // 置いた攻撃の近くをタップしたら、その攻撃を選ぶ
+            if (best >= 0 && best !== st.sel) { st.sel = best; refresh(); } else { drag = true; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも使える */ } setDa(ev); }
+        });
+        cv.addEventListener('pointermove', ev => { if (drag) setDa(ev); });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { if (drag) { drag = false; panel(); } }));
+        $('#atCancel').addEventListener('click', () => m.close());
+        $('#atSave').addEventListener('click', () => {
+            const used = [], map = {};      // 使っていない絵を捨てて、番号をつめる
+            const units = st.units.map(u => { const c = Object.assign({}, u); if (c.kind === 'ranged' && c.tx >= 0 && st.tex[c.tx]) { if (!(c.tx in map)) { map[c.tx] = used.length; used.push(st.tex[c.tx]); } c.tx = map[c.tx]; } else if (c.kind === 'ranged') c.tx = -1; return c; });
+            if (!HW.setAtk(w, units.length ? { cd: st.cd, units: units, tex: used } : null)) { $('#atMsg').textContent = '保存できませんでした。'; return; }
+            HW.save(hack); m.close(); if (onDone) onDone();
+        });
+        refresh();
+    }
 
     // ============================================================
     // 神話の動きを作る：通常攻撃のコンボ（1〜6段）と、必殺技（最大4つの型をつなげる）。剣が分身して攻撃する動きも作れる
@@ -328,7 +509,7 @@
         }
         function render() {
             const tabBtn = (id, label) => '<button type="button" class="sbl-btn ' + (st.tab === id ? '' : 'gray') + '" data-tab="' + id + '" style="margin:0 4px 6px 0">' + label + '</button>';
-            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div style="font-size:.82rem;line-height:1.6;color:#cfe0ff">自分だけの動きを作れます。威力は自動で釣り合わせるので、派手にしても強くなりすぎません（決めるのは配分と見た目）。何度でも無料で作り直せます。</div>' +
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div style="font-size:.82rem;line-height:1.6;color:#cfe0ff">自分だけの動きを作れます。威力は自動で釣り合わせるので、派手にしても強くなりすぎません（決めるのは配分と見た目）。何度でも無料で作り直せます。</div>' + (base.atk ? '<div style="font-size:.8rem;color:#ffb06a;margin-top:4px">※「配置で作る通常攻撃」を設定中は、通常攻撃は配置のほうが使われ、下のコンボは使われません（必殺技は、ここの設定が使われます）。</div>' : '') +
                 '<div style="margin-top:6px">' + tabBtn('combo', '⚔ 通常攻撃') + tabBtn('ult', '⚡ 必殺技') + '</div><div id="mtBody">' + (st.tab === 'combo' ? comboHtml() : ultHtml()) + '</div>' +
                 '<div class="sbl-sec">プレビュー（動きのイメージ）</div><canvas id="mtPv" width="320" height="170" style="background:#10131c;border:1px solid #3a4666;border-radius:8px;max-width:100%"></canvas><div><button type="button" class="sbl-btn gray" id="mtPlay">▶ 再生</button></div>' +
                 '<div id="mtMsg" style="font-size:.82rem;color:#ff9a9a;min-height:1.2em"></div><div style="margin-top:6px"><button type="button" class="sbl-btn orange" id="mtSave">この動きにする</button><button type="button" class="sbl-btn gray" id="mtCancel">やめる</button></div></div>';
@@ -522,5 +703,5 @@
         draw();
     }
 
-    global.SBOrigUI = { openKits: openKits, openCreate: openCreate, openWorkshop: openWorkshop, openAnvil: openAnvil, openMotion: openMotion, pixelEditor: pixelEditor };
+    global.SBOrigUI = { openKits: openKits, openCreate: openCreate, openWorkshop: openWorkshop, openAnvil: openAnvil, openMotion: openMotion, openAtk: openAtk, pixelEditor: pixelEditor };
 })(window);

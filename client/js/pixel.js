@@ -58,7 +58,13 @@
         return get('p:' + cloth + ':' + hair + ':' + frame, rows, palPerson(cloth, hair), scale, flash, mirror);
     }
     function weapon(type, color, scale, mythic, custom) {
-        if (custom && custom.rows) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }      // 自分で描いたドット絵（オリジナル武器）
+        if (custom && custom.rows) {      // 自分で描いたドット絵（オリジナル武器）
+            const f = custom.s > 1 ? custom.s : 1;
+            if (f === 1) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }
+            // 細かい絵（f倍）：1マス1ピクセルで焼いておき、表示のときに 1/f の大きさにたたむ（大きさは従来の絵と同じになる）
+            const base = get('wc:' + custom.key, custom.rows, custom.pal, f), wk = 'wcs:' + custom.key + '|' + scale;
+            return CACHE[wk] || (CACHE[wk] = { c: base.c, w: Math.max(1, Math.round(base.w * scale / f)), h: Math.max(1, Math.round(base.h * scale / f)), cols: base.cols, rows: base.rows, grip: custom.grip * scale / f });
+        }
         const M = mythic && D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[mythic];      // 神話の武器は、専用のドット絵
         if (M) { const sm = get('wm:' + mythic + ':' + color, M.rows, palWeapon(color), scale); sm.grip = M.grip * scale; sm.orbiters = M.orbiters | 0; return sm; }
         const W = D.WEAPONS[type] || D.WEAPONS.default, s = get('w:' + (D.WEAPONS[type] ? type : 'default') + ':' + color, W.rows, palWeapon(color), scale);
@@ -94,7 +100,8 @@
         }
         ctx.save(); ctx.imageSmoothingEnabled = false; if (o.alpha != null) ctx.globalAlpha = o.alpha;
         ctx.translate(Math.round(x + ox), Math.round(y + oy)); ctx.rotate(rot);
-        ctx.drawImage(sp.c, -Math.round(sp.w / 2), -sp.grip);
+        if (sp.c.width !== sp.w) ctx.imageSmoothingEnabled = true;      // 細かい絵をたたんで表示するときは、なめらかに縮める
+        ctx.drawImage(sp.c, -Math.round(sp.w / 2), -sp.grip, sp.w, sp.h);
         if (sp.orbiters) {      // 薙刀オルビット：刃のまわりを、光の玉が回る
             const tt = (o.now || performance.now()) / 1000, cy = -Math.round(sp.grip * 0.62);
             for (let i = 0; i < sp.orbiters; i++) { const an = tt * 2.6 + i * Math.PI * 2 / sp.orbiters, ox = Math.round(Math.cos(an) * 21 / 2) * 2, oy = cy + Math.round(Math.sin(an) * 9 / 2) * 2, front = Math.sin(an) > 0;
@@ -119,9 +126,17 @@
     }
 
     // 自分で描いたドット絵（{rows, pal, grip}）を、描画用に整える。key は絵の中身から決まる（同じ絵なら同じ key）
-    function customKey(px) { const t = px.rows.join('|') + JSON.stringify(px.pal); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); }
-    function prepCustom(px) { return px && px.rows ? { rows: px.rows, pal: px.pal, grip: px.grip | 0, key: customKey(px) } : null; }
+    function customKey(px) { const t = px.rows.join('|') + JSON.stringify(px.pal) + (px.s === 4 ? '|s4' : ''); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); }
+    function prepCustom(px) { return px && px.rows ? { rows: px.rows, pal: px.pal, grip: px.grip | 0, s: (px.s | 0) === 4 ? 4 : 1, key: customKey(px) } : null; }
+    // 弾の絵（16×16まで）：1マス1ピクセルで焼いて使い回し、飛ぶ向きに回して描く（絵の「右」が進行方向になる）
+    function prepTex(px) { return px && px.rows ? get('tx:' + customKey(px), px.rows, px.pal, 1) : null; }
+    function drawTex(ctx, sp, x, y, ang, scale) {
+        if (!sp) return; const k = Math.max(1, scale | 0 || 2), w = sp.w * k, h = sp.h * k;
+        ctx.save(); ctx.imageSmoothingEnabled = false; ctx.translate(Math.round(x), Math.round(y)); ctx.rotate(ang || 0);
+        ctx.drawImage(sp.c, -Math.round(w / 2), -Math.round(h / 2), w, h); ctx.restore();
+    }
     window.SBPix = {
+        prepTex: prepTex, drawTex: drawTex,
         customKey: customKey, prepCustom: prepCustom,
         on: () => enabled, setOn: v => { enabled = !!v; try { localStorage.setItem(KEY, enabled ? '1' : '0'); } catch (e) { /* 保存できなくてもよい */ } },
         hasEnemy: a => !!D.ENEMIES[a], hasMythic: id => !!(D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[id]), hasWeapon: t => !!D.WEAPONS[t], weaponTypes: () => Object.keys(D.WEAPONS),
