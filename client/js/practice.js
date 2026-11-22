@@ -329,7 +329,7 @@
         isHost = r.hostId === myId;
         if (!wasHost && isHost && run.phase === 'run') adoptEnemies();
         const ids = r.members.map(m => m.id);
-        r.members.forEach(m => { if (m.id !== myId && !allies[m.id]) allies[m.id] = { id: m.id, name: m.name, x: 220, y: WORLD_H / 2, tx: 220, ty: WORLD_H / 2, hp: 100, maxHp: 100, dead: false, ang: 0, rar: m.rar || 'normal', r: 15 }; });
+        r.members.forEach(m => { if (m.id !== myId && !allies[m.id]) allies[m.id] = { id: m.id, name: m.name, x: (stage.id === 'raid_worm' ? 1120 : 220), y: WORLD_H / 2, tx: (stage.id === 'raid_worm' ? 1120 : 220), ty: WORLD_H / 2, hp: 100, maxHp: 100, dead: false, ang: 0, rar: m.rar || 'normal', r: 15 }; });
         Object.keys(allies).forEach(id => { if (ids.indexOf(id) < 0) delete allies[id]; });
         if (run.phase === 'wait') renderWait();
         if (r.state === 'playing' && run.phase === 'wait') beginRun();
@@ -885,9 +885,12 @@
     }
     // <worm-end>
     let WL = { pr: null };
-    function wormFall() {      // 奈落に落ちた：足場の縁に倒れる（仲間が近くに来れば復活できる）
-        me.fallT = 0; const a = Math.atan2(me.y - WM.cy, me.x - WM.cx), R = Math.max(120, wmR(me.x, me.y) - 40);
+    function wormSafePos() {      // いまの向きのまま、足場の半分の位置（崩れにくい内側）へ
+        const a = Math.atan2(me.y - WM.cy, me.x - WM.cx), R = Math.max(120, wmR(me.x, me.y) * 0.5);
         me.x = WM.cx + Math.cos(a) * R; me.y = WM.cy + Math.sin(a) * R;
+    }
+    function wormFall() {      // 奈落に落ちた：足場の縁に倒れる（仲間が近くに来れば復活できる）
+        me.fallT = 0; wormSafePos();      // 落ちたら、足場の内側（縁から離れた所）に倒れる。縁だと、起き上がってもまた崖っぷち
         popups.push({ x: me.x, y: me.y - 30, t: 1.6, text: '🕳 奈落に落ちた！', c: '#ff7a7a', big: true });
         me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('奈落に落ちた！　仲間が近くに来れば復活できます', 2200);
     }
@@ -901,7 +904,8 @@
             if (WL.pr) for (let i = 0; i < WM.N; i++) if (G.pr[i] < WL.pr[i] - 1) { const a = (i + 0.5) * WM_TAU / WM.N; if (!wmHidden(WM.cx)) { fx.push({ k: 'puff', x: WM.cx + Math.cos(a) * WL.pr[i], y: WM.cy + Math.sin(a) * WL.pr[i], t: 0.5, life: 0.5, c: '#8a6a40' }); addShake(5, 0.25); } }
             WL.pr = G.pr.slice();
         }
-        if (me.dead || run.phase !== 'run') return;
+        if (me.dead) { if (wmZone(me.x) === 0 && !wmOn(me.x, me.y, -40)) wormSafePos(); return; }      // 倒れている間に足場が崩れても、起こしてもらったときに崖っぷちにならないように
+        if (run.phase !== 'run') return;
         if (wmZone(me.x) === 1) {
             me.x = clamp(me.x, WM.IN.x0 + me.r, WM.IN.x1 - me.r); me.y = clamp(me.y, WM.IN.y0 + me.r, WM.IN.y1 - me.r);
             if (G.wm === 'C') { me.acidT = (me.acidT || 0) + dt; if (me.acidT >= 1.5) { me.acidT = 0; const bb = gmBoss(); hurtMe((bb ? ed(bb) : 0.1) * 0.28); popups.push({ x: me.x, y: me.y - 20, t: 0.6, text: '酸！', c: '#9bd84a' }); } }
@@ -4182,8 +4186,11 @@
         } else if (RAID) {
             // 大討伐戦：全員が同じ並びで、南側（手前）に横一列に並ぶ。ボスは北の中央
             const ids = [myId].concat(Object.keys(allies)).sort(), i = ids.indexOf(myId), n = ids.length, per = 10, row = Math.floor(i / per), col = i % per, cnt = Math.min(per, n - row * per);
-            me.x = WORLD_W / 2 + (col - (cnt - 1) / 2) * 90; me.y = WORLD_H - 260 + row * 80; pushOutOfRocks(me, me.r);
-            announce('🐉 大討伐戦　双界の覇竜が待ち受ける…　色の通りに動け！（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 3200);
+            if (stage.id === 'raid_worm') { me.x = WM.cx + (col - (cnt - 1) / 2) * 90; me.y = WM.cy + 260 + row * 80; }      // ワールドワーム：足場（円盤）の中央の南側に並ぶ（以前は、足場の外＝崖に出ていた）
+            else { me.x = WORLD_W / 2 + (col - (cnt - 1) / 2) * 90; me.y = WORLD_H - 260 + row * 80; }
+            pushOutOfRocks(me, me.r);
+            const hint = stage.id === 'raid_worm' ? '足場が崩れる！　縁に近づくな！' : stage.id === 'raid_increase' ? '倒すと分裂する！　10体になると心臓が出る！' : '色の通りに動け！';
+            announce('🐉 大討伐戦　' + ((stage.boss && stage.boss.name) || 'ボス') + 'が待ち受ける…　' + hint + '（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 3200);
         } else if (RUSH_ON) announce('🏆 ボスラッシュ（' + DIFF.name + '）　フェーズ1〜5とFinal！', 2600);
         else if (CORR_ON) {
             corrMakeRetreatBtn();
