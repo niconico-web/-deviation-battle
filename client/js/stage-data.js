@@ -592,7 +592,21 @@
         enemies: [E('土の眷属', '🟤', 'chaser', '#b08a5a')],
         boss: { name: 'ワールドワーム', icon: '🪱', color: '#c9a27a', patterns: ['volley'], stand: true, gate: false, gimmick: 'worm', set: 'raid_worm' },
         drops: [], bossDrops: [] });
-    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第三幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
+    //  ・第三幕：ネクロマンスド・シャーマン（gimmick: 'necro'）。1秒に5体ペースで死霊を召喚し続ける。倒されたプレイヤーは、自分そっくりのゾンビになる
+    //  ・報酬：専用の神話装備「Legend of Necromance」と、称号「魂の理を断ち切るもの」（実績）
+    add({ id: 'raid_necro', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 4.0, name: '大討伐戦 第三幕　ネクロマンスド・シャーマン', icon: '💀', ilvl: 50, bg: '#1a1426', bg2: '#0a0710',
+        desc: '死霊を操る呪術師。1秒に5体のペースで、死霊を呼び出し続ける。そして、シャーマンの軍勢に倒されると、自分とそっくりのステータスのゾンビが死体から生まれる。',
+        enemies: [E('骸骨兵', '💀', 'chaser', '#d6dccb')],
+        boss: { name: 'ネクロマンスド・シャーマン', icon: '💀', color: '#a070ff', patterns: ['volley'], stand: true, gate: false, gimmick: 'necro' },
+        drops: [], bossDrops: [] });
+    //  ・第五幕：機械真王・リレインバー（gimmick: 'machine'）。燃料が切れるまでの耐久戦（約20分）。空を飛び、上昇気流に乗れば近接でも届く
+    //  ・報酬：専用の神話装備「Legend of Relainbar」と、称号「機械をも支配するもの」（実績）
+    add({ id: 'raid_machine', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 6.0, name: '大討伐戦 第五幕　機械真王・リレインバー', icon: '🤖', ilvl: 50, bg: '#16243a', bg2: '#0a1220',
+        desc: '空を飛ぶ機械の王。燃料が切れるまでの耐久戦で、攻撃するとバリアを張って燃料を使う。近接武器は、ステージの上昇気流に乗って空へ。レーザーとミサイルが降りそそぐ。',
+        enemies: [E('機兵', '🤖', 'chaser', '#7d8799')],
+        boss: { name: '機械真王・リレインバー', icon: '🤖', color: '#7fd8ff', patterns: ['volley'], stand: true, gate: false, gimmick: 'machine' },
+        drops: [], bossDrops: [] });
+    add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第四幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
         desc: '最大20人で挑む大討伐戦。戦場は「赤い炎のエリア」と「青い氷のエリア」に割れている。色の通りに動け。',
         enemies: [E('双界の眷属', '🔥', 'chaser', '#ff7a5a')],
         boss: { name: '双界の覇竜ツイン・エレメンタル', icon: '🐲', color: '#c06aff', patterns: ['radial', 'volley', 'slam'], stand: true, gate: false, gimmick: 'duality' },
@@ -658,7 +672,7 @@
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
     ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality'].forEach(id => { MATS[id] = W5M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality', 'raid_necro', 'raid_machine'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });

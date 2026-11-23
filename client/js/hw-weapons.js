@@ -66,6 +66,9 @@
         // ---- 専用武器種：神話「Legend of Increase」だけが持つ（大討伐戦 第一幕の報酬。world 99）----
         //  increase：斬るたびに剣が分身して、敵を切り刻む。1回目は1本、次は2本、X字、最後は剣の雨と、増えていく
         eater:       { label: '喰らう',    kind: 'smash', radius: 112, cd: 0.62, mult: 1.3, knock: 160, reach: 78, world: 99, exclusive: true },
+        // ---- 専用武器種：神話「Legend of Necromance」「Legend of Relainbar」だけが持つ（大討伐戦 第三幕・第五幕の報酬。world 99）----
+        necromance:  { label: '死霊',      kind: 'cone', range: 132, arc: 1.3, cd: 0.5, mult: 0.62, knock: 50, world: 99, exclusive: true },
+        relainbar:   { label: '機神',      kind: 'cone', range: 120, arc: 1.2, cd: 0.46, mult: 0.6, knock: 30, world: 99, exclusive: true },
         increase:    { label: '増殖',      kind: 'cone', range: 124, arc: 1.25, cd: 0.48, mult: 0.6, knock: 40, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
@@ -1169,6 +1172,14 @@
         legend_increase: { name: 'Legend of Increase', prefix: '', type: 'increase', color: '#5be37a', ilvl: 50, tag: '増殖', boss: '増殖スライム インクリーズ', tech: '増殖斬／増殖の宴・無限分裂', source: 'raid_increase',
             desc: '増殖スライムの力を宿す、緑の雫がしたたる剣。通常攻撃は、斬るたびに剣が分身して敵を切り刻み、1本、2本、X字斬り、最後は剣の雨と、斬るほどに増えていく。必殺技「増殖の宴・無限分裂」は、剣が12本に増えてあたり一面を舞い、最後に大爆発を起こして体力も回復する',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['poison', 0.5], ['dmg_swarm', 0.7], ['regen', 0.02], ['energy_up', 0.5]] },
+        // ネクロマンスド・シャーマン（大討伐戦 第三幕のボス）を倒すと手に入る、専用の神話武器。武器種は「死霊」だけ
+        legend_necromance: { name: 'Legend of Necromance', prefix: '', type: 'necromance', color: '#a070ff', ilvl: 50, tag: '死霊', boss: 'ネクロマンスド・シャーマン', tech: '魂刈りの大鎌／魂の理・断絶', source: 'raid_necro',
+            desc: '死霊を操る呪術師の力を宿す、紫の炎をまとう大鎌。通常攻撃は、振るたびに刈り取った魂が刃になって敵のまわりを舞い、当てるたびに体力を吸い取る。必殺技「魂の理・断絶」は、地割れと無数の魂の刃で戦場を刈り尽くし、最後に大爆発を起こして体力も回復する',
+            fx: [['atk_up', 0.9], ['crit_dmg', 1.0], ['lifesteal', 0.5], ['poison', 0.5], ['dmg_swarm', 0.7], ['regen', 0.02], ['dmg_boss', 0.5], ['energy_up', 0.5]] },
+        // 機械真王・リレインバー（大討伐戦 第五幕のボス）を倒すと手に入る、専用の神話武器。武器種は「機神」だけ
+        legend_relainbar: { name: 'Legend of Relainbar', prefix: '', type: 'relainbar', color: '#7fd8ff', ilvl: 50, tag: '機神', boss: '機械真王・リレインバー', tech: '機兵の追撃／機神の裁き・全弾発射', source: 'raid_machine',
+            desc: '機械の王の力を宿す、青い光を走らせる機械剣。通常攻撃は、斬るたびに小型の機兵が飛び出して、遠くの敵まで追撃する。必殺技「機神の裁き・全弾発射」は、機兵とミサイルの雨で一帯を薙ぎ払い、結界をまとって最後に大爆発を起こす',
+            fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['range_up', 0.4], ['dmg_boss', 0.7], ['dr', 0.15], ['energy_up', 0.5]] },
         yggdrasil: { name: '世界樹の杖', prefix: 'ユグドラシルの', type: 'wand', color: '#6dff8a', ilvl: 50, tag: '世界樹', boss: '嘆きの樹母', tech: '這う根／若木の呼び声',
             desc: '嘆きの樹母の根を宿す杖。必殺技「若木の呼び声・世界樹の根」は、足もとから根を突き上げ、体力も癒やす',
             fx: [['atk_up', 0.9], ['aoe_up', 0.8], ['energy_up', 0.8], ['regen', 0.02], ['hp_up', 0.5], ['crit_dmg', 0.8], ['burn', 0.5], ['freeze', 0.4], ['proj_extra', 1]] }

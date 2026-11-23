@@ -21,7 +21,7 @@
 // ============================================
 
 const MAX_MEMBERS = 4;
-const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_duality: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
+const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_necro: 20, raid_duality: 20, raid_machine: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
 const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room

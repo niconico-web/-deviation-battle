@@ -360,6 +360,15 @@
             '..aaabwbbc..', '..aabwwbbc..', '..aabwwbbc..', '...abwwbc...', '...abwwbc...', '..abbwwbbc..', '..a.bwwb.c..', '..a.bwwb....',
             '.kggGGGGggk.', 'kgGGggggGGgk', '.kkgGGGGgkk.', '....hHHh....', '....hHHh....', '....hHHh....', '....hHHh....', '...GggggG...',
             '...gGGGGg...', '....gGGg....'] },
+        legend_necromance: { grip: 20, rows: [
+            '....aaabbbbc..', '..aabwwwbbbbc.', '.abbww..bbbbc.', '.abw....hbbc..', '.ab.....h.cc..', '.a......h.....', '........h.....', '........h.....',
+            '.......kHk....', '.......hHh....', '.......hHh....', '.......hHh....', '.......hHh....', '.......hHh....', '.......hHh....', '.......hHh....',
+            '.......hHh....', '......kgGgk...', '.......hHh....', '.......hHh....', '......kGgGk...', '.......hHh....', '.......hHh....', '.......hHh....',
+            '......PgGgP...', '.......gGg....'] },
+        legend_relainbar: { grip: 17, rows: [
+            '.....BB.....', '.....wB.....', '....sBBs....', '....sBBs....', '....sBBs....', '...sSBBSs...', '...sSBBSs...', '...sSBBSs...',
+            '...sSBBSs...', '...sSBBSs...', '...sSwBSs...', '....SBBS....', '....SBBS....', '....cBBc....', '.kssSBBSssk.', 'ksSSsBBsSSsk',
+            '.kkSSSSSSkk.', '....hHHh....', '....hHHh....', '....hHHh....', '....hHHh....', '...GggggG...', '...gGrrGg...', '....gGGg....'] },
         yggdrasil: { grip: 15, rows: [
             '..a.a..a.a..', '.aaa.aaaaaa.', 'aabaaabbbaaa', '.aabbbwwbbaa', '..abbwwwwba.', '..aabwwwbaa.', '.a.aabwbaa.a', '..a..hbh..a.', '.....hhh....', '....hHhh....', '.....hhH....', '....hhhh....', '.....hHh....', '....hhhh....', '.....hhh....', '.....hHh....', '....hhhh....', '.....hhH....', '.....hHh....', '....GgggG...', '.....hhh....', '.....hHh....', '......g.....'] }
     };

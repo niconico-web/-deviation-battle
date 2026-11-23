@@ -214,7 +214,7 @@
     // ---------- フィールド（障害物の岩）----------
     const rocks = [];
     (function genRocks() {
-        if (RUSH_ON || CORR_ON || stage.id === 'raid_worm') return;      // ボスラッシュは広い平地、無限回廊は迷路の壁だけ
+        if (RUSH_ON || CORR_ON || stage.id === 'raid_worm' || stage.id === 'raid_machine') return;      // ボスラッシュは広い平地、無限回廊は迷路の壁だけ
         const r = seeded(hashStr(stage.id));
         for (let i = 0; i < 18; i++) {
             const x = 150 + r() * (WORLD_W - 300), y = 150 + r() * (WORLD_H - 300);
@@ -426,7 +426,7 @@
                 if (isHost && GMK === 'dimension') hostReflect(Number(d.x) || 0, Number(d.y) || 0);
                 break;
             case 'gm':
-                if (!isHost) onGm(d);
+                if (!isHost) onGm(d); else if (d && d.k === 'corpse' && GMK === 'necro') hostCorpse(d);      // 仲間がシャーマンに倒された：その場にゾンビを生む
                 break;
             case 'snap':
                 if (!isHost && !PVP) applySnap(d);
@@ -922,6 +922,8 @@
     function updateBoss(e, dt, tgt, d, ang, slow) {
         if (e.arch === 'slime') { updateSlime(e, dt, tgt, d, ang, slow); return; }
         if (e.arch === 'heart') { updateHeart(e, dt, tgt, d, ang, slow); return; }
+        if (e.arch === 'necro') { updateNecro(e, dt, tgt, d, ang, slow); return; }
+        if (e.arch === 'machine') { updateMachine(e, dt, tgt, d, ang, slow); return; }
         const hpR = e.hp / e.maxHp;
         if (!e.enraged && hpR < 0.5) { e.enraged = true; netAnnounce('ボスが激昂した！', 1800); }
         const pats = bdef(e).patterns, SET = setOf(e);
@@ -1275,6 +1277,10 @@
     function dealHit(e, dmg, o) {
         o = o || {};
         if (e.pvp) { dealPvp(e, dmg, o); return; }
+        if (e.arch === 'machine' && !G.crash) {      // 機械真王：バリア中は無効／空にいる間は、近づいて殴る攻撃は上昇気流に乗っていないと届かない
+            if (G.bar > 0) { if ((e.invAt || 0) < Date.now() - 600) { e.invAt = Date.now(); popups.push({ x: e.x, y: e.y - e.r - 8, t: 0.8, text: 'バリア！', c: '#7fd8ff' }); } e.flash = 0.05; return; }
+            if (G.mfl && !pvpProj && !(me.udT > 0) && dist(me.x, me.y, e.x, e.y) < 260) { if ((e.invAt || 0) < Date.now() - 700) { e.invAt = Date.now(); popups.push({ x: me.x, y: me.y - 30, t: 0.9, text: '届かない！上昇気流へ', c: '#ffe08a' }); } return; }
+        }
         if (e.inv) {   // ギミックで守られている間はダメージが通らない
             if ((e.invAt || 0) < Date.now() - 700) { e.invAt = Date.now(); popups.push({ x: e.x, y: e.y - e.r - 8, t: 0.8, text: 'ガード中', c: '#7fffd4' }); }
             e.flash = 0.05; return;
@@ -1297,6 +1303,7 @@
         let e = enemies.find(x => x.id === d.eid);
         if (e && e.arch === 'wseg') { const bb = gmBoss(); if (!bb) return; d = Object.assign({}, d, { dmg: d.dmg * (G.wm === 'D' ? 3 : 0.35) }); e = bb; }      // ワールドワームの長い体：どこを叩いても、ワーム本体のダメージ（普段は小さく、引きずり出した間は大きく）
         if (!e || e.hp <= 0 || e.inv) return;
+        if (e.arch === 'machine' && !machineHit(e)) return;      // 攻撃を受けると自動でバリア（燃料を消費）
         const duM = GMK === 'duality' ? duHitMul(e, d) : 1; if (duM <= 0) return;      // 大討伐戦：バリア・クリスタルの色の判定
         const amp = (e.st.curseT > 0 ? 1.2 : 1) * (e.vuln > 0 ? 1.3 : 1) * duM;
         e.hp -= d.dmg * amp * (e.takeMul || 1);      // 防御（無限回廊の敵）
@@ -1321,6 +1328,8 @@
         e.dead = true; e.hp = 0;
         run.kills++;
         if (e.boss && GMK === 'worm') wormCleanup(true);
+        if (e.boss && GMK === 'necro') necroCleanup();
+        if (e.boss && GMK === 'machine') G.lz = null;
         if (e.arch === 'slime') incOnDeath(e); else if (e.arch === 'heart') incHeartDown(e);      // 増殖スライム：分裂／心臓を砕いたら勝ち
         if (window.ClassFx) ClassFx.onKill(e);                                  // 職業：魂喰らい・調合・聖なる加護
         // 魔改造の死に際効果（ホスト側で実行。telegraphは状態同期されるので観戦側にも見える）
@@ -1508,6 +1517,21 @@
         announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3400);
         refreshLootLog();
     }
+    function giveMythicFor(id, soulText, col1, col2, hasText) {
+        const hasIt = (arr) => (arr || []).some(w => w && w.mythicId === id);
+        return function (x, y) {
+            if (hasIt(hwLoad().weapons)) { popups.push({ x: x, y: y - 20, t: 1.6, text: hasText, c: col1 }); return; }
+            const w = HW.makeMythic(id); if (!w) return;
+            const d = hwLoad(); d.weapons.push(w); hwSave(d);
+            run.stats.loot.push(w);
+            popups.push({ x: x, y: y - 24, t: 2.4, text: '✦ ' + w.name, c: col1, big: true });
+            fx.push({ k: 'ring', x: x, y: y, r: 0, max: 140, t: 0.8, life: 0.8, c: col1 }); fx.push({ k: 'ring', x: x, y: y, r: 0, max: 100, t: 0.8, life: 0.8, c: col2 });
+            announce('🏆 神話の武器「' + w.name + '」を手に入れた！', 3400);
+            refreshLootLog();
+        };
+    }
+    const giveNecromance = giveMythicFor('legend_necromance', '', '#a070ff', '#7fae6a', '魂の理は、すでにあなたの中に');
+    const giveRelainbar = giveMythicFor('legend_relainbar', '', '#7fd8ff', '#ff9a3a', '機械の王の力は、すでにあなたの中に');
     // 大討伐戦のボスを倒した報酬（全員が自分の分を受け取る）
     function raidKillReward(ev) {
         const rb = A('rarePct') + DIFF.luck;
@@ -1516,7 +1540,7 @@
         const pool = (window.STAGE_DATA.RUSH && window.STAGE_DATA.RUSH.lootPool) ? window.STAGE_DATA.RUSH.lootPool(5).bossDrops : [];
         if (pool.length) { rollLoot(pool, rb + 1.2, 'epic', ev.x, ev.y, 'raid'); rollLoot(pool, rb + 1.6, 'epic', ev.x + 24, ev.y, 'raid'); }
         rollArmor(rb + 1.2, 'epic', ev.x, ev.y - 22, 'raid'); rollAcc(rb + 1.4, 'epic', ev.x - 30, ev.y + 30);
-        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else if (stage.id === 'raid_worm') giveEater(ev.x, ev.y); else giveDuality(ev.x, ev.y);
+        if (stage.id === 'raid_increase') giveIncrease(ev.x, ev.y); else if (stage.id === 'raid_worm') giveEater(ev.x, ev.y); else if (stage.id === 'raid_necro') giveNecromance(ev.x, ev.y); else if (stage.id === 'raid_machine') giveRelainbar(ev.x, ev.y); else giveDuality(ev.x, ev.y);
         try { if (window.SBAch && !DBG) SBAch.report('raid', 1, stage.id); } catch (e) { /* 実績の記録に失敗してもゲームは続ける */ }
     }
     function rollLoot(pool, luck, minR, x, y, src) {
@@ -1675,7 +1699,7 @@
             if (p.key === 'hurtFrost') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 190, t: 0.35, life: 0.35, c: '#9fe0ff' }); enemies.forEach(e => { if (e.hp > 0 && !e.pvp && dist(e.x, e.y, me.x, me.y) < 190) dealHit(e, weapon.dmg * P.atkMul * 0.05, { st: { slow: 1 } }); }); }
             if (p.key === 'hurtNova') { fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 160, t: 0.35, life: 0.35, c: '#ffe08a' }); enemies.forEach(e => { if (dist(e.x, e.y, me.x, me.y) < 170) { const a = Math.atan2(e.y - me.y, e.x - me.x); dealHit(e, weapon.dmg * P.atkMul * 0.8, { kx: Math.cos(a) * 300, ky: Math.sin(a) * 300 }); } }); }
         });
-        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
+        if (me.hp <= 0) { me.hp = 0; me.dead = true; me.reviveT = 0; me.stunT = 0; me.orb = null; if (window.SBSound) SBSound.sfx('defeat'); announce('倒れた！ 仲間が近くに来れば復活できます', 2200); if (GMK === 'necro') necroCorpse(); if (CORR_ON) { try { if (window.SBAch) SBAch.report('corrDeath'); } catch (e) { /* 記録に失敗してもゲームは続ける */ } } }
         else if (opt && opt.stun) stunMe(STUN_SEC);
     }
     // スタン：約3秒、移動・攻撃・ダッシュ・スキルがすべて使えない（クイズの回答だけは可能）
@@ -1841,6 +1865,8 @@
     //   heal=終わりに最大HPの割合を回復 / guard=終わりに結界（秒）/ exec=HP30%以下のザコを即座に倒す級の大ダメージ / lastMult=最後の一撃の倍率 / finale=最後の大爆発 {radius,mult}
     const MYTHIC_ULT = {
         legend_eater: { name: '世界喰らい・大顎', st: 'seq', phases: [{ st: 'quake', waves: 5, gap: 170, radius: 260, kn: 360, mult: 1.8 }, { st: 'bladedance', n: 8, dur: 2.8, mult: 0.3 }, { st: 'nova', radius: 340, waves: 2, wind: 450, mult: 2.2 }], finale: { radius: 460, mult: 8 }, heal: 0.25 },      // 地割れ→剣舞→大崩壊、最後に大爆発
+        legend_necromance: { name: '魂の理・断絶', st: 'seq', phases: [{ st: 'quake', waves: 4, gap: 190, radius: 250, kn: 300, mult: 1.6 }, { st: 'bladedance', n: 10, dur: 3.0, mult: 0.3 }, { st: 'nova', radius: 330, waves: 2, wind: 450, mult: 2.0 }], finale: { radius: 440, mult: 7.5 }, heal: 0.2 },      // 地割れ→魂の刃の舞→大崩壊、最後に大爆発
+        legend_relainbar: { name: '機神の裁き・全弾発射', st: 'seq', phases: [{ st: 'bladedance', n: 14, dur: 3.2, mult: 0.3 }, { st: 'nova', radius: 340, waves: 3, wind: 450, mult: 1.6 }], finale: { radius: 440, mult: 7.5 }, guard: 3 },      // 機兵の群れ→ミサイルの雨、最後に大爆発（終わりに結界）
         legend_increase: { name: '増殖の宴・無限分裂', st: 'seq', phases: [{ st: 'bladedance', n: 12, dur: 3.6, mult: 0.3 }, { st: 'nova', radius: 320, waves: 3, wind: 450, mult: 1.5 }], finale: { radius: 420, mult: 7 }, heal: 0.15 },      // 剣が増えて舞い、最後に大きな爆発
         legend_duality: { name: '双界終焉・紅蓮と氷獄', st: 'duality', R: 520, w: 70, n: 16, gap: 150, step: 0.30, mult: 1.25, finale: { radius: 440, mult: 7 } },      // 赤と青の光刃が逆向きに全周を薙ぎ払い、最後に紫の大爆発（ツイン・エレメンタルの大技を、自分のまわりに）
         legend_unbreakable: { name: '不壊の怒り・全方位照射', st: 'unbreak', R: 620, w: 54, n: 22, step: 0.37, gap: 120, mult: 0.8 },      // 不壊の悪魔の大技（壁から大量のビームを撃ち切り、逆回転でもう一度）を、自分のまわりの広い範囲に放つ
@@ -2073,6 +2099,8 @@
     const MYTHIC_COMBO = {
         legend_unbreakable: [{ m: 1, cd: 1 }],      // 不壊：1回の攻撃で7本のレーザー。コンボは無し
         legend_eater: [{ m: 1.1, dir: 1, r: 1.1, a: 1.3, heal: 0.008 }, { m: 1.1, dir: -1, r: 1.1, a: 1.3, lunge: 20, heal: 0.008 }, { m: 1.3, dir: 1, r: 1.15, lunge: 30, quake: 120, heal: 0.01, blades: { mode: 'spiral', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.3 }, { m: 2.6, dir: -1, r: 1.4, a: 1.6, cd: 1.8, kn: 3, lunge: 36, fin: true, quake: 170, wave: 2.0, heal: 0.02, blades: { mode: 'boomerang', n: 2, hits: 2, sz: 1.2, sp: 1, cap: 2 }, bm: 0.4 }],      // 喰らう：叩きつけるたびに体力を奪い、渦を巻く牙とブーメランの顎が追撃する
+        legend_necromance: [{ m: 1.0, dir: 1, a: 1.3, heal: 0.006, blades: { mode: 'orbit', n: 1, hits: 2, sz: 1, sp: 1, cap: 3 }, bm: 0.25 }, { m: 1.0, dir: -1, r: 1.05, a: 1.3, heal: 0.006, blades: { mode: 'orbit', n: 2, hits: 2, sz: 1, sp: 1, cap: 4 }, bm: 0.25 }, { m: 1.2, dir: 1, r: 1.1, lunge: 16, heal: 0.008, wave: 1.4, blades: { mode: 'spiral', n: 2, hits: 2, sz: 1, sp: 1, cap: 4 }, bm: 0.28 }, { m: 2.5, dir: -1, r: 1.35, a: 1.6, cd: 1.8, kn: 3, lunge: 34, fin: true, quake: 160, wave: 2.0, heal: 0.02, blades: { mode: 'rain', n: 4, hits: 2, sz: 1.2, sp: 1, cap: 4 }, bm: 0.3 }],      // 死霊：魂の刃が舞い、体力を吸う
+        legend_relainbar: [{ m: 1.0, dir: 1, blades: { mode: 'boomerang', n: 1, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.3 }, { m: 1.0, dir: -1, r: 1.05, blades: { mode: 'boomerang', n: 2, hits: 2, sz: 1, sp: 1, cap: 3 }, bm: 0.3 }, { m: 1.1, dir: 1, r: 1.1, lunge: 14, wave: 1.5, blades: { mode: 'strike', n: 3, hits: 2, sz: 1, sp: 1, cap: 4 }, bm: 0.28 }, { m: 2.4, dir: -1, r: 1.3, a: 1.5, cd: 1.8, kn: 3, lunge: 30, fin: true, quake: 140, wave: 2.2, blades: { mode: 'rain', n: 5, hits: 2, sz: 1.2, sp: 1, cap: 5 }, bm: 0.3, blades2: { mode: 'orbit', n: 3, hits: 3, sz: 1, sp: 1, cap: 6 }, bm2: 0.1 }],      // 機神：機兵が飛び出して、遠くの敵まで追撃する
         legend_increase: [{ m: 1.0, dir: 1, blades: { mode: 'strike', n: 1, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.25 }, { m: 1.0, dir: -1, r: 1.05, blades: { mode: 'strike', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.25 }, { m: 1.1, dir: 1, r: 1.1, lunge: 14, blades: { mode: 'sweep', n: 2, hits: 2, sz: 1, sp: 1, cap: 2 }, bm: 0.28 }, { m: 2.4, r: 1.35, a: 1.5, cd: 1.8, kn: 3, lunge: 32, dir: -1, fin: true, quake: 150, blades: { mode: 'rain', n: 4, hits: 2, sz: 1.2, sp: 1, cap: 2 }, bm: 0.3, blades2: { mode: 'orbit', n: 3, hits: 3, sz: 1, sp: 1, cap: 6 }, bm2: 0.1 }],      // 増殖：斬るたびに分身の剣が増える（1本→2本→X字→剣の雨）
         legend_duality: [{ m: 1.0, dir: 1 }, { m: 1.0, dir: -1, r: 1.05 }, { m: 1.15, dir: 1, r: 1.1, lunge: 14 }, { m: 3.4, r: 1.35, a: 1.5, cd: 1.8, kn: 3, lunge: 32, dir: -1, fin: true, quake: 170, wave: 1.9 }],      // 双界：炎と氷のX字斬りを3回、4段目は紫に光る大斬撃（衝撃波つき）
         eternal_serenity: [{ m: 1.1, dir: 1, keeper: 1 }, { m: 1.1, r: 1.1, dir: -1, keeper: 1 }, { m: 1.3, r: 1.2, dir: 1, wave: 1.7, keeper: 2 }, { m: 1.3, r: 1.2, dir: -1, wave: 1.9, lunge: 20, keeper: 2 }, { m: 3.4, r: 1.6, a: 1.6, cd: 1.7, kn: 3, lunge: 40, dir: 1, fin: true, quake: 150, wave: 2.4, keeper: 5 }],      // keeper=ゲートキーパーの剣を飛ばす本数
@@ -3063,11 +3091,168 @@
         }
     }
 
+    // ================= 大討伐戦 第三幕：ネクロマンスド・シャーマン =================
+    //  ・常に死霊を召喚し続ける（NECRO_GAP 秒ごとに1体＝約5体/秒）。生きている死霊は NECRO_CAP 体まで（それ以上は、減るまで呼ばない）
+    //  ・シャーマンの軍勢に倒されたプレイヤーは、その場に「自分とそっくりのステータスのゾンビ」を残す（ホストが生む）
+    //  ・ゾンビ／死霊は雑魚（boss:false）なので、倒してもクリアにはならない。シャーマン本体を倒すと、全部消える
+    const NECRO_GAP = 0.2, NECRO_CAP = 110;
+    const ZOMBIE_K = { hp: 4, atk: 1.5, dmgMin: 0.04, dmgMax: 0.25 };      // ゾンビの強さの調整用（体力の倍率／攻撃の倍率／攻撃の下限・上限）
+    function necroMinions() { return enemies.filter(o => (o.necroM || o.zombie) && !o.dead && o.hp > 0); }
+    function necroSummon(b) {
+        const a = rnd(0, Math.PI * 2), rr = b.r + rnd(20, 70), ghost = Math.random() < 0.28;
+        const def = ghost ? { name: '亡霊', icon: '👻', arch: 'ranged', color: '#b9a8ff' } : { name: '骸骨兵', icon: '💀', arch: 'chaser', color: '#d6dccb' };
+        const m = spawnEnemy(def, clamp(b.x + Math.cos(a) * rr, 40, WORLD_W - 40), clamp(b.y + Math.sin(a) * rr, 40, WORLD_H - 40), false, false);
+        m.maxHp = m.hp = Math.max(1, Math.round(m.maxHp * 0.5)); m.dmg *= 0.6; m.noLoot = true; m.necroM = true; m.affix = null;
+        pushOutOfRocks(m, m.r);
+        return m;
+    }
+    function updateNecro(e, dt, tgt, d, ang, slow) {
+        if (!e.enraged && e.hp / e.maxHp < 0.5) { e.enraged = true; netAnnounce('💀 シャーマンが、死霊をさらに呼び覚ました！', 2000); }
+        const sp = e.spd * slow * 0.8;      // 距離をとって、後ろから死霊を送り込む
+        if (d > 520) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } else if (d < 320) { e.x -= Math.cos(ang) * sp * dt; e.y -= Math.sin(ang) * sp * dt; }
+        e.x = clamp(e.x, 80, WORLD_W - 80); e.y = clamp(e.y, 80, WORLD_H - 80);
+        e.sumT = (e.sumT == null ? 0 : e.sumT) - dt;      // 召喚：1秒に5体ペース（ラグで溜まった分は、いっぺんに出しすぎない）
+        let cnt = necroMinions().length, guard = 0;
+        while (e.sumT <= 0 && guard++ < 4) { e.sumT += NECRO_GAP; if (cnt < NECRO_CAP) { necroSummon(e); cnt++; } }
+        if (guard > 0 && Math.random() < 0.25) fx.push({ k: 'puff', x: e.x, y: e.y + 10, t: 0.3, life: 0.3, c: '#a070ff' });
+        e.atkT = (e.atkT == null ? 3 : e.atkT) - dt;      // 本体の攻撃：骨の弾幕／死霊の輪／魂の叩きつけ
+        if (e.atkT <= 0) {
+            e.atkT = e.enraged ? 2.3 : 3.3; const k = ed(e) * (e.enraged ? 1.15 : 1), i = (e.patIdx = (e.patIdx | 0) + 1) % 3;
+            if (i === 0) { const n = e.enraged ? 11 : 7; for (let j = 0; j < n; j++) bullet(e.x, e.y, ang + (j - (n - 1) / 2) * 0.17, 340, k, 8, 3.2, '#cdb8ff'); }
+            else if (i === 1) { const n = e.enraged ? 26 : 18, off = rnd(0, 6.28); for (let j = 0; j < n; j++) bullet(e.x, e.y, off + j * Math.PI * 2 / n, 240, k, 8, 4, '#a070ff'); }
+            else { alivePlayersPos().forEach(p => telegraph(p.x, p.y, 115, 1.3, k * 1.5, '#a070ff')); telegraph(e.x, e.y, 150, 1.2, k * 1.2, '#7a4fd0'); }
+        }
+    }
+    function necroHost(dt) {
+        G.nt = (G.nt || 0) - dt; if (G.nt > 0) return; G.nt = 0.4;
+        const l = necroMinions(); G.nm = l.length; G.zb = l.filter(o => o.zombie).length;
+    }
+    function necroCleanup() {      // シャーマンが倒れた：死霊もゾンビも、みんな崩れ落ちる
+        enemies.forEach(o => { if ((o.necroM || o.zombie) && !o.dead) { o.hp = 0; o.dead = true; fx.push({ k: 'puff', x: o.x, y: o.y, t: 0.4, life: 0.4, c: '#cdb8ff' }); } });
+        netAnnounce('💀 シャーマンが倒れ、死霊たちが崩れ落ちた！', 2600);
+    }
+    function necroCorpse() {      // 自分がシャーマンの軍勢に倒された：自分のステータスを、ホストに知らせる（ホストなら、その場で生む）
+        if (me.corpseAt && Date.now() - me.corpseAt < 3000) return; me.corpseAt = Date.now();
+        const d = { k: 'corpse', x: Math.round(me.x), y: Math.round(me.y), n: String(myName).slice(0, 12), mhp: Math.round(me.maxHp), atk: Math.round(weapon.dmg * P.atkMul * 10) / 10, spd: Math.round(P.move), def: Math.round(P.def) };
+        if (isHost) hostCorpse(d); else netSend('gm', d);
+    }
+    function hostCorpse(d) {      // ホスト：倒されたプレイヤーの死体から、そっくりのステータスのゾンビを生む
+        if (!isHost || !run.bossSpawned || run.ended) return;
+        const num = (v, lo, hi, df) => { v = Number(v); return isFinite(v) ? clamp(v, lo, hi) : df; };
+        const mhp = num(d.mhp, 10, 1e7, REF_HP), atk = num(d.atk, 0, 1e7, 20), spd = num(d.spd, 60, 520, 235), df = num(d.def, 0, 1e7, 0);
+        const z = spawnEnemy({ name: String(d.n || '冒険者').slice(0, 12) + 'のゾンビ', icon: '🧟', arch: 'chaser', color: '#7fae6a' }, clamp(num(d.x, 0, WORLD_W, WORLD_W / 2), 30, WORLD_W - 30), clamp(num(d.y, 0, WORLD_H, WORLD_H / 2), 30, WORLD_H - 30), false, false);
+        z.zombie = true; z.noLoot = true; z.affix = null;
+        z.maxHp = z.hp = Math.max(1, Math.round(z.maxHp * clamp(mhp / REF_HP, 0.4, 8) * ZOMBIE_K.hp));      // 体力：その人の最大HP（基準HPとの比）
+        z.dmg = clamp(atk / REF_HP * ZOMBIE_K.atk, ZOMBIE_K.dmgMin, ZOMBIE_K.dmgMax);                        // 攻撃：その人の1発の威力（基準HPに対する割合）
+        z.spd = clamp(spd * 0.9, 80, 280);                                                                   // 速さ：その人の移動速度
+        z.takeMul = 1 - Math.min(0.55, df / (df + 250)) * 0.8;                                               // 防御：その人の防御（受けるダメージが減る）
+        fx.push({ k: 'ring', x: z.x, y: z.y, r: 0, max: 120, t: 0.6, life: 0.6, c: '#7fae6a' });
+        netAnnounce('🧟 ' + z.def.name + 'が生まれた！', 1400);
+    }
+    function drawNecro(e) {
+        const now = performance.now() / 1000, fl = e.flash > 0, r = e.r, bob = Math.sin(now * 2.2) * 5;
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + r * 0.9, r * 0.95, r * 0.38, 0, 0, 7); ctx.fill();
+        for (let i = 0; i < 5; i++) { const a = now * 1.4 + i * 1.2566; ctx.globalAlpha = 0.75; ctx.fillStyle = '#c9b8ff'; ctx.beginPath(); ctx.arc(e.x + Math.cos(a) * r * 1.25, e.y - r * 0.2 + bob + Math.sin(a * 1.3) * r * 0.5, 7, 0, 7); ctx.fill(); }      // まわりを漂う魂
+        ctx.globalAlpha = 1; ctx.save(); ctx.translate(e.x, e.y + bob);
+        ctx.fillStyle = fl ? '#fff' : '#2a1a47'; ctx.beginPath(); ctx.moveTo(-r * 0.9, r * 0.9); ctx.quadraticCurveTo(-r * 1.0, -r * 0.2, 0, -r * 1.05); ctx.quadraticCurveTo(r * 1.0, -r * 0.2, r * 0.9, r * 0.9); for (let i = 0; i < 6; i++) ctx.lineTo(r * 0.9 - (i + 0.5) * r * 0.3, r * (i % 2 ? 0.9 : 1.1)); ctx.closePath(); ctx.fill();      // ぼろぼろのローブ
+        ctx.strokeStyle = '#a070ff'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.fillStyle = fl ? '#fff' : '#e9e4d2'; ctx.beginPath(); ctx.arc(0, -r * 0.45, r * 0.38, 0, 7); ctx.fill();      // 頭蓋骨
+        ctx.fillStyle = '#14121c'; [-1, 1].forEach(sd => { ctx.beginPath(); ctx.arc(sd * r * 0.15, -r * 0.5, r * 0.1, 0, 7); ctx.fill(); }); ctx.fillRect(-r * 0.12, -r * 0.28, r * 0.24, r * 0.08);
+        ctx.fillStyle = '#c06aff'; [-1, 1].forEach(sd => { ctx.beginPath(); ctx.arc(sd * r * 0.15, -r * 0.5, r * 0.04, 0, 7); ctx.fill(); });
+        ctx.strokeStyle = '#8a5a2b'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(r * 0.85, r * 0.9); ctx.lineTo(r * 0.85, -r * 0.9); ctx.stroke();      // 杖
+        ctx.fillStyle = '#c06aff'; ctx.beginPath(); ctx.arc(r * 0.85, -r * 1.0, r * 0.16, 0, 7); ctx.fill();
+        ctx.restore();
+    }
+
+    // ================= 大討伐戦 第五幕：機械真王・リレインバー =================
+    //  ・燃料が MC_FUEL 秒（約20分）で切れる耐久戦。何もしなくても減る。攻撃を受けると自動でバリアを張り、そのたびに燃料を MC_BAR_COST 秒ぶん消費する
+    //  ・基本は空を飛んでいて、遠距離武器なら地上から撃てる。近接は、ステージの「上昇気流」に乗っている間だけ届く
+    //  ・レーザー（掃射）とミサイル（大量の着弾予告）を撃ってくる。燃料が切れると墜落して、近接でも殴れる（被ダメージ増）
+    const MC_FUEL = 20 * 60, MC_BAR_SEC = 1.6, MC_BAR_CD = 2.4, MC_BAR_COST = 6;
+    function machineInit(b) {
+        b.fuel = MC_FUEL; b.barT = 0; b.barCd = 0; b.mcT = 3; b.takeMul = 1;
+        G.fuel = MC_FUEL; G.mfl = 1; G.bar = 0; G.crash = 0; G.lz = null;
+        const cx = WORLD_W / 2, cy = WORLD_H / 2; G.ud = [[cx, cy, 100]];      // 上昇気流：[x, y, 半径]。中央と、その周りに6本
+        for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; G.ud.push([Math.round(cx + Math.cos(a) * 620), Math.round(cy + Math.sin(a) * 400), 90]); }
+    }
+    function machineHit(e) {      // ホスト：攻撃を受けた。バリア中なら無効。バリアが空いていれば、この一撃は通して、バリアを張る
+        if (G.crash) return true;
+        if (e.barT > 0) return false;
+        if (!(e.barCd > 0)) { e.barT = MC_BAR_SEC; e.fuel = Math.max(0, e.fuel - MC_BAR_COST); G.bar = MC_BAR_SEC; fx.push({ k: 'ring', x: e.x, y: e.y, r: 0, max: e.r * 1.8, t: 0.4, life: 0.4, c: '#7fd8ff' }); }
+        return true;
+    }
+    function machineCrash(b) {
+        G.crash = 1; G.mfl = 0; G.lz = null; G.bar = 0; b.barT = 0; b.fuel = 0; G.fuel = 0;
+        b.st.stunT = Math.max(b.st.stunT, 6); b.takeMul = 1.5;
+        fx.push({ k: 'ring', x: b.x, y: b.y, r: 0, max: 520, t: 0.8, life: 0.8, c: '#ff9a3a', fill: true }); addShake(10, 0.6);
+        netAnnounce('⛽ 燃料切れ！　機械真王が墜落した！　近接でも殴れる！', 3200);
+    }
+    function machineHost(dt) {
+        const b = gmBoss(); if (!b || b.arch !== 'machine') return;
+        if (!G.crash) { b.fuel -= dt; if (b.fuel <= 0) machineCrash(b); }
+        if (b.barT > 0) { b.barT -= dt; if (b.barT <= 0) { b.barT = 0; b.barCd = MC_BAR_CD; } } else if (b.barCd > 0) b.barCd -= dt;
+        G.bar = b.barT > 0 ? Math.round(b.barT * 10) / 10 : 0; G.fuel = Math.max(0, Math.ceil(b.fuel));
+    }
+    function machineLocal(dt) {      // 全員：上昇気流に乗っている間は飛べる（離れても少しのあいだは浮いている）
+        if (run.phase !== 'run') return;
+        const inZone = !me.dead && (G.ud || []).some(u => dist(me.x, me.y, u[0], u[1]) < u[2] + 8);
+        if (inZone) me.udT = 2.4; else if (me.udT > 0) me.udT = Math.max(0, me.udT - dt);
+    }
+    function updateMachine(e, dt, tgt, d, ang, slow) {
+        const crash = !!G.crash, low = !crash && (e.fuel || 0) < MC_FUEL * 0.25, k = ed(e);
+        if (!e.enraged && e.hp / e.maxHp < 0.5) { e.enraged = true; netAnnounce('🤖 リレインバーが、全武装を解放した！', 2000); }
+        if (!crash) { const sp = e.spd * slow * 0.55; if (d > 260) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }      // 空を飛んで、ゆっくり追ってくる
+        else if (d > 120) { const sp = e.spd * slow * 0.5; e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; }      // 墜落後は、地上をのろのろ歩く
+        e.x = clamp(e.x, 100, WORLD_W - 100); e.y = clamp(e.y, 100, WORLD_H - 100);
+        if (G.lz) {      // レーザー掃射：予告（約1秒）→ 弾の列で薙ぎ払う
+            const L = G.lz;
+            if (L.t > 0) { L.t -= dt; if (L.t > 0.3) L.a = ang; }
+            else { L.s += dt; const a0 = L.a + L.dir * (L.s / 1.7 - 0.5) * 1.4; e.lzE = (e.lzE || 0) - dt; if (e.lzE <= 0) { e.lzE = 0.04; [0, 0.55].forEach(off => bullet(e.x, e.y, a0 + off, 840, k * 0.5, 8, 1.15, '#ff4040')); } if (L.s > 1.7) G.lz = null; }
+            return;
+        }
+        e.mcT = (e.mcT == null ? 3 : e.mcT) - dt; if (e.mcT > 0) return;
+        e.mcT = (crash ? 3.2 : (e.enraged || low ? 1.9 : 2.8)) * rnd(0.85, 1.15);
+        const pick = crash ? 2 + (e.patIdx = (e.patIdx | 0) + 1) % 2 : Math.floor(Math.random() * 3);
+        if (pick === 0) {      // ミサイル斉射：あちこちに、時間差で着弾の予告
+            const ps = alivePlayersPos(), n = Math.min(28, 10 + 3 * partyCount() + (e.enraged ? 4 : 0)); if (!ps.length) return;
+            for (let i = 0; i < n; i++) { const p = ps[Math.floor(Math.random() * ps.length)]; telegraph(clamp(p.x + rnd(-260, 260), 40, WORLD_W - 40), clamp(p.y + rnd(-260, 260), 40, WORLD_H - 40), 95, 0.9 + i * 0.07, k * 1.2, '#ff9a3a'); }
+            netAnnounce('🚀 ミサイル斉射！', 1000);
+        } else if (pick === 1) { G.lz = { a: ang, t: 1.0, s: 0, dir: Math.random() < 0.5 ? -1 : 1 }; netAnnounce('🔴 レーザー照射！', 1000); }
+        else if (pick === 2) { const n = e.enraged ? 26 : 20, off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, 270, k * 0.9, 8, 4, '#ffd36a'); }
+        else { alivePlayersPos().forEach(p => telegraph(p.x, p.y, 120, 1.2, k * 1.5, '#ff9a3a')); telegraph(e.x, e.y, 170, 1.0, k * 1.4, '#ff7a3a'); }
+    }
+    function drawMachine(e) {
+        const now = performance.now() / 1000, fl = e.flash > 0, r = e.r, crash = !!G.crash, hv = crash ? 0 : 46 + Math.sin(now * 1.7) * 6;
+        ctx.fillStyle = 'rgba(0,0,0,' + (crash ? 0.35 : 0.22) + ')'; ctx.beginPath(); ctx.ellipse(e.x, e.y + r * 0.9, r * (crash ? 1.1 : 0.8), r * 0.4, 0, 0, 7); ctx.fill();      // 空を飛んでいる間は、地面に影だけ
+        ctx.save(); ctx.translate(e.x, e.y - hv);
+        if (!crash) { const f = 0.6 + 0.4 * Math.sin(now * 30); ctx.fillStyle = '#ff9a3a'; [-1, 1].forEach(sd => { ctx.beginPath(); ctx.moveTo(sd * r * 0.45 - 9, r * 0.55); ctx.lineTo(sd * r * 0.45 + 9, r * 0.55); ctx.lineTo(sd * r * 0.45, r * (0.9 + 0.5 * f)); ctx.closePath(); ctx.fill(); }); }
+        ctx.fillStyle = fl ? '#fff' : (crash ? '#4a4f5c' : '#7d8799'); ctx.strokeStyle = '#2b3040'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(-r * 1.5, r * 0.1); ctx.lineTo(-r * 0.6, -r * 0.35); ctx.lineTo(r * 0.6, -r * 0.35); ctx.lineTo(r * 1.5, r * 0.1); ctx.lineTo(r * 0.7, r * 0.5); ctx.lineTo(-r * 0.7, r * 0.5); ctx.closePath(); ctx.fill(); ctx.stroke();      // 翼と船体
+        ctx.fillStyle = fl ? '#fff' : (crash ? '#3a3f4c' : '#a9b4c9'); ctx.beginPath(); ctx.ellipse(0, -r * 0.1, r * 0.55, r * 0.5, 0, 0, 7); ctx.fill(); ctx.stroke();
+        const glow = crash ? 0.2 : 0.6 + 0.4 * Math.sin(now * 4); ctx.fillStyle = 'rgba(255,70,60,' + glow + ')'; ctx.beginPath(); ctx.arc(0, -r * 0.1, r * 0.22, 0, 7); ctx.fill();      // 赤い核
+        ctx.fillStyle = '#14121c'; ctx.fillRect(-r * 0.35, -r * 0.42, r * 0.7, r * 0.1);
+        if (G.bar > 0) { ctx.globalAlpha = 0.55 + 0.3 * Math.sin(now * 20); ctx.strokeStyle = '#7fd8ff'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, 0, r * 1.7, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(127,216,255,0.15)'; ctx.fill(); ctx.globalAlpha = 1; }
+        ctx.restore();
+        if (crash) { ctx.fillStyle = 'rgba(60,60,70,0.5)'; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(e.x + Math.sin(now * 2 + i * 2) * 20, e.y - 30 - ((now * 40 + i * 25) % 90), 14 + i * 3, 0, 7); ctx.fill(); } }
+        if (e.hp < e.maxHp) { const w = r * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - w / 2, e.y - hv - r - 22, w, 5); ctx.fillStyle = '#ffb04a'; ctx.fillRect(e.x - w / 2, e.y - hv - r - 22, w * clamp(e.hp / e.maxHp, 0, 1), 5); }
+    }
+    function drawMachineWorld() {      // 上昇気流・レーザーの予告・飛んでいる自分の表示
+        const now = performance.now() / 1000;
+        (G.ud || []).forEach(u => {
+            ctx.save(); ctx.globalAlpha = 0.28 + 0.1 * Math.sin(now * 3); ctx.fillStyle = '#9fe8ff'; ctx.beginPath(); ctx.arc(u[0], u[1], u[2], 0, 7); ctx.fill(); ctx.globalAlpha = 0.8; ctx.strokeStyle = '#d8f6ff'; ctx.lineWidth = 3; ctx.stroke();
+            for (let i = 0; i < 4; i++) { const t = (now * 0.9 + i * 0.25) % 1, ax = u[0] + (i - 1.5) * u[2] * 0.4; ctx.globalAlpha = 1 - t; ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(ax, u[1] + u[2] * 0.4 - t * u[2] * 1.2); ctx.lineTo(ax - 7, u[1] + u[2] * 0.4 - t * u[2] * 1.2 + 12); ctx.lineTo(ax + 7, u[1] + u[2] * 0.4 - t * u[2] * 1.2 + 12); ctx.closePath(); ctx.fill(); }
+            ctx.restore();
+        });
+        const b = gmBoss();
+        if (b && G.lz && G.lz.t > 0) { ctx.save(); ctx.strokeStyle = 'rgba(255,60,60,' + (0.35 + 0.4 * Math.sin(now * 25)) + ')'; ctx.lineWidth = 6; ctx.setLineDash([16, 10]); [0, 0.55].forEach(off => { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(G.lz.a + off) * 1800, b.y + Math.sin(G.lz.a + off) * 1800); ctx.stroke(); }); ctx.restore(); }
+        if (me.udT > 0 && !me.dead) { ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = '#d8f6ff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(me.x, me.y - 6, me.r + 10 + Math.sin(now * 8) * 2, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#d8f6ff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.strokeText('⬆ 飛行中 ' + me.udT.toFixed(1), me.x, me.y - me.r - 22); ctx.fillText('⬆ 飛行中 ' + me.udT.toFixed(1), me.x, me.y - me.r - 22); ctx.restore(); }
+    }
+
     // ================= ギミックボス本体 =================
     function gmBoss() { return enemies.find(e => e.boss && !e.echo && e.hp > 0) || null; }
     function gmUpdate(dt) {          // ホストだけ
         if (!GMK || !run.bossSpawned || run.phase !== 'run' || run.ended) return;
-        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt); else if (GMK === 'duality') dualityHost(dt); else if (GMK === 'increase') incHost(dt); else if (GMK === 'worm') wormHost(dt);
+        if (GMK === 'stigma') stigmaHost(dt); else if (GMK === 'pressure') pressureHost(dt); else if (GMK === 'twin') twinHost(dt); else if (GMK === 'dimension') dimensionHost(dt); else if (GMK === 'duality') dualityHost(dt); else if (GMK === 'increase') incHost(dt); else if (GMK === 'worm') wormHost(dt); else if (GMK === 'necro') necroHost(dt); else if (GMK === 'machine') machineHost(dt);
     }
     // --- 死神：スティグマ ---
     function stigmaHost(dt) {
@@ -3445,6 +3630,7 @@
         if (!GMK || !run.bossSpawned || run.phase !== 'run') return;
         if (GMK === 'duality') duLocal(dt);
         if (GMK === 'worm') wormLocal(dt);
+        if (GMK === 'machine') machineLocal(dt);
         if (pullFx && pullFx.t > 0) {
             pullFx.t -= dt;
             if (!me.dead) { const dx = pullFx.x - me.x, dy = pullFx.y - me.y, d = Math.hypot(dx, dy); if (d > 80) { moveSolid(me, dx / d * pullFx.f * dt, dy / d * pullFx.f * dt, me.r); } }
@@ -3477,6 +3663,8 @@
             if (G.wm === 'D') return '💥 大ダウン！　長い体のどこを殴っても大ダメージ！';
             return '🪱 世界喰らい：足場が崩れていく！　外周に近づくな';
         }
+        if (GMK === 'necro') return '💀 死霊の軍勢 ' + (G.nm || 0) + ' 体' + (G.zb ? '（うちゾンビ ' + G.zb + ' 体）' : '') + '　倒されると、あなたのゾンビが生まれる！';
+        if (GMK === 'machine') { const f = Math.max(0, G.fuel || 0), mm = Math.floor(f / 60), ss = String(f % 60).padStart(2, '0'); return G.crash ? '⛽ 燃料切れ！　墜落した機械真王を、今のうちに叩け！' : '⛽ 燃料 ' + mm + ':' + ss + '　' + (G.bar > 0 ? '🛡 バリア展開中！' : '空の上：遠距離で撃つ／上昇気流に乗って近づく'); }
         if (GMK === 'increase') return G.heart ? '❤ 増殖の心臓が現れた！　逃げ回る心臓に、一撃を当てれば勝ち！' : '🟢 増殖スライム ' + (G.n || 1) + ' / ' + INC_HEART_AT + ' 体　（' + INC_HEART_AT + ' 体に分裂すると、心臓が現れる）';
         if (GMK === 'twin' && G.rv) return '⚠ ' + G.rv.n + ' が蘇るまで ' + Math.ceil(G.rv.t) + '秒　先に倒せ！';
         if (GMK === 'dimension') return G.dp === 2 ? (G.dw ? '🚪 ゲートの主が出現中：倒さないとキーパーは無敵' : '🚪 歴代ラスボスの召喚 ' + (G.de || 0) + ' / ' + DK_ECHO.length) : '💠 核 ' + (G.dc == null ? 6 : G.dc) + ' / 6　（放射弾をスキルで跳ね返すと砕ける）';
@@ -3504,6 +3692,8 @@
             b.bd = bd; b.pairIdx = i; if (RAID) b.r = 78;
             if (RAID) raidBossStats(b);
             if (GMK === 'increase') { b.arch = 'slime'; b.def.arch = 'slime'; b.gen = 0; b.hopT = 0; b.r = 86; G.n = 1; }      // 増殖スライム：はねて動く
+            if (GMK === 'necro') { b.arch = 'necro'; b.def.arch = 'necro'; b.r = 70; b.sumT = 1.0; b.atkT = 3; G.nm = 0; G.zb = 0; }      // ネクロマンスド・シャーマン
+            if (GMK === 'machine') { b.arch = 'machine'; b.def.arch = 'machine'; b.r = 90; b.x = WORLD_W / 2; b.y = WORLD_H * 0.35; machineInit(b); }      // 機械真王・リレインバー
             if (GMK === 'worm') { b.x = WM.cx; b.y = WM.cy - 240; b.r = 74; b.def.arch = 'chaser'; }      // ワールドワーム：足場の中央に現れる
             if (bd.set) b.bset = (BM && BM.SETS && BM.SETS[bd.set]) || null;
             if (bd.hp) b.maxHp = b.hp = Math.round(b.maxHp * bd.hp);       // ニコイチのボスは1体ぶんのHPを少なめにする
@@ -4229,7 +4419,7 @@
             if (stage.id === 'raid_worm') { me.x = WM.cx + (col - (cnt - 1) / 2) * 90; me.y = WM.cy + 260 + row * 80; }      // ワールドワーム：足場（円盤）の中央の南側に並ぶ（以前は、足場の外＝崖に出ていた）
             else { me.x = WORLD_W / 2 + (col - (cnt - 1) / 2) * 90; me.y = WORLD_H - 260 + row * 80; }
             pushOutOfRocks(me, me.r);
-            const hint = stage.id === 'raid_worm' ? '足場が崩れる！　縁に近づくな！' : stage.id === 'raid_increase' ? '倒すと分裂する！　10体になると心臓が出る！' : '色の通りに動け！';
+            const hint = stage.id === 'raid_necro' ? '1秒に5体の死霊！　倒れるとゾンビになるぞ！' : stage.id === 'raid_machine' ? '燃料が切れるまで耐えろ！　近接は上昇気流へ！' : stage.id === 'raid_worm' ? '足場が崩れる！　縁に近づくな！' : stage.id === 'raid_increase' ? '倒すと分裂する！　10体になると心臓が出る！' : '色の通りに動け！';
             announce('🐉 大討伐戦　' + ((stage.boss && stage.boss.name) || 'ボス') + 'が待ち受ける…　' + hint + '（制限時間 ' + Math.round(TIME_LIMIT / 60) + '分）', 3200);
         } else if (RUSH_ON) announce('🏆 ボスラッシュ（' + DIFF.name + '）　フェーズ1〜5とFinal！', 2600);
         else if (CORR_ON) {
@@ -4336,6 +4526,7 @@
         if (GH) drawGhost();
         drawPlayer(me, true);
         if (GMK === 'duality') drawDualityMarks();
+        if (GMK === 'machine') drawMachineWorld();
         // 演出
         fx.forEach(f => { if (f.x != null && wmHidden(f.x)) return; drawFx(f); });
         if (window.ClassForms) ClassForms.draw(ctx);       // 職業の専用の形（世界座標）
@@ -4582,6 +4773,8 @@
         if (e.pvp) return;   // 対人戦の相手は drawPlayer で描く
         if (GMK === 'worm' && wmHidden(e.x)) return;      // 外と体内は、お互いに見えない
         if (e.arch === 'slime' || e.arch === 'heart') { drawIncrease(e); return; }
+        if (e.arch === 'necro') { drawNecro(e); return; }
+        if (e.arch === 'machine') { drawMachine(e); return; }
         if (GMK === 'worm' && (e.arch === 'wseg' || e.arch === 'wscale' || e.arch === 'wcore' || e.boss)) { drawWorm(e); return; }
         const fl = e.flash > 0;
         if (e.boss && !e.echo && (e.gate != null ? e.gate : bdef(e).gate)) drawGateRing(e);

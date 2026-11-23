@@ -107,11 +107,11 @@
             pe.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.cur = +b.dataset.i; if (st.tool === 'erase') st.tool = 'pen'; palUi(); toolUi(); }));
             const ci = box.querySelector('#pxeCol'); if (!keepInput && ci.value !== st.pal[st.cur]) ci.value = st.pal[st.cur];      // 色選び中は、選択画面を壊さないよう値を書き戻さない
         }
-        const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし'], ['pick', '💧 スポイト']];
+        const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし'], ['pick', '💧 スポイト'], ['hand', '✋ 移動（スクロール）']];
         function toolUi() {
             const te = box.querySelector('#pxeTools');
             te.innerHTML = TOOLS.map(t => '<button type="button" data-t="' + t[0] + '" class="sbl-btn ' + (st.tool === t[0] ? '' : 'gray') + '" style="padding:5px 9px;margin:0;font-size:.8rem">' + t[1] + '</button>').join('');
-            te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; palUi(); toolUi(); }));
+            te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; cv.style.cursor = st.tool === 'hand' ? 'grab' : 'crosshair'; palUi(); toolUi(); }));
         }
         function fxUi() {
             const fe = box.querySelector('#pxeFx');
@@ -144,9 +144,32 @@
             if (lastP && !first) line(lastP[0], lastP[1], x, y, v); else setCell(x, y, v);
             lastP = [x, y]; render();
         }
-        cv.addEventListener('pointerdown', ev => { ev.preventDefault(); down = true; lastP = null; try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ } if (st.tool === 'pen' || st.tool === 'erase') snap(); act(ev, true); });
-        cv.addEventListener('pointermove', ev => { if (down && (st.tool === 'pen' || st.tool === 'erase')) act(ev, false); });
-        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, () => { down = false; lastP = null; }));
+        // スクロール：「✋ 移動」ツールで1本指ドラッグ、または どのツールでも2本指ドラッグでスクロールできる（マウスはホイール）
+        const wrap = box.querySelector('#pxeWrap'), ptrs = new Map();
+        let panning = false, panLast = null, stroked = false;
+        const center = () => { let x = 0, y = 0; ptrs.forEach(p => { x += p.x; y += p.y; }); return [x / ptrs.size, y / ptrs.size]; };
+        function startPan() { panning = true; panLast = center(); }
+        cv.addEventListener('pointerdown', ev => {
+            ev.preventDefault(); ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+            try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* 対応していない端末でも描ける */ }
+            if (ptrs.size >= 2) {      // 2本目の指：いま描きかけの線は取り消して、スクロールに切り替える
+                if (down && stroked) { const t = st.undo.pop(); if (t) st.grid = JSON.parse(t); render(); }
+                down = false; lastP = null; stroked = false; startPan(); return;
+            }
+            if (st.tool === 'hand') { startPan(); return; }
+            down = true; lastP = null; stroked = false;
+            if (st.tool === 'pen' || st.tool === 'erase') { snap(); stroked = true; } else if (st.tool === 'fill') stroked = true;
+            act(ev, true);
+        });
+        cv.addEventListener('pointermove', ev => {
+            if (ptrs.has(ev.pointerId)) ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+            if (panning) { const c = center(); wrap.scrollLeft -= c[0] - panLast[0]; wrap.scrollTop -= c[1] - panLast[1]; panLast = c; return; }
+            if (down && (st.tool === 'pen' || st.tool === 'erase')) act(ev, false);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(n => cv.addEventListener(n, ev => {
+            ptrs.delete(ev.pointerId); down = false; lastP = null; stroked = false;
+            if (ptrs.size === 0) panning = false; else if (panning) panLast = center();
+        }));
         const colEl = box.querySelector('#pxeCol');
         colEl.addEventListener('input', e => setColor(e.target.value)); colEl.addEventListener('change', e => setColor(e.target.value));
         box.querySelector('#pxeMir').addEventListener('change', e => { st.mirror = e.target.checked; render(); });
@@ -334,7 +357,7 @@
             const ci = box.querySelector('#txCol'); if (!keep && ci.value !== st.pal[st.cur]) ci.value = st.pal[st.cur];
         }
         const TOOLS = [['pen', '✏ 鉛筆'], ['erase', '🧽 消しゴム'], ['fill', '🪣 塗りつぶし']];
-        function toolUi() { const te = box.querySelector('#txTools'); te.innerHTML = TOOLS.map(t => '<button type="button" data-t="' + t[0] + '" class="sbl-btn ' + (st.tool === t[0] ? '' : 'gray') + '" style="padding:5px 9px;margin:0;font-size:.8rem">' + t[1] + '</button>').join(''); te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; palUi(); toolUi(); })); }
+        function toolUi() { const te = box.querySelector('#txTools'); te.innerHTML = TOOLS.map(t => '<button type="button" data-t="' + t[0] + '" class="sbl-btn ' + (st.tool === t[0] ? '' : 'gray') + '" style="padding:5px 9px;margin:0;font-size:.8rem">' + t[1] + '</button>').join(''); te.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { st.tool = b.dataset.t; cv.style.cursor = st.tool === 'hand' ? 'grab' : 'crosshair'; palUi(); toolUi(); })); }
         const snap = () => { st.undo.push(JSON.stringify(st.grid)); if (st.undo.length > 25) st.undo.shift(); };
         function fill(x, y, v) { const t = st.grid[y][x]; if (t === v) return; const stack = [[x, y]]; let n = 0; while (stack.length && n++ < N * N * 4) { const p = stack.pop(), px = p[0], py = p[1]; if (px < 0 || px >= N || py < 0 || py >= N || st.grid[py][px] !== t) continue; st.grid[py][px] = v; stack.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]); } }
         const at = ev => { const r = cv.getBoundingClientRect(); return [Math.floor((ev.clientX - r.left) * cv.width / r.width / cell), Math.floor((ev.clientY - r.top) * cv.height / r.height / cell)]; };
