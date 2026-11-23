@@ -30,6 +30,72 @@
     const RC = k => (HW.RARITIES[k] || HW.RARITIES.normal);
 
     // ============================================================
+    // 画像ファイルから、ドット絵を作る（絵のエディタ・弾の絵のエディタで共通）
+    //  ・画像を縮小して、はみ出さないよう中央に置く（縦横比は保つ）。半透明の部分は透明にする
+    //  ・「背景を消す」：周りが透明でない画像は、四すみの色に近い背景を、外側から消す
+    //  ・色は、使われている色から「かたまり」ごとに最大16色にまとめる（メディアンカット）
+    // ============================================================
+    function imgToPix(img, W, H, nCol, o) {
+        const rot = ((o.rot | 0) % 4 + 4) % 4, odd = rot % 2 === 1, sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+        if (!sw || !sh) return null;
+        const rw = odd ? sh : sw, rh = odd ? sw : sh, sc = Math.min(W / rw, H / rh), dw = Math.max(1, Math.round(rw * sc)), dh = Math.max(1, Math.round(rh * sc));
+        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+        const g = cv.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+        g.save(); g.translate(W / 2, H / 2); g.rotate(rot * Math.PI / 2); const iw = odd ? dh : dw, ih = odd ? dw : dh; g.drawImage(img, -iw / 2, -ih / 2, iw, ih); g.restore();
+        const d = g.getImageData(0, 0, W, H).data, a = new Uint8Array(W * H);
+        for (let i = 0; i < W * H; i++) a[i] = d[i * 4 + 3] >= 128 ? 1 : 0;
+        const x0 = Math.floor((W - dw) / 2), y0 = Math.floor((H - dh) / 2), x1 = Math.min(W - 1, x0 + dw - 1), y1 = Math.min(H - 1, y0 + dh - 1);
+        const cr = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]];
+        if (o.bg && cr.every(c => a[c[1] * W + c[0]])) {      // 四すみが不透明＝背景つきの画像：四すみの色に近い部分を、外側から消す
+            let br = 0, bgc = 0, bb = 0; cr.forEach(c => { const k = (c[1] * W + c[0]) * 4; br += d[k]; bgc += d[k + 1]; bb += d[k + 2]; }); br /= 4; bgc /= 4; bb /= 4;
+            const near = k => Math.abs(d[k * 4] - br) + Math.abs(d[k * 4 + 1] - bgc) + Math.abs(d[k * 4 + 2] - bb) < 96, stack = [];
+            for (let x = x0; x <= x1; x++) { stack.push([x, y0], [x, y1]); } for (let y = y0; y <= y1; y++) { stack.push([x0, y], [x1, y]); }
+            while (stack.length) { const p = stack.pop(), x = p[0], y = p[1]; if (x < x0 || x > x1 || y < y0 || y > y1) continue; const k = y * W + x; if (!a[k] || !near(k)) continue; a[k] = 0; stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]); }
+        }
+        const hist = new Map();      // 色ごとの数（各色5bitにまるめる）
+        for (let i = 0; i < W * H; i++) if (a[i]) { const r = d[i * 4], gg = d[i * 4 + 1], b = d[i * 4 + 2], key = (r >> 3) << 10 | (gg >> 3) << 5 | (b >> 3), e = hist.get(key); if (e) { e.n++; e.r += r; e.g += gg; e.b += b; } else hist.set(key, { n: 1, r: r, g: gg, b: b }); }
+        if (!hist.size) return null;
+        let boxes = [Array.from(hist.values()).map(e => ({ n: e.n, r: e.r / e.n, g: e.g / e.n, b: e.b / e.n }))];
+        while (boxes.length < nCol) {      // いちばん色の幅が広いかたまりを、中央で2つに割る
+            let bi = -1, bs = 0, bch = 'r';
+            boxes.forEach((bx, i) => { if (bx.length < 2) return; ['r', 'g', 'b'].forEach(ch => { let lo = 255, hi = 0; bx.forEach(c => { lo = Math.min(lo, c[ch]); hi = Math.max(hi, c[ch]); }); if (hi - lo > bs) { bs = hi - lo; bi = i; bch = ch; } }); });
+            if (bi < 0) break;
+            const bx = boxes[bi].slice().sort((p, q) => p[bch] - q[bch]); let tot = 0; bx.forEach(c => { tot += c.n; }); let acc = 0, cut = 1;
+            for (let i = 0; i < bx.length - 1; i++) { acc += bx[i].n; cut = i + 1; if (acc >= tot / 2) break; }
+            boxes.splice(bi, 1, bx.slice(0, cut), bx.slice(cut));
+        }
+        const pal = boxes.map(bx => { let n = 0, r = 0, gg = 0, b = 0; bx.forEach(c => { n += c.n; r += c.r * c.n; gg += c.g * c.n; b += c.b * c.n; }); return [Math.round(r / n), Math.round(gg / n), Math.round(b / n)]; });
+        const hex = c => '#' + c.map(v => ('0' + Math.max(0, Math.min(255, v)).toString(16)).slice(-2)).join(''), cache = new Map(), grid = [];
+        for (let y = 0; y < H; y++) { const row = new Array(W).fill(-1); for (let x = 0; x < W; x++) { const i = y * W + x; if (!a[i]) continue; const r = d[i * 4], gg = d[i * 4 + 1], b = d[i * 4 + 2], key = r << 16 | gg << 8 | b; let ci = cache.get(key); if (ci == null) { let bd = 1e9; ci = 0; pal.forEach((c, k) => { const dd = (c[0] - r) * (c[0] - r) + (c[1] - gg) * (c[1] - gg) + (c[2] - b) * (c[2] - b); if (dd < bd) { bd = dd; ci = k; } }); cache.set(key, ci); } row[x] = ci; } grid.push(row); }
+        return { grid: grid, pal: pal.map(hex) };
+    }
+    function imageImport(host, W, H, nCol, onApply, hint) {
+        host.innerHTML = '<div style="margin-top:8px;padding:6px;border:1px dashed #3a4666;border-radius:6px;font-size:.8rem;color:#9fb3d9">🖼 <b>画像ファイルから描く</b>' + (hint ? '<div style="font-size:.74rem;color:#8a97b5">' + hint + '</div>' : '') +
+            '<input type="file" accept="image/*" style="display:none"> <button type="button" class="sbl-btn gray" data-b="pick" style="padding:5px 10px;margin:3px 3px 0 0">画像を選ぶ</button>' +
+            '向き <select data-b="rot" style="background:#10131c;color:#e6e9f5;border:1px solid #3a4666;border-radius:4px"><option value="0">そのまま</option><option value="1">右に90°</option><option value="2">180°</option><option value="3">左に90°</option></select> ' +
+            '<label style="white-space:nowrap"><input type="checkbox" data-b="bg" checked> 背景を消す</label> <span data-b="msg" style="color:#ff9a9a"></span></div>';
+        const fi = host.querySelector('input[type=file]'), msg = host.querySelector('[data-b=msg]'), rotEl = host.querySelector('[data-b=rot]'), bgEl = host.querySelector('[data-b=bg]');
+        let img = null;
+        const run = () => {
+            if (!img) return; msg.textContent = '';
+            let r = null; try { r = imgToPix(img, W, H, nCol, { rot: +rotEl.value, bg: bgEl.checked }); } catch (e) { r = null; }
+            if (!r) { msg.textContent = 'この画像からは、絵を作れませんでした（全部透明か、背景を消しすぎたかも）。'; return; }
+            onApply(r);
+        };
+        host.querySelector('[data-b=pick]').addEventListener('click', () => fi.click());
+        fi.addEventListener('change', () => {
+            const f = fi.files && fi.files[0]; fi.value = ''; if (!f) return;
+            if (!/^image\//.test(f.type)) { msg.textContent = '画像ファイルを選んでください。'; return; }
+            if (f.size > 8 * 1024 * 1024) { msg.textContent = '画像が大きすぎます（8MBまで）。'; return; }
+            const url = URL.createObjectURL(f), im = new Image();
+            im.onload = () => { URL.revokeObjectURL(url); img = im; run(); };
+            im.onerror = () => { URL.revokeObjectURL(url); msg.textContent = 'この画像は読み込めませんでした。'; };
+            im.src = url;
+        });
+        rotEl.addEventListener('change', run); bgEl.addEventListener('change', run);
+    }
+
+    // ============================================================
     // ドット絵エディタ
     // ============================================================
     const PALETTE0 = ['#ffffff', '#c9d3e6', '#8fa0bf', '#5a6a8c', '#2a3350', '#14121c', '#8a5a2b', '#5b3a1c', '#f2c14e', '#b88a1e', '#ff5a3a', '#ffa13a', '#4ac8ff', '#3a6ee8', '#7fd13b', '#c06aff'];
@@ -70,7 +136,7 @@
             '<div id="pxeTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
             '<div style="margin:6px 0;font-size:.8rem"><label><input type="checkbox" id="pxeMir" checked> 左右対称に描く</label></div>' +
             '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）<input type="range" id="pxeGrip" min="0" max="' + (H - 1) + '" value="' + st.grip + '" style="width:100%"></div>' +
-            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="pxeUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="pxeClear" style="padding:5px 10px">全消し</button><button type="button" class="sbl-btn gray" id="pxeTpl" style="padding:5px 10px">下書き（武器種）</button></div>' +
+            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="pxeUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="pxeClear" style="padding:5px 10px">全消し</button><button type="button" class="sbl-btn gray" id="pxeTpl" style="padding:5px 10px">下書き（武器種）</button></div><div id="pxeImg"></div>' +
             '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">攻撃エフェクトの色</div><div id="pxeFx" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>' +
             '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">プレビュー</div><canvas id="pxePv" width="150" height="130" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas>' +
             '</div></div>';
@@ -180,6 +246,9 @@
         box.querySelector('#pxeUndo').addEventListener('click', () => { const t = st.undo.pop(); if (t) { st.grid = JSON.parse(t); render(); } });
         box.querySelector('#pxeClear').addEventListener('click', () => { snap(); st.grid = blank(); render(); });
         box.querySelector('#pxeTpl').addEventListener('click', () => { if (!confirm('いまの絵を消して、武器種の標準の絵を下書きとして読み込みます。よろしいですか？')) return; snap(); loadTemplate(type || 'sword'); box.querySelector('#pxeGrip').value = st.grip; palUi(); render(); });
+        imageImport(box.querySelector('#pxeImg'), W, H, CH.length, r => {      // 画像から：いまの絵を置きかえる（「戻す」で元に戻せる）
+            snap(); st.grid = r.grid; st.pal = PALETTE0.slice(); r.pal.forEach((c, i) => { st.pal[i] = c; }); st.cur = 0; palUi(); render();
+        }, '武器の先が上、持ち手が下になる向きで読み込まれます（向きは下で回せます）。赤い線の「持ち手の位置」も合わせてください。');
         sizeCv(); palUi(); toolUi(); fxUi(); render();
         return { pix: toPix, fx: () => st.fx, setType: t => { type = t; drawPreview(); } };
     }
@@ -329,7 +398,7 @@
             '<div style="flex:1;min-width:170px"><div id="txPal" style="display:grid;grid-template-columns:repeat(8,1fr);gap:3px;max-width:240px"></div>' +
             '<div style="margin:5px 0"><input type="color" id="txCol" value="#ffffff" style="width:44px;height:30px;padding:0;border:1px solid #3a4666;background:#fff;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
             '<div id="txTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
-            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="txUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="txClear" style="padding:5px 10px">全消し</button></div>' +
+            '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="txUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="txClear" style="padding:5px 10px">全消し</button></div><div id="txImg"></div>' +
             '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">飛ぶようす</div><canvas id="txPv" width="170" height="44" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas></div></div>' +
             '<div style="margin-top:8px"><button type="button" class="sbl-btn orange" id="txOk">この絵にする</button><button type="button" class="sbl-btn gray" id="txNo">やめる</button> <span id="txMsg" style="font-size:.8rem;color:#ff9a9a"></span></div>';
         const cv = box.querySelector('#txCv'), g = cv.getContext('2d'), pv = box.querySelector('#txPv'), pg = pv.getContext('2d');
@@ -372,6 +441,7 @@
         box.querySelector('#txClear').addEventListener('click', () => { snap(); st.grid = blank(); render(); });
         box.querySelector('#txNo').addEventListener('click', () => onCancel());
         box.querySelector('#txOk').addEventListener('click', () => { const px = toPix(); if (!px) { box.querySelector('#txMsg').textContent = '何も描かれていません。'; return; } onOk(px); });
+        imageImport(box.querySelector('#txImg'), N, N, CH.length, r => { snap(); st.grid = r.grid; st.pal = PALETTE0.slice(); r.pal.forEach((c, i) => { st.pal[i] = c; }); st.cur = 0; palUi(); render(); }, '画像の「右」が、飛んでいく向きになります。');
         palUi(); toolUi(); render();
     }
 

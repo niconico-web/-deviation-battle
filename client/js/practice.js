@@ -3108,19 +3108,27 @@
     }
     function updateNecro(e, dt, tgt, d, ang, slow) {
         if (!e.enraged && e.hp / e.maxHp < 0.5) { e.enraged = true; netAnnounce('💀 シャーマンが、死霊をさらに呼び覚ました！', 2000); }
-        const sp = e.spd * slow * 0.8;      // 距離をとって、後ろから死霊を送り込む
+        const sp = e.spd * slow * 1.1;      // 距離をとって、後ろから死霊を送り込む
         if (d > 520) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } else if (d < 320) { e.x -= Math.cos(ang) * sp * dt; e.y -= Math.sin(ang) * sp * dt; }
         e.x = clamp(e.x, 80, WORLD_W - 80); e.y = clamp(e.y, 80, WORLD_H - 80);
         e.sumT = (e.sumT == null ? 0 : e.sumT) - dt;      // 召喚：1秒に5体ペース（ラグで溜まった分は、いっぺんに出しすぎない）
         let cnt = necroMinions().length, guard = 0;
         while (e.sumT <= 0 && guard++ < 4) { e.sumT += NECRO_GAP; if (cnt < NECRO_CAP) { necroSummon(e); cnt++; } }
         if (guard > 0 && Math.random() < 0.25) fx.push({ k: 'puff', x: e.x, y: e.y + 10, t: 0.3, life: 0.3, c: '#a070ff' });
-        e.atkT = (e.atkT == null ? 3 : e.atkT) - dt;      // 本体の攻撃：骨の弾幕／死霊の輪／魂の叩きつけ
+        // 本体の攻撃：5種類を、短い間隔でたたみかける（HP50%以下ではさらに激しく）。弾幕の連射「魂の螺旋」は、ほかの攻撃と同時に続く
+        const enr = !!e.enraged, k = ed(e) * (enr ? 1.2 : 1.1);
+        if (e.spiT > 0) {
+            e.spiT -= dt; e.spiE = (e.spiE || 0) - dt;
+            if (e.spiE <= 0) { e.spiE = enr ? 0.07 : 0.1; e.spiA = (e.spiA || 0) + 0.42; [0, 2.094, 4.189].forEach(o => bullet(e.x, e.y, e.spiA + o, 300, k * 0.7, 7, 4, '#c06aff')); }
+        }
+        e.atkT = (e.atkT == null ? 2 : e.atkT) - dt;
         if (e.atkT <= 0) {
-            e.atkT = e.enraged ? 2.3 : 3.3; const k = ed(e) * (e.enraged ? 1.15 : 1), i = (e.patIdx = (e.patIdx | 0) + 1) % 3;
-            if (i === 0) { const n = e.enraged ? 11 : 7; for (let j = 0; j < n; j++) bullet(e.x, e.y, ang + (j - (n - 1) / 2) * 0.17, 340, k, 8, 3.2, '#cdb8ff'); }
-            else if (i === 1) { const n = e.enraged ? 26 : 18, off = rnd(0, 6.28); for (let j = 0; j < n; j++) bullet(e.x, e.y, off + j * Math.PI * 2 / n, 240, k, 8, 4, '#a070ff'); }
-            else { alivePlayersPos().forEach(p => telegraph(p.x, p.y, 115, 1.3, k * 1.5, '#a070ff')); telegraph(e.x, e.y, 150, 1.2, k * 1.2, '#7a4fd0'); }
+            e.atkT = enr ? 1.15 : 1.8; const i = (e.patIdx = (e.patIdx | 0) + 1) % 5;
+            if (i === 0) { const n = enr ? 17 : 11, w = enr ? 3 : 2; for (let q = 0; q < w; q++) for (let j = 0; j < n; j++) bullet(e.x, e.y, ang + (j - (n - 1) / 2) * 0.15, 330 + q * 90, k, 8, 3.4, '#cdb8ff'); }      // 骨の扇弾（速さをずらして2〜3段）
+            else if (i === 1) { const n = enr ? 40 : 28, off = rnd(0, 6.28); for (let j = 0; j < n; j++) bullet(e.x, e.y, off + j * Math.PI * 2 / n, 250, k, 8, 4.5, '#a070ff'); for (let j = 0; j < n; j++) bullet(e.x, e.y, off + (j + 0.5) * Math.PI * 2 / n, 170, k, 8, 5, '#7a4fd0'); }      // 死霊の輪（二重）
+            else if (i === 2) { alivePlayersPos().forEach(p => { telegraph(p.x, p.y, 125, 1.1, k * 1.7, '#a070ff'); telegraph(p.x + rnd(-200, 200), p.y + rnd(-200, 200), 100, 1.3, k * 1.5, '#a070ff'); }); telegraph(e.x, e.y, 190, 1.0, k * 1.4, '#7a4fd0'); }      // 魂の叩きつけ（本人の足元＋ばらまき）
+            else if (i === 3) { e.spiT = enr ? 3.2 : 2.4; }      // 魂の螺旋（渦巻きの弾幕を連射）
+            else { const ps = alivePlayersPos(), n = enr ? 18 : 12; if (ps.length) for (let j = 0; j < n; j++) { const p = ps[Math.floor(Math.random() * ps.length)]; telegraph(clamp(p.x + rnd(-300, 300), 40, WORLD_W - 40), clamp(p.y + rnd(-300, 300), 40, WORLD_H - 40), 85, 0.8 + j * 0.08, k * 1.4, '#cdb8ff'); } }      // 骨の雨（時間差の着弾予告）
         }
     }
     function necroHost(dt) {
@@ -3201,25 +3209,30 @@
     function updateMachine(e, dt, tgt, d, ang, slow) {
         const crash = !!G.crash, low = !crash && (e.fuel || 0) < MC_FUEL * 0.25, k = ed(e);
         if (!e.enraged && e.hp / e.maxHp < 0.5) { e.enraged = true; netAnnounce('🤖 リレインバーが、全武装を解放した！', 2000); }
-        if (!crash) { const sp = e.spd * slow * 0.55; if (d > 260) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }      // 空を飛んで、ゆっくり追ってくる
+        if (!crash) { const sp = e.spd * slow * 0.8; if (d > 260) { e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; } }      // 空を飛んで、ゆっくり追ってくる
         else if (d > 120) { const sp = e.spd * slow * 0.5; e.x += Math.cos(ang) * sp * dt; e.y += Math.sin(ang) * sp * dt; }      // 墜落後は、地上をのろのろ歩く
         e.x = clamp(e.x, 100, WORLD_W - 100); e.y = clamp(e.y, 100, WORLD_H - 100);
-        if (G.lz) {      // レーザー掃射：予告（約1秒）→ 弾の列で薙ぎ払う
-            const L = G.lz;
-            if (L.t > 0) { L.t -= dt; if (L.t > 0.3) L.a = ang; }
-            else { L.s += dt; const a0 = L.a + L.dir * (L.s / 1.7 - 0.5) * 1.4; e.lzE = (e.lzE || 0) - dt; if (e.lzE <= 0) { e.lzE = 0.04; [0, 0.55].forEach(off => bullet(e.x, e.y, a0 + off, 840, k * 0.5, 8, 1.15, '#ff4040')); } if (L.s > 1.7) G.lz = null; }
-            return;
+        if (G.lz) {      // レーザー掃射：予告（約0.8秒）→ 弾の列で薙ぎ払う。掃射中も、ほかの攻撃は続く
+            const L = G.lz, nb = e.enraged || low ? [0, 0.5, -0.5, 1.0, -1.0] : [0, 0.55, -0.55];      // ビームは3本（激しいときは5本）
+            if (L.t > 0) { L.t -= dt; if (L.t > 0.25) L.a = ang; }
+            else { L.s += dt; const a0 = L.a + L.dir * (L.s / 1.5 - 0.5) * 1.8; e.lzE = (e.lzE || 0) - dt; if (e.lzE <= 0) { e.lzE = 0.035; nb.forEach(off => bullet(e.x, e.y, a0 + off, 900, k * 0.55, 8, 1.2, '#ff4040')); } if (L.s > 1.5) G.lz = null; }
         }
-        e.mcT = (e.mcT == null ? 3 : e.mcT) - dt; if (e.mcT > 0) return;
-        e.mcT = (crash ? 3.2 : (e.enraged || low ? 1.9 : 2.8)) * rnd(0.85, 1.15);
-        const pick = crash ? 2 + (e.patIdx = (e.patIdx | 0) + 1) % 2 : Math.floor(Math.random() * 3);
+        if (e.gunT > 0) {      // 機関砲の連射：いちばん近い人を、ばらつかせて撃ち続ける
+            e.gunT -= dt; e.gunE = (e.gunE || 0) - dt;
+            if (e.gunE <= 0) { e.gunE = 0.07; for (let j = -1; j <= 1; j++) bullet(e.x, e.y, ang + j * 0.2 + rnd(-0.06, 0.06), 520, k * 0.55, 7, 2.2, '#ffd36a'); }
+        }
+        e.mcT = (e.mcT == null ? 2 : e.mcT) - dt; if (e.mcT > 0) return;
+        e.mcT = (crash ? 1.9 : (e.enraged || low ? 1.0 : 1.55)) * rnd(0.85, 1.15);
+        let pick = crash ? 2 + (e.patIdx = (e.patIdx | 0) + 1) % 3 : Math.floor(Math.random() * 5);
+        if (pick === 1 && G.lz) pick = 0;      // レーザー中に、レーザーは重ねない
         if (pick === 0) {      // ミサイル斉射：あちこちに、時間差で着弾の予告
-            const ps = alivePlayersPos(), n = Math.min(28, 10 + 3 * partyCount() + (e.enraged ? 4 : 0)); if (!ps.length) return;
-            for (let i = 0; i < n; i++) { const p = ps[Math.floor(Math.random() * ps.length)]; telegraph(clamp(p.x + rnd(-260, 260), 40, WORLD_W - 40), clamp(p.y + rnd(-260, 260), 40, WORLD_H - 40), 95, 0.9 + i * 0.07, k * 1.2, '#ff9a3a'); }
+            const ps = alivePlayersPos(), n = Math.min(44, 16 + 4 * partyCount() + (e.enraged || low ? 8 : 0)); if (!ps.length) return;
+            for (let i = 0; i < n; i++) { const p = ps[Math.floor(Math.random() * ps.length)]; telegraph(clamp(p.x + rnd(-300, 300), 40, WORLD_W - 40), clamp(p.y + rnd(-300, 300), 40, WORLD_H - 40), 100, 0.8 + i * 0.05, k * 1.4, '#ff9a3a'); }
             netAnnounce('🚀 ミサイル斉射！', 1000);
-        } else if (pick === 1) { G.lz = { a: ang, t: 1.0, s: 0, dir: Math.random() < 0.5 ? -1 : 1 }; netAnnounce('🔴 レーザー照射！', 1000); }
-        else if (pick === 2) { const n = e.enraged ? 26 : 20, off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, 270, k * 0.9, 8, 4, '#ffd36a'); }
-        else { alivePlayersPos().forEach(p => telegraph(p.x, p.y, 120, 1.2, k * 1.5, '#ff9a3a')); telegraph(e.x, e.y, 170, 1.0, k * 1.4, '#ff7a3a'); }
+        } else if (pick === 1) { G.lz = { a: ang, t: 0.8, s: 0, dir: Math.random() < 0.5 ? -1 : 1 }; netAnnounce('🔴 レーザー照射！', 1000); }
+        else if (pick === 2) { const n = e.enraged || low ? 40 : 30, off = rnd(0, 6.28); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + i * Math.PI * 2 / n, 280, k, 8, 4, '#ffd36a'); for (let i = 0; i < n; i++) bullet(e.x, e.y, off + (i + 0.5) * Math.PI * 2 / n, 190, k, 8, 4.5, '#ffb04a'); }      // 全方位弾（二重）
+        else if (pick === 4) { e.gunT = e.enraged || low ? 3.0 : 2.2; netAnnounce('🔫 機関砲！', 900); }
+        else { alivePlayersPos().forEach(p => { telegraph(p.x, p.y, 130, 1.0, k * 1.6, '#ff9a3a'); telegraph(p.x + rnd(-220, 220), p.y + rnd(-220, 220), 105, 1.2, k * 1.5, '#ff9a3a'); }); telegraph(e.x, e.y, 200, 0.9, k * 1.5, '#ff7a3a'); }
     }
     function drawMachine(e) {
         const now = performance.now() / 1000, fl = e.flash > 0, r = e.r, crash = !!G.crash, hv = crash ? 0 : 46 + Math.sin(now * 1.7) * 6;
