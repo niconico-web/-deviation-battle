@@ -62,7 +62,7 @@
             const f = custom.s > 1 ? custom.s : 1;
             if (f === 1) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }
             // 細かい絵（f倍）：1マス1ピクセルで焼いておき、表示のときに 1/f の大きさにたたむ（大きさは従来の絵と同じになる）
-            const base = get('wc:' + custom.key, custom.rows, custom.pal, 0.5), wk = 'wcs:' + custom.key + '|' + scale;
+            const base = get('wc:' + custom.key, custom.rows, custom.pal, 10), wk = 'wcs:' + custom.key + '|' + scale;
             const sw = Math.max(1, Math.round(base.w * scale / f)), sh = Math.max(1, Math.round(base.h * scale / f));
             const shrunk = CACHE[wk];
             if (shrunk) return shrunk;
