@@ -153,7 +153,7 @@
             const col = st.fx;
             pg.save(); pg.globalAlpha = 0.9; pg.strokeStyle = col; pg.lineWidth = 8; pg.lineCap = 'round'; pg.beginPath(); pg.arc(75, 118, 78, -2.6, -0.55); pg.stroke();
             pg.globalAlpha = 0.5; pg.lineWidth = 16; pg.beginPath(); pg.arc(75, 118, 78, -2.5, -0.65); pg.stroke(); pg.restore();
-            try { SBPix.drawWeapon(pg, 75, 112, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 10 }); } catch (e) { /* 描けなくてもエディタは使える */ }
+            try { SBPix.drawWeapon(pg, 75, 112, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 3 }); } catch (e) { /* 描けなくてもエディタは使える */ }
         }
         function render() {
             const cell = cellOf();
