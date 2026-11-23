@@ -63,7 +63,14 @@
             if (f === 1) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }
             // 細かい絵（f倍）：1マス1ピクセルで焼いておき、表示のときに 1/f の大きさにたたむ（大きさは従来の絵と同じになる）
             const base = get('wc:' + custom.key, custom.rows, custom.pal, f), wk = 'wcs:' + custom.key + '|' + scale;
-            return CACHE[wk] || (CACHE[wk] = { c: base.c, w: Math.max(1, Math.round(base.w * scale / f)), h: Math.max(1, Math.round(base.h * scale / f)), cols: base.cols, rows: base.rows, grip: custom.grip * scale / f });
+            const sw = Math.max(1, Math.round(base.w * scale / f)), sh = Math.max(1, Math.round(base.h * scale / f));
+            const shrunk = CACHE[wk];
+            if (shrunk) return shrunk;
+            // キャンバスを縮小サイズに再作成して、そこに縮小して描く
+            const cv = document.createElement('canvas'); cv.width = sw; cv.height = sh;
+            const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
+            g.drawImage(base.c, 0, 0, sw, sh);
+            return CACHE[wk] = { c: cv, w: sw, h: sh, cols: base.cols, rows: base.rows, grip: custom.grip * scale / f };
         }
         const M = mythic && D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[mythic];      // 神話の武器は、専用のドット絵
         if (M) { const sm = get('wm:' + mythic + ':' + color, M.rows, palWeapon(color), scale); sm.grip = M.grip * scale; sm.orbiters = M.orbiters | 0; return sm; }
