@@ -21,8 +21,9 @@
 // ============================================
 
 const MAX_MEMBERS = 4;
-const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_necro: 20, raid_duality: 20, raid_machine: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
+const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_necro: 20, raid_duality: 20, raid_machine: 20, raid_velzark: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
+const HOST_ONLY = { hit: 1, hits: 1, bhit: 1, creq: 1, refl: 1 };      // ホストだけが処理するメッセージ（ほかの仲間に配っても無駄で、その人の画面が重くなる）
 const MAX_RELAY_BYTES = 64000;      // ボスラッシュの終盤は弾が多く、30000だと中継が捨てられて仲間の画面が止まって見えた
 const rooms = new Map();          // roomId -> room
 const socketRoom = new Map();     // socket.id -> roomId
@@ -149,6 +150,11 @@ module.exports = function (io) {
             const me = r.members.find(m => m.sid === socket.id);
             if (!me) return;
             // 位置とスナップショットは次の更新で上書きされるので、詰まっているときは捨てる（volatile）
+            if (HOST_ONLY[msg.t]) {      // ホストにだけ届ける
+                const host = r.members.find(m => m.id === r.hostId);
+                if (host && host.sid !== socket.id) io.to(host.sid).emit("stage:msg", { from: me.id, t: msg.t, d: msg.d });
+                return;
+            }
             const target = socket.to("stage:" + r.id);
             (hot ? target.volatile : target).emit("stage:msg", { from: me.id, t: msg.t, d: msg.d });
         });

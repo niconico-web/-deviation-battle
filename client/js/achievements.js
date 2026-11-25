@@ -35,10 +35,14 @@
         reward: { title: '増殖を食い止めるもの' }, rewardText: '称号「増殖を食い止めるもの」（専用の神話装備「Legend of Increase」は、ボスが落とす）' });
     add('raid_worm_clear', '大討伐戦', '世界を喰らうもの', '大討伐戦「第二幕　ワールドワーム」で、ワールドワームを倒す', { ck: 'raidWorm', n: 1, special: true,
         reward: { title: '世界を喰らうもの' }, rewardText: '称号「世界を喰らうもの」（専用の神話装備「Legend of Eater」は、ボスが落とす）' });
+    add('ambush_clear', '襲撃', '襲撃を退けしもの', '襲撃ステージ「ニンゲンの襲来」で、最後のボス「ニンゲンの王・ヒューマニア」を倒す', { ck: 'ambushClear', n: 1, special: true,
+        reward: { title: '襲撃を退けしもの' }, rewardText: '称号「襲撃を退けしもの」' });
     add('raid_necro_clear', '大討伐戦', '魂の理を断ち切るもの', '大討伐戦「第三幕　ネクロマンスド・シャーマン」で、ネクロマンスド・シャーマンを倒す', { ck: 'raidNecro', n: 1, special: true,
         reward: { title: '魂の理を断ち切るもの' }, rewardText: '称号「魂の理を断ち切るもの」（専用の神話装備「Legend of Necromance」は、ボスが落とす）' });
     add('raid_machine_clear', '大討伐戦', '機械をも支配するもの', '大討伐戦「第五幕　機械真王・リレインバー」で、機械真王・リレインバーを倒す', { ck: 'raidMachine', n: 1, special: true,
         reward: { title: '機械をも支配するもの' }, rewardText: '称号「機械をも支配するもの」（専用の神話装備「Legend of Relainbar」は、ボスが落とす）' });
+    add('raid_velzark_clear', '大討伐戦', '融合を切り裂くもの', '大討伐戦「第六幕　魔装合体ヴェルスザーク」で、魔装合体ヴェルスザークを倒す', { ck: 'raidVelzark', n: 1, special: true,
+        reward: { title: '融合を切り裂くもの' }, rewardText: '称号「融合を切り裂くもの」（専用の神話装備「Legend of Fusion」は、ボスが落とす）' });
     add('raid_duality_clear', '大討伐戦', '双界を切り開くもの', '大討伐戦「第四幕　双界の覇竜」のボス、ツイン・エレメンタルを倒す', { ck: 'raidDuality', n: 1, special: true,
         reward: { title: '双界を切り開くもの' }, rewardText: '称号「双界を切り開くもの」（専用の神話装備「Legend of Duality」は、ボスが落とす）' });
 
@@ -242,7 +246,7 @@
             case 'escape': c.escapes = (c.escapes | 0) + 1; quick('escapes'); if ((v | 0) > (c.escFloorMax | 0)) { c.escFloorMax = v | 0; quick('escFloorMax'); }
                 if (typeof w === 'string' && w2) { byMax('noHitBy', w, v | 0); quickMythic(); } break;      // w2=一度も被弾していない
             case 'rushEx': if (typeof w === 'string') { by('rushExBy', w, 1); quickMythic(); } break;
-            case 'raid': if (w === 'raid_increase') { c.raidIncrease = (c.raidIncrease | 0) + 1; quick('raidIncrease'); } else if (w === 'raid_worm') { c.raidWorm = (c.raidWorm | 0) + 1; quick('raidWorm'); } else if (w === 'raid_duality') { c.raidDuality = (c.raidDuality | 0) + 1; quick('raidDuality'); } else if (w === 'raid_necro') { c.raidNecro = (c.raidNecro | 0) + 1; quick('raidNecro'); } else if (w === 'raid_machine') { c.raidMachine = (c.raidMachine | 0) + 1; quick('raidMachine'); } break;      // 大討伐戦：ボスを倒した
+            case 'raid': if (w === 'raid_increase') { c.raidIncrease = (c.raidIncrease | 0) + 1; quick('raidIncrease'); } else if (w === 'raid_worm') { c.raidWorm = (c.raidWorm | 0) + 1; quick('raidWorm'); } else if (w === 'raid_duality') { c.raidDuality = (c.raidDuality | 0) + 1; quick('raidDuality'); } else if (w === 'ambush') { c.ambushClear = (c.ambushClear | 0) + 1; quick('ambushClear'); } else if (w === 'raid_necro') { c.raidNecro = (c.raidNecro | 0) + 1; quick('raidNecro'); } else if (w === 'raid_machine') { c.raidMachine = (c.raidMachine | 0) + 1; quick('raidMachine'); } else if (w === 'raid_velzark') { c.raidVelzark = (c.raidVelzark | 0) + 1; quick('raidVelzark'); } break;      // 大討伐戦：ボスを倒した
             case 'corrDeath': c.corrDeaths = (c.corrDeaths | 0) + 1; quick('corrDeaths'); break;
             case 'chest': c.chests = (c.chests | 0) + 1; quick('chests'); if (v) { c.mimics = (c.mimics | 0) + 1; quick('mimics'); } break;
             case 'midnight': c.midnight = 1; c.midnightDays = (c.midnightDays | 0) + 1; quick('midnight'); quick('midnightDays'); break;

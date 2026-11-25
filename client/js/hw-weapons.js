@@ -69,6 +69,7 @@
         // ---- 専用武器種：神話「Legend of Necromance」「Legend of Relainbar」だけが持つ（大討伐戦 第三幕・第五幕の報酬。world 99）----
         necromance:  { label: '死霊',      kind: 'cone', range: 132, arc: 1.3, cd: 0.5, mult: 0.62, knock: 50, world: 99, exclusive: true },
         relainbar:   { label: '機神',      kind: 'cone', range: 120, arc: 1.2, cd: 0.46, mult: 0.6, knock: 30, world: 99, exclusive: true },
+        fusion:      { label: '融合',      kind: 'cone', range: 128, arc: 1.25, cd: 0.46, mult: 0.62, knock: 50, world: 99, exclusive: true },      // 神話「Legend of Fusion」だけが持つ（大討伐戦 第六幕の報酬）
         increase:    { label: '増殖',      kind: 'cone', range: 124, arc: 1.25, cd: 0.48, mult: 0.6, knock: 40, world: 99, exclusive: true },
         // ---- 第二世界「次元の裏側」で手に入る武器種（world:2）----
         //  multi: 1振りで連続ヒットする回数 / aoe: 弾が当たった場所で起きる爆発の半径 / pierce: 弾の貫通数
@@ -1180,6 +1181,10 @@
         legend_relainbar: { name: 'Legend of Relainbar', prefix: '', type: 'relainbar', color: '#7fd8ff', ilvl: 50, tag: '機神', boss: '機械真王・リレインバー', tech: '機兵の追撃／機神の裁き・全弾発射', source: 'raid_machine',
             desc: '機械の王の力を宿す、青い光を走らせる機械剣。通常攻撃は、斬るたびに小型の機兵が飛び出して、遠くの敵まで追撃する。必殺技「機神の裁き・全弾発射」は、機兵とミサイルの雨で一帯を薙ぎ払い、結界をまとって最後に大爆発を起こす',
             fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['range_up', 0.4], ['dmg_boss', 0.7], ['dr', 0.15], ['energy_up', 0.5]] },
+        // 魔装合体ヴェルスザーク（大討伐戦 第六幕のボス）を倒すと手に入る、専用の神話武器。武器種は「融合」だけ
+        legend_fusion: { name: 'Legend of Fusion', prefix: '', type: 'fusion', color: '#ffd86a', ilvl: 50, tag: '融合', boss: '魔装合体ヴェルスザーク', tech: '天魔斬／天魔融合・断罪の双翼', source: 'raid_velzark',
+            desc: '天使と悪魔が融合した力を宿す、白金と深紅に割れた剣。通常攻撃は、天使の光刃と悪魔の魔刃を交互に振るい、3段目は一瞬で敵に詰め寄って斬り込み、4段目は光と魔の刃の雨を降らせる。必殺技「天魔融合・断罪の双翼」は、無数の刃の舞、地割れ、大崩壊と続けて戦場を切り裂き、最後に大爆発を起こす',
+            fx: [['atk_up', 0.9], ['crit_rate', 0.2], ['crit_dmg', 1.0], ['aspd', 0.3], ['burn', 0.5], ['dmg_boss', 0.7], ['dr', 0.15], ['energy_up', 0.5]] },
         yggdrasil: { name: '世界樹の杖', prefix: 'ユグドラシルの', type: 'wand', color: '#6dff8a', ilvl: 50, tag: '世界樹', boss: '嘆きの樹母', tech: '這う根／若木の呼び声',
             desc: '嘆きの樹母の根を宿す杖。必殺技「若木の呼び声・世界樹の根」は、足もとから根を突き上げ、体力も癒やす',
             fx: [['atk_up', 0.9], ['aoe_up', 0.8], ['energy_up', 0.8], ['regen', 0.02], ['hp_up', 0.5], ['crit_dmg', 0.8], ['burn', 0.5], ['freeze', 0.4], ['proj_extra', 1]] }

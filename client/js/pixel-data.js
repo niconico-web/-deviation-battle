@@ -369,6 +369,10 @@
             '.....BB.....', '.....wB.....', '....sBBs....', '....sBBs....', '....sBBs....', '...sSBBSs...', '...sSBBSs...', '...sSBBSs...',
             '...sSBBSs...', '...sSBBSs...', '...sSwBSs...', '....SBBS....', '....SBBS....', '....cBBc....', '.kssSBBSssk.', 'ksSSsBBsSSsk',
             '.kkSSSSSSkk.', '....hHHh....', '....hHHh....', '....hHHh....', '....hHHh....', '...GggggG...', '...gGrrGg...', '....gGGg....'] },
+        legend_fusion: { grip: 20, rows: [
+            '.......wr.......', '......awrr......', '......abrk......', '.....abwrrk.....', '.....abwrrk.....', '.....abwrrk.....', '.....abwrrk.....', '.....abwrrk.....',
+            '.....abwrrk.....', '.....abwrrk.....', '.....abwrrk.....', '.....bbwrkk.....', '.....bbwrkk.....', 'ww...abwrrk...rr', 'awwwkgGggGkkrrkr', '.awwwgGwwGgrrkr.',
+            '..aaw.kGggGk.rk.', '...a...khhk...k.', '.......hHHh.....', '.......hwhh.....', '.......hHHh.....', '.......hhHh.....', '......GgggG.....', '.......gwwg.....'] },
         yggdrasil: { grip: 15, rows: [
             '..a.a..a.a..', '.aaa.aaaaaa.', 'aabaaabbbaaa', '.aabbbwwbbaa', '..abbwwwwba.', '..aabwwwbaa.', '.a.aabwbaa.a', '..a..hbh..a.', '.....hhh....', '....hHhh....', '.....hhH....', '....hhhh....', '.....hHh....', '....hhhh....', '.....hhh....', '.....hHh....', '....hhhh....', '.....hhH....', '.....hHh....', '....GgggG...', '.....hhh....', '.....hHh....', '......g.....'] }
     };
