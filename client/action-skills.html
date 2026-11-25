@@ -157,7 +157,7 @@
     (function showSpecial() {
         const sp = AS.playerSpecial(), box = document.createElement('div');
         box.style.cssText = 'margin:6px 0;padding:6px 10px;border-radius:8px;background:#1c2542;color:#cfe0ff;font-size:.85rem';
-        box.textContent = '🔮 特殊ステータス ' + Math.round(sp).toLocaleString() + '：エネルギー上限 ' + AS.energyMaxFor(sp) + '・スキル火力 ×' + AS.skillPowerFor(sp).toFixed(1) + '・グリフ枠 ' + AS.maxEffectsFor(sp) + 'つ（特殊を上げると全部増える）';
+        box.textContent = '🔮 特殊ステータス ' + Math.round(sp).toLocaleString() + '：エネルギー上限 ' + AS.energyMaxFor(sp) + '・グリフ枠 ' + AS.maxEffectsFor(sp) + 'つ（特殊を上げると増える）。スキルは火力ではなく、通常攻撃にできない特殊な攻撃手段です（ダメージは控えめ）';
         const anchor = document.getElementById('maxEff'); const step = anchor && anchor.closest('.step');
         if (step && step.parentNode) step.parentNode.insertBefore(box, step);
     })();

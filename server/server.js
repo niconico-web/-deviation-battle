@@ -126,7 +126,7 @@ require("./socket/chat")(io);
 require("./socket/worldboss")(io);
 require("./socket/market")(io);
 require("./socket/skillai")(io);
-require("./socket/survival")(io);
+require("./managers/SurvivalRetire").run();      // サバイバルエリアは廃止。預かっていた装備・国庫・店の持ち物を、持ち主の受け取り箱へ一度だけ返す
 require("./socket/guild")(io);
 require("./socket/board")(io);
 require("./socket/pvp")(io);

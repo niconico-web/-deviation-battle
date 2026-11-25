@@ -592,6 +592,13 @@
         enemies: [E('土の眷属', '🟤', 'chaser', '#b08a5a')],
         boss: { name: 'ワールドワーム', icon: '🪱', color: '#c9a27a', patterns: ['volley'], stand: true, gate: false, gimmick: 'worm', set: 'raid_worm' },
         drops: [], bossDrops: [] });
+    //  ・襲撃ステージ（ambush: true）：ステージをクリアしたあと、一定の確率で30分だけ出現する（practice.js の finish() で抽選して、武器庫のデータ h.ambush に残す）
+    //    あらゆる方向から、いろいろな「ニンゲン」が襲ってくる。波が終わると、最後のボス「ニンゲンの王・ヒューマニア」（gimmick: 'ambush'）
+    add({ id: 'ambush', world: 0, ambush: true, maxPlayers: 4, raidMul: 1.0, name: '襲撃ステージ　ニンゲンの襲来', icon: '⚔️', ilvl: 30, bg: '#2a1a20', bg2: '#120a0e',
+        desc: 'あらゆる方向から、邪悪な「ニンゲン」が襲ってくる。兵士、魔術師、忍者、狙撃手…ニンゲンにも、いろいろな奴らがいる。最後に現れる王を倒せ。',
+        enemies: [E('暴徒', '😠', 'chaser', '#d9a07a')],
+        boss: { name: 'ニンゲンの王・ヒューマニア', icon: '👑', color: '#ffcf6a', patterns: ['volley'], stand: true, gate: false, gimmick: 'ambush' },
+        drops: [], bossDrops: [] });
     //  ・第三幕：ネクロマンスド・シャーマン（gimmick: 'necro'）。1秒に5体ペースで死霊を召喚し続ける。倒されたプレイヤーは、自分そっくりのゾンビになる
     //  ・報酬：専用の神話装備「Legend of Necromance」と、称号「魂の理を断ち切るもの」（実績）
     add({ id: 'raid_necro', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 4.0, name: '大討伐戦 第三幕　ネクロマンスド・シャーマン', icon: '💀', ilvl: 50, bg: '#1a1426', bg2: '#0a0710',
@@ -619,7 +626,7 @@
             chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46], supportstaff: [5, 15, 26, 36, 44] };
         types.forEach(ty => tiers[ty].forEach((tr, i) => {
             const id = ty + '_' + (i + 1);
-            const pool = S.filter(st => !st.pvp && !st.raid && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
+            const pool = S.filter(st => !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
             pool.forEach(st => { if (st.drops.indexOf(id) < 0) st.drops.push(id); });
             if (i === 2 && pool.length) { const bs = pool.reduce((a, b) => (Math.abs(b.ilvl - tr) < Math.abs(a.ilvl - tr) ? b : a)); if (bs.bossDrops && bs.bossDrops.indexOf(id) < 0) bs.bossDrops.push(id); }
         }));
@@ -672,7 +679,7 @@
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
     ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality', 'raid_necro', 'raid_machine'].forEach(id => { MATS[id] = W5M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality', 'raid_necro', 'raid_machine', 'ambush'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });
@@ -689,7 +696,7 @@
     //  ・weapon の攻撃力上昇は「％」なので、ステータス合計の差がそのまま強さの差になる。
     // ============================================================
     const STAT_REQ = { start: 250, w1End: 1500, w1EndIlvl: 15, final: 100000 };
-    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly && !x.rush && !x.corridor).map(x => x.ilvl));
+    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly && !x.rush && !x.corridor && !x.ambush).map(x => x.ilvl));
     function reqTotal(ilvl) {
         if (ilvl <= 1) return STAT_REQ.start;
         if (ilvl <= STAT_REQ.w1EndIlvl) return STAT_REQ.start * Math.pow(STAT_REQ.w1End / STAT_REQ.start, (ilvl - 1) / (STAT_REQ.w1EndIlvl - 1));
@@ -756,11 +763,11 @@
     };
     // フェーズN で出るボスの候補：第N世界の通常ステージのボス（ミニ・門・ギミックボス・双子ボスは除く）
     RUSH.pool = function (world) {
-        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
+        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
     };
     // 戦利品の表（ドロップ武器・ボス武器）：その世界の通常ステージの表をまとめたもの
     RUSH.lootPool = function (world) {
-        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
+        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
         const uniq = a => a.filter((v, i) => a.indexOf(v) === i);
         let drops = [], boss = [];
         L.forEach(st => { drops = drops.concat(st.drops); boss = boss.concat(st.bossDrops || []); });
