@@ -166,7 +166,7 @@
     };
     IMPL.jug_charge = function (ctx) {                   // 暴走突進：止まれず走り、触れた敵を弾き飛ばす
         const m = mk(ctx), me0 = B.me(), a = ctx.ang, DIST = 400, T = 0.5, done = new Set(); let t = 0; const trail = [];
-        me0.inv = Math.max(me0.inv || 0, T + 0.15);
+        me0.cutT = Math.max(me0.cutT || 0, T + 0.15); me0.cutMul = 0.5;      // 突進中は無敵ではなく、受けるダメージを50%カット
         add({ update(dt) {
             if (!alive()) return false; t += dt; const me = B.me();
             B.moveMe(Math.cos(a) * DIST / T * dt, Math.sin(a) * DIST / T * dt); trail.push({ x: me.x, y: me.y, t: 0.3 }); if (trail.length > 14) trail.shift();

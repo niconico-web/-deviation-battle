@@ -114,7 +114,7 @@
         // シーズンキャラは、進行状況に加えて「週ごとの解放」も必要。スタンダード専用の領域は、スタンダードキャラだけ
         const worldOpen = w => progressOpen(w) && (!SS || SS.canEnterWorld(w.id));
         const timeLocked = () => (SS && SS.isSeasonChar()) ? WORLDS.filter(w => w.id > 1 && !w.standardOnly && progressOpen(w) && !SS.canEnterWorld(w.id)) : [];
-        const worldStages = () => allStages.filter(s => !s.pvp && !s.raid && (s.world || 1) === world && gateOpen(s));
+        const worldStages = () => allStages.filter(s => !s.pvp && !s.raid && !s.ambush && (s.world || 1) === world && gateOpen(s));
         // ボスラッシュ／無限回廊：解放条件（ディメンション・キーパー討伐／ボスラッシュのクリア。無限回廊はスタンダードキャラならいつでもOK）
         const stageUnlocked = s => { const u = s.unlock; if (!u) return true; if (s.anyChar && stdChar()) return true; if (u.cleared) return (hack.cleared[u.cleared] || 0) > 0; if (u.flag) return !!hack[u.flag]; return true; };
         const RD = window.STAGE_DATA.RUSH_DIFFS, RUSH = window.STAGE_DATA.RUSH;
@@ -426,7 +426,14 @@
               '・🛡 攻撃を当てると<b style="color:#7fd8ff">自動でバリア</b>が出て、燃料を少し使う。バリア中はダメージが通らない<br>' +
               '・基本は空にいる。<b>遠距離武器</b>は地上から当たる。<b>近接武器</b>は、フィールドの<b style="color:#d8f6ff">⬆ 上昇気流</b>に乗って空へ飛べば届く<br>' +
               '・レーザーの掃射と、大量のミサイルに注意！ ミサイルは着弾の予告が出る<br>' +
-              '・ボスの強さは不壊の悪魔の約6倍。人数が多いほどHPも増えます' }
+              '・ボスの強さは不壊の悪魔の約6倍。人数が多いほどHPも増えます' },
+        { id: 'raid_velzark', act: '第六幕', name: '魔装合体ヴェルスザーク', color: '#ffd86a', mythic: 'legend_fusion', weapon: 'Legend of Fusion', title: '融合を切り裂くもの',
+          body: '最初は、<b style="color:#bfe6ff">天使「ヴェルス」</b>と<b style="color:#ff4a5a">悪魔「ザーク」</b>の2体が相手です。<br>' +
+              '・😇 <b>ヴェルス</b>：不壊の悪魔のような、ビームの雨。距離をとって撃ってくる<br>' +
+              '・😈 <b>ザーク</b>：ボスの中でも初めての<b>超インファイト</b>。猛スピードで近づいて、殴る・叩きつける・突進・跳ぶ<br>' +
+              '・⚠ <b>どちらかが倒れると、2体が合体</b>して「魔装合体ヴェルスザーク」になる。<b>合体後はHPが満タン</b>から！<br>' +
+              '・⚡ 合体後は<b style="color:#ffe27a">瞬間移動</b>で、一瞬で近くに詰めてくる。<b>遠くにいる</b>とヴェルスの技か瞬間移動、<b>近くにいる</b>とザークの技。どの技も大幅に強化されている<br>' +
+              '・ボスの強さは不壊の悪魔の約7倍。人数が多いほどHPも増えます' }
     ];
     let RAID_ID = RAIDS[0].id;
     function launchRaid(mode, roomId) {
@@ -443,13 +450,13 @@
         const m = modal('🐉 大討伐戦（最大20人）', () => { if (sock) sock.off('stage:rooms', onRooms); });
         if (sock) { sock.on('stage:rooms', onRooms); sock.on('connect', refresh); }
         function refresh() { if (sock && sock.connected) sock.emit('stage:list', { stageId: RAID_ID }); }
-        function owned() { try { return HW.load().weapons.some(w => w && w.mythicId === cur.mythic); } catch (e) { return false; } }
+        function owned() { if (!cur.mythic) return false; try { return HW.load().weapons.some(w => w && w.mythicId === cur.mythic); } catch (e) { return false; } }
         function draw() {
             m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
                 '<div style="margin-bottom:6px">' + RAIDS.map(r => '<button type="button" class="sbl-btn ' + (r.id === cur.id ? '' : 'gray') + '" data-act="' + r.id + '" style="margin:0 4px 4px 0">' + r.act + '　' + esc(r.name.split(' ')[0]) + '</button>').join('') + '</div>' +
                 '<div class="sbl-card" style="border-color:' + cur.color + '"><div style="font-size:1.1rem;font-weight:bold">' + cur.act + '　' + esc(cur.name) + '</div>' +
                 '<div style="font-size:.85rem;line-height:1.6;margin-top:4px;color:#e4d4ff">' + cur.body + '</div>' +
-                '<div style="margin-top:6px;font-size:.85rem;color:#ffd36a">報酬：専用の神話装備「' + cur.weapon + '」' + (owned() ? '（入手済み）' : '') + '／称号「' + cur.title + '」</div></div>' +
+                '<div style="margin-top:6px;font-size:.85rem;color:#ffd36a">' + (cur.weapon ? '報酬：専用の神話装備「' + cur.weapon + '」' + (owned() ? '（入手済み）' : '') + '／称号「' + cur.title + '」' : '報酬：通常の大討伐戦の報酬（専用装備・称号は準備中）') + '</div></div>' +
                 '<div style="margin-top:8px"><button class="sbl-btn orange" id="rdQuick">ランダム参加</button><button class="sbl-btn" id="rdCreate">部屋を作る</button>' +
                 '<button class="sbl-btn gray" id="rdCode">部屋コードで参加</button><button class="sbl-btn gray" id="rdSolo">1人で挑む</button></div>' +
                 '<div class="sbl-sec">募集中の部屋</div>' +
@@ -465,6 +472,67 @@
         draw(); refresh();
     }
     window.openRaidLobby = openRaidLobby;
+
+    // ============================================================
+    // 襲撃ステージ：ステージをクリアしたあと、確率で30分だけ出現する（抽選は practice.js の finish()。出現した期限は、武器庫のデータ ambush.until に残る）
+    //  ・出現中は、画面の右上に「⚔ 襲撃ステージ 残り○:○○」が出る。タップすると入り口が開く。王を倒すと閉じる（負けたときは期限まで何度でも挑める）
+    // ============================================================
+    let ambUntil = 0, ambRead = 0;
+    function ambushLeft(force) {
+        const now = Date.now();
+        if (force || now - ambRead > 8000) { ambRead = now; try { const a = HW.load().ambush; ambUntil = (a && a.until) || 0; } catch (e) { ambUntil = 0; } }
+        return Math.max(0, ambUntil - now);
+    }
+    function ambFmt(ms) { const t = Math.ceil(ms / 1000); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); }
+    function launchAmbush(mode, roomId) {
+        if (!ambushLeft(true)) { alert('いまは、襲撃は起きていません。（ステージをクリアすると、確率で現れます）'); return; }
+        if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
+        if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();
+        try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: 'ambush', mode: mode, roomId: roomId || null, diff: 0, at: Date.now() })); } catch (e) {}
+        location.href = 'lesson.html';
+    }
+    function openAmbushLobby() {
+        if (!window.STAGE_DATA || !window.HW) { alert('データの読み込みに失敗しました'); return; }
+        if (!ambushLeft(true)) { alert('いまは、襲撃は起きていません。（ステージをクリアすると、確率で現れます）'); return; }
+        let rooms = [], tm = null;
+        const sock = getSock();
+        const onRooms = list => { rooms = (list || []).filter(r => r.stageId === 'ambush'); draw(); };
+        const m = modal('⚔ 襲撃ステージ', () => { if (tm) clearInterval(tm); if (sock) sock.off('stage:rooms', onRooms); });
+        if (sock) { sock.on('stage:rooms', onRooms); sock.on('connect', refresh); }
+        function refresh() { if (sock && sock.connected) sock.emit('stage:list', { stageId: 'ambush' }); }
+        function draw() {
+            m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%">' +
+                '<div class="sbl-card" style="border-color:#c0394d"><div style="font-size:1.1rem;font-weight:bold">⚔ ニンゲンの襲来　<span id="amLeft" style="color:#ffd36a">残り ' + ambFmt(ambushLeft()) + '</span></div>' +
+                '<div style="font-size:.85rem;line-height:1.6;margin-top:4px;color:#ffd9d9">邪悪な「ニンゲン」が、<b>あらゆる方向</b>から襲ってきます。<br>' +
+                '・6つの波。進むほど、来る方向も数も種類も増える<br>' +
+                '・ニンゲンにも、いろいろな奴らがいる：暴徒・槍兵・弓兵・盾兵・爆弾魔・衛生兵（仲間を治す）・魔術師・狂戦士・忍者（背後に回る）・狙撃手・火炎兵・指揮官（増援を呼ぶ）<br>' +
+                '・波のあとに、最後のボス<b style="color:#ffcf6a">👑ニンゲンの王</b>が現れる。特別な動きをする<br>' +
+                '・王を倒すと、特別な報酬（レジェンダリー確定の装備など）と称号。倒すと、この襲撃は閉じます（負けたときは、期限まで何度でも挑めます）</div></div>' +
+                '<div style="margin-top:8px"><button class="sbl-btn orange" id="amQuick">ランダム参加</button><button class="sbl-btn" id="amCreate">部屋を作る</button>' +
+                '<button class="sbl-btn gray" id="amCode">部屋コードで参加</button><button class="sbl-btn gray" id="amSolo">1人で挑む</button></div>' +
+                '<div class="sbl-sec">募集中の部屋</div>' +
+                (rooms.length ? rooms.map(r => '<div class="sbl-card" style="display:flex;justify-content:space-between;align-items:center"><span>' + esc(r.members.map(x => x.name).join('、')) + '　(' + r.members.length + '/' + r.max + ')　[' + esc(r.id) + ']</span><button class="sbl-btn" data-room="' + esc(r.id) + '">参加</button></div>').join('') : '<div style="color:#9fb3d9;font-size:.85rem">いまは、募集中の部屋はありません。</div>') +
+                '</div>';
+            m.body.querySelector('#amQuick').addEventListener('click', () => launchAmbush('quick'));
+            m.body.querySelector('#amCreate').addEventListener('click', () => launchAmbush('create'));
+            m.body.querySelector('#amSolo').addEventListener('click', () => launchAmbush('solo'));
+            m.body.querySelector('#amCode').addEventListener('click', () => { const c = (prompt('部屋コード（4文字）を入力してください') || '').trim().toUpperCase(); if (c) launchAmbush('join', c); });
+            m.body.querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', () => launchAmbush('join', b.dataset.room)));
+        }
+        tm = setInterval(() => { const el = m.body.querySelector('#amLeft'); if (el) el.textContent = '残り ' + ambFmt(ambushLeft()); }, 1000);
+        draw(); refresh();
+    }
+    window.openAmbushLobby = openAmbushLobby;
+    (function ambushPill() {      // 出現中だけ、町の画面の右上に出る入り口
+        if (!/index\.html$|\/$/.test(location.pathname) && !document.getElementById('raidBtn')) return;
+        const pill = document.createElement('div');
+        pill.id = 'ambushPill';
+        pill.style.cssText = 'position:fixed;top:calc(max(8px,env(safe-area-inset-top)) + 44px);right:8px;z-index:60;display:none;cursor:pointer;background:#7a1d2a;color:#fff;border:2px solid #ffcf6a;border-radius:18px;padding:5px 12px;font-weight:bold;font-size:.82rem;box-shadow:0 0 12px rgba(255,80,80,.6);animation:ambPulse 1.2s infinite alternate';
+        const st = document.createElement('style'); st.textContent = '@keyframes ambPulse{from{transform:scale(1)}to{transform:scale(1.07)}}'; document.head.appendChild(st);
+        pill.addEventListener('click', openAmbushLobby);
+        const add = () => { if (!pill.parentNode && document.body) document.body.appendChild(pill); };
+        setInterval(() => { add(); const l = ambushLeft(); pill.style.display = l > 0 ? 'block' : 'none'; if (l > 0) pill.textContent = '⚔ 襲撃ステージ　残り ' + ambFmt(l); }, 1000);
+    })();
     window.SBLobbyUI = { modal: modal, esc: esc };      // オリジナル武器の画面（orig-weapon-ui.js）が、同じ見た目の窓を使えるように
     document.addEventListener('click', function (e) {
         const b = e.target && e.target.closest && e.target.closest('#raidBtn');

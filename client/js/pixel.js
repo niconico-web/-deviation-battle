@@ -107,6 +107,7 @@
         }
         ctx.save(); ctx.imageSmoothingEnabled = false; if (o.alpha != null) ctx.globalAlpha = o.alpha;
         ctx.translate(Math.round(x + ox), Math.round(y + oy)); ctx.rotate(rot);
+        const szm = o.size > 0 ? o.size : 1; if (szm !== 1) ctx.scale(szm, szm);      // オリジナル武器の大きさ（持ち手を中心に拡大・縮小）
         if (sp.c.width !== sp.w) ctx.imageSmoothingEnabled = true;      // 細かい絵をたたんで表示するときは、なめらかに縮める
         ctx.drawImage(sp.c, -Math.round(sp.w / 2), -sp.grip, sp.w, sp.h);
         if (sp.orbiters) {      // 薙刀オルビット：刃のまわりを、光の玉が回る
@@ -118,7 +119,7 @@
         ctx.restore();
         if (o.glint) {      // レジェンド・神話：ときどききらっと光る
             const t = ((o.now || performance.now()) / 1000) % 1.6;
-            if (t < 0.22) { const L = sp.h - sp.grip, d = (0.35 + 0.5 * (t / 0.22)) * L; ctx.save(); ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 1 - t / 0.22; const gx = x + Math.cos(a) * d, gy = y + Math.sin(a) * d; ctx.fillRect(Math.round(gx) - 1, Math.round(gy) - 5, 2, 10); ctx.fillRect(Math.round(gx) - 5, Math.round(gy) - 1, 10, 2); ctx.restore(); }
+            if (t < 0.22) { const L = (sp.h - sp.grip) * (o.size > 0 ? o.size : 1), d = (0.35 + 0.5 * (t / 0.22)) * L; ctx.save(); ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 1 - t / 0.22; const gx = x + Math.cos(a) * d, gy = y + Math.sin(a) * d; ctx.fillRect(Math.round(gx) - 1, Math.round(gy) - 5, 2, 10); ctx.fillRect(Math.round(gx) - 5, Math.round(gy) - 1, 10, 2); ctx.restore(); }
         }
     }
     // 敵：中心(x,y)。r は当たり判定の半径（これに合わせて整数倍で拡大）。faceLeft で反転
