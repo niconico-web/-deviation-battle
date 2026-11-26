@@ -52,7 +52,7 @@
           passives: [{ n: '鉄の皮膚', e: { defPct: 0.05 } }, { n: '重装甲', e: { dr: 0.03, hpPct: 0.04 } }, { n: '不落', e: { defPct: 0.06, dmgTaken: -0.04 } }],
           forms: [
               { key: 'jug_wall', name: '城壁展開', icon: '🧱', cost: 28, cd: 10, dmg: 0.6, desc: '前方に壁を立てる。敵の弾を止める。' },
-              { key: 'jug_charge', name: '暴走突進', icon: '🐂', cost: 32, cd: 8, dmg: 1.0, desc: '止まらずに走り抜ける。触れた敵を弾き飛ばす。' },
+              { key: 'jug_charge', name: '暴走突進', icon: '🐂', cost: 32, cd: 8, dmg: 1.0, desc: '止まらずに走り抜ける。触れた敵を弾き飛ばす。突進中は受けるダメージが50%カットされる。' },
               { key: 'jug_chain', name: '大地の鎖', icon: '⛓️', cost: 30, cd: 9, dmg: 0.8, desc: '地面から鎖が伸びて、敵を縫い止める。' }],
           glyphs: [
               { key: 'cg_jug_1', name: '鉄壁の誓い', icon: '🛡️', tpl: 'barrier', pct: 0.06, desc: '命中するたびにバリアを得る（最大HPの6%）。' },

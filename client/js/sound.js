@@ -183,7 +183,7 @@
         'index.html': 'town', 'online.html': 'town', 'action-skills.html': 'town', 'help.html': 'town',
         'lesson.html': 'stage', 'stage-loader.html': 'stage', 'stage-backup.html': 'stage',
         'battle.html': 'battle', 'action-battle.html': 'battle',
-        'survival.html': 'dungeon', 'dungeon-ui.html': 'dungeon',
+        'dungeon-ui.html': 'dungeon',
         'result.html': 'result'
     };
     function defaultBgm() {
