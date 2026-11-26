@@ -485,7 +485,7 @@
 
     // ---- 第五世界のラスボス（ディメンション・キーパー）----
     add({
-        id: 'dimension_end', world: 5, bossOnly: true, power: { hp: 4.4, dmg: 2.5, spd: 1.0 }, reqOverride: 130000,
+        id: 'dimension_end', world: 5, bossOnly: true, power: { hp: 4.4, dmg: 2.5, spd: 1.0 }, reqOverride: 390000,
         name: '次元の終点', icon: '🌀', ilvl: 46, bg: '#12061f', bg2: '#08030f',
         desc: 'すべての次元が行き着く、世界の一番外側。次元の番人ディメンション・キーパーは6つの核に守られている。核は放射状の技をスキルで跳ね返すと砕け、すべて砕くと門の主としての真の姿を現す。',
         enemies: [E('次元の影', '👤', 'chaser', '#d0a0ff')],
@@ -503,7 +503,7 @@
     //    エクストリームは、ディメンション・キーパーをナイトメアでクリアしていないと入れない
     // ============================================================
     add({
-        id: 'boss_rush', world: 5, rush: true, bossOnly: true, power: { hp: 1, dmg: 1, spd: 1 }, reqOverride: 22000,
+        id: 'boss_rush', world: 5, rush: true, bossOnly: true, power: { hp: 1, dmg: 1, spd: 1 }, reqOverride: 40000,
         name: 'ボスラッシュ', icon: '🏆', ilvl: 46, bg: '#1c1030', bg2: '#10081e',
         unlock: { cleared: 'dimension_end', text: 'ディメンション・キーパーを倒すと解放されます' },
         desc: '歴代のボスたちが、第四世界のボス並の強さで蘇る。フェーズ1〜5では、その世界のボス4体が一気に襲いかかる。Finalは、強化されたディメンション・キーパー。',
@@ -592,6 +592,13 @@
         enemies: [E('土の眷属', '🟤', 'chaser', '#b08a5a')],
         boss: { name: 'ワールドワーム', icon: '🪱', color: '#c9a27a', patterns: ['volley'], stand: true, gate: false, gimmick: 'worm', set: 'raid_worm' },
         drops: [], bossDrops: [] });
+    //  ・襲撃ステージ（ambush: true）：ステージをクリアしたあと、一定の確率で30分だけ出現する（practice.js の finish() で抽選して、武器庫のデータ h.ambush に残す）
+    //    あらゆる方向から、いろいろな「ニンゲン」が襲ってくる。波が終わると、最後のボス「ニンゲンの王・ヒューマニア」（gimmick: 'ambush'）
+    add({ id: 'ambush', world: 0, ambush: true, maxPlayers: 4, raidMul: 1.0, name: '襲撃ステージ　ニンゲンの襲来', icon: '⚔️', ilvl: 30, bg: '#2a1a20', bg2: '#120a0e',
+        desc: 'あらゆる方向から、邪悪な「ニンゲン」が襲ってくる。兵士、魔術師、忍者、狙撃手…ニンゲンにも、いろいろな奴らがいる。最後に現れる王を倒せ。',
+        enemies: [E('暴徒', '😠', 'chaser', '#d9a07a')],
+        boss: { name: 'ニンゲンの王・ヒューマニア', icon: '👑', color: '#ffcf6a', patterns: ['volley'], stand: true, gate: false, gimmick: 'ambush' },
+        drops: [], bossDrops: [] });
     //  ・第三幕：ネクロマンスド・シャーマン（gimmick: 'necro'）。1秒に5体ペースで死霊を召喚し続ける。倒されたプレイヤーは、自分そっくりのゾンビになる
     //  ・報酬：専用の神話装備「Legend of Necromance」と、称号「魂の理を断ち切るもの」（実績）
     add({ id: 'raid_necro', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 4.0, name: '大討伐戦 第三幕　ネクロマンスド・シャーマン', icon: '💀', ilvl: 50, bg: '#1a1426', bg2: '#0a0710',
@@ -606,6 +613,18 @@
         enemies: [E('機兵', '🤖', 'chaser', '#7d8799')],
         boss: { name: '機械真王・リレインバー', icon: '🤖', color: '#7fd8ff', patterns: ['volley'], stand: true, gate: false, gimmick: 'machine' },
         drops: [], bossDrops: [] });
+    //  ・第六幕：魔装合体 ヴェルスザーク（gimmick: 'velzark'）。最初は天使「ヴェルス」（不壊の悪魔のようなビーム）と悪魔「ザーク」（超インファイト）の2体。
+    //  ・報酬：専用の神話装備「Legend of Fusion」と、称号「融合を切り裂くもの」（実績）
+    //    どちらかが倒れると「魔装合体 ヴェルスザーク」に合体する（HPは満タンから）。合体後は瞬間移動で詰めてくる。遠い→ヴェルスの技／瞬間移動、近い→ザークの技
+    add({ id: 'raid_velzark', world: 0, raid: true, maxPlayers: 20, bossOnly: true, raidMul: 7.0, name: '大討伐戦 第六幕　魔装合体ヴェルスザーク', icon: '👼', ilvl: 50, bg: '#241a30', bg2: '#0a0814',
+        desc: '天使「ヴェルス」と悪魔「ザーク」。どちらかが倒れると、2体は「魔装合体ヴェルスザーク」になる。合体後はHP満タン、瞬間移動で一瞬で詰めてくる。遠くにいればヴェルスの技、近くにいればザークの技。',
+        enemies: [E('堕天の眷属', '👼', 'chaser', '#ffe9a0')],
+        boss: { name: '魔装合体 ヴェルスザーク', icon: '👼', color: '#ffd86a', patterns: ['volley'], stand: false, gate: false, gimmick: 'velzark', set: 'raid_vz_fusion' },
+        bosses: [
+            { name: '天使 ヴェルス', icon: '😇', color: '#bfe6ff', patterns: ['volley'], set: 'vz_velus', stand: true, hp: 0.45, dx: -280, vz: 'v' },
+            { name: '悪魔 ザーク', icon: '😈', color: '#ff4a5a', patterns: ['slam'], set: 'vz_zark', stand: false, hp: 0.45, dx: 280, vz: 'z' }
+        ],
+        drops: [], bossDrops: [] });
     add({ id: 'raid_duality', world: 0, raid: true, maxPlayers: 20, bossOnly: true, name: '大討伐戦 第四幕　双界の覇竜', icon: '🐉', ilvl: 46, bg: '#2a1426', bg2: '#101a34',
         desc: '最大20人で挑む大討伐戦。戦場は「赤い炎のエリア」と「青い氷のエリア」に割れている。色の通りに動け。',
         enemies: [E('双界の眷属', '🔥', 'chaser', '#ff7a5a')],
@@ -619,7 +638,7 @@
             chainsaw: [32, 35, 38], flamethrower: [32, 35, 38], mortar: [33, 36, 38], prism: [40, 43, 46], comet: [40, 43, 46], voidblade: [41, 44, 46], supportstaff: [5, 15, 26, 36, 44] };
         types.forEach(ty => tiers[ty].forEach((tr, i) => {
             const id = ty + '_' + (i + 1);
-            const pool = S.filter(st => !st.pvp && !st.raid && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
+            const pool = S.filter(st => !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.gateTo && !st.mini && !st.rush && !st.corridor && st.drops && Math.abs(st.ilvl - tr) <= 3);
             pool.forEach(st => { if (st.drops.indexOf(id) < 0) st.drops.push(id); });
             if (i === 2 && pool.length) { const bs = pool.reduce((a, b) => (Math.abs(b.ilvl - tr) < Math.abs(a.ilvl - tr) ? b : a)); if (bs.bossDrops && bs.bossDrops.indexOf(id) < 0) bs.bossDrops.push(id); }
         }));
@@ -672,7 +691,7 @@
     const W4M = M([['iron_ore', .30], ['silver_ore', .22], ['magic_powder', .20], ['void_essence', .2]], [['mithril_ore', .5], ['elemental_core', .45], ['void_essence', .5]], [['mithril_ore', 1], ['elemental_core', .8], ['abyss_gem', .5], ['primeval_core', .3]]);
     const W5M = M([['void_essence', .3], ['star_fragment', .25], ['dark_essence', .2], ['abyss_gem', .12]], [['abyss_gem', .5], ['chaos_orb', .4], ['void_essence', .6]], [['abyss_gem', 1], ['chaos_orb', .9], ['dragon_soul', .5], ['primeval_core', .5]]);
     ['steam_bridge', 'gear_cathedral', 'cyber_corridor', 'steel_arena', 'zero_foundry', 'boiler_heart', 'grave_of_gears', 'mech_throne'].forEach(id => { MATS[id] = W4M; });
-    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality', 'raid_necro', 'raid_machine'].forEach(id => { MATS[id] = W5M; });
+    ['stardust_graveyard', 'galaxy_vortex', 'event_horizon', 'dying_star', 'void_sea', 'gravity_well', 'olympus', 'void_throne', 'dimension_end', 'raid_duality', 'raid_necro', 'raid_machine', 'raid_velzark', 'ambush'].forEach(id => { MATS[id] = W5M; });
     MATS.gate_world4 = { mob: [], elite: [], boss: [['void_essence', 1], ['mithril_ore', .9], ['abyss_gem', .8], ['chaos_orb', .6], ['dragon_soul', .5], ['primeval_core', .5]] };
     MATS.gate_world5 = { mob: [], elite: [], boss: [['void_essence', 1], ['abyss_gem', 1], ['chaos_orb', .8], ['dragon_soul', .6], ['primeval_core', .6]] };
     ['std_gate', 'std_time', 'std_cause', 'std_loop', 'eternal_throne'].forEach(id => { MATS[id] = MATS.god_throne; });
@@ -684,12 +703,12 @@
     // 推奨ステータス合計（ステージの強さの基準）
     //  ・敵のHPとダメージは「そのステージを遊ぶ人のステータス合計がこのくらい」という想定で決まる。
     //  ・第一世界の最初のステージは従来のまま（250 = 初期の持ち点）。第一世界の最終ステージで約1500、
-    //    いちばん後ろの通常ステージ（最終世界のラスボス）で 100000 になるよう、ステージが進むごとに指数的に上がる。
+    //    いちばん後ろの通常ステージ（最終世界のラスボス）で 300000（以前は100000）になるよう、ステージが進むごとに指数的に上がる。
     //  ・数字を変えたいときは STAT_REQ だけ触ればよい。世界を増やしても、いちばん後ろのステージが自動的に final になる。
     //  ・weapon の攻撃力上昇は「％」なので、ステータス合計の差がそのまま強さの差になる。
     // ============================================================
-    const STAT_REQ = { start: 250, w1End: 1500, w1EndIlvl: 15, final: 100000 };
-    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly && !x.rush && !x.corridor).map(x => x.ilvl));
+    const STAT_REQ = { start: 250, w1End: 1500, w1EndIlvl: 15, final: 300000 };
+    const ILVL_MAX = Math.max.apply(null, S.filter(x => !x.standardOnly && !x.rush && !x.corridor && !x.ambush).map(x => x.ilvl));
     function reqTotal(ilvl) {
         if (ilvl <= 1) return STAT_REQ.start;
         if (ilvl <= STAT_REQ.w1EndIlvl) return STAT_REQ.start * Math.pow(STAT_REQ.w1End / STAT_REQ.start, (ilvl - 1) / (STAT_REQ.w1EndIlvl - 1));
@@ -720,11 +739,11 @@
     //  healRed : 回復系の効果（回復スキル・吸血・自然回復・撃破時回復・支援の回復など）がこの割合だけ弱くなる
     const DIFFS = [
         { name: 'ノーマル',   hp: 1.0, dmg: 1.0, spd: 1.0,  elite: 0.10, luck: 0.0, healRed: 0,    color: '#3a6ee8', note: '標準。装備を整えながら進める難易度。' },
-        { name: 'ハード',     hp: 2.2, dmg: 1.6, spd: 1.08, elite: 0.16, luck: 0.7, healRed: 0,    color: '#d9812a', note: '敵が硬く強い。高レア武器が出やすい。' },
-        { name: 'ナイトメア', hp: 4.5, dmg: 2.4, spd: 1.16, elite: 0.24, luck: 1.6, healRed: 0.5,  color: '#b03a3a', note: '被弾が痛い上級者向け。伝説武器を狙える。回復系の効果（回復スキル・吸血・自然回復など）が50%低下。' },
+        { name: 'ハード',     hp: 3.0, dmg: 2.0, spd: 1.10, elite: 0.18, luck: 0.8, healRed: 0,    color: '#d9812a', note: '敵が硬く強い（ノーマルの約3倍のHP・2倍の攻撃）。高レア武器が出やすい。' },
+        { name: 'ナイトメア', hp: 9,   dmg: 3.5, spd: 1.20, elite: 0.28, luck: 2.0, healRed: 0.5,  color: '#b03a3a', note: '被弾が痛い上級者向け（ハードのさらに約3倍のHP）。伝説武器を狙える。回復系の効果（回復スキル・吸血・自然回復など）が50%低下。' },
         // ---- ここから下は、さらに上の難易度。ひとつ下の難易度で、そのステージをクリアすると解放される ----
-        { name: 'エクストリーム', hp: 9,  dmg: 3.6, spd: 1.2,  elite: 0.30, luck: 2.6, healRed: 0.75, color: '#8a3ad0', note: '一撃が致命傷になる超高難度。ナイトメアをクリアすると解放。伝説武器がさらに出やすい。回復系の効果が75%低下。' },
-        { name: 'インフェルノ',   hp: 18, dmg: 5.5, spd: 1.26, elite: 0.38, luck: 3.8, healRed: 0.9,  color: '#e8402a', note: '最上位の難易度。ほぼ全ての攻撃を避けきる腕前と、完成した装備が必要。エクストリームをクリアすると解放。回復系の効果が90%低下。' }
+        { name: 'エクストリーム', hp: 27, dmg: 6,   spd: 1.28, elite: 0.38, luck: 3.6, healRed: 0.75, color: '#8a3ad0', note: '一撃が致命傷になる超高難度。ナイトメアをクリアすると解放。伝説武器がさらに出やすい。回復系の効果が75%低下。' },
+        { name: 'インフェルノ',   hp: 80, dmg: 9,   spd: 1.35, elite: 0.48, luck: 5.5, healRed: 0.9,  color: '#e8402a', note: '最上位の難易度。ほぼ全ての攻撃を避けきる腕前と、完成した装備が必要。エクストリームをクリアすると解放。回復系の効果が90%低下。' }
     ];
 
     // ボスラッシュの難易度（イージー／ハード／ナイトメア／エクストリーム）
@@ -745,22 +764,22 @@
         unlockStage: 'dimension_end', extremeNeed: { stageId: 'dimension_end', diff: 2 },
         perBossHp: 0.42, perBossDmg: 0.8, bossCount: 4, intermission: 6,
         phases: [
-            { n: 1, label: 'フェーズ1', world: 1, ilvl: 34, req: 22000,  pw: { hp: 2.7, dmg: 1.9, spd: 1.14 }, lootWorld: 4 },
-            { n: 2, label: 'フェーズ2', world: 2, ilvl: 38, req: 50000,  pw: { hp: 3.1, dmg: 2.1, spd: 1.16 }, lootWorld: 5 },
-            { n: 3, label: 'フェーズ3', world: 3, ilvl: 42, req: 70000,  pw: { hp: 3.4, dmg: 2.2, spd: 1.17 }, lootWorld: 5 },
-            { n: 4, label: 'フェーズ4', world: 4, ilvl: 44, req: 90000,  pw: { hp: 3.6, dmg: 2.3, spd: 1.18 }, lootWorld: 5 },
-            { n: 5, label: 'フェーズ5', world: 5, ilvl: 46, req: 115000, pw: { hp: 3.9, dmg: 2.4, spd: 1.18 }, lootWorld: 5 },
-            { n: 6, label: 'Final',     world: 5, ilvl: 46, req: 160000, pw: { hp: 4.6, dmg: 2.6, spd: 1.0 },  lootWorld: 5, final: true }
+            { n: 1, label: 'フェーズ1', world: 1, ilvl: 34, req: 40000,  pw: { hp: 2.7, dmg: 1.9, spd: 1.14 }, lootWorld: 4 },
+            { n: 2, label: 'フェーズ2', world: 2, ilvl: 38, req: 103000, pw: { hp: 3.1, dmg: 2.1, spd: 1.16 }, lootWorld: 5 },
+            { n: 3, label: 'フェーズ3', world: 3, ilvl: 42, req: 163000, pw: { hp: 3.4, dmg: 2.2, spd: 1.17 }, lootWorld: 5 },
+            { n: 4, label: 'フェーズ4', world: 4, ilvl: 44, req: 224000, pw: { hp: 3.6, dmg: 2.3, spd: 1.18 }, lootWorld: 5 },
+            { n: 5, label: 'フェーズ5', world: 5, ilvl: 46, req: 305000, pw: { hp: 3.9, dmg: 2.4, spd: 1.18 }, lootWorld: 5 },
+            { n: 6, label: 'Final',     world: 5, ilvl: 46, req: 480000, pw: { hp: 4.6, dmg: 2.6, spd: 1.0 },  lootWorld: 5, final: true }
         ],
         finalBoss: { name: 'ディメンション・キーパー・極', icon: '🌀', color: '#f0b0ff', set: 'dk_final', stand: true, gate: true }
     };
     // フェーズN で出るボスの候補：第N世界の通常ステージのボス（ミニ・門・ギミックボス・双子ボスは除く）
     RUSH.pool = function (world) {
-        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
+        return S.filter(st => (st.world || 1) === world && !st.mini && !st.gateTo && !st.bossOnly && !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.rush && !st.corridor && st.boss && !st.boss.gimmick && !st.bosses);
     };
     // 戦利品の表（ドロップ武器・ボス武器）：その世界の通常ステージの表をまとめたもの
     RUSH.lootPool = function (world) {
-        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.raid && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
+        const L = S.filter(st => (st.world || 1) === world && !st.mini && !st.pvp && !st.raid && !st.ambush && !st.standardOnly && !st.rush && !st.corridor && st.drops && st.drops.length);
         const uniq = a => a.filter((v, i) => a.indexOf(v) === i);
         let drops = [], boss = [];
         L.forEach(st => { drops = drops.concat(st.drops); boss = boss.concat(st.bossDrops || []); });

@@ -39,10 +39,10 @@
         stun:        { name: "麻痺", icon: "⚡", cost: 20, desc: "敵を1秒間行動不能にする" },
         poison:      { name: "毒", icon: "🧪", cost: 12, desc: "4秒間、燃焼とは別枠の継続ダメージ" },
         weaken:      { name: "弱体", icon: "🔻", cost: 12, desc: "3秒間、敵の攻撃力を下げる" },
-        shatter:     { name: "防御破砕", icon: "🛡️‍💥", cost: 14, desc: "そのヒットだけ敵の防御力を無視しやすくする" },
+        shatter:     { name: "防御破砕", icon: "🛡️‍💥", cost: 14, desc: "そのヒットだけ敵の防御力を無視しやすくする（威力+15%）" },
         blind:       { name: "目眩まし", icon: "💫", cost: 10, desc: "2.5秒間、敵の攻撃を外れやすくする" },
         petrify:     { name: "石化", icon: "🗿", cost: 26, desc: "敵を1.6秒間、完全に行動不能にする" },
-        explosion:   { name: "爆発", icon: "💥", cost: 16, desc: "命中時に追加の爆発ダメージ" },
+        explosion:   { name: "爆発", icon: "💥", cost: 16, desc: "命中時に追加の爆発ダメージ（+20%）" },
         frostbite:   { name: "凍傷", icon: "🥶", cost: 18, desc: "継続ダメージ＋移動速度低下を同時に与える" },
         soulburn:    { name: "魂焦がし", icon: "👻🔥", cost: 22, desc: "燃焼よりずっと強い継続ダメージ" },
         voidrend:    { name: "虚空裂傷", icon: "🌌", cost: 24, desc: "吸収よりずっと多くHPを吸い取る" },
@@ -51,7 +51,7 @@
         fortify:     { name: "鉄壁の加護", icon: "🛡️", self: true, cost: 10, desc: "3秒間、自分の防御力が上がる" },
         haste:       { name: "疾風の加護", icon: "🌬️", self: true, cost: 10, desc: "3秒間、自分の移動速度が上がる" },
         regenerate:  { name: "再生の加護", icon: "💚", self: true, cost: 14, desc: "4秒間、自分のHPが少しずつ回復する" },
-        empower:     { name: "剛力の加護", icon: "💪", self: true, cost: 14, desc: "3秒間、自分の攻撃力が上がる" },
+        empower:     { name: "剛力の加護", icon: "💪", self: true, cost: 14, desc: "3秒間、自分の攻撃力が少し上がる（+15%）" },
         barrier:     { name: "障壁の加護", icon: "🔵", self: true, cost: 18, desc: "一定量のダメージを肩代わりするバリアを張る" }
     };
 
@@ -59,7 +59,7 @@
     const AUGMENTS = {
         multi:   { name: "増殖", icon: "✚", cost: 15, stack: 3, forms: [], desc: "本数・発数・回数を+1（レーザーが1本増える等）" },
         extend:  { name: "拡大", icon: "⤢", cost: 10, stack: 3, forms: [], desc: "射程・幅・半径が大きくなる" },
-        amplify: { name: "増幅", icon: "⬆", cost: 10, stack: 3, forms: [], desc: "威力が+25%" },
+        amplify: { name: "増幅", icon: "⬆", cost: 10, stack: 3, forms: [], desc: "威力が+10%" },
         pierce:  { name: "貫通", icon: "➤", cost: 10, stack: 2, forms: ["projectile"], desc: "弾が敵を貫通する" },
         swift:   { name: "迅速", icon: "≫", cost: 5,  stack: 2, forms: [], desc: "弾速上昇＆クールタイム短縮" }
     };
@@ -113,8 +113,15 @@
         return MAX_EFFECTS;
     }
     function maxEffects() { return maxEffectsFor(playerSpecial()); }
-    // 特殊ステータスによるスキル火力の倍率（特殊300で2倍。特殊を上げるほどスキルが強くなる）
-    function skillPowerFor(special) { return 1 + special / 300; }
+    // ★スキルは「火力増強」ではなく「特殊な攻撃手段」（範囲・状態異常・移動・設置など、通常攻撃にできないことをするもの）。
+    //   ダメージは、通常攻撃を基準にした控えめな値にそろえる。特殊ステータス（以前の1/3）・「スキル威力+%」で火力が伸びすぎないようにしてある。
+    //   SKILL_DMG_RATIO：スキルの与ダメージ全体にかかる倍率（下げるほど、スキルは火力ではなく効果が持ち味になる）
+    //   SKILL_PCT_RATE：装備・職業の「スキル威力+x%」が実際に効く割合（x%の25%だけ）。上乗せの上限は +50%
+    const SKILL_DMG_RATIO = 0.45;
+    const SKILL_PCT_RATE = 0.25, SKILL_PCT_CAP = 0.5;
+    function skillDamageMul(skillPct) { return SKILL_DMG_RATIO * (1 + Math.min(SKILL_PCT_CAP, Math.max(0, Number(skillPct) || 0) * SKILL_PCT_RATE)); }
+    // 特殊ステータスによるスキル火力の倍率：以前（1 + 特殊/300）の3分の1の効き方（特殊900で2倍）。エネルギー上限・グリフ枠にも効く
+    function skillPowerFor(special) { return 1 + special / 900; }
     // エネルギーの上限（stage.js と同じ式）：特殊50で100、倍になるごとに+30
     function energyMaxFor(special) { return Math.round(100 + 30 * Math.log2(Math.max(1, special / 50))); }
 
@@ -214,14 +221,14 @@
         s.effects.forEach(e => cost += EFFECTS[e].cost);
         s.augments.forEach(a => cost += AUGMENTS[a].cost);
 
-        const dmgMult = (1 + 0.25 * amplify);
+        const dmgMult = (1 + 0.10 * amplify);
         const cooldown = Math.max(0.6, (FORMS[s.form].cd + cost * 0.02) * (1 - 0.15 * swift));
         const count = s.layout ? s.layout.length : 1 + multi;
 
         // 職業専用の形（完全に新しい動き。class-forms.js が実装）：既存の形の数値ではなく、形ごとの定義で決まる
         if (FORMS[s.form] && FORMS[s.form].cls) {
             const F = FORMS[s.form];
-            const dmgMultC = (1 + 0.25 * amplify);
+            const dmgMultC = (1 + 0.10 * amplify);
             const cooldownC = Math.max(0.6, (F.cd + cost * 0.02) * (1 - 0.15 * swift));
             const pc = { form: s.form, classForm: s.form, count: 1, dmgMult: dmgMultC, effects: s.effects.slice(), baseMult: F.dmg || 1, range: 480, element: s.element || null, pieces: null, custom: false };
             return { skill: s, cost: Math.round(cost), cooldown: cooldownC, params: pc };
@@ -472,7 +479,7 @@
     if (global.ClassSys) registerClass(global.ClassSys.CLASSES);
 
     global.ActionSkills = {
-        registerClass, FORMS, EFFECTS, AUGMENTS, isFormUnlocked, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, energyMaxFor, playerSpecial,
+        registerClass, FORMS, EFFECTS, AUGMENTS, isFormUnlocked, MAX_PIECES, LAYOUT_RANGE, defaultPiece, normLayout, MAX_EFFECTS, MAX_AUGMENTS, maxEffects, maxEffectsFor, skillPowerFor, skillDamageMul, SKILL_DMG_RATIO, energyMaxFor, playerSpecial,
         normalize, compute, describe,
         loadSkills, saveSkills, loadLoadout, saveLoadout, newId,
         enemySkillsFor,

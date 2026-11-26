@@ -103,7 +103,7 @@
     function pixelEditor(box, init, type) {
         // 解像度：1マスは従来の 1/4 の大きさ（縦横4倍・64×96）。昔の絵（16×24）は4倍に拡大して読み込む
         const F = 4, W = 16 * F, H = 24 * F, CH = HW.PIX_CHARS, HEXC = /^#[0-9a-fA-F]{6}$/;
-        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20 * F, undo: [], fx: (init && init.fxColor) || '#ff5a3a', brush: 1, zoom: 1 };
+        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20 * F, undo: [], fx: (init && init.fxColor) || '#ff5a3a', brush: 1, zoom: 1, size: (init && HW.cleanSize) ? HW.cleanSize(init.size || 1) : 1 };
         const blank = () => { const g = []; for (let y = 0; y < H; y++) g.push(new Array(W).fill(-1)); return g; };
         st.grid = blank();
         function loadPix(px) {      // 保存された絵（rows / pal / grip / s）を読み込む
@@ -138,7 +138,8 @@
             '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）<input type="range" id="pxeGrip" min="0" max="' + (H - 1) + '" value="' + st.grip + '" style="width:100%"></div>' +
             '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="pxeUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="pxeClear" style="padding:5px 10px">全消し</button><button type="button" class="sbl-btn gray" id="pxeTpl" style="padding:5px 10px">下書き（武器種）</button></div><div id="pxeImg"></div>' +
             '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">攻撃エフェクトの色</div><div id="pxeFx" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>' +
-            '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">プレビュー</div><canvas id="pxePv" width="150" height="130" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas>' +
+            '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">武器の大きさ <b id="pxeSzv" style="color:#ffd84a"></b>（持ち手を中心に、見た目が大きく／小さくなります）<input type="range" id="pxeSz" min="' + HW.SIZE_MIN + '" max="' + HW.SIZE_MAX + '" step="0.05" value="' + st.size + '" style="width:100%"></div>' +
+            '<div style="margin-top:6px;font-size:.8rem;color:#9fb3d9">プレビュー</div><canvas id="pxePv" width="190" height="190" style="background:#10131c;border:1px solid #3a4666;border-radius:6px"></canvas>' +
             '</div></div>';
         const cv = box.querySelector('#pxeCv'), g = cv.getContext('2d'), pv = box.querySelector('#pxePv'), pg = pv.getContext('2d');
         function sizeCv() { const c = cellOf(); cv.width = W * c; cv.height = H * c; box.querySelector('#pxeZv').textContent = st.zoom + 'x'; }
@@ -151,9 +152,9 @@
             pg.clearRect(0, 0, pv.width, pv.height);
             const px = toPix(); if (!px) { pg.fillStyle = '#556'; pg.font = '12px sans-serif'; pg.fillText('絵を描いてください', 24, 70); return; }
             const col = st.fx;
-            pg.save(); pg.globalAlpha = 0.9; pg.strokeStyle = col; pg.lineWidth = 8; pg.lineCap = 'round'; pg.beginPath(); pg.arc(75, 118, 78, -2.6, -0.55); pg.stroke();
-            pg.globalAlpha = 0.5; pg.lineWidth = 16; pg.beginPath(); pg.arc(75, 118, 78, -2.5, -0.65); pg.stroke(); pg.restore();
-            try { SBPix.drawWeapon(pg, 75, 112, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 3 }); } catch (e) { /* 描けなくてもエディタは使える */ }
+            pg.save(); pg.globalAlpha = 0.9; pg.strokeStyle = col; pg.lineWidth = 8; pg.lineCap = 'round'; pg.beginPath(); pg.arc(95, 178, 78, -2.6, -0.55); pg.stroke();
+            pg.globalAlpha = 0.5; pg.lineWidth = 16; pg.beginPath(); pg.arc(95, 178, 78, -2.5, -0.65); pg.stroke(); pg.restore();
+            try { SBPix.drawWeapon(pg, 95, 172, -Math.PI / 2 + 0.5, type || 'sword', '#ffffff', { custom: SBPix.prepCustom(px), scale: 2, size: st.size }); } catch (e) { /* 描けなくてもエディタは使える */ }
         }
         function render() {
             const cell = cellOf();
@@ -240,6 +241,8 @@
         colEl.addEventListener('input', e => setColor(e.target.value)); colEl.addEventListener('change', e => setColor(e.target.value));
         box.querySelector('#pxeMir').addEventListener('change', e => { st.mirror = e.target.checked; render(); });
         box.querySelector('#pxeGrip').addEventListener('input', e => { st.grip = +e.target.value; render(); });
+        const szUi = () => { box.querySelector('#pxeSzv').textContent = '×' + st.size.toFixed(2); };
+        box.querySelector('#pxeSz').addEventListener('input', e => { st.size = HW.cleanSize(e.target.value); szUi(); drawPreview(); }); szUi();
         box.querySelector('#pxeBr').addEventListener('change', e => { st.brush = +e.target.value || 1; });
         box.querySelector('#pxeZp').addEventListener('click', () => { st.zoom = Math.min(4, st.zoom + 1); sizeCv(); render(); });
         box.querySelector('#pxeZm').addEventListener('click', () => { st.zoom = Math.max(1, st.zoom - 1); sizeCv(); render(); });
@@ -250,7 +253,7 @@
             snap(); st.grid = r.grid; st.pal = PALETTE0.slice(); r.pal.forEach((c, i) => { st.pal[i] = c; }); st.cur = 0; palUi(); render();
         }, '武器の先が上、持ち手が下になる向きで読み込まれます（向きは下で回せます）。赤い線の「持ち手の位置」も合わせてください。');
         sizeCv(); palUi(); toolUi(); fxUi(); render();
-        return { pix: toPix, fx: () => st.fx, setType: t => { type = t; drawPreview(); } };
+        return { pix: toPix, fx: () => st.fx, size: () => st.size, setType: t => { type = t; drawPreview(); } };
     }
 
     // ============================================================
@@ -326,7 +329,7 @@
                 if (hack.weapons.length >= HW.STORAGE_LIMIT) { msg.textContent = '武器庫がいっぱいです。不要な武器を売却してください。'; return; }
                 const pix = ed.pix(); if (!pix) { msg.textContent = '見た目の絵を描いてください（何も描かれていません）。'; return; }
                 if (!confirm((clean || 'オリジナル' + HW.TYPES[type].label) + ' を作ります（キットを1つ使います）。よろしいですか？')) return;
-                const w = HW.forgeFromKit(hack, kitId, { type: type, name: clean, elems: els.slice(), pix: pix, fxColor: ed.fx() });
+                const w = HW.forgeFromKit(hack, kitId, { type: type, name: clean, elems: els.slice(), pix: pix, fxColor: ed.fx(), size: ed.size() });
                 if (!w) { msg.textContent = 'この武器種は、まだ作れません。'; return; }
                 hack.weapons.push(w); HW.save(hack); m.close(); if (onDone) onDone(w);
                 try { alert('「' + w.name + '」ができました！ 武器庫の「⚒ 工房」で、素材を与えて育てましょう。'); } catch (e) { /* 通知できなくても作成は完了 */ }
@@ -372,11 +375,11 @@
     function openLook(hack, w, onDone) {
         const m = L().modal('🎨 見た目を描き直す　' + w.name, null);
         m.body.innerHTML = '<div class="sbl-col" style="flex:1 1 100%"><div id="lkPx"></div><div style="margin-top:8px"><button type="button" class="sbl-btn orange" id="lkSave">この見た目にする</button><button type="button" class="sbl-btn gray" id="lkCancel">やめる</button></div><div id="lkMsg" style="font-size:.82rem;color:#ff9a9a"></div></div>';
-        const ed = pixelEditor(m.body.querySelector('#lkPx'), { pix: w.pix, fxColor: w.fxColor }, w.type);
+        const ed = pixelEditor(m.body.querySelector('#lkPx'), { pix: w.pix, fxColor: w.fxColor, size: w.size }, w.type);
         m.body.querySelector('#lkCancel').addEventListener('click', () => m.close());
         m.body.querySelector('#lkSave').addEventListener('click', () => {
             const px = ed.pix(); if (!px) { m.body.querySelector('#lkMsg').textContent = '何も描かれていません。'; return; }
-            if (!HW.setLook(w, { pix: px, fxColor: ed.fx() })) { m.body.querySelector('#lkMsg').textContent = '保存できませんでした。'; return; }
+            if (!HW.setLook(w, { pix: px, fxColor: ed.fx(), size: ed.size() })) { m.body.querySelector('#lkMsg').textContent = '保存できませんでした。'; return; }
             HW.save(hack); m.close(); if (onDone) onDone();
         });
     }

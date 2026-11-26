@@ -52,6 +52,7 @@
     const swords = (t, o) => Object.assign({ t: t, k: 'swords', per: 1, spd: 520, dm: 0.5, frac: 1 }, o);
     const beams  = (t, len, w, tele, dm, o) => Object.assign({ t: t, k: 'beams', r: len, w: w, tele: tele, dm: dm, frac: 1 }, o);
     const pull   = (t, dur, force, o) => Object.assign({ t: t, k: 'pull', dur: dur, force: force }, o);   // 全員をボスの方へ引き寄せる（force=px/秒）
+    const blink  = (t, gap, o) => Object.assign({ t: t, k: 'tp', gap: gap }, o);      // 瞬間移動：いちばん近いプレイヤーの近く（gap px）へ一瞬で詰める
     const STUN = { stun: true };
 
     function stepEnd(s) {
@@ -892,6 +893,56 @@
     ].concat(spokes(1.8, 8, 0.18, 1700, 70, 1.0, 2.0, { c: PUR, rot: 45 })).concat([
         donut(3.8, 700, 260, 1.0, 2.0, tc(PUR)), rain(4.6, 16, 90, 1.0, 1.8, tc(PUR, { gap: 0.08 })), line(5.6, 2800, 240, 1.5, 2.6, tc(PUR, { aim: 't' }))
     ]), [0.42, 0.3, 0.18, 0.08]);
+
+    // ============================================================
+    // 大討伐戦 第六幕：魔装合体ヴェルスザーク
+    //   最初は「天使ヴェルス」（不壊の悪魔のようなビーム）と「悪魔ザーク」（超インファイト）の2体。どちらかが倒れると合体する（HPは満タンから）
+    //   合体後は「瞬間移動」で一瞬で詰めてくる。遠くにいるとヴェルスの技か瞬間移動、近くにいるとザークの技（practice.js の vzPick が距離で選ぶ）
+    // ============================================================
+    const VZ_GOLD = '#ffe27a', VZ_CRIM = '#ff3a52', VZ_WHITE = '#d8efff';
+    // ヴェルス（天使）：不壊の悪魔の系譜。距離をとってビームの雨
+    set('vz_velus', [
+        def('vz_v_stream', '聖光の連射', stream(10, 34).map(s => Object.assign(s, { c: VZ_WHITE })), { rec: 0.08 }),
+        def('vz_v_pull', '天使の引力', [pull(0, 1.3, 330), beamfan(0.4, 9, 90, 1600, 54, 0.85, 1.6, tc(VZ_WHITE, { aim: 't' })), blast(1.5, 6, 440, 1400, 62, 0.8, 1.6, tc(VZ_GOLD, { rep: 2, gap: 0.16 }))], { rec: 0.8 }),
+        def('vz_v_sweep', '聖壁の薙ぎ', wallSweep(0, { n: 14, volleys: 6, gap: 0.5, rot: 12, w: 46, tele: 0.8, dm: 1.4, every: 2 }).map(s => Object.assign(s, { c: VZ_GOLD })), { rec: 0.9 }),
+        def('vz_v_blast', '光の砲列', [blast(0, 6, 430, 1400, 66, 0.9, 1.5, tc(VZ_GOLD, { rep: 2, gap: 0.18 })), wall(1.4, 'h', 330, 0.9, tc(VZ_WHITE))], { rec: 0.8 })
+    ], def('vz_v_seal', '天使の拘束', [blast(0, 4, 360, 1200, 64, 0.95, 0.9, tc(VZ_WHITE, { rep: 1 })), at(0.2, 140, 1.2, 0.9, STUN)]));
+    raidExtend('vz_velus', { colors: [VZ_WHITE, VZ_GOLD, VZ_WHITE], tier: 6, power: 1.15, cdMul: 0.8, patterns: [] });
+
+    // ザーク（悪魔）：ボスの中でも初めての超インファイト。近づいて殴り、叩きつけ、突進し、跳ぶ
+    set('vz_zark', [
+        def('vz_z_claw', '魔爪の連撃', [cone(0, 320, 110, 0.7, 1.7, tc(VZ_CRIM, { aim: 't' })), cone(0.55, 320, 110, 0.6, 1.7, tc(VZ_CRIM, { aim: 't', off: 28 })), cone(1.1, 340, 150, 0.65, 1.9, tc(VZ_CRIM, { aim: 't' }))], { rec: 0.7 }),
+        def('vz_z_smash', '魔拳の叩きつけ', [ring(0, 270, 0.85, 1.9, tc(VZ_CRIM)), ring(1.0, 360, 0.75, 2.0, tc(VZ_CRIM)), donut(1.8, 640, 360, 0.85, 1.8, tc(VZ_CRIM))], { rec: 0.8 }),
+        def('vz_z_rush', '暴走突進', [warn(0, 950, 130, 0.65, tc(VZ_CRIM, { aim: 't' })), dash(0.65, 0.5, 1250, tc(VZ_CRIM)), cone(1.25, 280, 130, 0.55, 1.9, tc(VZ_CRIM, { aim: 't' })), warn(1.8, 950, 130, 0.6, tc(VZ_CRIM, { aim: 't' })), dash(2.4, 0.5, 1300, tc(VZ_CRIM)), ring(3.0, 270, 0.6, 2.0, tc(VZ_CRIM))], { rec: 0.8 }),
+        def('vz_z_leap', '魔王の跳躍', [leap(0, 0.9, 240, 2.2, tc(VZ_CRIM)), ring(1.2, 300, 0.65, 1.8, tc(VZ_CRIM)), cone(1.9, 300, 120, 0.55, 1.8, tc(VZ_CRIM, { aim: 't' }))], { rec: 0.8 }),
+        def('vz_z_flurry', '千烈乱打', [ring(0, 230, 0.7, 1.5, tc(VZ_CRIM, { rep: 4, gap: 0.3 })), cone(0.4, 300, 90, 0.6, 1.6, tc(VZ_CRIM, { aim: 't', rep: 2, gap: 0.35 }))], { rec: 0.8 })
+    ], def('vz_z_grab', '魔手の鷲掴み', [ring(0, 300, 1.2, 1.2, STUN)]));
+    raidExtend('vz_zark', { colors: [VZ_CRIM, VZ_CRIM, VZ_CRIM], tier: 6, power: 1.15, cdMul: 0.75, patterns: [] });
+
+    // 魔装合体ヴェルスザーク：遠い→ヴェルスの強化技／瞬間移動、近い→ザークの強化技。大技「魔装解放・終焉の双翼」
+    const vzFar = [
+        def('vzf_stream', '聖光の連射・奔流', stream(11, 34).map(s => Object.assign(s, { c: VZ_WHITE })).concat(stream(11, 30).map(s => Object.assign({}, s, { t: s.t + 1.7, off: (s.off || 0) + 9, c: VZ_GOLD }))), { rec: 0.08 }),
+        def('vzf_pull', '天使の引力・極', [pull(0, 1.3, 340), beamfan(0.4, 13, 110, 1700, 54, 0.85, 1.7, tc(VZ_WHITE, { aim: 't' })), blast(1.5, 8, 460, 1500, 62, 0.8, 1.7, tc(VZ_GOLD, { rep: 3, gap: 0.16 }))], { rec: 0.7 }),
+        def('vzf_sweep', '聖壁の薙ぎ・往復', wallSweepRev(0, { n: 16, volleys: 6, gap: 0.45, rot: 13, w: 50, tele: 0.8, dm: 1.6, every: 2 }).map(s => Object.assign(s, { c: VZ_GOLD })), { rec: 0.8 }),
+        def('vzf_blink_a', '瞬間移動・断罪', [blink(0.3, 110), cone(0.9, 340, 110, 0.55, 2.2, tc(VZ_CRIM, { aim: 't' })), cone(1.45, 340, 110, 0.55, 2.2, tc(VZ_CRIM, { aim: 't', off: 30 })), ring(2.0, 280, 0.7, 2.3, tc(VZ_GOLD))], { rec: 0.6 }),
+        def('vzf_blink_b', '瞬間移動・連鎖', [blink(0.2, 120), ring(0.8, 250, 0.6, 2.2, tc(VZ_CRIM)), blink(1.6, 130), ring(2.2, 250, 0.6, 2.2, tc(VZ_CRIM)), blink(3.0, 110), donut(3.6, 650, 260, 0.8, 2.0, tc(VZ_GOLD))], { rec: 0.7 }),
+        def('vzf_blink_c', '瞬間移動・背後の一閃', [blink(0.2, 100), line(0.8, 1500, 150, 0.55, 2.2, tc(VZ_WHITE, { aim: 't' })), line(1.0, 1500, 150, 0.55, 2.2, tc(VZ_WHITE, { aim: 't', off: 90 })), line(1.2, 1500, 150, 0.55, 2.2, tc(VZ_WHITE, { aim: 't', off: 180 })), line(1.4, 1500, 150, 0.55, 2.2, tc(VZ_WHITE, { aim: 't', off: 270 }))], { rec: 0.7 })
+    ];
+    const vzNear = [
+        def('vzf_claw', '魔爪の連撃・合体', [cone(0, 340, 110, 0.7, 1.9, tc(VZ_CRIM, { aim: 't' })), cone(0.5, 340, 110, 0.6, 1.9, tc(VZ_CRIM, { aim: 't', off: 28 })), cone(1.0, 340, 110, 0.6, 1.9, tc(VZ_CRIM, { aim: 't', off: -28 })), cone(1.55, 380, 160, 0.65, 2.1, tc(VZ_GOLD, { aim: 't' }))], { rec: 0.6 }),
+        def('vzf_smash', '魔拳の叩きつけ・合体', [ring(0, 290, 0.85, 2.0, tc(VZ_CRIM)), ring(0.9, 380, 0.75, 2.1, tc(VZ_CRIM)), donut(1.7, 700, 380, 0.85, 2.0, tc(VZ_GOLD)), ring(2.6, 260, 0.6, 2.2, tc(VZ_CRIM))], { rec: 0.7 }),
+        def('vzf_rush', '暴走突進・合体', [warn(0, 1000, 130, 0.6, tc(VZ_CRIM, { aim: 't' })), dash(0.6, 0.5, 1350, tc(VZ_CRIM)), cone(1.2, 300, 130, 0.55, 2.0, tc(VZ_CRIM, { aim: 't' })), blink(1.7, 110), cone(2.3, 300, 130, 0.55, 2.0, tc(VZ_GOLD, { aim: 't' })), ring(2.9, 280, 0.6, 2.1, tc(VZ_CRIM))], { rec: 0.7 }),
+        def('vzf_flurry', '千烈乱打・合体', [ring(0, 240, 0.7, 1.6, tc(VZ_CRIM, { rep: 5, gap: 0.28 })), cone(0.4, 320, 90, 0.6, 1.7, tc(VZ_GOLD, { aim: 't', rep: 3, gap: 0.33 }))], { rec: 0.7 }),
+        def('vzf_halo', '光輪と魔炎の爆裂', [ring(0, 250, 0.7, 2.0, tc(VZ_GOLD)), beamfan(0.8, 12, 330, 1500, 50, 0.7, 1.6, tc(VZ_WHITE, { aim: 't' })), ring(1.8, 330, 0.7, 2.1, tc(VZ_CRIM))], { rec: 0.7 })
+    ];
+    set('raid_vz_fusion', vzFar.concat(vzNear), def('vzf_grab', '魔装・鷲掴み', [blink(0, 90), ring(0.5, 300, 1.2, 1.3, STUN)]));
+    SETS.raid_vz_fusion.far = vzFar; SETS.raid_vz_fusion.near = vzNear;
+    raidExtend('raid_vz_fusion', { colors: [VZ_GOLD, VZ_CRIM, VZ_WHITE], tier: 8, power: 1.25, cdMul: 0.62, patterns: [] });
+    raidUlt('raid_vz_fusion', 'vzf_ult', '魔装解放・終焉の双翼', [
+        blink(0, 120), ring(0.7, 300, 1.0, 2.1, tc(VZ_CRIM)), donut(1.9, 760, 300, 1.0, 2.0, tc(VZ_GOLD))
+    ].concat(wallSweepRev(3.2, { n: 14, volleys: 5, gap: 0.5, rot: 14, w: 52, tele: 0.85, dm: 1.7, every: 2 }).map(s => Object.assign(s, { c: VZ_WHITE }))).concat([
+        blink(9.6, 100), cone(10.2, 380, 150, 0.6, 2.4, tc(VZ_CRIM, { aim: 't' })), blink(11.0, 100), cone(11.6, 380, 150, 0.6, 2.4, tc(VZ_CRIM, { aim: 't' })), line(12.6, 2800, 260, 1.4, 2.8, tc(VZ_GOLD, { aim: 't' }))
+    ]), [0.8, 0.6, 0.4, 0.2]);
 
     window.BOSS_MOVES = { MOVES: MOVES, SETS: SETS, STUN_SECONDS: 3.0, STUN_IMMUNE: 3.5, raid: { extend: raidExtend, ult: raidUlt, empower: raidEmpower, PATTERNS: RAID_PATTERNS } };
 })();
