@@ -150,7 +150,7 @@ function action () {
         }
         return Math.max(1, Math.round((raw * atkMult * 0.5 - def * 0.1) * scale));
     }
-    function skillRaw(att, p) { return (att.special * 0.6 + att.atk * 0.4) * p.baseMult * p.dmgMult; }
+    function skillRaw(att, p) { return (att.special * (att.team === 'player' ? 0.2 : 0.6) + att.atk * 0.4) * p.baseMult * p.dmgMult * (att.team === 'player' ? ActionSkills.SKILL_DMG_RATIO : 1); }      // プレイヤーのスキルは火力ではなく特殊な攻撃手段：ダメージは控えめ
 
     function popup(x, y, text, color, big) {
         popups.push({ x: x, y: y, text: text, color: color || '#fff', life: 0.9, big: !!big });
@@ -170,8 +170,8 @@ function action () {
         let dmg = opts.dmg || 0;
         const from = opts.from;
         const effects = opts.effects || [];
-        if (effects.indexOf('shatter') !== -1 && dmg > 0) dmg = Math.round(dmg * 1.3); // 防御破砕：防御を無視した分、威力を上乗せ
-        if (effects.indexOf('explosion') !== -1 && dmg > 0) dmg += Math.max(2, Math.round(dmg * 0.4)); // 爆発：追加ダメージ
+        if (effects.indexOf('shatter') !== -1 && dmg > 0) dmg = Math.round(dmg * 1.15); // 防御破砕：防御を無視した分、威力を上乗せ
+        if (effects.indexOf('explosion') !== -1 && dmg > 0) dmg += Math.max(2, Math.round(dmg * 0.2)); // 爆発：追加ダメージ
         if (target.team === 'player' && weapon && weapon.type === 'sword_shield') dmg = Math.round(dmg * 0.75);
         if (target.team === 'player' && target.guarding && target.stamina > 0) {
             dmg = Math.max(0, Math.round(dmg * (1 - GUARD_DAMAGE_CUT)));
@@ -231,7 +231,7 @@ function action () {
     function applySelfEffect(caster, effectKey) {
         if (effectKey === 'fortify') { caster.status.fortify = { t: 3, amount: 0.4 }; popup(caster.x, caster.y - caster.r - 20, '防御UP', '#9df0ff'); }
         else if (effectKey === 'haste') { caster.status.haste = { t: 3, amount: 0.45 }; popup(caster.x, caster.y - caster.r - 20, '速度UP', '#9df0ff'); }
-        else if (effectKey === 'empower') { caster.status.empower = { t: 3, amount: 0.35 }; popup(caster.x, caster.y - caster.r - 20, '攻撃UP', '#ffb347'); }
+        else if (effectKey === 'empower') { caster.status.empower = { t: 3, amount: 0.15 }; popup(caster.x, caster.y - caster.r - 20, '攻撃UP', '#ffb347'); }
         else if (effectKey === 'regenerate') { caster.status.regen = { t: 4, tick: 0, amount: Math.max(2, Math.round(caster.maxHp * 0.03)) }; popup(caster.x, caster.y - caster.r - 20, '再生', '#7CFC9A'); }
         else if (effectKey === 'barrier') { caster.status.barrier = (caster.status.barrier || 0) + Math.max(10, Math.round(caster.maxHp * 0.25)); popup(caster.x, caster.y - caster.r - 20, 'バリア', '#7fc8ff'); }
     }
