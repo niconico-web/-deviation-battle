@@ -249,9 +249,9 @@ function getOrbGrowthMult() {
 }
 // Lv60に届くまでは経験値3倍（序盤を早く進められるように）
 const XP_BOOST_UNTIL_LEVEL = 60, XP_BOOST_MULT = 3;
-function getLevelXpBoost() {
+function getLevelXpBoost(player) {
     try {
-        const p = (typeof getPlayerData === 'function') ? getPlayerData() : null;
+        const p = player || ((typeof getPlayerData === 'function') ? getPlayerData() : null);
         const lv = p ? (p.level || calcLevel(p.xp || 0)) : 1;
         return lv < XP_BOOST_UNTIL_LEVEL ? XP_BOOST_MULT : 1;
     } catch (e) { return 1; }
@@ -267,12 +267,13 @@ function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficien
 function calcStatGain(s, player) {
     const base = Math.max(1, Math.floor(s / 60));
     const eff = getStudyEfficiency() * getOrbGrowthMult();
-    if (!player) return Math.max(base, Math.round(base * eff));
+    const boost = getLevelXpBoost(player);      // Lv60まで3倍（経験値と同じ倍率）
+    if (!player) return Math.max(base, Math.round(base * eff)) * boost;
     const level = player.level || calcLevel(player.xp || 0);
     const prestigeCount = player.prestigeCount || 0;
     const growthMultiplier = 1 + Math.floor(level / 10) * 0.1 + prestigeCount * 0.15;
     const gain = Math.max(base, Math.floor(base * growthMultiplier));
-    return Math.max(gain, Math.round(gain * eff));
+    return Math.max(gain, Math.round(gain * eff)) * boost;
 }
 function calcBattleXp(won, turns, damage) { const base = won ? 40 : 15; return base + Math.floor(turns * 3) + Math.floor(damage / 10); }
 

@@ -944,5 +944,73 @@
         blink(9.6, 100), cone(10.2, 380, 150, 0.6, 2.4, tc(VZ_CRIM, { aim: 't' })), blink(11.0, 100), cone(11.6, 380, 150, 0.6, 2.4, tc(VZ_CRIM, { aim: 't' })), line(12.6, 2800, 260, 1.4, 2.8, tc(VZ_GOLD, { aim: 't' }))
     ]), [0.8, 0.6, 0.4, 0.2]);
 
+    // ============================================================
+    // 緊急ステージ「○○ニグス」の技（stage-data.js の EMERGENCY / ステージID は emg_元のID）
+    //  元のボスの技を「別IDのコピー」にして強化する（元のボスの技は変えない）→ ニグス専用の新技を足す → 大技を二段構え・5回にする。
+    //   ・コピーの強化：威力×1.45／予告を短く（0.5秒を下回らない＝見てから避けられる）／硬直を短く／予告の色をニグスの色に
+    //   ・スタン技の予告は、いつもの黄色のまま（見分けがつくように）
+    //  技の中身を変えたいときは NIGS_PALETTE（色）と、下の nigsMoves（新技）を触る。
+    // ============================================================
+    (function buildEmergencySets() {
+        const SRC = { emg_stardust_graveyard: 'stardust_graveyard', emg_galaxy_vortex: 'galaxy_vortex', emg_event_horizon: 'event_horizon', emg_dying_star: 'dying_star',
+            emg_void_sea: 'void_sea', emg_gravity_well: 'gravity_well', emg_olympus: 'olympus_zeus', emg_void_throne: 'void_throne' };
+        const NIGS_PALETTE = {      // [主色, 副色, 差し色]
+            emg_stardust_graveyard: ['#b34dff', '#ff4d8d', '#ffd36a'], emg_galaxy_vortex: ['#7a6bff', '#ff5ad8', '#6af0ff'], emg_event_horizon: ['#8a2bff', '#ff3a52', '#c8c8ff'],
+            emg_dying_star: ['#ff5a2a', '#ff2a6a', '#ffe27a'], emg_void_sea: ['#2ab0ff', '#9a5bff', '#a8fff0'], emg_gravity_well: ['#a040ff', '#ff4060', '#9ad0ff'],
+            emg_olympus: ['#ffe14d', '#ff5a3a', '#b8d8ff'], emg_void_throne: ['#d02bff', '#ff2a4a', '#ffffff']
+        };
+        const POWER = 1.45, TELE_MIN = 0.5;
+        const TELE = { line: 1, ring: 1, cone: 1, donut: 1, at: 1, rain: 1, beams: 1, beamfan: 1, beamAt: 1, blast: 1 };
+        function cloneMove(srcId, newId, pal) {       // 元の技を丸ごと別IDにコピーして強化する
+            const m = MOVES[srcId]; if (!m) return null;
+            const steps = m.steps.map(st => {
+                const x = Object.assign({}, st);
+                if (x.dm) x.dm = Math.round(x.dm * POWER * 100) / 100;
+                if (TELE[x.k] && x.tele > TELE_MIN + 0.05) x.tele = Math.max(TELE_MIN, Math.round(x.tele * 0.86 * 100) / 100);
+                if (!x.stun && !x.c && x.k !== 'summon') x.c = pal[0];          // 予告の色をニグスの色に（スタンは黄色のまま）
+                if (x.rep) x.rep = x.rep + 1;                                   // 連続ヒットの技は、もう1回多く
+                return x;
+            });
+            return def(newId, m.name + '・ニグス', steps, { rec: m.stun ? Math.max(0.9, m.rec * 0.8) : Math.max(0.1, Math.round(m.rec * 0.55 * 100) / 100), ult: m.ult });
+        }
+        function nigsMoves(id, pal, t) {          // ニグス専用の新技（見た目も動きも元のボスとは別物）
+            const A = pal[0], B = pal[1], C = pal[2], dm = Math.round(1.9 * 100) / 100, out = [];
+            // 1. 断罪の十字：回転しながら増える十字のレーザー → 足元爆撃
+            out.push(def(id + '_n_cross', 'ニグス・断罪の十字', [0, 1, 2, 3].reduce((a, w) => a.concat([0, 1, 2, 3].map(i => line(w * 0.7 + i * 0.05, 1700, 84, 0.95, dm, { c: i % 2 ? A : B, aim: 'l', off: w * 22.5 + i * 90 }))), [])
+                .concat([at(3.1, 120, 0.8, dm, { c: C }), at(3.5, 120, 0.8, dm, { c: C, who: 'rand' })]), { rec: 0.5 }));
+            // 2. 輪舞：渦巻く弾幕と、内側→外側へ広がる輪
+            out.push(def(id + '_n_round', 'ニグス・星喰みの輪舞', [spiral(0, 3.2, 260, 0.85, { arms: 4, c: A }), ring(0.8, 170, 0.7, dm, { c: B }), donut(1.7, 440, 170, 0.8, dm, { c: A }), donut(2.6, 740, 440, 0.8, dm, { c: B }), rad(3.4, 24, 300, 0.8, { c: C })], { rec: 0.6 }));
+            // 3. 影縫い：瞬間移動で背後へ → 三方向の斬撃 → 離脱前の衝撃
+            out.push(def(id + '_n_shadow', 'ニグス・影縫い', [blink(0.2, 110), cone(0.8, 360, 100, 0.55, dm, { c: A, aim: 't' }), cone(0.8, 360, 100, 0.55, dm, { c: A, aim: 't', off: 120 }), cone(0.8, 360, 100, 0.55, dm, { c: A, aim: 't', off: -120 }),
+                blink(1.8, 130), line(2.4, 1600, 110, 0.55, dm, { c: B, aim: 't' }), line(2.4, 1600, 110, 0.55, dm, { c: B, aim: 't', off: 90 }), ring(3.1, 260, 0.7, dm + 0.1, { c: C })], { rec: 0.6 }));
+            // 4. 終焉の檻：引き寄せ → 壁の弾幕（隙間をくぐる）→ 降り注ぐ破片
+            out.push(def(id + '_n_cage', 'ニグス・終焉の檻', [pull(0, 1.4, 320), ring(1.3, 220, 0.8, dm, { c: A }), wall(1.8, 'h', 340 + t * 4, 1.0, { c: B }), wall(2.9, 'v', 360 + t * 4, 1.0, { c: A }), rain(3.9, 14, 86, 0.95, dm, { gap: 0.09, c: C })], { rec: 0.8 }));
+            // 5. 追尾の連斬＋砲列：狙われ続けるので、動き続けないと当たる
+            out.push(def(id + '_n_hunt', 'ニグス・追尾連斬', Array.from({ length: 8 }, (_, i) => line(i * 0.26, 1700, 62, 0.52, dm, { aim: 't', off: i % 2 ? 8 : -8, c: i % 2 ? A : B }))
+                .concat([blast(2.4, 6, 440, 1500, 60, 0.8, dm, { rep: 2, gap: 0.16, c: C })]), { rec: 0.5 }));
+            // 6. 双牙の突進：二連突進＋着地の円
+            out.push(def(id + '_n_fang', 'ニグス・双牙の突進', [warn(0, 950, 120, 0.65, { c: A }), dash(0.65, 0.5, 1150, { c: A }), warn(1.4, 950, 120, 0.55, { aim: 't', c: B }), dash(1.95, 0.5, 1180, { aim: 't', c: B }), ring(2.6, 240, 0.65, dm + 0.1, { c: C }), donut(3.4, 620, 240, 0.8, dm, { c: A })], { rec: 0.8 }));
+            return out;
+        }
+        Object.keys(SRC).forEach(id => {
+            const base = SETS[SRC[id]]; if (!base) return;
+            const pal = NIGS_PALETTE[id], seen = {};
+            const cp = mid => { if (!mid) return null; if (seen[mid]) return seen[mid]; return (seen[mid] = cloneMove(mid, id + '__' + mid, pal)); };
+            const moves = base.moves.map(cp).filter(Boolean);
+            const stun = cp(base.stun);
+            const extra = nigsMoves(id, pal, 6);
+            const dm = 1.9;
+            // 大技（二段構え）：HPの節目ごとに「全方位の弾幕＋輪＋壁＋極太レーザー」を繰り出す
+            const ult = def(id + '_ult', 'ニグス・終焉の顕現', [
+                pull(0, 1.2, 330), ring(1.0, 280, 1.0, dm, { c: pal[0] }), donut(2.0, 760, 280, 1.0, dm, { c: pal[1] }),
+                spiral(3.0, 3, 270, 0.9, { arms: 5, c: pal[2] })
+            ].concat(spokes(4.0, 8, 0.2, 1700, 70, 0.95, dm, { c: pal[0], rot: 45 })).concat([
+                rain(6.0, 16, 90, 1.0, dm, { gap: 0.08, c: pal[1] }), blink(7.4, 120), ring(8.0, 300, 0.8, dm + 0.2, { c: pal[0] }),
+                line(9.0, 2800, 240, 1.2, dm + 0.6, { aim: 't', c: pal[1] }), line(9.0, 2800, 240, 1.2, dm + 0.6, { aim: 't', off: 120, c: pal[2] }), line(9.0, 2800, 240, 1.2, dm + 0.6, { aim: 't', off: -120, c: pal[2] })
+            ]), { ult: true, rec: 1.2 });
+            SETS[id] = { moves: moves.concat(extra), stun: stun, ult: ult, ultAt: [0.85, 0.68, 0.5, 0.32, 0.15], cdMul: 0.62, rnd: true };
+        });
+    })();
+
     window.BOSS_MOVES = { MOVES: MOVES, SETS: SETS, STUN_SECONDS: 3.0, STUN_IMMUNE: 3.5, raid: { extend: raidExtend, ult: raidUlt, empower: raidEmpower, PATTERNS: RAID_PATTERNS } };
 })();

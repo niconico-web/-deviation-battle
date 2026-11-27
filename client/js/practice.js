@@ -658,7 +658,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             if (s.blindT > 0) s.blindT -= dt;
             e.dmgMul = s.blindT > 0 ? 0.5 : (s.weakenT > 0 ? 0.65 : 1);
             if (dot > 0 && !e.inv) { e.hp -= dot * dt; if (e.hp <= 0) { killEnemy(e, null); continue; } }
-            if (s.stunT > 0) { s.stunT -= dt; continue; }
+            if (s.stunT > 0) { s.stunT -= dt; if (e.ma === 1) { e.ma = 0; e.mt = 0; e.mcd = 0.8; } continue; }      // 溜めている最中にスタンしたら、攻撃は中断
             const slow = s.slowT > 0 ? 0.45 : 1; if (s.slowT > 0) s.slowT -= dt;
             e.t += dt;
             // ノックバック
@@ -670,7 +670,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             let mvx = dx / d, mvy = dy / d, los = true;
             if (CORR_ON && CF.on && !e.boss) { const w = corrWaypoint(e, tgt), wd = Math.hypot(w.x - e.x, w.y - e.y) || 1; mvx = (w.x - e.x) / wd; mvy = (w.y - e.y) / wd; los = corrLOS(e.x, e.y, tgt.x, tgt.y); }
             if (e.boss) { updateBoss(e, dt, tgt, d, ang, slow); }
-            else if (e.arch === 'chaser' || e.arch === 'swarm' || e.arch === 'tank') { e.x += mvx * sp * dt; e.y += mvy * sp * dt; }
+            else if (e.arch === 'chaser' || e.arch === 'swarm' || e.arch === 'tank') { if (!meleeUpdate(e, dt, d, ang, sp, mvx, mvy, los)) { e.x += mvx * sp * dt; e.y += mvy * sp * dt; } }      // 近づいたら、接触ではなく「攻撃モーション」で攻撃する
             else if (e.arch === 'ranged') {
                 const want = (d > 320 || !los) ? 1 : (d < 200 ? -0.8 : 0);
                 e.x += mvx * sp * dt * want;
@@ -3129,6 +3129,9 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         // 接触ダメージ
         for (const e of enemies) {
             if (e.pvp || e.hp <= 0 || e.st.stunT > 0 || e.air > 20 || e.noContact) continue;
+            if (!e.boss && (e.arch === 'chaser' || e.arch === 'swarm' || e.arch === 'tank')) { meleeHitCheck(e); continue; }      // 近接の敵：触れてもダメージなし。攻撃モーションの「攻撃」の瞬間にだけ当たる
+            if (e.arch === 'ranged' && !e.boss) continue;      // 遠距離の敵は弾で攻撃する（体当たりはしない）
+            if (e.arch === 'charger' && !e.boss && e.state !== 2) continue;      // 突進の敵は、突進中だけ当たる
             if (dist(e.x, e.y, me.x, me.y) < e.r + me.r - 2) { if (e.arch === 'bomber' || e.arch === 'heart' || e.arch === 'wscale' || e.arch === 'wcore' || (e.arch === 'slime' && (e.air || 0) > e.r * 0.4) || (G.hid && (e.boss || e.arch === 'wseg')) || (GMK === 'worm' && wmZone(e.x) !== wmZone(me.x))) continue; hurtMe(ed(e) * (e.arch === 'charger' && e.state === 2 ? 1.3 : (e.boss && e.state === 11 ? 1.7 : 1.0)), e.affix === 'venom' ? { poison: true } : null); }
         }
         // 敵弾
@@ -4111,7 +4114,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
     function makeSnap0() {
         const fullRows = ((snapSeq + 1) % 16) === 0;      // 16回に1回は、全員ぶんの名前・絵文字・色を送る（途中から入った人・取りこぼした人のため）
         return {
-            e: enemies.map(e => { const fl = ((e.sn = (e.sn || 0) + 1) <= 4) || fullRows; return [e.id, fl ? e.def.icon : 0, fl ? e.def.color : 0, Math.round(e.x), Math.round(e.y), Math.round(e.hp), e.maxHp, e.r, e.boss ? 1 : 0, e.state, fl ? e.def.name : 0, fl ? (e.arch || 'chaser') : 0, e.elite ? 1 : 0, e.dmgMul || 1, Math.round(e.air || 0), (e.inv ? 1 : 0) | (e.echo ? 2 : 0) | (e.boss && !e.echo && bdef(e).gate ? 4 : 0) | (e.valve ? 8 : 0)]; }),
+            e: enemies.map(e => { const fl = ((e.sn = (e.sn || 0) + 1) <= 4) || fullRows; return [e.id, fl ? e.def.icon : 0, fl ? e.def.color : 0, Math.round(e.x), Math.round(e.y), Math.round(e.hp), e.maxHp, e.r, e.boss ? 1 : 0, e.state, fl ? e.def.name : 0, fl ? (e.arch || 'chaser') : 0, e.elite ? 1 : 0, e.dmgMul || 1, Math.round(e.air || 0), (e.inv ? 1 : 0) | (e.echo ? 2 : 0) | (e.boss && !e.echo && bdef(e).gate ? 4 : 0) | (e.valve ? 8 : 0), e.ma > 0 ? [e.ma, Math.round(e.mt * 100), Math.round((e.maim || 0) * 100), e.mk | 0, e.mn | 0, Math.round(e.mL || 0)] : 0]; }),
             b: eBullets.map(b => [b.id, Math.round(b.x), Math.round(b.y), b.r, b.c, b.kd || 0, b.kd ? +Math.atan2(b.vy, b.vx).toFixed(2) : 0, b.refl || 0]),
             t: telegraphs.map(t => [t.id, t.x, t.y, t.r, +t.t.toFixed(2), t.max, t.c, t.sh || '', t.a != null ? +t.a.toFixed(2) : 0, t.arc != null ? +t.arc.toFixed(2) : 0, t.ri || 0, t.w || 0, t.stun ? 1 : 0, t.live ? 1 : 0]),
             k: run.kills, n: run.need, tm: Math.round(run.time), bs: run.bossSpawned ? 1 : 0, g: G,
@@ -4144,7 +4147,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             if (ic === 0) { const sc = snapStat[a[0]]; if (sc) { ic = sc[0]; co = sc[1]; nm = sc[2]; ar = sc[3]; } else { ic = '👾'; co = '#9aa6b8'; nm = ''; ar = 'chaser'; } } else snapStat[a[0]] = [ic, co, nm, ar];
             const o = old[a[0]] || { x: a[3], y: a[4], flash: 0 };
             let evx = 0, evy = 0; if (o.sx != null) { evx = clamp((a[3] - o.sx) / dtH, -1400, 1400); evy = clamp((a[4] - o.sy) / dtH, -1400, 1400); if (o.vx != null) { evx = o.vx * 0.4 + evx * 0.6; evy = o.vy * 0.4 + evy * 0.6; } if (Math.hypot(a[3] - o.sx, a[4] - o.sy) > 380) { evx = evy = 0; o.x = a[3]; o.y = a[4]; } }      // 前の位置との差から速度を求めて、次が届くまで先読みする。瞬間移動は補間しない
-            return { id: a[0], def: { icon: ic, color: co, name: nm }, x: o.x, y: o.y, tx: a[3], ty: a[4], sx: a[3], sy: a[4], vx: evx, vy: evy, hist: pushHist(o.hist, a[3], a[4], htS), hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: ar || 'chaser', elite: !!a[12], dmg: fdm(ar || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8) };
+            return { id: a[0], def: { icon: ic, color: co, name: nm }, x: o.x, y: o.y, tx: a[3], ty: a[4], sx: a[3], sy: a[4], vx: evx, vy: evy, hist: pushHist(o.hist, a[3], a[4], htS), hp: a[5], maxHp: a[6], r: a[7], boss: !!a[8], state: a[9], flash: o.flash || 0, st: { stunT: 0 }, arch: ar || 'chaser', elite: !!a[12], dmg: fdm(ar || 'chaser', !!a[8], !!a[12]), dmgMul: a[13] || 1, air: a[14] || 0, inv: !!((a[15] || 0) & 1), echo: !!((a[15] || 0) & 2), gate: !!((a[15] || 0) & 4), valve: !!((a[15] || 0) & 8), noContact: !!((a[15] || 0) & 8), ma: a[16] ? a[16][0] : 0, mt: a[16] ? a[16][1] / 100 : 0, maim: a[16] ? a[16][2] / 100 : 0, mk: a[16] ? a[16][3] : 0, mn: a[16] ? a[16][4] : 0, mL: a[16] ? a[16][5] : 0, mrx: nowS };
         });
         if (Object.keys(snapStat).length > enemies.length + 160) { const keep = {}; enemies.forEach(e => { if (snapStat[e.id]) keep[e.id] = snapStat[e.id]; }); snapStat = keep; }
         const oldB = {}; eBullets.forEach(x => { oldB[x.id] = x; });
@@ -5169,6 +5172,134 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         ctx.restore();
         if (e.hp < e.maxHp) { const w = r * 2; ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(e.x - w / 2, e.y - r - 12, w, 4); ctx.fillStyle = '#5be37a'; ctx.fillRect(e.x - w / 2, e.y - r - 12, w * clamp(e.hp / e.maxHp, 0, 1), 4); }
     }
+    // ============================================================
+    // 近接の敵の「攻撃モーション」（接触ダメージの代わり）
+    //  近づく → 予告（赤い範囲が満ちる）→ 攻撃（ドット絵の粒がいっせいに動く）→ 硬直（隙）。ダメージが入るのは「攻撃」の瞬間の範囲だけ。
+    //  系統（名前で判定）ごとに技が違う：
+    //    engulf  スライム系 … がばっと飲み込む（大きな円。粒が広がって、ぎゅっと縮む）
+    //    claw    ドラゴン系 … 爪で3連のひっかき（扇形）
+    //    slash   兵士・騎士・ロボ系 … 横なぎ（扇形）／ slam  タンク系 … 叩きつけ（自分の周りの円）
+    //    pounce  群れ系（虫・コウモリ・鳥）… 飛びかかり／ swipe … それ以外の素手の一撃
+    //  ホストが状態（ma:0なし/1溜め/2攻撃/3硬直、mt:経過秒、maim:向き、mk:系統、mn:攻撃の通し番号、mL:標的までの距離）を動かし、
+    //  スナップショットで全員に配る。ダメージは「各自の画面で、自分に当たったか」を攻撃の瞬間に1回だけ判定する。
+    //  数字（溜めの長さ・範囲・威力）は MK を触る。
+    // ============================================================
+    const MK = {
+        engulf: { i: 0, shape: 'circle', wind: 0.75, strike: 0.35, rec: 0.8, cd: 0.5, reach: 70, R: 50, dm: 1.5, lunge: 0 },
+        claw: { i: 1, shape: 'cone', wind: 0.6, strike: 0.4, rec: 0.6, cd: 0.45, reach: 90, arc: 2.0, dm: 1.4, lunge: 34 },
+        slash: { i: 2, shape: 'cone', wind: 0.5, strike: 0.22, rec: 0.5, cd: 0.4, reach: 60, arc: 1.7, dm: 1.25, lunge: 20 },
+        slam: { i: 3, shape: 'ring', wind: 0.9, strike: 0.3, rec: 0.9, cd: 0.6, reach: 55, dm: 1.6, lunge: 0 },
+        pounce: { i: 4, shape: 'lunge', wind: 0.32, strike: 0.28, rec: 0.5, cd: 0.4, reach: 120, dm: 1.15, lunge: 110 },
+        swipe: { i: 5, shape: 'cone', wind: 0.5, strike: 0.22, rec: 0.5, cd: 0.4, reach: 50, arc: 1.5, dm: 1.25, lunge: 16 }
+    };
+    const MK_BY_I = [MK.engulf, MK.claw, MK.slash, MK.slam, MK.pounce, MK.swipe];
+    function meleeKindOf(e) {
+        const n = (e.def && e.def.name) || '', ic = (e.def && e.def.icon) || '';
+        if (/スライム|ゼリー/.test(n) || /🟢|🟩|🟠/.test(ic)) return 0;
+        if (/竜|ドラゴン|トカゲ|ワイバーン/.test(n) || /🐉|🦎|🐲/.test(ic)) return 1;
+        if (e.arch === 'tank') return 3;
+        if (e.arch === 'swarm') return 4;
+        if (/兵|戦士|騎士|ロボ|ゴブリン|オーク|骸骨/.test(n)) return 2;
+        return 5;
+    }
+    const meleeDone = {};      // 敵ID → 最後にダメージを判定した攻撃の通し番号（同じ攻撃で2回当たらないように）
+    function meleeUpdate(e, dt, d, ang, sp, mvx, mvy, los) {      // ホストだけ。true を返したら、この敵はこのフレーム、普通には動かない
+        if (!e.ma) {
+            e.mcd = (e.mcd == null ? 0.4 : e.mcd) - dt;
+            if (e.mk == null) e.mk = meleeKindOf(e);
+            const K = MK_BY_I[e.mk];
+            if (e.mcd <= 0 && los && d < e.r + 14 + K.reach) { e.ma = 1; e.mt = 0; e.maim = ang; e.mL = d; }
+            else return false;
+            return true;
+        }
+        const K = MK_BY_I[e.mk | 0]; e.mt += dt;
+        if (e.ma === 1) {
+            if (e.mt < K.wind * 0.65) { e.maim = ang; e.mL = d; }      // 溜めの前半は標的を追って向きを合わせ、後半で向きを固定（動けば避けられる）
+            if (e.mt >= K.wind) { e.ma = 2; e.mt = 0; e.mn = (e.mn | 0) + 1; }
+        } else if (e.ma === 2) {
+            if (K.lunge) { const v = K.lunge / K.strike * dt; e.x += Math.cos(e.maim) * v; e.y += Math.sin(e.maim) * v; }
+            if (e.mt >= K.strike) { e.ma = 3; e.mt = 0; }
+        } else if (e.mt >= K.rec) { e.ma = 0; e.mt = 0; e.mcd = K.cd * (0.8 + Math.random() * 0.5); }
+        return true;
+    }
+    function meleeP(e) {      // 今のフェーズの進み具合 { p: 0〜1, el: 経過秒 }（ゲストは、スナップショットが届いてからの時間を足す）
+        const K = MK_BY_I[e.mk | 0], el = (e.mt || 0) + (e.mrx ? Math.max(0, (performance.now() - e.mrx) / 1000) : 0);
+        const dur = e.ma === 1 ? K.wind : (e.ma === 2 ? K.strike : K.rec);
+        return { p: clamp(el / dur, 0, 1), el: el };
+    }
+    function meleeShape(e) {
+        const K = MK_BY_I[e.mk | 0], a = e.maim || 0;
+        if (K.shape === 'circle') { const L = Math.min(e.mL || e.r + 14, e.r + 14 + K.reach); return { t: 'c', x: e.x + Math.cos(a) * L, y: e.y + Math.sin(a) * L, R: K.R + e.r * 0.6 }; }
+        if (K.shape === 'lunge') { const L = e.r + K.reach * 0.55; return { t: 'c', x: e.x + Math.cos(a) * L, y: e.y + Math.sin(a) * L, R: e.r + 24 }; }
+        if (K.shape === 'ring') return { t: 'r', x: e.x, y: e.y, R: e.r + K.reach + 30 };
+        return { t: 'k', x: e.x, y: e.y, a: a, len: e.r + K.reach + 25, arc: K.arc };
+    }
+    function meleeHitCheck(e) {      // 各自の画面で：攻撃の瞬間に、自分が範囲に入っていたらダメージ（1回の攻撃につき1回）
+        if (e.pvp || e.hp <= 0 || me.dead) return;
+        if (!(e.ma === 2 || (e.ma === 3 && (e.mt || 0) < 0.12))) return;
+        if (meleeDone[e.id] === e.mn) return; meleeDone[e.id] = e.mn;
+        if (Object.keys(meleeDone).length > 400) { for (const k in meleeDone) delete meleeDone[k]; }
+        const sh = meleeShape(e), K = MK_BY_I[e.mk | 0]; let hit = false;
+        if (sh.t === 'c') hit = dist(sh.x, sh.y, me.x, me.y) < sh.R + me.r * 0.5;
+        else if (sh.t === 'r') hit = dist(sh.x, sh.y, me.x, me.y) < sh.R + me.r * 0.4;
+        else { const dd = dist(sh.x, sh.y, me.x, me.y); if (dd < sh.len + me.r * 0.5) { const df = Math.atan2(Math.sin(Math.atan2(me.y - sh.y, me.x - sh.x) - sh.a), Math.cos(Math.atan2(me.y - sh.y, me.x - sh.x) - sh.a)); hit = Math.abs(df) < sh.arc / 2 + me.r / Math.max(30, dd); } }
+        if (hit) hurtMe(ed(e) * K.dm, e.affix === 'venom' ? { poison: true } : null);
+    }
+    // ---- 描画 ----
+    function mHash(id, i) { let h = (((id | 0) * 374761393) + i * 668265263) >>> 0; h = ((h ^ (h >>> 13)) * 1274126177) >>> 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+    function mDot(x, y, s, c, a) { ctx.globalAlpha = a; ctx.fillStyle = c; ctx.fillRect(Math.round((x - s / 2) / 3) * 3, Math.round((y - s / 2) / 3) * 3, s, s); }      // ドット（3px の格子に吸着）
+    function drawMeleeTele(e) {
+        const P = meleeP(e), sh = meleeShape(e), p = P.p;
+        ctx.save(); ctx.fillStyle = 'rgba(255,60,60,' + (0.10 + 0.2 * p).toFixed(3) + ')'; ctx.strokeStyle = 'rgba(255,110,110,' + (0.5 + 0.4 * p).toFixed(3) + ')'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (sh.t === 'k') { ctx.moveTo(sh.x, sh.y); ctx.arc(sh.x, sh.y, sh.len, sh.a - sh.arc / 2, sh.a + sh.arc / 2); ctx.closePath(); } else ctx.arc(sh.x, sh.y, sh.R, 0, 7);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = 'rgba(255,90,90,' + (0.18 + 0.22 * p).toFixed(3) + ')'; ctx.beginPath();      // 範囲が内側から満ちていく（満ちたら攻撃）
+        if (sh.t === 'k') { ctx.moveTo(sh.x, sh.y); ctx.arc(sh.x, sh.y, sh.len * p, sh.a - sh.arc / 2, sh.a + sh.arc / 2); ctx.closePath(); } else ctx.arc(sh.x, sh.y, sh.R * p, 0, 7);
+        ctx.fill(); ctx.restore();
+    }
+    function meleeBodyXf(e) {      // 体の変形：溜め＝しゃがんで引く／攻撃＝攻撃方向へ伸びる（飲み込みは大きく膨らむ）
+        const K = MK_BY_I[e.mk | 0], P = meleeP(e), p = P.p, a = e.maim || 0; let st = 0, sq = 0, bx = 0;
+        if (e.ma === 1) { sq = 0.16 * p; bx = -9 * p; if (K === MK.engulf) { st = -0.15 * p; sq = -0.12 * p; } }
+        else if (e.ma === 2) { const s = Math.sin(p * Math.PI); st = (K === MK.engulf ? 1.0 : (K === MK.pounce ? 0.5 : 0.18)) * s; sq = (K === MK.engulf ? 0.35 : 0.1) * s; }
+        else { const q = 1 - p; st = 0.12 * q; sq = -0.1 * q; }
+        ctx.translate(e.x + Math.cos(a) * bx, e.y + Math.sin(a) * bx); ctx.rotate(a); ctx.scale(1 + st, 1 - sq); ctx.rotate(-a); ctx.translate(-e.x, -e.y);
+    }
+    function drawMeleeFx(e) {
+        const K = MK_BY_I[e.mk | 0], P = meleeP(e), p = P.p, sh = meleeShape(e), a = e.maim || 0, col = (e.def && e.def.color) || '#ff7a5a', id = e.id | 0, strike = e.ma === 2;
+        ctx.save();
+        if (K === MK.engulf) {            // 飲み込み：粒が標的の円いっぱいに広がり、ぎゅっと縮む
+            const grow = strike ? 1 - Math.pow(1 - p, 3) : Math.max(0, 1 - P.el / (K.rec * 0.55)), N = 52;
+            for (let i = 0; i < N; i++) {
+                const ang = mHash(id, i) * 6.283, rad = Math.sqrt(mHash(id, i + 99)) * sh.R * 0.95, t = strike ? grow : 1;
+                const tx = sh.x + Math.cos(ang) * rad * (strike ? 1 : grow), ty = sh.y + Math.sin(ang) * rad * (strike ? 1 : grow);
+                const sx0 = e.x + Math.cos(a) * e.r * 0.4, sy0 = e.y + Math.sin(a) * e.r * 0.4;
+                mDot(sx0 + (tx - sx0) * t, sy0 + (ty - sy0) * t - Math.sin(t * 3.14) * 14, 6 + ((mHash(id, i + 5) * 6) | 0), i % 3 ? col : '#eaffef', (strike ? 0.9 : 0.85) * (grow > 0.02 ? 1 : 0));
+            }
+            for (let i = 0; i < 20; i++) { const ang = i / 20 * 6.283; mDot(sh.x + Math.cos(ang) * sh.R * grow, sh.y + Math.sin(ang) * sh.R * grow, 6, '#ffffff', 0.9 * (grow > 0.05 ? 1 : 0)); }
+        } else if (K === MK.claw || K === MK.slash || K === MK.swipe) {      // 爪・斬撃：弧をなぞる粒の軌跡（爪は3本、斬撃は1本）
+            const claws = K === MK.claw ? 3 : 1, fade = strike ? 1 : Math.max(0, 1 - P.el / (K.rec * 0.5));
+            for (let c = 0; c < claws; c++) {
+                const rr = claws === 1 ? e.r + K.reach * 0.7 : e.r + K.reach * (0.5 + 0.25 * c), delay = c * 0.14, pp = strike ? clamp((p - delay) / (1 - delay), 0, 1) : 1;
+                const a0 = a - K.arc / 2, a1 = a0 + K.arc * pp;
+                for (let i = 0; i <= 26; i++) {
+                    const u = i / 26, ang = a0 + (a1 - a0) * u; if (u * K.arc > K.arc * pp) break;
+                    const head = pp > 0 ? (1 - Math.abs(u - 1) * 1.0) : 0, al = clamp(0.25 + 0.75 * u, 0, 1) * fade;
+                    mDot(e.x + Math.cos(ang) * rr, e.y + Math.sin(ang) * rr, claws === 1 ? 7 : 6, u > 0.9 ? '#ffffff' : (c % 2 ? col : '#ffd2b0'), al);
+                    if (i % 3 === 0) mDot(e.x + Math.cos(ang) * (rr + 8 * (mHash(id, i + c * 31) - 0.5) * 2), e.y + Math.sin(ang) * (rr + 8 * (mHash(id, i + c * 31 + 7) - 0.5) * 2), 3, '#ffffff', al * 0.7);
+                }
+            }
+        } else if (K === MK.slam) {      // 叩きつけ：輪が広がり、破片が舞い上がる
+            const grow = strike ? 1 - Math.pow(1 - p, 2) : 1, fade = strike ? 1 : Math.max(0, 1 - P.el / (K.rec * 0.5));
+            for (let i = 0; i < 40; i++) { const ang = i / 40 * 6.283; mDot(e.x + Math.cos(ang) * sh.R * grow, e.y + Math.sin(ang) * sh.R * grow, 7, i % 2 ? col : '#ffffff', 0.9 * fade); }
+            for (let i = 0; i < 18; i++) { const ang = mHash(id, i) * 6.283, rad = sh.R * (0.2 + 0.7 * mHash(id, i + 40)) * grow, t = strike ? p : 1; mDot(e.x + Math.cos(ang) * rad, e.y + Math.sin(ang) * rad - Math.sin(t * 3.14) * 34 * mHash(id, i + 9), 5, '#cfcfcf', 0.85 * fade); }
+        } else {      // 飛びかかり：飛んだ道すじに粒の尾
+            const fade = strike ? 1 : Math.max(0, 1 - P.el / (K.rec * 0.5));
+            for (let i = 1; i <= 14; i++) { const back = i * 9; mDot(e.x - Math.cos(a) * back + (mHash(id, i) - 0.5) * 8, e.y - Math.sin(a) * back + (mHash(id, i + 20) - 0.5) * 8, 7 - i * 0.3, i % 2 ? col : '#ffffff', (1 - i / 15) * fade); }
+        }
+        ctx.globalAlpha = 1; ctx.restore();
+    }
+
     function drawEnemy(e) {
         if (e.pvp) return;   // 対人戦の相手は drawPlayer で描く
         if (GMK === 'worm' && wmHidden(e.x)) return;      // 外と体内は、お互いに見えない
@@ -5180,11 +5311,13 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         const fl = e.flash > 0;
         if (e.boss && !e.echo && (e.gate != null ? e.gate : bdef(e).gate)) drawGateRing(e);
         ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(e.x, e.y + e.r * 0.8, e.r * 0.9, e.r * 0.4, 0, 0, 7); ctx.fill();
+        if (!e.boss && e.ma === 1) drawMeleeTele(e);      // 近接の敵の攻撃予告（赤い範囲）
         ctx.save(); if (e.air > 0) ctx.translate(0, -e.air);   // 跳躍中は影を残して本体だけ浮く
         if (e.arch === 'charger' && e.state === 1 && e.aim != null) { ctx.strokeStyle = 'rgba(255,80,80,0.7)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.aim) * 340, e.y + Math.sin(e.aim) * 340); ctx.stroke(); }
         if (e.boss && e.state === 1 && e.aim != null) { ctx.strokeStyle = 'rgba(255,80,80,0.7)'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + Math.cos(e.aim) * 600, e.y + Math.sin(e.aim) * 600); ctx.stroke(); }
         const pxE = !!(window.SBPix && SBPix.on() && !e.boss && SBPix.hasEnemy(e.arch));      // ドット絵で描く敵
         const pxB = !!(window.SBPix && SBPix.on() && SBPix.drawBoss && e.boss);      // ドット絵で描くボス
+        const mxf = (!e.boss && e.ma > 0); if (mxf) { ctx.save(); meleeBodyXf(e); }      // 攻撃モーション中の体の変形（溜め・伸び・のけぞり）
         ctx.fillStyle = fl ? '#fff' : (e.def.color || '#a44'); ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 7); if (!pxE && !pxB) ctx.fill(); ctx.globalAlpha = 1;
         if (pxB) SBPix.drawBoss(ctx, e.x, e.y, e.r, e.def.name, e.def.icon, e.def.color, { flash: fl, left: me.x < e.x });
         if (pxE) SBPix.drawEnemy(ctx, e.x, e.y, e.r, e.arch, e.def.color || '#a44', { flash: fl, left: me.x < e.x, seed: (e.id | 0) * 1.7, now: performance.now() });
@@ -5198,12 +5331,14 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         else if (e.elite) { ctx.strokeStyle = '#ff9a2a'; ctx.lineWidth = 4; ctx.stroke(); ctx.beginPath(); ctx.arc(e.x, e.y, e.r + 6, 0, 7); ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1; }
         ctx.font = Math.round(e.r * 1.25) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
         if (!pxE && !pxB) ctx.fillText(e.def.icon, e.x, e.y + 1);
+        if (mxf) ctx.restore();
         if (e.st && (e.st.burnT > 0)) ctx.fillText('🔥', e.x + e.r * 0.6, e.y - e.r * 0.8);
         if (e.st && (e.st.poisonT > 0)) ctx.fillText('☠', e.x - e.r * 0.6, e.y - e.r * 0.8);
         if (e.st && (e.st.slowT > 0)) ctx.fillText('❄', e.x, e.y - e.r * 1.1);
         if (e.st && (e.st.stunT > 0)) ctx.fillText('💫', e.x, e.y - e.r * 1.2);
         ctx.textBaseline = 'alphabetic';
         ctx.restore();
+        if (!e.boss && e.ma > 1) drawMeleeFx(e);      // 攻撃のドット絵エフェクト（飲み込み・爪・叩きつけ…）
         if (SE && (e.boss || e.elite) && !e.pvp) {   // 弱点（×1.6）と耐性（×0.5）の属性
             const wk = SE.weakOf(e.def && e.def.name);
             ctx.font = '12px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff';
