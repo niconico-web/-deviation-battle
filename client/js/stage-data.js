@@ -846,6 +846,29 @@
     function scaleOf(req) {
         return { gMob: atkMulRef(req) / atkMulRef(STAT_REQ.start), gDmg: atkMulRef(req) / atkMulRef(STAT_REQ.start), gHp: maxHpRef(req) / maxHpRef(STAT_REQ.start) };
     }
-    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, RUSH_DIFFS: RUSH_DIFFS, RUSH: RUSH, CORRIDOR: CORRIDOR, scaleOf: scaleOf, ilvlForReq: ilvlForReq, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX };
-    window.getStageById = function (id) { return S.find(s => s.id === id) || null; };
+    // ============================================================
+    // 緊急ステージ（○○ニグス）
+    //  ・第五世界以降のボスを元にした、数倍強い「ニグス」。13/15/17/20/22時に開催（開催・通知は progression.js）
+    //  ・町のステージゲートの一覧には出さないので、S には入れず別の配列 EMG に持つ（getStageById は両方から探す）
+    //  ・倍率を変えたいときは EMG_MUL だけ触る（hp＝ボスのHP倍率、dmg＝敵の攻撃力、req＝推奨合計）
+    // ============================================================
+    const EMG_MUL = { hp: 4, dmg: 2.2, req: 3 };
+    const EMG = [];
+    S.forEach(st => {
+        if ((st.world || 1) < 5 || (st.world || 1) >= 9 || !st.boss || !st.drops) return;
+        if (st.pvp || st.raid || st.ambush || st.rush || st.corridor || st.standardOnly || st.mini || st.gateTo || st.bossOnly) return;
+        const pw = st.power || { hp: 1, dmg: 1, spd: 1 };
+        const e = Object.assign({}, st, {
+            id: 'emg_' + st.id, emergency: true, baseId: st.id,
+            name: '緊急　' + st.boss.name + 'ニグス', icon: '🚨',
+            desc: '緊急出現！「' + st.boss.name + '」が変異した「' + st.boss.name + 'ニグス」。元のボスの数倍の強さ。',
+            boss: Object.assign({}, st.boss, { name: st.boss.name + 'ニグス' }),
+            power: { hp: pw.hp, dmg: pw.dmg * EMG_MUL.dmg, spd: pw.spd },
+            req: Math.round(st.req * EMG_MUL.req), gDmg: st.gDmg * EMG_MUL.hp,
+            bossHp: Math.round(st.gDmg * EMG_MUL.hp * 70 * 1.7 * 24)      // bossHp があるステージは、プレイヤーが強くても敵が勝手に強くならない（practice.js）
+        });
+        EMG.push(e);
+    });
+    window.STAGE_DATA = { STAGES: S, ARCH: ARCH, PATTERNS: PATTERNS, DIFFS: DIFFS, RUSH_DIFFS: RUSH_DIFFS, RUSH: RUSH, CORRIDOR: CORRIDOR, scaleOf: scaleOf, ilvlForReq: ilvlForReq, WORLDS: WORLDS, STAT_REQ: STAT_REQ, ILVL_MAX: ILVL_MAX, EMERGENCY: EMG, EMG_MUL: EMG_MUL };
+    window.getStageById = function (id) { return S.find(s => s.id === id) || EMG.find(s => s.id === id) || null; };
 })();

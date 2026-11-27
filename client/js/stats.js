@@ -247,7 +247,16 @@ function getStudyEfficiency() {
 function getOrbGrowthMult() {
     try { return (window.HW && window.HW.studyGrowthMult && window.HW.studyGrowthMult()) || 1; } catch (e) { return 1; }
 }
-function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficiency()); }
+// Lv60に届くまでは経験値3倍（序盤を早く進められるように）
+const XP_BOOST_UNTIL_LEVEL = 60, XP_BOOST_MULT = 3;
+function getLevelXpBoost() {
+    try {
+        const p = (typeof getPlayerData === 'function') ? getPlayerData() : null;
+        const lv = p ? (p.level || calcLevel(p.xp || 0)) : 1;
+        return lv < XP_BOOST_UNTIL_LEVEL ? XP_BOOST_MULT : 1;
+    } catch (e) { return 1; }
+}
+function calcStudyXp(s) { return Math.floor(Math.floor(s / 4) * getStudyEfficiency() * getLevelXpBoost()); }
 
 // 勉強で得られるステータス成長量。
 // 以前は時間だけで決まる固定値だったため、転生ボーナス（永続・乗算）や

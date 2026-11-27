@@ -313,7 +313,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         socket = io({ transports: ['websocket', 'polling'], reconnectionDelay: 500, reconnectionDelayMax: 3000 });      // 最初から WebSocket で接続する（既定の polling 始まりだと、回線によっては切り替わらず重いままになる）
         socket.on('connect', () => {
             netPingT = 0;
-            const best = Math.max(1, hack.corridorBest | 0 || 1), payload = { player: { id: myId, name: myName, wname: weapon.name, rar: weapon.rarity, best: hack.corridorBest | 0 }, stageId: stage.id, diff: parseInt(launch.diff, 10) || 0, startFloor: stage.corridor ? Math.max(1, Math.min(launch.startFloor | 0 || 1, best)) : 1 };      // 無限回廊：部屋のスタート階層と、自分の最深の階層を伝える
+            const best = Math.max(1, hack.corridorBest | 0 || 1), payload = { player: { id: myId, name: myName, wname: weapon.name, rar: weapon.rarity, best: hack.corridorBest | 0, lv: (pdata.level || (typeof calcLevel === 'function' ? calcLevel(pdata.xp || 0) : 1)) }, stageId: stage.id, diff: parseInt(launch.diff, 10) || 0, startFloor: stage.corridor ? Math.max(1, Math.min(launch.startFloor | 0 || 1, best)) : 1 };      // 無限回廊：部屋のスタート階層と、自分の最深の階層を伝える
             if (launch.mode === 'create') socket.emit('stage:create', payload);
             else if (launch.mode === 'join') socket.emit('stage:join', Object.assign({ roomId: launch.roomId }, payload));
             else socket.emit('stage:quick', payload);
@@ -1505,13 +1505,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         if (t < CINE_SHATTER) { ctx.fillStyle = 'rgba(0,0,0,' + (0.3 * (t / CINE_SHATTER)).toFixed(3) + ')'; ctx.fillRect(0, 0, VW, VH); return; }
         let fa = 0; CINE_WAVES.forEach(w => { const kw = t - CINE_SHATTER - w.at; if (kw >= 0 && kw < 0.4) fa = Math.max(fa, w.flash * (1 - kw / 0.4)); });
         if (fa > 0) { ctx.fillStyle = 'rgba(255,255,255,' + fa.toFixed(3) + ')'; ctx.fillRect(0, 0, VW, VH); }
-        const k = t - CINE_SHATTER - 1.7;      // 最後の破壊のあと：「撃破」の文字が浮かぶ
-        if (k > 0) {
-            const a = Math.min(1, k / 0.35) * Math.max(0, Math.min(1, (CINE_END - 0.4 - t) / 0.6)), sc = 1 + 0.25 * Math.exp(-k * 6);
-            ctx.save(); ctx.globalAlpha = a; ctx.translate(VW / 2, VH * 0.36); ctx.scale(sc, sc); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-            ctx.font = 'bold ' + Math.round(Math.min(VW * 0.16, 84)) + 'px sans-serif'; ctx.lineWidth = 8; ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.strokeText('撃　破', 0, 0);
-            const gr = ctx.createLinearGradient(0, -40, 0, 40); gr.addColorStop(0, '#ffffff'); gr.addColorStop(1, CINE.col); ctx.fillStyle = gr; ctx.fillText('撃　破', 0, 0); ctx.restore();
-        }
+        // 「撃破」の文字は出さない（演出だけで十分）
     }
     function killFx(ev) {
         if (ev.boss && !PVP) cineStart(ev);      // ボスを倒した：撃破の演出
@@ -1585,6 +1579,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             rollLoot(stage.drops, rareBonus, 'magic', ev.x - 22, ev.y, 'boss');
             rollArmor(rareBonus, 'rare', ev.x, ev.y - 20, 'boss'); if (Math.random() < 0.5) rollArmor(rareBonus, 'magic', ev.x + 18, ev.y - 24, 'boss');
             if (Math.random() < 0.8) giveOrb(true);
+            if (stage.emergency) emgBossBonus(ev);      // 緊急ステージ（ニグス）：専用の追加報酬
         } else if (ev.elite) {
             // 精鋭：高確率で武器（マジック以上）、オーブも出やすい
             if (Math.random() < 0.55 * (1 + luck)) rollLoot(stage.drops, rareBonus, 'magic', ev.x, ev.y, 'elite');
@@ -2905,6 +2900,25 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             else if (k === 'barrier' && (me.barrierHp || 0) < me.maxHp * 0.12) me.barrierHp = Math.max(10, Math.round(me.maxHp * 0.2));
         });
     }
+    // 治療師の同行（ロビーで「治療師を連れていく」をオンにして出発したとき）：加護の杖を持った治療師が後ろをついてきて、3秒ごとに自分のHPを回復する
+    const HEALER = (launch && launch.healer > 0 && !PVP) ? { pct: Math.min(0.15, launch.healer), x: null, y: 0, t: 3 } : null;
+    function updateHealer(dt) {
+        if (!HEALER || me.dead || run.phase !== 'run') return;
+        if (HEALER.x == null) { HEALER.x = me.x - 34; HEALER.y = me.y + 26; }
+        const k = 1 - Math.exp(-dt * 5); HEALER.x += (me.x - 34 - HEALER.x) * k; HEALER.y += (me.y + 26 - HEALER.y) * k;
+        HEALER.t -= dt;
+        if (HEALER.t <= 0) {
+            HEALER.t = 3;
+            const got = me.hp < me.maxHp ? addHp(me.maxHp * HEALER.pct) : 0;
+            fx.push({ k: 'ring', x: me.x, y: me.y, r: 0, max: 46, t: 0.45, life: 0.45, c: '#7aff9a' });
+            if (got > 0) popups.push({ x: me.x, y: me.y - 34, t: 0.9, text: '+HP', c: '#7aff9a' });
+        }
+    }
+    function drawHealer() {
+        if (!HEALER || HEALER.x == null || me.dead) return;
+        ctx.save(); ctx.font = '22px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('👩‍⚕️', HEALER.x, HEALER.y);
+        ctx.font = '12px sans-serif'; ctx.fillText('🪄', HEALER.x + 14, HEALER.y - 8); ctx.restore();
+    }
     function updateMinions(dt) {
         if (me.dead) minions = [];
         if (minions.length) {
@@ -3550,6 +3564,22 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         ctx.strokeStyle = '#d8dce8'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(r * 0.7, r * 0.8); ctx.lineTo(r * 1.3, -r * 0.9); ctx.stroke(); ctx.strokeStyle = '#ffcf6a'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(r * 0.62, r * 0.55); ctx.lineTo(r * 0.82, r * 0.62); ctx.stroke();      // 剣
         if (e.enraged) { ctx.globalAlpha = 0.35 + 0.2 * Math.sin(now * 10); ctx.strokeStyle = '#ffcf6a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(0, 0, r * 1.6, 0, 7); ctx.stroke(); }
         ctx.restore(); ctx.globalAlpha = 1;
+    }
+    // 緊急ステージ（ニグス）のボスを倒した：混沌の結晶・昇華の結晶・武器・防具・アクセサリー（通常のボス報酬に上乗せ）
+    function emgBossBonus(ev) {
+        const rb = A('rarePct') + DIFF.luck;
+        run.stats.coins += Math.round((1 + stage.ilvl * 0.8) * 60 * (1 + A('goldPct')));
+        rollLoot(stage.bossDrops, rb + 1.4, 'epic', ev.x + 24, ev.y, 'boss'); rollLoot(stage.bossDrops, rb + 1.8, 'legendary', ev.x - 24, ev.y + 14, 'boss');
+        rollArmor(rb + 1.2, 'epic', ev.x, ev.y - 30, 'boss'); rollAcc(rb + 1.4, 'epic', ev.x - 30, ev.y + 30);
+        const chaos = 3 + Math.floor(Math.random() * 3), sub = 1 + (Math.random() < 0.35 ? 1 : 0);      // 混沌の結晶 3〜5個／昇華の結晶 1〜2個
+        try {
+            const p = getPlayerData();
+            if (p) { const cc = p.craftCurrency || (p.craftCurrency = { chaos: 0, divine: 0, imprint: 0 }); cc.chaos = (cc.chaos | 0) + chaos; localStorage.setItem('player', JSON.stringify(p)); }
+            const h = HW.load(); HW.addItem(h, 'rarity', sub); HW.save(h);
+        } catch (e) { /* 結晶の付与に失敗してもステージは続ける */ }
+        run.stats.items = run.stats.items || {}; run.stats.items.rarity = (run.stats.items.rarity || 0) + sub;
+        run.stats.chaosCrystal = (run.stats.chaosCrystal || 0) + chaos;
+        popups.push({ x: ev.x, y: ev.y - 56, t: 2.2, text: '🔮 混沌の結晶×' + chaos + '　🔶 昇華の結晶×' + sub, c: '#e0b0ff', big: true });
     }
     function ambKillReward(ev) {      // 王を倒した：専用の報酬（大量のコイン・素材・エピック装備・レジェンダリー確定・称号）
         const rb = A('rarePct') + DIFF.luck;
@@ -4879,6 +4909,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
         drawDomains();
         enemies.forEach(e => drawEnemy(e));
         drawMinions();
+        drawHealer();
         // 敵弾
         eBullets.forEach(b => { if (wmHidden(b.x)) return; if (b.kd === 1) { drawSword(b); return; } if (b.refl === 1) { ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(b.x, b.y, b.r + 5, 0, 7); ctx.stroke(); } if (pxOn && SBPix.drawBullet) { SBPix.drawBullet(ctx, b.x, b.y, b.r, b.c || '#ff6a5a', { vx: b.vx, vy: b.vy }); return; } ctx.fillStyle = b.c || '#ff6a5a'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 7); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, 7); ctx.fill(); });
         // 自分の弾
@@ -5615,7 +5646,7 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
             run.time += dt;
             skillSlots.forEach(sk => { if (sk && sk.cdLeft > 0) sk.cdLeft = Math.max(0, sk.cdLeft - dt); });
             if ((skillT -= dt) <= 0) { skillT = 0.1; updateSkillBar(); }
-            updateMe(dt); updateShots(dt); classInit(); if (window.ClassFx) ClassFx.update(dt); if (window.ClassForms) ClassForms.update(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); corrUpdate(dt);
+            updateMe(dt); updateShots(dt); classInit(); if (window.ClassFx) ClassFx.update(dt); if (window.ClassForms) ClassForms.update(dt); gmLocal(dt); updateDomains(dt); updateMinions(dt); updateHealer(dt); corrUpdate(dt);
             if (DBG) { if (DBG.god) { me.invHard = 99; if (me.dead) { me.dead = false; me.hp = me.maxHp; } } if (DBG.energy !== false) me.energy = ENERGY_MAX; }   // デバッグ：無敵・エネルギー無限
             if (PVP && run.pvpMode) { syncPvpDummies(); if (isHost) pvpHostCheck(); }
             else if (PVP && run.ghostMode) { ghostUpdate(dt); }

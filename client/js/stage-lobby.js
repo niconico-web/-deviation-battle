@@ -156,6 +156,7 @@
             }).join('') + '</div>';
             listEl.querySelectorAll('.sbl-card').forEach(c => c.addEventListener('click', () => { selId = c.dataset.id; renderList(); renderDetail(); refreshRooms(); }));
             listEl.querySelectorAll('[data-world]').forEach(b => b.addEventListener('click', () => { world = parseInt(b.dataset.world, 10); selId = worldStages()[0].id; renderList(); renderDetail(); refreshRooms(); }));
+            if (window.SBProg) SBProg.decorateCards(listEl);
         }
         function matLine(s) {
             const seen = {}, out = [];
@@ -248,9 +249,11 @@
             detEl.querySelector('#sbQuick').addEventListener('click', () => launch('quick'));
             detEl.querySelector('#sbRefresh').addEventListener('click', refreshRooms);
             detEl.querySelectorAll('[data-room]').forEach(b => b.addEventListener('click', () => launch('join', b.dataset.room)));
+            if (window.SBProg) SBProg.decorateDetail(detEl, s);
         }
         function launch(mode, roomId) {
             const st = window.getStageById(selId);
+            if (window.SBProg) { const bl = SBProg.stageBlocked(st); if (bl) { alert(bl); return; } }      // メインミッション：村長に話しかけて解放するまで、ステージには行けない
             if (!stageUnlocked(st)) { alert(st.unlock.text); return; }
             let useDiff = selDiff;
             { const gt = diffGate(st, selDiff); if (gt) { alert(gt); return; } }
@@ -260,7 +263,7 @@
             if (SS) { const chk = SS.canEnterStage(st, st.rush ? gateIdx(st, useDiff) : useDiff); if (!chk.ok) { alert(chk.reason); return; } }
             if (window.SBCost && !SBCost.guard()) return;      // コストが上限を超えていたら出撃できない
             if (typeof window.cancelStudyTimer === 'function') window.cancelStudyTimer();   // 勉強タイマー中なら0に戻す
-            try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
+            try { localStorage.setItem('sbStageLaunch', JSON.stringify({ stageId: selId, mode: mode, roomId: roomId || null, healer: (window.SBProg ? SBProg.healerPower() : 0), diff: (typeof useDiff === 'number' ? useDiff : selDiff), startFloor: st.corridor ? Math.max(1, Math.min(selStart, Math.max(1, hack.corridorBest | 0))) : 1, at: Date.now() })); } catch (e) {}
             location.href = 'lesson.html';
         }
         renderList(); renderDetail(); refreshRooms();

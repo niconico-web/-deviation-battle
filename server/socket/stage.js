@@ -20,6 +20,9 @@
 //   stage:error   { message }
 // ============================================
 
+const RAID_PVP_MIN_LV = 60;      // 大討伐戦・PvPが解放されるレベル
+const MAX_LV_GAP = 10;      // 一緒に行けるレベル差の上限（10以上離れていたら不可）
+function cleanLv(v) { const n = parseInt(v, 10); return n >= 1 && n <= 100000 ? n : 0; }
 const MAX_MEMBERS = 4;
 const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_necro: 20, raid_duality: 20, raid_machine: 20, raid_velzark: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
 const maxOf = (r) => MAX_BY_STAGE[r.stageId] || MAX_MEMBERS;
@@ -47,7 +50,7 @@ function newRoomId() {
 function publicRoom(r) {
     return {
         id: r.id, stageId: r.stageId, diff: r.diff || 0, startFloor: r.startFloor || 1, hostId: r.hostId, state: r.state, max: maxOf(r),
-        members: r.members.map(m => ({ id: m.id, name: m.name, wname: m.wname, rar: m.rar }))
+        members: r.members.map(m => ({ id: m.id, name: m.name, wname: m.wname, rar: m.rar, lv: m.lv || 0 }))
     };
 }
 
@@ -79,8 +82,15 @@ module.exports = function (io) {
             const best = parseInt(player && player.best, 10) || 0;
             if (best < r.startFloor) { socket.emit("stage:error", { message: "この部屋は地下" + r.startFloor + "階からです。まだ地下" + r.startFloor + "階に到達していないので、参加できません（最深：" + (best ? "地下" + best + "階" : "未挑戦") + "）" }); return false; }
         }
+        // レベル差が10以上ある人とは、一緒にステージへ行けない（部屋にいる誰かとの差が10以上なら参加できない）
+        const lvNew = cleanLv(player && player.lv);
+        if (/^(raid_|pvp_)/.test(r.stageId) && lvNew > 0 && lvNew < RAID_PVP_MIN_LV) { socket.emit("stage:error", { message: "大討伐戦とPvPは Lv" + RAID_PVP_MIN_LV + " から解放されます（あなたは Lv" + lvNew + "）" }); return false; }
+        if (lvNew > 0) {
+            const clash = r.members.find(m => m.id !== id && m.lv > 0 && Math.abs(m.lv - lvNew) >= MAX_LV_GAP);
+            if (clash) { socket.emit("stage:error", { message: "レベル差が" + MAX_LV_GAP + "以上ある人とは、一緒にステージへ行けません（あなた Lv" + lvNew + " ／ " + clash.name + " Lv" + clash.lv + "）" }); return false; }
+        }
         r.members = r.members.filter(m => m.id !== id); // 同一プレイヤーの二重参加を防ぐ
-        r.members.push({ sid: socket.id, id: id, name: cleanName(player.name, 16) || "名無し", wname: cleanName(player.wname, 30), rar: cleanName(player.rar, 12) });
+        r.members.push({ sid: socket.id, id: id, name: cleanName(player.name, 16) || "名無し", wname: cleanName(player.wname, 30), rar: cleanName(player.rar, 12), lv: lvNew });
         socket.join("stage:" + r.id);
         socketRoom.set(socket.id, r.id);
         emitRoom(r);
@@ -118,7 +128,7 @@ module.exports = function (io) {
             const sid = String(data.stageId).slice(0, 40);
             let target = null;
             const wantFloor = cleanFloor(data.startFloor);
-            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && (r.startFloor || 1) === wantFloor && r.state === "lobby" && r.members.length < maxOf(r)) target = r; });      // クイック参加は、同じスタート階層の部屋だけ
+            rooms.forEach(r => { if (!target && r.stageId === sid && (r.diff || 0) === cleanDiff(data.diff) && (r.startFloor || 1) === wantFloor && r.state === "lobby" && r.members.length < maxOf(r) && !r.members.some(m => m.lv > 0 && cleanLv(data.player && data.player.lv) > 0 && Math.abs(m.lv - cleanLv(data.player.lv)) >= MAX_LV_GAP)) target = r; });      // クイック参加は、同じスタート階層の部屋だけ
             if (!target) {
                 target = { id: newRoomId(), stageId: sid, diff: cleanDiff(data.diff), startFloor: wantFloor, hostId: cleanName(data.player && data.player.id, 60), state: "lobby", members: [] };
                 rooms.set(target.id, target);
