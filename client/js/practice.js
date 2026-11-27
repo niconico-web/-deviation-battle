@@ -72,7 +72,9 @@
 const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
     const START_ENERGY = 40;       // 開始時のエネルギー（0だと最初の攻撃ができないため）
     let ENERGY_MAX = 100;          // 特殊ステータスで上限が増える（下の P を作った直後に決める）
-    const SNAP_HZ = 16;
+    // 状態は受信側で補間するため、毎秒12回で十分な滑らかさを保てる。
+    // 送信量を抑えて、操作やPing応答が状態同期の待ち行列に埋もれるのを防ぐ。
+    const SNAP_HZ = 12;
     // ボスの技（boss-moves.js）とスタン
     const BM = window.BOSS_MOVES || null;
     const STUN_SEC = (BM && BM.STUN_SECONDS) || 3.0;     // スタンの長さ（動けない・攻撃も回避もできない）
@@ -295,7 +297,15 @@ const PARRY_WINDOW = 0.22, PARRY_CD = 1.0;
     }
 
     // ---------- ネットワーク ----------
-    function netSend(t, d) { if (socket && room) socket.emit('stage:relay', { t: t, d: d }); }
+    function netSend(t, d) {
+        if (!socket || !room) return;
+        const packet = { t: t, d: d };
+        // 位置・状態同期は次の更新で必ず置き換わる。一時的に回線が詰まった際、
+        // 古い状態をため込むと操作・Ping応答まで遅れるため、最新分だけを送る。
+        const hot = t === 'pos' || t === 'snap' || t === 'mn';
+        const sender = hot && socket.volatile ? socket.volatile : socket;
+        sender.emit('stage:relay', packet);
+    }
     // ゲストのヒット通知：ヒットのたびに1通ずつ送ると、連続ヒットのスキル（旋回・領域・ミニオン…）で通信が詰まって画面が重くなる。
     // 0.06秒ぶんをまとめて1通（'hits'）で送る。ホストは受け取ったら1つずつ処理する
     let hitQ = [], hitFlushT = 0;

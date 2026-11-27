@@ -20,8 +20,8 @@
 //   stage:error   { message }
 // ============================================
 
-const RAID_PVP_MIN_LV = 60;      // 大討伐戦・PvPが解放されるレベル
-const MAX_LV_GAP = 10;      // 一緒に行けるレベル差の上限（10以上離れていたら不可）
+const RAID_PVP_MIN_LV = 50;      // 大討伐戦・PvPが解放されるレベル
+const MAX_LV_GAP = 20;      // 一緒に行けるレベル差の上限（20を超えて離れていたら不可）
 function cleanLv(v) { const n = parseInt(v, 10); return n >= 1 && n <= 100000 ? n : 0; }
 const MAX_MEMBERS = 4;
 const MAX_BY_STAGE = { pvp_3v3: 6, raid_increase: 20, raid_worm: 20, raid_necro: 20, raid_duality: 20, raid_machine: 20, raid_velzark: 20 };            // 3v3 は6人まで、大討伐戦は20人まで（ほかは4人）
@@ -82,12 +82,12 @@ module.exports = function (io) {
             const best = parseInt(player && player.best, 10) || 0;
             if (best < r.startFloor) { socket.emit("stage:error", { message: "この部屋は地下" + r.startFloor + "階からです。まだ地下" + r.startFloor + "階に到達していないので、参加できません（最深：" + (best ? "地下" + best + "階" : "未挑戦") + "）" }); return false; }
         }
-        // レベル差が10以上ある人とは、一緒にステージへ行けない（部屋にいる誰かとの差が10以上なら参加できない）
+        // レベル差が20を超える人とは、一緒にステージへ行けない（差が20までは参加できる）
         const lvNew = cleanLv(player && player.lv);
         if (/^(raid_|pvp_)/.test(r.stageId) && lvNew > 0 && lvNew < RAID_PVP_MIN_LV) { socket.emit("stage:error", { message: "大討伐戦とPvPは Lv" + RAID_PVP_MIN_LV + " から解放されます（あなたは Lv" + lvNew + "）" }); return false; }
         if (lvNew > 0) {
-            const clash = r.members.find(m => m.id !== id && m.lv > 0 && Math.abs(m.lv - lvNew) >= MAX_LV_GAP);
-            if (clash) { socket.emit("stage:error", { message: "レベル差が" + MAX_LV_GAP + "以上ある人とは、一緒にステージへ行けません（あなた Lv" + lvNew + " ／ " + clash.name + " Lv" + clash.lv + "）" }); return false; }
+            const clash = r.members.find(m => m.id !== id && m.lv > 0 && Math.abs(m.lv - lvNew) > MAX_LV_GAP);
+            if (clash) { socket.emit("stage:error", { message: "レベル差が" + MAX_LV_GAP + "を超える人とは、一緒にステージへ行けません（あなた Lv" + lvNew + " ／ " + clash.name + " Lv" + clash.lv + "）" }); return false; }
         }
         r.members = r.members.filter(m => m.id !== id); // 同一プレイヤーの二重参加を防ぐ
         r.members.push({ sid: socket.id, id: id, name: cleanName(player.name, 16) || "名無し", wname: cleanName(player.wname, 30), rar: cleanName(player.rar, 12), lv: lvNew });

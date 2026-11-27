@@ -1,9 +1,9 @@
 // ============================================================
 // 進行システム (progression.js)
-//  1) Lv60まで経験値3倍（倍率の本体は stats.js の getLevelXpBoost）
+//  1) Lv50まで経験値・ステータス成長量3倍（倍率の本体は stats.js の getLevelXpBoost）
 //  2) レベル到達報酬
-//       Lv60  : 「神話武器の素材」か「コイン」を選んで受け取る。大討伐戦・市場・緊急ステージ・PvPが解放される
-//       Lv100 : 混沌の結晶×10 ＋ Lv60で受け取らなかった方
+//       Lv50  : 「神話武器の素材」か「コイン」を選んで受け取る。大討伐戦・市場・緊急ステージ・PvPが解放される
+//       Lv100 : 混沌の結晶×10 ＋ Lv50で受け取らなかった方
 //  3) メインミッション（村長）… 最初はステージが全部ロック。推奨合計の6割を満たして村長に話しかけると解放（飛び級OK）
 //  4) 緊急ステージ（○○ニグス）… 13/15/17/20/22時に開催。1時間前にアラート。ステージ本体は stage-data.js の EMERGENCY
 //  5) 通知 … 勉強が終わったとき／緊急ステージの1時間前・開催時に、その端末へ通知する
@@ -15,9 +15,9 @@
     'use strict';
 
     // ---------- 調整用の定数 ----------
-    const UNLOCK_LV = 60;                  // 大討伐戦・市場・緊急ステージ・PvPが解放されるレベル
-    const LV60_COINS = 1000000;            // Lv60報酬（コイン案）。神話への鍛え直し代（HW.MYTHIC_FORGE）と同じ額
-    const LV60_MAT_EACH = 30;              // Lv60報酬（素材案）。レア度4の素材を、1種類につきこの個数
+    const UNLOCK_LV = 50;                  // 大討伐戦・市場・緊急ステージ・PvPが解放されるレベル
+    const UNLOCK_COINS = 1000000;          // Lv50到達報酬（コイン案）。神話への鍛え直し代（HW.MYTHIC_FORGE）と同じ額
+    const UNLOCK_MAT_EACH = 30;            // Lv50到達報酬（素材案）。レア度4の素材を、1種類につきこの個数
     const LV100_CHAOS = 10;                // Lv100報酬の混沌の結晶
     const MISSION_RATIO = 0.6;             // 推奨合計のこの割合を満たしていれば、村長からステージを受注できる
     const EMG_HOURS = [13, 15, 17, 20, 22];  // 緊急ステージの開催時刻（端末のローカル時間）
@@ -92,11 +92,11 @@
         const cc = p.craftCurrency || (p.craftCurrency = { chaos: 0, divine: 0, imprint: 0 });
         cc.chaos = (cc.chaos | 0) + n;
     }
-    function rewardText(kind) { return kind === 'coin' ? 'コイン ' + fmt(LV60_COINS) + '枚' : '神話武器の素材（最高ランク素材 ' + matIds().length + '種×' + LV60_MAT_EACH + '個）'; }
-    function applyChoice(kind) { const p = getP(); if (!p) return; if (kind === 'coin') grantCoins(p, LV60_COINS); else grantMats(p, LV60_MAT_EACH); savePlayer(p); }
+    function rewardText(kind) { return kind === 'coin' ? 'コイン ' + fmt(UNLOCK_COINS) + '枚' : '神話武器の素材（最高ランク素材 ' + matIds().length + '種×' + UNLOCK_MAT_EACH + '個）'; }
+    function applyChoice(kind) { const p = getP(); if (!p) return; if (kind === 'coin') grantCoins(p, UNLOCK_COINS); else grantMats(p, UNLOCK_MAT_EACH); savePlayer(p); }
 
     let rewardOpen = false;
-    function showLv60() {
+    function showUnlockReward() {
         if (rewardOpen) return; rewardOpen = true;
         const m = modal('🎉 Lv' + UNLOCK_LV + ' 到達報酬', '<div>レベル' + UNLOCK_LV + 'に到達しました！<br>どちらか <b>1つ</b> を選んで受け取れます。<small style="color:#9fb3d9">（選ばなかった方は Lv' + 100 + ' 到達時にもらえます）</small></div>' +
             '<div style="margin:8px 0;padding:8px;border:1px solid #5a6aa8;border-radius:8px">🌟 <b>解放されたもの</b><br>大討伐戦 ／ 市場 ／ 緊急ステージ ／ PvP</div>' +
@@ -104,6 +104,7 @@
             () => { rewardOpen = false; });
         m.body.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => {
             const k = b.dataset.k; if (!hasHW()) return;
+            // lv60 は旧バージョンからの保存キー。既存プレイヤーが報酬を二重取得しないよう維持する。
             const h = HW.load(), pr = prog(h); if (pr.lv60) { m.close(); return; }
             pr.lv60 = k; HW.save(h); applyChoice(k);
             m.body.innerHTML = '<div style="padding:8px">✅ <b>' + esc(rewardText(k)) + '</b> を受け取りました！<br><small style="color:#9fb3d9">Lv' + 100 + 'に到達すると、混沌の結晶×' + LV100_CHAOS + 'と、もう一方の報酬がもらえます。</small></div><button style="' + BTN_X + '" data-ok>閉じる</button>';
@@ -117,7 +118,7 @@
         m.body.querySelector('[data-get]').addEventListener('click', () => {
             const h = HW.load(), pr = prog(h); if (pr.lv100) { m.close(); return; }
             pr.lv100 = true; HW.save(h);
-            const p = getP(); if (p) { grantChaos(p, LV100_CHAOS); if (other === 'coin') grantCoins(p, LV60_COINS); else grantMats(p, LV60_MAT_EACH); savePlayer(p); }
+            const p = getP(); if (p) { grantChaos(p, LV100_CHAOS); if (other === 'coin') grantCoins(p, UNLOCK_COINS); else grantMats(p, UNLOCK_MAT_EACH); savePlayer(p); }
             m.body.innerHTML = '<div style="padding:8px">✅ 受け取りました！</div><button style="' + BTN_X + '" data-ok>閉じる</button>';
             m.body.querySelector('[data-ok]').addEventListener('click', m.close);
         });
@@ -126,11 +127,11 @@
         if (!hasHW() || rewardOpen) return;
         const p = getP(); if (!p) return;
         const lv = lvOf(p), pr = prog(HW.load());
-        if (lv >= UNLOCK_LV && !pr.lv60) showLv60();
+        if (lv >= UNLOCK_LV && !pr.lv60) showUnlockReward();
         else if (lv >= 100 && pr.lv60 && !pr.lv100) showLv100(pr.lv60);
     }
 
-    // ---------- 2) Lv60で解放されるもの ----------
+    // ---------- 2) Lv50で解放されるもの ----------
     function lvLocked() { return lvOf(getP()) < UNLOCK_LV; }
     function lockMsg(what) { return '🔒 ' + what + 'は Lv' + UNLOCK_LV + ' になると解放されます（いまは Lv' + lvOf(getP()) + '）。\n勉強して、レベルを上げましょう！'; }
     function guardWindowFn(name, what) {
@@ -290,7 +291,7 @@
         mm.body.innerHTML = '<div style="font-size:1.1rem"><b>' + esc(st.boss.name) + '</b> が出現した！</div>' +
             '<div style="color:#ffb86a">残り <b data-left></b></div>' +
             '<div style="margin:6px 0;font-size:.85rem;color:#c8d4ee">元になったボス「' + esc(st.boss.name.replace(/ニグス$/, '')) + '」の<b>数倍の強さ</b>。ステータス合計の目安：' + fmt(st.req) + '<br>報酬：🔮混沌の結晶 ／ 🔶昇華の結晶 ／ 武器 ／ 防具 ／ アクセサリー</div>' +
-            '<div style="font-size:.8rem;color:#ffd9a0">※ レベル差が10以上ある人とは、一緒に行けません</div>' +
+            '<div style="font-size:.8rem;color:#ffd9a0">※ レベル差が20を超える人とは、一緒に行けません</div>' +
             '<button style="' + BTN_G + '" data-m="solo">ソロで出発</button><button style="' + BTN + '" data-m="create">部屋を作って募集</button><button style="' + BTN + '" data-m="quick">クイック参加</button>';
         mm.body.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => launchEmg(b.dataset.m, st)));
         tick(); const iv = setInterval(() => { if (!document.body.contains(mm.ov)) { clearInterval(iv); return; } tick(); }, 1000);
