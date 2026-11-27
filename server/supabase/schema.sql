@@ -19,3 +19,15 @@ create or replace function public.kv_touch() returns trigger language plpgsql as
 begin new.updated_at = now(); return new; end $$;
 drop trigger if exists kv_touch on public.kv_store;
 create trigger kv_touch before update on public.kv_store for each row execute function public.kv_touch();
+
+-- Safe one-time import from the obsolete schoolbattle_storage prototype.
+-- Existing kv_store rows always win, so live data cannot be overwritten.
+do $$
+begin
+    if to_regclass('public.schoolbattle_storage') is not null then
+        insert into public.kv_store (key, content)
+        select key, value::text
+        from public.schoolbattle_storage
+        on conflict (key) do nothing;
+    end if;
+end $$;

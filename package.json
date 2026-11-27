@@ -4,6 +4,7 @@
   "description": "",
   "main": "server/server.js",
   "dependencies": {
+    "@supabase/server": "^1.9.2",
     "accepts": "^2.0.0",
     "base64id": "^2.0.0",
     "body-parser": "^2.3.0",

@@ -14,7 +14,9 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
-const DATA_DIR = path.join(__dirname, "..", "data");
+// SB_DATA_DIR is intentionally only a test hook. Production always uses
+// server/data, while tests can verify restore behavior without real save files.
+const DATA_DIR = process.env.SB_DATA_DIR || path.join(__dirname, "..", "data");
 const URL_BASE = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
 const KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const TABLE = process.env.SUPABASE_KV_TABLE || "kv_store";
@@ -23,9 +25,11 @@ const ENABLED = !!(URL_BASE && KEY);
 // false のときは Supabase への送信をすべて止める。復元できていないのに送ると、
 // Supabase 上の本番データ（市場・ランキング等）を空っぽのローカルファイルで上書きしてしまうため。
 let restoreOk = null;
-// 問題・ボスなどの「素材ファイル」はコードと一緒に配られるので、保存対象にしない
-const STATIC = new Set(["bosses.json", "questions.json", "quests.json", "boss_rewards.json", "boss_questions.json"]);
-const FAST = new Set(["market.json", "survival.json", "nations.json", "artifacts.json"]);      // 預かり中のアイテムを含むので、短い間隔で送る
+// 問題・ボスなどの「素材ファイル」はコードと一緒に配られるので、保存対象にしない。
+// quests.json は名前に反して GuildManager が更新するギルドクエストの実データ。
+const STATIC = new Set(["bosses.json", "questions.json", "boss_rewards.json", "boss_questions.json"]);
+// 市場の預かり品、プレイヤー（ランキングの元データ）、ギルド／クエストは早く同期する。
+const FAST = new Set(["market.json", "players.json", "guilds.json", "quests.json", "survival.json", "nations.json", "artifacts.json"]);
 const NAME_OK = /^[A-Za-z0-9_.-]+\.json$/;
 const FAST_MS = 3000, SLOW_MS = 15000;
 
@@ -116,4 +120,8 @@ if (require.main === module) {
     if (!ENABLED) process.exit(0);
     (mode === "--push" ? pushAll() : restore()).then(() => process.exit(0), (e) => { console.warn("[Supabase] " + mode + " failed: " + e.message); process.exit(1); });
 }
-module.exports = { enabled: ENABLED, restoreOnBootSync, start, syncOnce, pushAll, restore };
+module.exports = {
+    enabled: ENABLED, restoreOnBootSync, start, syncOnce, pushAll, restore,
+    // Regression-test metadata. Runtime callers should use the methods above.
+    _test: { isMirrored, isFast: (name) => FAST.has(name), dataDir: DATA_DIR, table: TABLE }
+};
