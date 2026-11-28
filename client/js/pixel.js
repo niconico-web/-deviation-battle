@@ -60,7 +60,9 @@
     function weapon(type, color, scale, mythic, custom) {
         if (custom && custom.rows) {      // 自分で描いたドット絵（オリジナル武器）
             const f = custom.s > 1 ? custom.s : 1;
-            if (f === 1) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = custom.grip * scale; return sc; }
+            const gripY = (custom.gripY !== undefined ? custom.gripY : custom.grip) * scale;
+            const gripX = (custom.gripX !== undefined ? custom.gripX : (custom.w / 2)) * scale;
+            if (f === 1) { const sc = get('wc:' + custom.key, custom.rows, custom.pal, scale); sc.grip = gripY; sc.gripX = gripX; return sc; }
             // 細かい絵（f倍）：1マス1ピクセルで焼いておき、表示のときに 1/f の大きさにたたむ（大きさは従来の絵と同じになる）
             const base = get('wc:' + custom.key, custom.rows, custom.pal, 2), wk = 'wcs:' + custom.key + '|' + scale;
             const sw = Math.max(1, Math.round(base.w * scale / f)), sh = Math.max(1, Math.round(base.h * scale / f));
@@ -70,7 +72,7 @@
             const cv = document.createElement('canvas'); cv.width = sw; cv.height = sh;
             const g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
             g.drawImage(base.c, 0, 0, sw, sh);
-            return CACHE[wk] = { c: cv, w: sw, h: sh, cols: base.cols, rows: base.rows, grip: custom.grip * scale / f };
+            return CACHE[wk] = { c: cv, w: sw, h: sh, cols: base.cols, rows: base.rows, grip: gripY / f, gripX: gripX / f };
         }
         const M = mythic && D.MYTHIC_WEAPONS && D.MYTHIC_WEAPONS[mythic];      // 神話の武器は、専用のドット絵
         if (M) { const sm = get('wm:' + mythic + ':' + color, M.rows, palWeapon(color), scale); sm.grip = M.grip * scale; sm.orbiters = M.orbiters | 0; return sm; }
@@ -109,7 +111,8 @@
         ctx.translate(Math.round(x + ox), Math.round(y + oy)); ctx.rotate(rot);
         const szm = o.size > 0 ? o.size : 1; if (szm !== 1) ctx.scale(szm, szm);      // オリジナル武器の大きさ（持ち手を中心に拡大・縮小）
         if (sp.c.width !== sp.w) ctx.imageSmoothingEnabled = true;      // 細かい絵をたたんで表示するときは、なめらかに縮める
-        ctx.drawImage(sp.c, -Math.round(sp.w / 2), -sp.grip, sp.w, sp.h);
+        const gripXOffset = sp.gripX !== undefined ? (sp.gripX - sp.w / 2) : 0;
+        ctx.drawImage(sp.c, -Math.round(sp.w / 2) + gripXOffset, -sp.grip, sp.w, sp.h);
         if (sp.orbiters) {      // 薙刀オルビット：刃のまわりを、光の玉が回る
             const tt = (o.now || performance.now()) / 1000, cy = -Math.round(sp.grip * 0.62);
             for (let i = 0; i < sp.orbiters; i++) { const an = tt * 2.6 + i * Math.PI * 2 / sp.orbiters, ox = Math.round(Math.cos(an) * 21 / 2) * 2, oy = cy + Math.round(Math.sin(an) * 9 / 2) * 2, front = Math.sin(an) > 0;
@@ -133,9 +136,9 @@
         if (o.alpha != null) ctx.globalAlpha = ga;
     }
 
-    // 自分で描いたドット絵（{rows, pal, grip}）を、描画用に整える。key は絵の中身から決まる（同じ絵なら同じ key）
+    // 自分で描いたドット絵（{rows, pal, gripY, gripX}）を、描画用に整える。key は絵の中身から決まる（同じ絵なら同じ key）
     function customKey(px) { const t = px.rows.join('|') + JSON.stringify(px.pal) + (px.s === 4 ? '|s4' : ''); let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(36); }
-    function prepCustom(px) { return px && px.rows ? { rows: px.rows, pal: px.pal, grip: px.grip | 0, s: (px.s | 0) === 4 ? 4 : 1, key: customKey(px) } : null; }
+    function prepCustom(px) { return px && px.rows ? { rows: px.rows, pal: px.pal, grip: (px.gripY !== undefined ? px.gripY : px.grip) | 0, gripX: (px.gripX !== undefined ? px.gripX : (px.w / 2)) | 0, s: (px.s | 0) === 4 ? 4 : 1, key: customKey(px) } : null; }
     // 弾の絵（16×16まで）：1マス1ピクセルで焼いて使い回し、飛ぶ向きに回して描く（絵の「右」が進行方向になる）
     function prepTex(px) { return px && px.rows ? get('tx:' + customKey(px), px.rows, px.pal, 1) : null; }
     function drawTex(ctx, sp, x, y, ang, scale) {

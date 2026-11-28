@@ -1022,8 +1022,9 @@
         for (let i = 0; i < PIX_CHARS.length; i++) { const ch = PIX_CHARS[i], c = cleanColor(px.pal[ch]); if (c) pal[ch] = c; }
         const out = rows.map(r => { let o = ''; for (let i = 0; i < w; i++) { const ch = r[i] || '.'; if (ch !== '.' && pal[ch]) { o += ch; used++; } else o += '.'; } return o; });
         if (!used) return null;
-        const grip = Math.max(0, Math.min(h - 1, px.grip | 0));
-        return { w: w, h: h, rows: out, pal: pal, grip: grip, s: (px.s | 0) === 4 ? 4 : 1 };      // s=4：従来の1/4の大きさのマスで描いた絵（縦横4倍の細かさ）
+        const gripY = Math.max(0, Math.min(h - 1, (px.gripY || px.grip) | 0));
+        const gripX = Math.max(0, Math.min(w - 1, (px.gripX !== undefined ? px.gripX : Math.floor(w / 2)) | 0));
+        return { w: w, h: h, rows: out, pal: pal, gripY: gripY, gripX: gripX, s: (px.s | 0) === 4 ? 4 : 1 };      // s=4：従来の1/4の大きさのマスで描いた絵（縦横4倍の細かさ）
     }
     // ---- 成長 ----
     const GROW_CAP = { normal: 20, magic: 60, rare: 150, epic: 400, legendary: 1000, mythic: 3000 };      // そのレア度で、成長が頭打ちになる経験値

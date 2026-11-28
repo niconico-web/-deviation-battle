@@ -103,7 +103,7 @@
     function pixelEditor(box, init, type) {
         // 解像度：1マスは従来の 1/4 の大きさ（縦横4倍・64×96）。昔の絵（16×24）は4倍に拡大して読み込む
         const F = 4, W = 16 * F, H = 24 * F, CH = HW.PIX_CHARS, HEXC = /^#[0-9a-fA-F]{6}$/;
-        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, grip: 20 * F, undo: [], fx: (init && init.fxColor) || '#ff5a3a', brush: 1, zoom: 1, size: (init && HW.cleanSize) ? HW.cleanSize(init.size || 1) : 1 };
+        const st = { grid: [], pal: PALETTE0.slice(), cur: 8, tool: 'pen', mirror: true, gripY: 20 * F, gripX: W / 2, undo: [], fx: (init && init.fxColor) || '#ff5a3a', brush: 1, zoom: 1, size: (init && HW.cleanSize) ? HW.cleanSize(init.size || 1) : 1 };
         const blank = () => { const g = []; for (let y = 0; y < H; y++) g.push(new Array(W).fill(-1)); return g; };
         st.grid = blank();
         function loadPix(px) {      // 保存された絵（rows / pal / grip / s）を読み込む
@@ -113,7 +113,9 @@
             CH.split('').forEach((ch, i) => { if (c.pal[ch]) { st.pal[i] = c.pal[ch]; idx[ch] = i; } });
             st.grid = blank();
             for (let y = 0; y < c.rows.length; y++) { const r = c.rows[y]; for (let x = 0; x < r.length; x++) { const ch = r[x]; if (ch === '.' || idx[ch] == null) continue; for (let dy = 0; dy < k; dy++) for (let dx = 0; dx < k; dx++) { const gx = x * k + dx, gy = y * k + dy; if (gx < W && gy < H) st.grid[gy][gx] = idx[ch]; } } }
-            st.grip = Math.min(H - 1, c.grip * k); return true;
+            st.gripY = Math.min(H - 1, (c.grip || c.gripY || 20) * k);
+            st.gripX = Math.min(W - 1, (c.gripX || W / 2 / k) * k);
+            return true;
         }
         function loadTemplate(t) {      // 武器種の標準の絵を、下書きとして読み込む（4倍に拡大）
             const D = global.SBPIX_DATA, W0 = D && D.WEAPONS && (D.WEAPONS[t] || D.WEAPONS.default); if (!W0) return;
@@ -122,7 +124,8 @@
             const w0 = Math.max.apply(null, W0.rows.map(r => r.length)), ox = Math.floor((W - w0 * F) / 2), oy = Math.max(0, H - W0.rows.length * F - F);
             st.grid = blank();
             W0.rows.forEach((r, ry) => { for (let rx = 0; rx < r.length; rx++) { const ch = r[rx]; if (ch === '.' || ch === ' ' || map[ch] == null) continue; for (let dy = 0; dy < F; dy++) for (let dx = 0; dx < F; dx++) { const x = rx * F + dx + ox, y = ry * F + dy + oy; if (x >= 0 && x < W && y >= 0 && y < H) st.grid[y][x] = map[ch]; } } });
-            st.grip = Math.min(H - 1, ((W0.grip | 0) * F) + oy);
+            st.gripY = Math.min(H - 1, ((W0.grip | 0) * F) + oy);
+            st.gripX = W / 2;
         }
         if (!(init && init.pix && loadPix(init.pix))) loadTemplate(type || 'sword');
         const baseCell = Math.max(4, Math.min(8, Math.floor((Math.min(global.innerWidth || 360, 420) - 56) / W)));
@@ -135,7 +138,9 @@
             '<div style="margin:5px 0"><input type="color" id="pxeCol" value="#ffffff" style="width:44px;height:30px;padding:0;border:1px solid #3a4666;background:#fff;vertical-align:middle"> <span style="font-size:.78rem;color:#9fb3d9">選んだ色を変える</span></div>' +
             '<div id="pxeTools" style="display:flex;flex-wrap:wrap;gap:3px"></div>' +
             '<div style="margin:6px 0;font-size:.8rem"><label><input type="checkbox" id="pxeMir" checked> 左右対称に描く</label></div>' +
-            '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）<input type="range" id="pxeGrip" min="0" max="' + (H - 1) + '" value="' + st.grip + '" style="width:100%"></div>' +
+            '<div style="font-size:.8rem;color:#9fb3d9">持ち手の位置（赤い線。ここを持って振ります）</div>' +
+            '<div style="font-size:.78rem;color:#9fb3d9">縦位置<input type="range" id="pxeGripY" min="0" max="' + (H - 1) + '" value="' + st.gripY + '" style="width:100%"></div>' +
+            '<div style="font-size:.78rem;color:#9fb3d9">横位置<input type="range" id="pxeGripX" min="0" max="' + (W - 1) + '" value="' + st.gripX + '" style="width:100%"></div>' +
             '<div style="margin-top:6px"><button type="button" class="sbl-btn gray" id="pxeUndo" style="padding:5px 10px">↩ 戻す</button><button type="button" class="sbl-btn gray" id="pxeClear" style="padding:5px 10px">全消し</button><button type="button" class="sbl-btn gray" id="pxeTpl" style="padding:5px 10px">下書き（武器種）</button></div><div id="pxeImg"></div>' +
             '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">攻撃エフェクトの色</div><div id="pxeFx" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center"></div>' +
             '<div style="margin-top:8px;font-size:.8rem;color:#9fb3d9">武器の大きさ <b id="pxeSzv" style="color:#ffd84a"></b>（持ち手を中心に、見た目が大きく／小さくなります）<input type="range" id="pxeSz" min="' + HW.SIZE_MIN + '" max="' + HW.SIZE_MAX + '" step="0.05" value="' + st.size + '" style="width:100%"></div>' +
@@ -146,7 +151,7 @@
         function toPix() {
             const rows = st.grid.map(r => r.map(i => i < 0 ? '.' : CH[i]).join(''));
             const pal = {}; CH.split('').forEach((ch, i) => { pal[ch] = HEXC.test(st.pal[i]) ? st.pal[i].toLowerCase() : '#ffffff'; });      // 色は必ず #rrggbb で保存する
-            return HW.cleanPix({ rows: rows, pal: pal, grip: st.grip, s: F });
+            return HW.cleanPix({ rows: rows, pal: pal, gripY: st.gripY, gripX: st.gripX, s: F });
         }
         function drawPreview() {
             pg.clearRect(0, 0, pv.width, pv.height);
@@ -163,7 +168,8 @@
             g.fillStyle = '#1b2030'; for (let y = 0; y < H / F; y++) for (let x = 0; x < W / F; x++) if ((x + y) % 2) g.fillRect(x * q, y * q, q, q);
             for (let y = 0; y < H; y++) { const row = st.grid[y]; for (let x = 0; x < W; x++) { const i = row[x]; if (i >= 0) { g.fillStyle = st.pal[i]; g.fillRect(x * cell, y * cell, cell, cell); } } }
             if (cell >= 6) { g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1; g.beginPath(); for (let x = 0; x <= W; x++) { g.moveTo(x * cell + .5, 0); g.lineTo(x * cell + .5, H * cell); } for (let y = 0; y <= H; y++) { g.moveTo(0, y * cell + .5); g.lineTo(W * cell, y * cell + .5); } g.stroke(); }
-            g.strokeStyle = '#ff4a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, st.grip * cell + cell / 2); g.lineTo(W * cell, st.grip * cell + cell / 2); g.stroke();
+            g.strokeStyle = '#ff4a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, st.gripY * cell + cell / 2); g.lineTo(W * cell, st.gripY * cell + cell / 2); g.stroke();
+            g.strokeStyle = '#ff4a5a'; g.lineWidth = 2; g.beginPath(); g.moveTo(st.gripX * cell + cell / 2, 0); g.lineTo(st.gripX * cell + cell / 2, H * cell); g.stroke();
             if (st.mirror) { g.strokeStyle = 'rgba(120,200,255,.35)'; g.beginPath(); g.moveTo(W * cell / 2, 0); g.lineTo(W * cell / 2, H * cell); g.stroke(); }
             drawPreview();
         }
@@ -240,7 +246,8 @@
         const colEl = box.querySelector('#pxeCol');
         colEl.addEventListener('input', e => setColor(e.target.value)); colEl.addEventListener('change', e => setColor(e.target.value));
         box.querySelector('#pxeMir').addEventListener('change', e => { st.mirror = e.target.checked; render(); });
-        box.querySelector('#pxeGrip').addEventListener('input', e => { st.grip = +e.target.value; render(); });
+        box.querySelector('#pxeGripY').addEventListener('input', e => { st.gripY = +e.target.value; render(); });
+        box.querySelector('#pxeGripX').addEventListener('input', e => { st.gripX = +e.target.value; render(); });
         const szUi = () => { box.querySelector('#pxeSzv').textContent = '×' + st.size.toFixed(2); };
         box.querySelector('#pxeSz').addEventListener('input', e => { st.size = HW.cleanSize(e.target.value); szUi(); drawPreview(); }); szUi();
         box.querySelector('#pxeBr').addEventListener('change', e => { st.brush = +e.target.value || 1; });
@@ -248,7 +255,7 @@
         box.querySelector('#pxeZm').addEventListener('click', () => { st.zoom = Math.max(1, st.zoom - 1); sizeCv(); render(); });
         box.querySelector('#pxeUndo').addEventListener('click', () => { const t = st.undo.pop(); if (t) { st.grid = JSON.parse(t); render(); } });
         box.querySelector('#pxeClear').addEventListener('click', () => { snap(); st.grid = blank(); render(); });
-        box.querySelector('#pxeTpl').addEventListener('click', () => { if (!confirm('いまの絵を消して、武器種の標準の絵を下書きとして読み込みます。よろしいですか？')) return; snap(); loadTemplate(type || 'sword'); box.querySelector('#pxeGrip').value = st.grip; palUi(); render(); });
+        box.querySelector('#pxeTpl').addEventListener('click', () => { if (!confirm('いまの絵を消して、武器種の標準の絵を下書きとして読み込みます。よろしいですか？')) return; snap(); loadTemplate(type || 'sword'); box.querySelector('#pxeGripY').value = st.gripY; box.querySelector('#pxeGripX').value = st.gripX; palUi(); render(); });
         imageImport(box.querySelector('#pxeImg'), W, H, CH.length, r => {      // 画像から：いまの絵を置きかえる（「戻す」で元に戻せる）
             snap(); st.grid = r.grid; st.pal = PALETTE0.slice(); r.pal.forEach((c, i) => { st.pal[i] = c; }); st.cur = 0; palUi(); render();
         }, '武器の先が上、持ち手が下になる向きで読み込まれます（向きは下で回せます）。赤い線の「持ち手の位置」も合わせてください。');
