@@ -1,4 +1,5 @@
 const PlayerDataManager = require('../managers/PlayerDataManager');
+const Ban = require('../managers/BanManager');
 
 // 戦力スコアの重み付け
 // ・勉強時間: 1分あたり 1pt
@@ -32,10 +33,12 @@ function calculatePowerScore(player) {
  */
 // 全員分の集計＋並べ替えは重いので、15秒以内の要求には同じ結果を使い回す（ランキングは多少遅れても支障がない）
 const RANKING_TTL_MS = 15000;
-let rankingCache = null, rankingCacheAt = 0;
+let rankingCache = null, rankingCacheAt = 0, rankingBanVer = -1;
 
 function getPowerRanking() {
-    if (rankingCache && Date.now() - rankingCacheAt < RANKING_TTL_MS) return rankingCache;
+    // BANが増減したときは、キャッシュを待たずにすぐ作り直す
+    if (rankingCache && rankingBanVer === Ban.version() && Date.now() - rankingCacheAt < RANKING_TTL_MS) return rankingCache;
+    rankingBanVer = Ban.version();
     rankingCache = computePowerRanking();
     rankingCacheAt = Date.now();
     return rankingCache;
@@ -45,7 +48,7 @@ function computePowerRanking() {
     const players = PlayerDataManager.getAllPlayers();
 
     return players
-        .filter(p => p && p.id && p.name)
+        .filter(p => p && p.id && p.name && !Ban.isBanned(p.id))      // BANされたプレイヤーはランキングに出さない
         .map(p => {
             const breakdown = calculatePowerScore(p);
             return {

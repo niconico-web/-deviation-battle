@@ -37,71 +37,65 @@ let socketHandlersSetup = false;
 let matchmakingTimeout = null;
 let pendingRandomMatchPlayer = null;
 
-// 勉強タイマーの状態をスリープ時にも保持するための処理
+// 勉強タイマーの状態を保存して、サイトを閉じても・スリープしても・他のアプリで遊んでいても、時間が止まらない/戻らないようにする
+//  【方式】「開始した時刻(startedAt)」と「指定時間(duration)」だけを保存し、残り時間は いつでも 現在時刻 - startedAt で計算する。
+//          （以前は「最後に保存した時点の経過秒＋空白時間」を足す方式で、保存が途切れる（強制終了など）と、時間が巻き戻ったりリセットされて見えた）
+//  終了時刻をすぎていれば、戻ってきた時点で自動的に終了して報酬を受け取る（報酬は指定時間が上限）。
 const STUDY_TIMER_STORAGE_KEY = 'studyTimerState';
 
 function saveStudyTimerState() {
-    if (studyStartTime !== null) {
-        const elapsed = studyElapsedBefore + Math.floor((Date.now() - studyStartTime) / 1000);
+    if (studyStartTime === null) return;
+    try {
         const state = {
-            elapsed: elapsed,
+            startedAt: studyStartTime - studyElapsedBefore * 1000,      // 開始した時刻（絶対時刻）
             duration: studyDurationSec,
             subject: document.getElementById("studyFocus")?.value || 'jp',
             timestamp: Date.now()
         };
         localStorage.setItem(STUDY_TIMER_STORAGE_KEY, JSON.stringify(state));
-        console.log('Study timer state saved:', state);
-    }
+    } catch (e) { /* 容量不足などは無視（次の保存でやり直す） */ }
 }
 
 function loadStudyTimerState() {
-    const savedState = localStorage.getItem(STUDY_TIMER_STORAGE_KEY);
-    if (savedState) {
-        try {
-            const state = JSON.parse(savedState);
-            // 最後の保存から24時間以内ならタイマーを復元（長時間の勉強に対応）
-            if (Date.now() - state.timestamp < 86400000) {
-                console.log('Study timer state loaded:', state);
-                return state;
-            } else {
-                console.log('Study timer state too old, clearing');
-                localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
-            }
-        } catch (e) {
-            console.error('Failed to load study timer state:', e);
-            localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
-        }
+    let raw = null;
+    try { raw = localStorage.getItem(STUDY_TIMER_STORAGE_KEY); } catch (e) { return null; }
+    if (!raw) return null;
+    try {
+        const st = JSON.parse(raw);
+        const duration = Math.min(STUDY_MAX_SECONDS, Math.max(1, Math.floor(+st.duration || 0)));
+        // 旧形式（elapsed＋timestamp）で保存されたものも読めるようにする
+        let startedAt = +st.startedAt;
+        if (!(startedAt > 0)) startedAt = (+st.timestamp || 0) - (Math.max(0, +st.elapsed || 0)) * 1000;
+        if (!(startedAt > 0) || startedAt > Date.now() + 60000) { localStorage.removeItem(STUDY_TIMER_STORAGE_KEY); return null; }      // 壊れた値／未来の時刻
+        if (Date.now() - (startedAt + duration * 1000) > 86400000) { localStorage.removeItem(STUDY_TIMER_STORAGE_KEY); return null; }      // 終了から24時間以上たっている
+        return { startedAt: startedAt, duration: duration, subject: st.subject || 'jp' };
+    } catch (e) {
+        try { localStorage.removeItem(STUDY_TIMER_STORAGE_KEY); } catch (e2) { /* 無視 */ }
+        return null;
     }
-    return null;
 }
 
 function clearStudyTimerState() {
-    localStorage.removeItem(STUDY_TIMER_STORAGE_KEY);
+    try { localStorage.removeItem(STUDY_TIMER_STORAGE_KEY); } catch (e) { /* 無視 */ }
 }
 
-// 保存されたタイマー状態を実際に画面へ復元する共通処理
-// (アプリが完全に終了→再起動された「フレッシュな読み込み」でも、
-//  visibilitychange しか呼ばれていなかった旧実装では復元されず、
-//  進捗がリセットされて見えていた。DOMContentLoaded からも必ず呼ぶ)
+// 保存されたタイマー状態を実際に画面へ復元する共通処理。
+// 何度呼んでもよい（動作中なら何もしない）。DOM準備完了・ページ表示・再表示のどこからでも呼ぶ
 function restoreStudyTimerState() {
     if (studyStartTime !== null) return; // 既に動作中なら何もしない
     const studyStartBtn = document.getElementById("studyStart");
-    if (!studyStartBtn) return; // まだDOMが無ければ何もしない
+    if (!studyStartBtn) return; // まだDOMが無ければ何もしない（あとの入口から再度呼ばれる）
 
-    const savedState = loadStudyTimerState();
-    if (!savedState) return;
+    const saved = loadStudyTimerState();
+    if (!saved) return;
 
     const subjectSelect = document.getElementById("studyFocus");
-    if (subjectSelect) {
-        subjectSelect.value = savedState.subject;
-    }
-    // 中断中に経過した時間を加算して新しい開始時間を設定
-    const gapElapsed = Math.floor((Date.now() - savedState.timestamp) / 1000);
-    studyElapsedBefore = savedState.elapsed + Math.max(0, gapElapsed);
-    studyDurationSec = Math.min(STUDY_MAX_SECONDS, savedState.duration || studyDurationSec);
+    if (subjectSelect) subjectSelect.value = saved.subject;
+    studyDurationSec = saved.duration;
     const durSel = document.getElementById("studyDuration");
     if (durSel) { durSel.value = String(Math.round(studyDurationSec / 60)); durSel.disabled = true; }
-    studyStartTime = Date.now(); // 現在時刻から再開
+    studyStartTime = saved.startedAt;      // 開始した時刻そのものに戻す（経過時間は現在時刻との差で出る）
+    studyElapsedBefore = 0;
 
     studyStartBtn.disabled = true;
     const studyStopBtn = document.getElementById("studyStop");
@@ -111,9 +105,19 @@ function restoreStudyTimerState() {
 
     if (studyTimerInterval) clearInterval(studyTimerInterval);
     studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
-    updateStudyTimerDisplay();
-    console.log('Study timer restored. Gap elapsed:', gapElapsed, 'Total elapsed:', studyElapsedBefore);
+    updateStudyTimerDisplay();      // 終了時刻をすぎていれば、ここで自動終了して報酬を受け取る
+    if (studyStartTime !== null && window.SBPush && window.SBPush.scheduleStudy) {      // サーバーの通知予約も念のため入れ直す（再起動などで消えていても復活する）
+        try { window.SBPush.scheduleStudy(studyStartTime + studyDurationSec * 1000); } catch (e) { /* 無視 */ }
+    }
 }
+// 入口を増やす：読み込み直後（DOMが準備できていれば）・DOMContentLoaded・load・pageshow（戻る/復帰）のどれでも復元を試みる
+(function () {
+    const tryRestore = () => { try { restoreStudyTimerState(); } catch (e) { console.warn('study timer restore failed:', e); } };
+    if (document.readyState !== 'loading') setTimeout(tryRestore, 0);
+    document.addEventListener('DOMContentLoaded', () => setTimeout(tryRestore, 0));
+    window.addEventListener('load', () => setTimeout(tryRestore, 0));
+    window.addEventListener('pageshow', () => setTimeout(tryRestore, 0));
+})();
 
 // Page Visibility API - スリープ/復帰検出
 document.addEventListener('visibilitychange', () => {
@@ -131,8 +135,9 @@ document.addEventListener('visibilitychange', () => {
             checkAndGrantLoginBonus();
         }
 
-        // ページが再表示されたらタイマー状態を復元（動作中でなければ）
+        // ページが再表示されたらタイマー状態を復元（動作中でなければ）。動作中なら表示をすぐ更新（終了時刻をすぎていれば自動終了）
         restoreStudyTimerState();
+        if (studyStartTime !== null) updateStudyTimerDisplay();
     }
 });
 
@@ -649,6 +654,8 @@ function startStudy() {
     document.getElementById("studyStop").disabled = false;
     document.getElementById("studyFocus").disabled = true;
     studyTimerInterval = setInterval(updateStudyTimerDisplay, 1000);
+    saveStudyTimerState();      // 開始した瞬間に保存する（すぐ閉じても、時間が残る）
+    if (window.SBPush && window.SBPush.scheduleStudy) { try { window.SBPush.scheduleStudy(studyStartTime + studyDurationSec * 1000); } catch (e) { /* 通知が使えない端末では何もしない */ } }      // サイトを閉じていても、終わる時刻に通知が届くようサーバーへ予約
     updateStudyTimerDisplay();
 }
 
@@ -664,6 +671,7 @@ function stopStudy() {
     
     // 保存されたタイマー状態をクリア
     clearStudyTimerState();
+    if (window.SBPush && window.SBPush.cancelStudy) { try { window.SBPush.cancelStudy(); } catch (e) { /* 無視 */ } }      // サーバーの通知予約も取り消す（開いたまま終わったときの二重通知を防ぐ）
     
     // ボタンの状態を確実に更新
     const studyStartBtn = document.getElementById("studyStart");
@@ -686,6 +694,7 @@ function cancelStudyTimer() {
     studyStartTime = null;
     studyElapsedBefore = 0;
     clearStudyTimerState();
+    if (window.SBPush && window.SBPush.cancelStudy) { try { window.SBPush.cancelStudy(); } catch (e) { /* 無視 */ } }
     const b1 = document.getElementById("studyStart"), b2 = document.getElementById("studyStop"), b3 = document.getElementById("studyFocus"), b4 = document.getElementById("studyDuration");
     if (b1) b1.disabled = false;
     if (b2) b2.disabled = true;

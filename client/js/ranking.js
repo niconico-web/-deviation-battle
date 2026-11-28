@@ -25,7 +25,7 @@ function setupRankingEventListeners() {
             
             // タイムアウト設定（10秒）
             setTimeout(() => {
-                if (container.innerHTML.includes('読み込み中')) {
+                if (container && container.innerHTML.includes('読み込み中')) {
                     container.innerHTML = '<p>ランキングの取得に失敗しました。再度お試しください。</p>';
                 }
             }, 10000);

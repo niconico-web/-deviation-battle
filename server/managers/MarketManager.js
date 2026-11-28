@@ -184,6 +184,10 @@ function list(m) {
     });
 }
 
+let Ban = null;
+try { Ban = require("./BanManager"); } catch (e) { /* BAN機能が無くても動く */ }
+const sellerBanned = (l) => { try { return !!(Ban && Ban.isBanned(l.sellerId)); } catch (e) { return false; } };      // BANされた出品者の出品は、市場に出さない（解除されれば元に戻る）
+
 let ContentFilter = null;
 try { ContentFilter = require("./ContentFilter"); } catch (e) { /* フィルター無しでも動く */ }
 function titleAllowed(text) {
@@ -228,7 +232,7 @@ function browse(m) {
     const kind = KINDS.includes(m.kind) ? m.kind : null;
     const rarity = m.rarity ? String(m.rarity) : null;
     const myWorld = worldOf(viewer || "");
-    let rows = Object.values(db.listings).filter(l => (l.status === "active" || l.status === "reserved") && worldOfListing(l) === myWorld);
+    let rows = Object.values(db.listings).filter(l => (l.status === "active" || l.status === "reserved") && worldOfListing(l) === myWorld && !sellerBanned(l));
     if (kind) rows = rows.filter(l => l.items.some(i => i.kind === kind));
     if (rarity) rows = rows.filter(l => l.items.some(i => (i.kind === "orb" ? i.data.tier : i.data.rarity) === rarity));
     if (q) rows = rows.filter(l => l.title.toLowerCase().indexOf(q) !== -1 || l.items.some(i => itemName(i).toLowerCase().indexOf(q) !== -1));
@@ -252,7 +256,7 @@ function reserve(m) {
     if (!isPid(m.playerId)) return fail("invalid");
     const buyerId = PID(m.playerId);
     const l = db.listings[m.listingId];
-    if (!l) return fail("gone");                                       // 売り切れ／取り下げ
+    if (!l || sellerBanned(l)) return fail("gone");                    // 売り切れ／取り下げ（BANされた出品者の出品も買えない）
     if (l.sellerId === buyerId) return fail("own");
     if (worldOfListing(l) !== worldOf(buyerId)) return fail("other_world");     // 別の世界（シーズン／スタンダード）の出品は買えない
     if (l.status === "reserved") {

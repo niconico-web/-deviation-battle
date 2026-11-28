@@ -12,6 +12,8 @@ try { app.use(require("compression")()); } catch (e) { console.warn("[server] co
 app.use(express.json());
 // シーズンの週・解放の判定に使�?サーバ�?�時刻?��端末の時計を�?じっても早まらな�?ように?�?
 app.get("/api/time", (req, res) => { res.set("Cache-Control", "no-store"); res.json({ now: Date.now() }); });
+// Web Push（サイトを閉じていても届く通知）。勉強終了・緊急ステージの通知。詳細は managers/PushManager.js
+try { require("./managers/PushManager").init(app); } catch (e) { console.warn("[server] PushManager を読み込めませんでした（通知は無効）:", e.message); }
 const server = http.createServer(app);
 const io = new Server(server, {
     maxHttpBufferSize: 20 * 1024 * 1024,   // 引き継ぎ�?ータ?��武器庫など?���?�1MBを�?えることがある。既定�?�1MB�?と、保存しようとした瞬間に接続が�?れて�?�?
@@ -111,6 +113,7 @@ function getContentType(filePath) {
     return "text/plain";
 }
 
+require("./socket/admin")(io);      // 最初に登録：BANされたプレイヤーの通信を止める／管理者の操作
 require("./socket/connection")(io);
 require("./socket/matchmaking")(io);
 require("./socket/battle")(io);

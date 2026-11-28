@@ -17,6 +17,18 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
+      # 管理者機能（プレイヤーのBAN）の合言葉。8文字以上の、推測されにくい文字列にする。未設定だと管理者機能は無効。画面の「🛡 管理者」から入力する
+      - key: ADMIN_KEY
+        sync: false
+      # Web Push（サイトを閉じていても届く通知）。鍵は `npx web-push generate-vapid-keys` で作る。未設定でも自動生成されるが、
+      # 再起動で変わると端末ごとに再購読が必要になるので、環境変数に固定するのがおすすめ。PRIVATEは絶対に公開しないこと
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      # 無料プランで緊急ステージ通知を確実に送りたいときは 1 にする（サーバーが眠らないよう自分に定期アクセスする）
+      # - key: PUSH_KEEPALIVE
+      #   value: "1"
       # 任意：1人が1日にAIで作れる回数（既定30）・使うモデル（既定 claude-haiku-5-5）
       # - key: SKILL_AI_DAILY_LIMIT
       #   value: "30"

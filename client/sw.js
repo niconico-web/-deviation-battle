@@ -2,7 +2,7 @@
 
 // Keep installation lightweight. Large game modules are cached on first use,
 // rather than downloading the entire game before the service worker activates.
-const CACHE_NAME = 'school-battle-cache-v138';
+const CACHE_NAME = 'school-battle-cache-v139';
 const SHELL_ASSETS = ['/manifest.json', '/css/style.css'];
 
 self.addEventListener('install', (event) => {
@@ -65,6 +65,32 @@ self.addEventListener('fetch', (event) => {
         return cached;
       }
       return update.catch(() => Response.error());
+    })
+  );
+});
+
+// ---- Web Push：サイトを閉じていても届く通知（勉強終了・緊急ステージ）。送り元は server/managers/PushManager.js ----
+self.addEventListener('push', (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : '' }; }
+  const options = {
+    body: d.body || '',
+    tag: d.tag || undefined,
+    icon: '/images/icons/icon-192x192.png',
+    badge: '/images/icons/icon-192x192.png',
+    vibrate: [200, 100, 200],
+    data: { url: d.url || '/' }
+  };
+  event.waitUntil(self.registration.showNotification(d.title || 'SchoolBattle', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      return self.clients.openWindow ? self.clients.openWindow(url) : undefined;
     })
   );
 });
